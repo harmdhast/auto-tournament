@@ -156,6 +156,11 @@ export async function refreshConnectionsFromServer(
 }
 
 export async function fetchMatchReport(serverId: string): Promise<MatchReport | null> {
+  // A Ready Up server has no MatchZy report and no RCON password: its state
+  // comes over the fleet link. Trying RCON there gets the platform banned.
+  const { transportOf } = await import('../driver');
+  if ((await transportOf(serverId)) === 'fleet') return null;
+
   let lastError: unknown = null;
   let lastErrorDetails: Record<string, unknown> | null = null;
   let failed = false;
