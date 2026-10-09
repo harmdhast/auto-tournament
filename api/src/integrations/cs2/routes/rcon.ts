@@ -604,13 +604,11 @@ router.post('/restore-backup', async (req: Request, res: Response) => {
       // backup starts (1-based), and the server uses its own backup file.
       const position = await currentPosition(serverId);
       if (!position) {
-        return res
-          .status(409)
-          .json({
-            success: false,
-            transport: 'fleet',
-            error: 'No match is assigned to this server',
-          });
+        return res.status(409).json({
+          success: false,
+          transport: 'fleet',
+          error: 'No match is assigned to this server',
+        });
       }
       const outcome = await runFleetCommand(
         serverId,
