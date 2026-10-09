@@ -59,6 +59,7 @@ import type { FleetKey, FleetKeysResponse, FleetServer, FleetServersResponse } f
 import { insecureFlag, platformIsPlainHttp } from './insecureLink';
 import { ServerSection } from './ServerSection';
 import { AvailabilityChip, AvailabilityReason } from './fleet/readyup/AvailabilityChip';
+import { ResetServerButton } from './fleet/readyup/ResetServerButton';
 
 const POLL_MS = 10_000;
 
@@ -604,6 +605,9 @@ export default function FleetPanel({
                         </IconButton>
                       </Tooltip>
                     </>
+                  )}
+                  {server.status === 'enrolled' && (
+                    <ResetServerButton server={server} onDone={() => void load()} />
                   )}
                   <Tooltip title={t('fleetPanel.rename')}>
                     <IconButton

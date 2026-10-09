@@ -2173,6 +2173,15 @@
         "version": "Ready Up",
         "cs2": "Build CS2",
         "lastSeen": "Vu pour la dernière fois"
+      },
+      "reset": {
+        "action": "Réinitialiser",
+        "title": "Réinitialiser {{name}} ?",
+        "message": "Décharge ce qui tourne sur le serveur pour qu’il puisse prendre le match suivant.",
+        "messageMatch": "Le match {{slug}} est déchargé et clôturé. Le serveur peut ensuite prendre le match suivant.",
+        "done": "{{name}} réinitialisé",
+        "doneMatch": "{{name}} réinitialisé. Match {{slug}} clôturé.",
+        "failed": "Impossible de réinitialiser le serveur"
       }
     }
   },

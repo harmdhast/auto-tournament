@@ -1,5 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { setupTestContext } from '../helpers/setup';
+import { fleetServer, stubFleet } from '../helpers/fleetUi';
 
 /**
  * The Ready Up fleet section's Servers tab: each server says whether it takes
@@ -8,46 +9,6 @@ import { setupTestContext } from '../helpers/setup';
  * @tag ui
  * @tag fleet
  */
-
-export const fleetServer = (id: string, over: Record<string, unknown> = {}) => ({
-  id,
-  tenantId: 'default',
-  name: `ru-${id}`,
-  status: 'enrolled',
-  installId: `inst-${id}`,
-  enrolledVia: 'key',
-  enrollmentKeyId: null,
-  online: true,
-  availability: 'available',
-  availabilityReason: null,
-  availabilityDetail: null,
-  versions: { core: '0.1.0', plugin_api: '1.11', plugins: { fleet: '0.1.0' }, cs2_build: 14032 },
-  readyUpUpdate: { state: 'current', running: '0.1.0', latest: '0.1.0', releaseUrl: null },
-  capabilities: ['match.v1'],
-  host: { hostname: id, game_port: 27015 },
-  health: null,
-  protocol: 1,
-  connectedAt: 1,
-  lastSeen: 1,
-  createdAt: 1,
-  token: null,
-  rotateRequested: false,
-  codeExpiresAt: null,
-  linkedServerId: `cs2-${id}`,
-  connect: null,
-  ...over,
-});
-
-export async function stubFleet(page: Page, servers: unknown[]) {
-  await page.route(
-    (url) => url.pathname === '/api/fleet/servers',
-    (route) => route.fulfill({ json: { success: true, count: servers.length, servers } })
-  );
-  await page.route(
-    (url) => url.pathname === '/api/fleet/keys',
-    (route) => route.fulfill({ json: { success: true, keys: [] } })
-  );
-}
 
 test.describe('Ready Up fleet: servers tab', () => {
   test.beforeEach(async ({ page, request }) => {

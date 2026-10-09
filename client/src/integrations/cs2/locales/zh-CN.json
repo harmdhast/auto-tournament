@@ -2173,6 +2173,15 @@
         "version": "Ready Up",
         "cs2": "CS2 版本",
         "lastSeen": "最后在线"
+      },
+      "reset": {
+        "action": "重置",
+        "title": "重置 {{name}}？",
+        "message": "卸载服务器上的内容，使其可以承接下一场比赛。",
+        "messageMatch": "比赛 {{slug}} 将被卸载并结算，之后服务器可以承接下一场比赛。",
+        "done": "{{name}} 已重置",
+        "doneMatch": "{{name}} 已重置，比赛 {{slug}} 已结算。",
+        "failed": "无法重置服务器"
       }
     }
   },

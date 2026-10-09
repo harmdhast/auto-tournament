@@ -3,6 +3,7 @@ import { Box, Button, Typography } from '@mui/material';
 import { mono, useModuleTranslation } from '../../../../../module-sdk';
 import { Facts, SideSheet } from '../SideSheet';
 import { AvailabilityChip, AvailabilityReason } from './AvailabilityChip';
+import { ResetServerButton } from './ResetServerButton';
 import { useFleetServer } from './useFleetServer';
 
 export function FleetServerSheet({
@@ -13,7 +14,7 @@ export function FleetServerSheet({
   onClose: () => void;
 }) {
   const { t, i18n } = useModuleTranslation('cs2');
-  const { server, loaded, gone } = useFleetServer(serverId);
+  const { server, loaded, gone, reload } = useFleetServer(serverId);
   const when = (s: number | null) => (s ? new Date(s * 1000).toLocaleString(i18n.language) : '—');
 
   return (
@@ -43,9 +44,12 @@ export function FleetServerSheet({
             items={[
               [
                 t('serversBoard.readyUp.sheet.state'),
-                <Box key="state">
-                  <AvailabilityChip server={server} />
-                  <AvailabilityReason server={server} />
+                <Box key="state" sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <AvailabilityChip server={server} />
+                    <AvailabilityReason server={server} />
+                  </Box>
+                  <ResetServerButton server={server} onDone={() => void reload()} />
                 </Box>,
               ],
               !!server.connect && [

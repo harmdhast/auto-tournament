@@ -2173,6 +2173,15 @@
         "version": "Ready Up",
         "cs2": "CS2-bygg",
         "lastSeen": "Sist sett"
+      },
+      "reset": {
+        "action": "Tilbakestill",
+        "title": "Tilbakestille {{name}}?",
+        "message": "Laster ut det som er på serveren, så den kan ta neste kamp.",
+        "messageMatch": "Kamp {{slug}} lastes ut og avsluttes. Deretter kan serveren ta neste kamp.",
+        "done": "{{name}} tilbakestilt",
+        "doneMatch": "{{name}} tilbakestilt. Kamp {{slug}} avsluttet.",
+        "failed": "Kunne ikke tilbakestille serveren"
       }
     }
   },

@@ -2173,6 +2173,15 @@
         "version": "Ready Up",
         "cs2": "CS2-Build",
         "lastSeen": "Zuletzt gesehen"
+      },
+      "reset": {
+        "action": "Zurücksetzen",
+        "title": "{{name}} zurücksetzen?",
+        "message": "Entlädt alles auf dem Server, damit er das nächste Match übernehmen kann.",
+        "messageMatch": "Match {{slug}} wird entladen und abgeschlossen. Danach kann der Server das nächste Match übernehmen.",
+        "done": "{{name}} zurückgesetzt",
+        "doneMatch": "{{name}} zurückgesetzt. Match {{slug}} abgeschlossen.",
+        "failed": "Server konnte nicht zurückgesetzt werden"
       }
     }
   },

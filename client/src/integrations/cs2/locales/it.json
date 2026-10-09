@@ -2173,6 +2173,15 @@
         "version": "Ready Up",
         "cs2": "Build di CS2",
         "lastSeen": "Visto l’ultima volta"
+      },
+      "reset": {
+        "action": "Reimposta",
+        "title": "Reimpostare {{name}}?",
+        "message": "Scarica quello che c’è sul server, così può prendere la prossima partita.",
+        "messageMatch": "La partita {{slug}} viene scaricata e chiusa. Poi il server può prendere la prossima.",
+        "done": "{{name}} reimpostato",
+        "doneMatch": "{{name}} reimpostato. Partita {{slug}} chiusa.",
+        "failed": "Impossibile reimpostare il server"
       }
     }
   },
