@@ -1,0 +1,82 @@
+import { test, expect } from '@playwright/test';
+import { getAuthHeader, signInViaRequest } from '../helpers/auth';
+import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
+import { FakeReadyUp, acceptAssign, createMatch, link } from '../helpers/fleetFake';
+import { configureWebhook } from '../helpers/setup';
+
+/**
+ * What the RCON admin controls do on a Ready Up server: add round time is
+ * cmd add_time on the assigned match; skip veto has no Ready Up equivalent.
+ *
+ * @tag api
+ * @tag fleet
+ */
+
+test.describe.serial('Fleet: RCON parity', () => {
+  let key: { id: string; value: string };
+  const fakes: FakeReadyUp[] = [];
+  let fake: FakeReadyUp;
+  let cs2Id: string;
+  let slug: string;
+  let epoch: number;
+
+  test.beforeEach(async ({ request }) => {
+    expect(await signInViaRequest(request)).toBe(true);
+    await resetEnrollRateLimit(request);
+    if (!key) key = await createFleetKey(request, { name: 'fleet-parity-tests' });
+    expect(await configureWebhook(request, 'http://localhost:3069')).toBe(true);
+  });
+
+  test.afterAll(() => {
+    for (const f of fakes) f.close();
+  });
+
+  test('add-time on a Ready Up server is cmd add_time on the assigned match', async ({
+    request,
+  }) => {
+    fake = await FakeReadyUp.enroll(request, key.value);
+    fakes.push(fake);
+    await fake.hello({ availability: 'available' });
+    cs2Id = await link(request, fake.serverId);
+    slug = `parity-${Date.now()}`;
+    await createMatch(request, slug);
+    const assign = await acceptAssign(fake, slug);
+    epoch = assign.epoch as number;
+    fake.availability('busy', 'assigned');
+    const p = request.post('/api/rcon/add-time', {
+      headers: getAuthHeader(),
+      data: { serverId: cs2Id, seconds: 30 },
+    });
+    const cmd = await fake.next('cmd');
+    expect(cmd.payload).toMatchObject({
+      name: 'add_time',
+      args: { seconds: 30 },
+      match_id: slug,
+      epoch,
+    });
+    fake.answer(cmd, 'ok', { output: 'round_time=145' });
+    expect(await (await p).json()).toMatchObject({
+      success: true,
+      transport: 'fleet',
+      status: 'ok',
+    });
+  });
+
+  test('add-time refuses 0 and 601 seconds', async ({ request }) => {
+    for (const seconds of [0, 601, 'x']) {
+      const res = await request.post('/api/rcon/add-time', {
+        headers: getAuthHeader(),
+        data: { serverId: cs2Id, seconds },
+      });
+      expect(res.status()).toBe(400);
+    }
+  });
+
+  test('skip-veto stays 400 on Ready Up', async ({ request }) => {
+    const res = await request.post('/api/rcon/skip-veto', {
+      headers: getAuthHeader(),
+      data: { serverId: cs2Id },
+    });
+    expect(res.status()).toBe(400);
+  });
+});

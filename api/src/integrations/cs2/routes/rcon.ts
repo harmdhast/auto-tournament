@@ -712,14 +712,15 @@ router.post('/add-time', async (req: Request, res: Response) => {
   try {
     const { serverId, seconds } = req.body;
 
-    if (!serverId || !seconds) {
+    if (!serverId || !Number.isInteger(seconds) || seconds < 1 || seconds > 600) {
       return res.status(400).json({
         success: false,
-        error: 'serverId and seconds are required',
+        error: 'serverId and seconds (1 to 600) are required',
       });
     }
 
-    if (await answerUnsupportedOnFleet(res, serverId, 'Adding round time')) return res;
+    // Ready Up: cmd add_time on the assigned match (the current round runs longer).
+    if (await answerWithFleetCommand(req, res, serverId, 'add_time', { seconds })) return res;
     const result = await rconService.sendCommand(serverId, `mp_roundtime_defuse ${seconds / 60}`);
     const statusCode = result.success ? 200 : 400;
 
