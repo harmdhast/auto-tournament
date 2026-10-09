@@ -29,6 +29,8 @@ export interface Server {
   port: number;
   password: string;
   enabled: boolean;
+  /** How the platform drives it: RCON, or a Ready Up server over its fleet link. */
+  transport?: 'rcon' | 'fleet';
   /** False: a practice/community server that tournament matches never go to. */
   tournamentUse?: boolean;
   /** The platform's virtual skins go to this server. */

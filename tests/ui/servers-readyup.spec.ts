@@ -77,4 +77,32 @@ test.describe('Ready Up fleet: servers tab', () => {
     await expect(row('d').getByTestId('fleet-availability-d')).toHaveText('Busy');
     await expect(row('d').getByTestId('fleet-reason-d')).toHaveCount(0);
   });
+
+  test('servers not on a machine lists RCON servers only, and hides when there are none', async ({
+    page,
+  }) => {
+    const row = (id: string, transport: 'rcon' | 'fleet') => ({
+      id,
+      name: `srv-${id}`,
+      host: '10.0.0.1',
+      port: 27015,
+      enabled: true,
+      transport,
+      status: 'online',
+      lastSeen: Math.floor(Date.now() / 1000),
+    });
+    let servers = [row('rcon-1', 'rcon'), row('fleet-1', 'fleet')];
+    await page.route(
+      (url) => url.pathname === '/api/servers',
+      (route) => route.fulfill({ json: { success: true, servers } })
+    );
+    await page.goto('/manage/servers');
+    const other = page.getByTestId('servers-other');
+    await expect(other).toContainText('srv-rcon-1');
+    await expect(other).not.toContainText('srv-fleet-1');
+    servers = [row('fleet-1', 'fleet')];
+    await page.reload();
+    await expect(page.getByTestId('readyup-fleet')).toBeVisible();
+    await expect(page.getByTestId('servers-other')).toHaveCount(0);
+  });
 });
