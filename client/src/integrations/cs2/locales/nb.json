@@ -2157,6 +2157,13 @@
         "push": "Push",
         "autoscale": "Automatisk skalering",
         "failover": "Failover"
+      },
+      "availability": {
+        "free": "Ledig",
+        "busy": "Opptatt",
+        "spare": "Reserve",
+        "draining": "Tømmes",
+        "offline": "Frakoblet"
       }
     }
   },

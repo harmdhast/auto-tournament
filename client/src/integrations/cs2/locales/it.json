@@ -2157,6 +2157,13 @@
         "push": "Invio",
         "autoscale": "Scalabilità automatica",
         "failover": "Failover"
+      },
+      "availability": {
+        "free": "Libero",
+        "busy": "Occupato",
+        "spare": "Riserva",
+        "draining": "In svuotamento",
+        "offline": "Offline"
       }
     }
   },

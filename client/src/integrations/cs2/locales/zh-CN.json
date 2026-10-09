@@ -2157,6 +2157,13 @@
         "push": "推送",
         "autoscale": "自动扩缩",
         "failover": "故障转移"
+      },
+      "availability": {
+        "free": "空闲",
+        "busy": "忙碌",
+        "spare": "备用",
+        "draining": "正在排空",
+        "offline": "离线"
       }
     }
   },

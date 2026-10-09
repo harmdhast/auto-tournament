@@ -2157,6 +2157,13 @@
         "push": "Push",
         "autoscale": "Automatic scaling",
         "failover": "Failover"
+      },
+      "availability": {
+        "free": "Free",
+        "busy": "Busy",
+        "spare": "Spare",
+        "draining": "Draining",
+        "offline": "Offline"
       }
     }
   },

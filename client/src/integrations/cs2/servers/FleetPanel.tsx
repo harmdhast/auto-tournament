@@ -57,6 +57,7 @@ import {
 import type { FleetKey, FleetKeysResponse, FleetServer, FleetServersResponse } from '../cs2.types';
 import { insecureFlag, platformIsPlainHttp } from './insecureLink';
 import { ServerSection } from './ServerSection';
+import { AvailabilityChip, AvailabilityReason } from './fleet/readyup/AvailabilityChip';
 
 const POLL_MS = 10_000;
 
@@ -384,9 +385,13 @@ export default function FleetPanel({ part = 'all' }: { part?: FleetPanelPart } =
               >
                 <StatusDot state={statusDot(server)} />
                 <Box minWidth={0}>
-                  <Typography fontWeight={600} noWrap>
-                    {server.name}
-                  </Typography>
+                  <Stack direction="row" alignItems="center" gap={1} minWidth={0}>
+                    <Typography fontWeight={600} noWrap>
+                      {server.name}
+                    </Typography>
+                    {server.status === 'enrolled' && <AvailabilityChip server={server} />}
+                  </Stack>
+                  <AvailabilityReason server={server} />
                   {server.connect ? (
                     <Tooltip title={sourceLabel(server.connect)}>
                       <Typography

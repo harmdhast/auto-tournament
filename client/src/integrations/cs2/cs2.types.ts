@@ -456,6 +456,9 @@ export interface FleetServer {
   enrollmentKeyId: string | null;
   online: boolean;
   availability: string | null;
+  /** Why it takes no match (api fleet/busyReason.ts), and what that refers to. */
+  availabilityReason?: BusyReason | null;
+  availabilityDetail?: string | null;
   versions: {
     core: string;
     plugin_api: string;

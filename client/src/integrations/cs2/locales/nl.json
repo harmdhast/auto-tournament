@@ -2157,6 +2157,13 @@
         "push": "Push",
         "autoscale": "Automatisch schalen",
         "failover": "Failover"
+      },
+      "availability": {
+        "free": "Vrij",
+        "busy": "Bezet",
+        "spare": "Reserve",
+        "draining": "Wordt geleegd",
+        "offline": "Offline"
       }
     }
   },

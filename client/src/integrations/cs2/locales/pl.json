@@ -2197,6 +2197,13 @@
         "push": "Wysyłanie",
         "autoscale": "Automatyczne skalowanie",
         "failover": "Failover"
+      },
+      "availability": {
+        "free": "Wolny",
+        "busy": "Zajęty",
+        "spare": "Zapas",
+        "draining": "Opróżnianie",
+        "offline": "Offline"
       }
     }
   },
