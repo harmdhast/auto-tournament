@@ -118,6 +118,7 @@ export const CS2_FLEET_KEY_SKINS_MIGRATION_ID = '033-fleet-key-skins';
 export const CS2_MADE_WITH_MIGRATION_ID = '034-highlight-made-with';
 export const CS2_RECORDER_KEYS_MIGRATION_ID = '035-recorder-keys';
 export const CS2_RECORDER_FAULTS_MIGRATION_ID = '036-recorder-faults';
+export const CS2_FLEET_AVAILABILITY_REASON_MIGRATION_ID = '037-fleet-availability-reason';
 
 export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
   {
@@ -1324,6 +1325,15 @@ export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
     id: CS2_RECORDER_FAULTS_MIGRATION_ID,
     up: `
     ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS faults_in_row INTEGER NOT NULL DEFAULT 0;
+`,
+  },
+  {
+    // Why a Ready Up server is busy (fleet/busyReason.ts): the reason and its
+    // detail from hello, state.snapshot and server.availability.
+    id: CS2_FLEET_AVAILABILITY_REASON_MIGRATION_ID,
+    up: `
+    ALTER TABLE cs2_fleet_servers ADD COLUMN IF NOT EXISTS availability_reason TEXT;
+    ALTER TABLE cs2_fleet_servers ADD COLUMN IF NOT EXISTS availability_detail TEXT;
 `,
   },
 ];
