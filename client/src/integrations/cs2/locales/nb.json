@@ -2109,8 +2109,6 @@
       "state": "Status",
       "usage": "CPU · minne"
     },
-    "fleetSettings": "Flåteinnstillinger",
-    "fleetSettingsAbout": "Start og stopp servere automatisk, flåtekoblingen, hva som sendes til alle servere, og failover.",
     "health": "Serverhelse",
     "linkNone": "Ikke registrert ennå",
     "linkOffline": "Ikke koblet til",
@@ -2149,7 +2147,18 @@
       "warmup": "Oppvarming",
       "creating": "Lager…"
     },
-    "offlineFor": "Frakoblet i {{time}}"
+    "offlineFor": "Frakoblet i {{time}}",
+    "readyUp": {
+      "title": "Ready Up-flåte",
+      "about": "Servere som kobler til plattformen med Ready Up",
+      "tabs": {
+        "servers": "Servere",
+        "keys": "Nøkler og innrullering",
+        "push": "Push",
+        "autoscale": "Automatisk skalering",
+        "failover": "Failover"
+      }
+    }
   },
   "matchPage": {
     "reelLead": "Their plays in the order they happened. Pick a song in the player, then share or download it.",

@@ -4,7 +4,7 @@
  * "what is this" line and the section itself. Open or closed is remembered per
  * browser (localStorage), so an admin who works in one section keeps it open.
  */
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useState, type ReactNode } from 'react';
 import { Box, ButtonBase, Collapse, Stack, Typography } from '@mui/material';
 import { CaretDownIcon } from '@phosphor-icons/react';
 import { OPEN_EVENT } from './openServerSection';
@@ -26,6 +26,10 @@ export interface ServerSectionProps {
 
 const storageKey = (id: string) => `servers-section-${id}`;
 
+/** Inside a tab (the Ready Up fleet section): always open, no fold, the tab is the title. */
+const Embedded = createContext(false);
+export const EmbeddedServerSections = Embedded.Provider;
+
 function readOpen(id: string, fallback: boolean): boolean {
   try {
     const v = localStorage.getItem(storageKey(id));
@@ -45,6 +49,7 @@ export function ServerSection({
   children,
   ...rest
 }: ServerSectionProps) {
+  const embedded = useContext(Embedded);
   const [open, setOpen] = useState(() => readOpen(id, defaultOpen));
   const contentId = useId();
 
@@ -80,6 +85,27 @@ export function ServerSection({
       // Not remembered; fine.
     }
   };
+
+  if (embedded) {
+    return (
+      <Box component="section" id={id} data-testid={rest['data-testid']}>
+        {(summary || action) && (
+          <Stack direction="row" alignItems="center" gap={2} mb={2}>
+            <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 0 }} noWrap>
+              {summary}
+            </Typography>
+            {action && <Box sx={{ flex: 'none' }}>{action}</Box>}
+          </Stack>
+        )}
+        {about && (
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            {about}
+          </Typography>
+        )}
+        {children}
+      </Box>
+    );
+  }
 
   return (
     <Box

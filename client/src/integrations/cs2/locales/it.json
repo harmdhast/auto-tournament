@@ -2107,8 +2107,6 @@
       "state": "State",
       "usage": "CPU · memory"
     },
-    "fleetSettings": "Fleet settings",
-    "fleetSettingsAbout": "Starting and stopping servers on their own, the fleet link, what goes out to every server, and failover.",
     "health": "Server health",
     "linkNone": "Not enrolled yet",
     "linkOffline": "Not connected",
@@ -2149,7 +2147,18 @@
     "createN_other": "Create {{count}} servers",
     "restarts_one": "{{count}} restart in 24 h",
     "restarts_other": "{{count}} restarts in 24 h",
-    "offlineFor": "Offline for {{time}}"
+    "offlineFor": "Offline for {{time}}",
+    "readyUp": {
+      "title": "Flotta Ready Up",
+      "about": "Server che si collegano alla piattaforma con Ready Up",
+      "tabs": {
+        "servers": "Server",
+        "keys": "Chiavi e registrazione",
+        "push": "Invio",
+        "autoscale": "Scalabilità automatica",
+        "failover": "Failover"
+      }
+    }
   },
   "matchPage": {
     "reelLead": "Their plays in the order they happened. Pick a song in the player, then share or download it.",
