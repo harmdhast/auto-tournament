@@ -5,7 +5,7 @@
  * feeds these from the live records and acts on the answers.
  */
 
-import type { InlineBackup, MatchPhase, MatchState, MapStats, ResumeBlock } from './protocol/v1/types';
+import type { InlineBackup, MatchPhase, MatchRules, MatchState, MapStats, ResumeBlock } from './protocol/v1/types';
 import type { RoundBackupMeta } from './backups';
 
 /** Why the server counts as down; `restarted` = it came back without the match; `manual` = an admin moved it. */
@@ -33,13 +33,19 @@ export function failoverGraceFromEnv(env: NodeJS.ProcessEnv = process.env): Fail
 }
 
 const LIVE_PHASES: ReadonlySet<MatchPhase> = new Set<MatchPhase>(['live', 'paused', 'halftime', 'overtime']);
+
+/** Rounds are being played on the map (`null` phase = no state yet). */
+export function isLivePhase(phase: MatchPhase | null): boolean {
+  return phase !== null && LIVE_PHASES.has(phase);
+}
+
 /** Between maps or over: nothing to resume on another server. */
 const NO_FAILOVER_PHASES: ReadonlySet<MatchPhase> = new Set<MatchPhase>(['map_end', 'series_end']);
 
 /** The grace for a phase; null = no failover in this phase. `null` phase = no state yet (pre-live). */
 export function graceSecondsFor(phase: MatchPhase | null, grace: FailoverGrace = DEFAULT_FAILOVER_GRACE): number | null {
   if (phase && NO_FAILOVER_PHASES.has(phase)) return null;
-  return phase && LIVE_PHASES.has(phase) ? grace.liveSeconds : grace.preLiveSeconds;
+  return isLivePhase(phase) ? grace.liveSeconds : grace.preLiveSeconds;
 }
 
 /** csm's last word on the server's process (`host.health`, FLEET.md §18). */
@@ -100,18 +106,39 @@ export function detectFailure(input: FailureInput): Failure | null {
   return { reason: 'offline', since, detail: `the fleet link has been down for ${Math.round(down)} s` };
 }
 
+const UNBOUNDED_OVERTIME_ALLOWANCE = 10;
+const MIN_OVERTIME_ROUNDS_PER_HALF = 5;
+
+/**
+ * The highest round a backup of the match can plausibly start: the regular
+ * rounds plus a generous number of overtimes. The rules do not bound
+ * overtime reliably (the valve ruleset plays it unlimited, the overtime
+ * length can come from the cvars, a sudden-death tiebreak adds rounds), so
+ * this only rejects absurd rounds. No cap (Infinity) while the rules do not
+ * say how many rounds the map has.
+ */
+export function maxBackupRound(rules: MatchRules | undefined): number {
+  const maxRounds = rules?.max_rounds;
+  if (maxRounds === undefined || maxRounds < 1) return Number.POSITIVE_INFINITY;
+  if (rules?.overtime?.enabled === false && !rules.tiebreak?.sudden_death_on_tie) return maxRounds;
+  const roundsPerHalf = Math.max(rules?.overtime?.rounds_per_half ?? 0, MIN_OVERTIME_ROUNDS_PER_HALF);
+  return maxRounds + UNBOUNDED_OVERTIME_ALLOWANCE * 2 * roundsPerHalf;
+}
+
 /**
  * The round backup to resume from: the latest one of the map that a restore
- * has not voided (FLEET.md §11.2 preselects the latest; the admin may pick
- * another). null = none yet: the map restarts from warmup.
+ * has not voided and that is not past `maxRound` (FLEET.md §11.2 preselects
+ * the latest; the admin may pick another). null = none yet: the map restarts
+ * from warmup.
  */
 export function pickBackup<T extends Pick<RoundBackupMeta, 'mapNumber' | 'round' | 'supersededAt'>>(
   backups: readonly T[],
-  mapNumber: number
+  mapNumber: number,
+  maxRound = Number.POSITIVE_INFINITY
 ): T | null {
   let best: T | null = null;
   for (const b of backups) {
-    if (b.mapNumber !== mapNumber || b.supersededAt !== null) continue;
+    if (b.mapNumber !== mapNumber || b.supersededAt !== null || b.round > maxRound) continue;
     if (!best || b.round > best.round) best = b;
   }
   return best;
