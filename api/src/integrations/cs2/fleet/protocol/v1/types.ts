@@ -134,7 +134,13 @@ export interface ServerConfigPayload {
 
 export interface PingPayload {
   t: number;
-  health?: { players?: number; tick_ms_p99?: number; spool_msgs?: number; uptime_s?: number; frame_age_ms?: number };
+  health?: {
+    players?: number;
+    tick_ms_p99?: number;
+    spool_msgs?: number;
+    uptime_s?: number;
+    frame_age_ms?: number;
+  };
 }
 
 export interface PongPayload {
@@ -400,8 +406,17 @@ export interface MatchState {
   };
   teams: { team1: StateTeam; team2: StateTeam };
   spectators?: Record<U64s, { name?: string; connected: boolean }>;
-  ready?: { required_per_team?: number; countdown_ends_at?: number; ready?: number; total?: number };
-  knife?: { status: 'none' | 'running' | 'picking' | 'done'; winner?: TeamKey | 'unknown'; pick_deadline?: number };
+  ready?: {
+    required_per_team?: number;
+    countdown_ends_at?: number;
+    ready?: number;
+    total?: number;
+  };
+  knife?: {
+    status: 'none' | 'running' | 'picking' | 'done';
+    winner?: TeamKey | 'unknown';
+    pick_deadline?: number;
+  };
   pause?: {
     active: boolean;
     type?: PauseType;
@@ -432,7 +447,13 @@ export interface MatchAssignPayload {
 }
 
 export type MatchUpdateOp =
-  | { op: 'add_player'; team: TeamKey | 'spectator'; steamid64: U64s; name: string; role?: PlayerRole }
+  | {
+      op: 'add_player';
+      team: TeamKey | 'spectator';
+      steamid64: U64s;
+      name: string;
+      role?: PlayerRole;
+    }
   | { op: 'remove_player'; steamid64: U64s }
   | { op: 'rename_team'; team: TeamKey; name: string }
   | { op: 'set_password'; password: string }
@@ -562,7 +583,8 @@ export interface ServerAvailabilityPayload {
 }
 
 /** Why a fleet server takes no match. `match_disabled` and `reserved` may also come from the platform. */
-export type BusyReason = 'local_match' | 'awaiting_reset' | 'match_disabled' | 'draining' | 'reserved';
+export type BusyReason =
+  'local_match' | 'awaiting_reset' | 'match_disabled' | 'draining' | 'reserved';
 
 /** The core's selftest outcome (hello.selftest, server.selftest). */
 export interface SelftestSummary {
@@ -631,13 +653,7 @@ export interface DemoEndPayload {
 }
 
 export type DemoAckErrorCode =
-  | 'gap'
-  | 'unknown_demo'
-  | 'checksum'
-  | 'storage'
-  | 'not_assigned'
-  | 'stale_epoch'
-  | 'too_large';
+  'gap' | 'unknown_demo' | 'checksum' | 'storage' | 'not_assigned' | 'stale_epoch' | 'too_large';
 
 /** Platform -> server (ephemeral): the answer to demo.begin / demo.chunk / demo.end. */
 export interface DemoAckPayload {
@@ -666,8 +682,20 @@ export interface FleetEventData {
   player_connect: { steamid64: U64s; name: string; team: PresenceTeam };
   player_disconnect: { steamid64: U64s; name: string; team: PresenceTeam; reason?: string };
   player_team: { steamid64: U64s; team: PresenceTeam; side: Side | 'spectator' | 'none' };
-  player_ready: { steamid64: U64s; team: TeamKey; ready_team1: number; ready_team2: number; required: number };
-  player_unready: { steamid64: U64s; team: TeamKey; ready_team1: number; ready_team2: number; required: number };
+  player_ready: {
+    steamid64: U64s;
+    team: TeamKey;
+    ready_team1: number;
+    ready_team2: number;
+    required: number;
+  };
+  player_unready: {
+    steamid64: U64s;
+    team: TeamKey;
+    ready_team1: number;
+    ready_team2: number;
+    required: number;
+  };
   phase: { from: MatchPhase; to: MatchPhase; reason: string };
   knife_result: { winner: TeamKey; reason: 'elimination' | 'alive' | 'hp' | 'coin' };
   side_picked: { team: TeamKey; side: Side; picked_by: U64s | 'timeout' | 'console' };
@@ -720,7 +748,12 @@ export interface FleetEventData {
     reason?: string;
   };
   demo: {
-    type: 'recording_started' | 'recording_stopped' | 'upload_started' | 'upload_succeeded' | 'upload_failed';
+    type:
+      | 'recording_started'
+      | 'recording_stopped'
+      | 'upload_started'
+      | 'upload_succeeded'
+      | 'upload_failed';
     matchid?: number;
     map_number: number;
     file_name: string;
@@ -742,7 +775,12 @@ export interface FleetEventData {
   gg: { team: TeamKey | 'unknown'; reason: string; steamid64?: U64s };
   admin_called: {
     call_id: string;
-    player: { steamid64: U64s; name: string; team: TeamKey | 'spectator' | null; side: Side | null };
+    player: {
+      steamid64: U64s;
+      name: string;
+      team: TeamKey | 'spectator' | null;
+      side: Side | null;
+    };
     message: string;
     called_at: string;
   };
@@ -779,7 +817,9 @@ export const FLEET_EVENT_NAMES: ReadonlyArray<FleetEventName> = [
 ];
 
 export function isFleetEventType(type: string): type is FleetEventType {
-  return type.startsWith('event.') && (FLEET_EVENT_NAMES as readonly string[]).includes(type.slice(6));
+  return (
+    type.startsWith('event.') && (FLEET_EVENT_NAMES as readonly string[]).includes(type.slice(6))
+  );
 }
 
 /**
@@ -871,61 +911,62 @@ export type Direction = 'server_to_platform' | 'platform_to_server' | 'both';
 const P2S_RELIABLE = { direction: 'platform_to_server', reliable: true } as const;
 const S2P_RELIABLE = { direction: 'server_to_platform', reliable: true } as const;
 
-export const FLEET_MESSAGES: Record<FleetMessageType, { direction: Direction; reliable: boolean }> = {
-  hello: { direction: 'server_to_platform', reliable: false },
-  welcome: { direction: 'platform_to_server', reliable: false },
-  ping: { direction: 'both', reliable: false },
-  pong: { direction: 'both', reliable: false },
-  ack: { direction: 'both', reliable: false },
-  error: { direction: 'both', reliable: false },
-  'server.config': { direction: 'platform_to_server', reliable: true },
-  'auth.rotate': { direction: 'platform_to_server', reliable: true },
-  'auth.rotated': { direction: 'server_to_platform', reliable: true },
-  'match.assign': P2S_RELIABLE,
-  'match.update': P2S_RELIABLE,
-  'match.unassign': P2S_RELIABLE,
-  cmd: P2S_RELIABLE,
-  'state.request': { direction: 'platform_to_server', reliable: false },
-  'admins.set': P2S_RELIABLE,
-  'skins.loadout': P2S_RELIABLE,
-  'skins.invalidate': P2S_RELIABLE,
-  'cmd.result': S2P_RELIABLE,
-  'state.snapshot': { direction: 'server_to_platform', reliable: false },
-  'state.patch': S2P_RELIABLE,
-  'server.availability': S2P_RELIABLE,
-  'server.cs2_update_required': S2P_RELIABLE,
-  'server.selftest': S2P_RELIABLE,
-  'server.drain': P2S_RELIABLE,
-  'server.undrain': P2S_RELIABLE,
-  'skins.stattrak': S2P_RELIABLE,
-  'event.player_connect': S2P_RELIABLE,
-  'event.player_disconnect': S2P_RELIABLE,
-  'event.player_team': S2P_RELIABLE,
-  'event.player_ready': S2P_RELIABLE,
-  'event.player_unready': S2P_RELIABLE,
-  'event.phase': S2P_RELIABLE,
-  'event.knife_result': S2P_RELIABLE,
-  'event.side_picked': S2P_RELIABLE,
-  'event.round_start': S2P_RELIABLE,
-  'event.round_end': S2P_RELIABLE,
-  'event.backup': S2P_RELIABLE,
-  'event.pause': S2P_RELIABLE,
-  'event.halftime': S2P_RELIABLE,
-  'event.overtime': S2P_RELIABLE,
-  'event.rounds_voided': S2P_RELIABLE,
-  'event.map_result': S2P_RELIABLE,
-  'event.series_end': S2P_RELIABLE,
-  'event.demo': S2P_RELIABLE,
-  'event.match_restored': S2P_RELIABLE,
-  'event.forfeit': S2P_RELIABLE,
-  'event.gg': S2P_RELIABLE,
-  'event.admin_called': S2P_RELIABLE,
-  'event.error': S2P_RELIABLE,
-  'demo.begin': { direction: 'server_to_platform', reliable: false },
-  'demo.chunk': { direction: 'server_to_platform', reliable: false },
-  'demo.end': { direction: 'server_to_platform', reliable: false },
-  'demo.ack': { direction: 'platform_to_server', reliable: false },
-};
+export const FLEET_MESSAGES: Record<FleetMessageType, { direction: Direction; reliable: boolean }> =
+  {
+    hello: { direction: 'server_to_platform', reliable: false },
+    welcome: { direction: 'platform_to_server', reliable: false },
+    ping: { direction: 'both', reliable: false },
+    pong: { direction: 'both', reliable: false },
+    ack: { direction: 'both', reliable: false },
+    error: { direction: 'both', reliable: false },
+    'server.config': { direction: 'platform_to_server', reliable: true },
+    'auth.rotate': { direction: 'platform_to_server', reliable: true },
+    'auth.rotated': { direction: 'server_to_platform', reliable: true },
+    'match.assign': P2S_RELIABLE,
+    'match.update': P2S_RELIABLE,
+    'match.unassign': P2S_RELIABLE,
+    cmd: P2S_RELIABLE,
+    'state.request': { direction: 'platform_to_server', reliable: false },
+    'admins.set': P2S_RELIABLE,
+    'skins.loadout': P2S_RELIABLE,
+    'skins.invalidate': P2S_RELIABLE,
+    'cmd.result': S2P_RELIABLE,
+    'state.snapshot': { direction: 'server_to_platform', reliable: false },
+    'state.patch': S2P_RELIABLE,
+    'server.availability': S2P_RELIABLE,
+    'server.cs2_update_required': S2P_RELIABLE,
+    'server.selftest': S2P_RELIABLE,
+    'server.drain': P2S_RELIABLE,
+    'server.undrain': P2S_RELIABLE,
+    'skins.stattrak': S2P_RELIABLE,
+    'event.player_connect': S2P_RELIABLE,
+    'event.player_disconnect': S2P_RELIABLE,
+    'event.player_team': S2P_RELIABLE,
+    'event.player_ready': S2P_RELIABLE,
+    'event.player_unready': S2P_RELIABLE,
+    'event.phase': S2P_RELIABLE,
+    'event.knife_result': S2P_RELIABLE,
+    'event.side_picked': S2P_RELIABLE,
+    'event.round_start': S2P_RELIABLE,
+    'event.round_end': S2P_RELIABLE,
+    'event.backup': S2P_RELIABLE,
+    'event.pause': S2P_RELIABLE,
+    'event.halftime': S2P_RELIABLE,
+    'event.overtime': S2P_RELIABLE,
+    'event.rounds_voided': S2P_RELIABLE,
+    'event.map_result': S2P_RELIABLE,
+    'event.series_end': S2P_RELIABLE,
+    'event.demo': S2P_RELIABLE,
+    'event.match_restored': S2P_RELIABLE,
+    'event.forfeit': S2P_RELIABLE,
+    'event.gg': S2P_RELIABLE,
+    'event.admin_called': S2P_RELIABLE,
+    'event.error': S2P_RELIABLE,
+    'demo.begin': { direction: 'server_to_platform', reliable: false },
+    'demo.chunk': { direction: 'server_to_platform', reliable: false },
+    'demo.end': { direction: 'server_to_platform', reliable: false },
+    'demo.ack': { direction: 'platform_to_server', reliable: false },
+  };
 
 // --- HTTP ------------------------------------------------------------------
 

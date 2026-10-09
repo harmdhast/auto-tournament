@@ -272,7 +272,9 @@ export class Cs2ServerPool {
 
     // Idle Ready Up servers held back for failover (FLEET.md §11): not allocatable, shown as spares.
     const spareIds = statusChecks.some((c) => c.server.transport === 'fleet')
-      ? new Set((await (await import('./fleet/failover')).heldFleetSpares()).map((c) => c.cs2ServerId))
+      ? new Set(
+          (await (await import('./fleet/failover')).heldFleetSpares()).map((c) => c.cs2ServerId)
+        )
       : new Set<string>();
 
     for (const check of statusChecks) {
@@ -346,7 +348,9 @@ export class Cs2ServerPool {
         isFleet ||
         (typeof server.cs2BuildId === 'number' && typeof server.cs2UpdateCheckedAt === 'number');
 
-      const turnover = isIdle ? serverTurnoverTracker.evaluate(server.id, updatedAt ?? null, now) : null;
+      const turnover = isIdle
+        ? serverTurnoverTracker.evaluate(server.id, updatedAt ?? null, now)
+        : null;
 
       if (isIdle && turnover?.demoUploadPending) {
         // The previous series' demo is still uploading: never hand the server
@@ -418,7 +422,10 @@ export class Cs2ServerPool {
             ? 'reserved'
             : ((check as { busyReason?: BusyReason | null }).busyReason ?? null)
           : null,
-        busyDetail: isFleet && !reserved ? ((check as { busyDetail?: string | null }).busyDetail ?? null) : null,
+        busyDetail:
+          isFleet && !reserved
+            ? ((check as { busyDetail?: string | null }).busyDetail ?? null)
+            : null,
         staleMatchSlug: dbRecordIsStale ? (dbBusy?.slug ?? null) : null,
       });
     }
@@ -446,9 +453,13 @@ export class Cs2ServerPool {
    * Ready Up servers: the failover reserve (fleet/failoverSettings.ts) is left
    * out unless `includeFleetReserve` (failover itself asks with it).
    */
-  async getAvailableServers(options: { includeFleetReserve?: boolean } = {}): Promise<ServerResponse[]> {
+  async getAvailableServers(
+    options: { includeFleetReserve?: boolean } = {}
+  ): Promise<ServerResponse[]> {
     // Only enabled servers that take tournament matches (not practice/community ones).
-    const enabledServers = (await serverService.getAllServers(true)).filter((s) => s.tournamentUse !== false);
+    const enabledServers = (await serverService.getAllServers(true)).filter(
+      (s) => s.tournamentUse !== false
+    );
 
     // Filter out unconfigured servers (never sent server_configured event)
     // These servers cannot be used for matches until they've been initialized
@@ -684,7 +695,12 @@ export class Cs2ServerPool {
     }
 
     availableServers.push(
-      ...(await this.availableFleetServers(fleetServers, dbBusyServers, now, options.includeFleetReserve === true))
+      ...(await this.availableFleetServers(
+        fleetServers,
+        dbBusyServers,
+        now,
+        options.includeFleetReserve === true
+      ))
     );
 
     log.debug(
@@ -710,9 +726,12 @@ export class Cs2ServerPool {
   ): Promise<ServerResponse[]> {
     const available: ServerResponse[] = [];
     for (const server of servers) {
-      if (this.allocatingServers.has(server.id) || serverAllocationTracker.isBusy(server.id)) continue;
+      if (this.allocatingServers.has(server.id) || serverAllocationTracker.isBusy(server.id))
+        continue;
       if (dbBusyServers.has(server.id)) {
-        log.debug(`Fleet server ${server.id} (${server.name}) not available: database shows loaded/live match`);
+        log.debug(
+          `Fleet server ${server.id} (${server.name}) not available: database shows loaded/live match`
+        );
         continue;
       }
       const fleet = await fleetServerIsIdle(server.id);
@@ -723,7 +742,9 @@ export class Cs2ServerPool {
         continue;
       }
       if (serverTurnoverTracker.evaluate(server.id, fleet.idleSince, now).demoUploadPending) {
-        log.debug(`Fleet server ${server.id} (${server.name}) is available but its previous demo is still uploading`);
+        log.debug(
+          `Fleet server ${server.id} (${server.name}) is available but its previous demo is still uploading`
+        );
         continue;
       }
       available.push(server);
@@ -732,7 +753,8 @@ export class Cs2ServerPool {
     if (includeReserve || available.length === 0) return available;
     const { effective } = await reserveCount();
     const held = pickReserved(available, effective);
-    if (held.size > 0) log.debug(`Fleet servers held in reserve for failover: ${[...held].join(', ')}`);
+    if (held.size > 0)
+      log.debug(`Fleet servers held in reserve for failover: ${[...held].join(', ')}`);
     return available.filter((server) => !held.has(server.id));
   }
 
@@ -796,7 +818,9 @@ export class Cs2ServerPool {
         };
       }
 
-      log.info(`[ALLOCATION] Allocating match ${matchSlug} to server ${server.name} (${server.id})`);
+      log.info(
+        `[ALLOCATION] Allocating match ${matchSlug} to server ${server.name} (${server.id})`
+      );
 
       // Mark server as "in allocation" to prevent concurrent allocations
       this.allocatingServers.add(server.id);
@@ -923,7 +947,9 @@ export class Cs2ServerPool {
 
     for (let i = 0; i < matchSlugs.length; i++) {
       if (i < maxAllocations) {
-        allocationTasks.push(this.allocateMatchToServerOnce(matchSlugs[i], availableServers[i], baseUrl));
+        allocationTasks.push(
+          this.allocateMatchToServerOnce(matchSlugs[i], availableServers[i], baseUrl)
+        );
       } else {
         results.push({
           matchSlug: matchSlugs[i],
@@ -1226,7 +1252,9 @@ export class Cs2ServerPool {
     }
 
     // Use centralized match loading service
-    const result = await (await driverFor(serverIdToUse as string)).loadMatch(slug, serverIdToUse as string, {
+    const result = await (
+      await driverFor(serverIdToUse as string)
+    ).loadMatch(slug, serverIdToUse as string, {
       skipWebhook: options.skipWebhook,
       baseUrl: options.baseUrl,
     });
@@ -1297,7 +1325,9 @@ export class Cs2ServerPool {
     await (await driverFor(oldServerId)).releaseForMove(oldServerId, matchSlug);
 
     // Load on the new server.
-    const load = await (await driverFor(fallback.id)).loadMatch(matchSlug, fallback.id, { baseUrl });
+    const load = await (
+      await driverFor(fallback.id)
+    ).loadMatch(matchSlug, fallback.id, { baseUrl });
 
     if (!load.success) {
       // Roll back the tracker reservation; keep match assigned to the new server

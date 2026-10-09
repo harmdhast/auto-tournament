@@ -20,9 +20,7 @@
       "cs2_build": 25537370,
       "cs2_patch": "1.41.8.5"
     },
-    "capabilities": [
-      "match.v1"
-    ],
+    "capabilities": ["match.v1"],
     "host": {
       "hostname": "cs2",
       "game_port": 27055,

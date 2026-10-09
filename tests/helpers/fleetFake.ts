@@ -4,7 +4,11 @@ import { expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader } from './auth';
 import { FleetTestClient, enroll, envelope, newInstallId } from './fleet';
 import { ulid } from '../../api/src/integrations/cs2/fleet/credentials';
-import { validateMessage, type Envelope, type HelloPayload } from '../../api/src/integrations/cs2/fleet/protocol/v1';
+import {
+  validateMessage,
+  type Envelope,
+  type HelloPayload,
+} from '../../api/src/integrations/cs2/fleet/protocol/v1';
 
 /** A fake Ready Up server over the real gateway, plus the match helpers the fleet specs share. */
 
@@ -71,13 +75,20 @@ export class FakeReadyUp {
 
   send(env: Omit<Envelope, 'seq'>): Envelope {
     const out = { ...env, seq: ++this.seq } as Envelope;
-    expect(validateMessage(out), JSON.stringify(validateMessage(out).errors)).toEqual({ ok: true, errors: [] });
+    expect(validateMessage(out), JSON.stringify(validateMessage(out).errors)).toEqual({
+      ok: true,
+      errors: [],
+    });
     this.client.send(out);
     return out;
   }
 
   /** The one cmd.result for a platform message (ref = its id, epoch = its epoch). */
-  answer(msg: Envelope, status: 'ok' | 'rejected' | 'failed' = 'ok', extra: Record<string, unknown> = {}): Envelope {
+  answer(
+    msg: Envelope,
+    status: 'ok' | 'rejected' | 'failed' = 'ok',
+    extra: Record<string, unknown> = {}
+  ): Envelope {
     return this.send({
       v: 1,
       type: 'cmd.result',
@@ -105,7 +116,10 @@ export class FakeReadyUp {
   }
 
   /** A reliable event frame from the examples, re-keyed. */
-  event(file: string, opts: { slug: string; epoch: number; rev: number; data?: Record<string, unknown> }): Envelope {
+  event(
+    file: string,
+    opts: { slug: string; epoch: number; rev: number; data?: Record<string, unknown> }
+  ): Envelope {
     const frame = example(file);
     const payload = JSON.parse(JSON.stringify(frame.payload)) as Record<string, unknown> & {
       patch?: Record<string, unknown>;
@@ -140,7 +154,11 @@ export class FakeReadyUp {
   }
 }
 
-export async function link(request: APIRequestContext, fleetServerId: string, serverId?: string): Promise<string> {
+export async function link(
+  request: APIRequestContext,
+  fleetServerId: string,
+  serverId?: string
+): Promise<string> {
   const res = await request.post(`/api/fleet/servers/${fleetServerId}/link`, {
     headers: getAuthHeader(),
     data: serverId ? { serverId } : {},
@@ -187,7 +205,10 @@ export async function createMatch(request: APIRequestContext, slug: string): Pro
   expect(res.status(), await res.text()).toBe(201);
 }
 
-export async function matchRow(request: APIRequestContext, slug: string): Promise<{ status?: string; serverId?: string } | null> {
+export async function matchRow(
+  request: APIRequestContext,
+  slug: string
+): Promise<{ status?: string; serverId?: string } | null> {
   const res = await request.get(`/api/matches/${slug}`, { headers: getAuthHeader() });
   if (!res.ok()) return null;
   const body = await res.json();
@@ -205,7 +226,9 @@ export async function acceptAssign(fake: FakeReadyUp, slug: string): Promise<Env
     const assign = await fake.next('match.assign', 30_000);
     expect(validateMessage(assign)).toEqual({ ok: true, errors: [] });
     if ((assign.payload as { match_id: string }).match_id !== slug) {
-      fake.answer(assign, 'rejected', { error: { code: 'invalid_config', message: 'not this test' } });
+      fake.answer(assign, 'rejected', {
+        error: { code: 'invalid_config', message: 'not this test' },
+      });
       continue;
     }
     fake.answer(assign, 'ok');

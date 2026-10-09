@@ -395,7 +395,12 @@ async function applyAvailability(
   payload: ServerAvailabilityPayload
 ): Promise<void> {
   const busyReason = parseBusyReason(payload.reason);
-  await setAvailability(ctx.serverId, payload.availability, busyReason, parseBusyDetail(payload.detail));
+  await setAvailability(
+    ctx.serverId,
+    payload.availability,
+    busyReason,
+    parseBusyDetail(payload.detail)
+  );
   log.info(`[FLEET] ${ctx.serverId}: ${payload.availability} (${payload.reason})`);
   fleetInbound.emit('availability', {
     serverId: ctx.serverId,
@@ -417,7 +422,13 @@ async function setAvailability(
     `UPDATE cs2_fleet_servers
         SET availability = ?, availability_reason = ?, availability_detail = ?, updated_at = ?
       WHERE id = ?`,
-    [availability, busy ? reason : null, busy ? detail : null, Math.floor(Date.now() / 1000), serverId]
+    [
+      availability,
+      busy ? reason : null,
+      busy ? detail : null,
+      Math.floor(Date.now() / 1000),
+      serverId,
+    ]
   );
 }
 

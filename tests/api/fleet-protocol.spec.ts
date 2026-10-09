@@ -106,7 +106,9 @@ test.describe('Fleet protocol schemas', () => {
 
     expect(validatePayload('hello', { ...hello, tenant_id: 'other' }).ok).toBe(false);
     expect(validatePayload('hello', { ...hello, availability: 'idle' }).ok).toBe(false);
-    expect(validatePayload('hello', { ...hello, host: { hostname: 'x', game_port: 70000 } }).ok).toBe(false);
+    expect(
+      validatePayload('hello', { ...hello, host: { hostname: 'x', game_port: 70000 } }).ok
+    ).toBe(false);
     const { boot_id: _b, ...noBoot } = hello;
     const bad = validatePayload('hello', noBoot);
     expect(bad.ok).toBe(false);
@@ -114,17 +116,47 @@ test.describe('Fleet protocol schemas', () => {
   });
 
   test('hello, state.snapshot and server.availability carry a busy reason', () => {
-    const hello = helloPayload('fs_x', 'install-12345678', { availability: 'busy', reason: 'local_match', detail: 'cup-final' });
+    const hello = helloPayload('fs_x', 'install-12345678', {
+      availability: 'busy',
+      reason: 'local_match',
+      detail: 'cup-final',
+    });
     expect(validatePayload('hello', hello)).toEqual({ ok: true, errors: [] });
     expect(validatePayload('hello', { ...hello, reason: null, detail: null }).ok).toBe(true);
     expect(validatePayload('hello', { ...hello, reason: 1 }).ok).toBe(false);
     expect(validatePayload('hello', { ...hello, detail: 'x'.repeat(129) }).ok).toBe(false);
     // Older Ready Up sends free text as the reason: still valid.
-    expect(validatePayload('server.availability', { availability: 'busy', reason: 'series_end' }).ok).toBe(true);
-    expect(validatePayload('server.availability', { availability: 'busy', reason: 'local_match', detail: 'cup-final' }).ok).toBe(true);
-    expect(validatePayload('server.availability', { availability: 'busy', reason: 'local_match', detail: 3 }).ok).toBe(false);
-    const snap = { reason: 'request', state: null, availability: 'busy', config_rev: 0, admins_rev: 0 };
-    expect(validatePayload('state.snapshot', { ...snap, availability_reason: 'awaiting_reset', availability_detail: 'm1' }).ok).toBe(true);
+    expect(
+      validatePayload('server.availability', { availability: 'busy', reason: 'series_end' }).ok
+    ).toBe(true);
+    expect(
+      validatePayload('server.availability', {
+        availability: 'busy',
+        reason: 'local_match',
+        detail: 'cup-final',
+      }).ok
+    ).toBe(true);
+    expect(
+      validatePayload('server.availability', {
+        availability: 'busy',
+        reason: 'local_match',
+        detail: 3,
+      }).ok
+    ).toBe(false);
+    const snap = {
+      reason: 'request',
+      state: null,
+      availability: 'busy',
+      config_rev: 0,
+      admins_rev: 0,
+    };
+    expect(
+      validatePayload('state.snapshot', {
+        ...snap,
+        availability_reason: 'awaiting_reset',
+        availability_detail: 'm1',
+      }).ok
+    ).toBe(true);
     expect(validatePayload('state.snapshot', { ...snap, availability_reason: 1 }).ok).toBe(false);
   });
 
@@ -142,7 +174,9 @@ test.describe('Fleet protocol schemas', () => {
     ).toBe(true);
     expect(validatePayload('welcome', { session_id: ulid() }).ok).toBe(false);
 
-    expect(validatePayload('ping', { t: Date.now(), health: { players: 10, tick_ms_p99: 1.2 } }).ok).toBe(true);
+    expect(
+      validatePayload('ping', { t: Date.now(), health: { players: 10, tick_ms_p99: 1.2 } }).ok
+    ).toBe(true);
     expect(validatePayload('ping', {}).ok).toBe(false);
     expect(validatePayload('pong', { t: 1 }).ok).toBe(true);
     expect(validatePayload('ack', {}).ok).toBe(true);
@@ -158,14 +192,17 @@ test.describe('Fleet protocol schemas', () => {
     expect(
       validatePayload('server.config', {
         rev: 3,
-        settings: { chat_prefix: '[RU]', series_end_kick_delay: { no_demo: 5, demo_no_upload: 10, demo_upload: 60 } },
+        settings: {
+          chat_prefix: '[RU]',
+          series_end_kick_delay: { no_demo: 5, demo_no_upload: 10, demo_upload: 60 },
+        },
       }).ok
     ).toBe(true);
     expect(validatePayload('server.config', { settings: {} }).ok).toBe(false);
     expect(validatePayload('no.such_type', {}).ok).toBe(false);
   });
 
-  test("step 3 / D13: every Ready Up example frame validates (envelope + payload)", () => {
+  test('step 3 / D13: every Ready Up example frame validates (envelope + payload)', () => {
     // tests/fixtures/fleet/v1 is Ready Up's plugins/fleet/protocol/examples/v1;
     // `live.*.json` are frames it really sent in its live test.
     const files = fs.readdirSync(EXAMPLES_DIR).filter((f) => f.endsWith('.json'));
@@ -202,7 +239,10 @@ test.describe('Fleet protocol schemas', () => {
     for (const name of FLEET_EVENT_NAMES) {
       const type = `event.${name}`;
       expect(isKnownMessageType(type), type).toBe(true);
-      expect(FLEET_MESSAGES[type as keyof typeof FLEET_MESSAGES]).toEqual({ direction: 'server_to_platform', reliable: true });
+      expect(FLEET_MESSAGES[type as keyof typeof FLEET_MESSAGES]).toEqual({
+        direction: 'server_to_platform',
+        reliable: true,
+      });
     }
     // Every event.*.json schema is a known event name, and the other way round.
     const eventFiles = fs
@@ -211,11 +251,27 @@ test.describe('Fleet protocol schemas', () => {
       .map((f) => f.replace(/^event\.|\.json$/g, ''))
       .sort();
     expect(eventFiles).toEqual([...FLEET_EVENT_NAMES].sort());
-    for (const type of ['match.assign', 'match.update', 'match.unassign', 'cmd', 'admins.set', 'skins.loadout']) {
-      expect(FLEET_MESSAGES[type as keyof typeof FLEET_MESSAGES]).toEqual({ direction: 'platform_to_server', reliable: true });
+    for (const type of [
+      'match.assign',
+      'match.update',
+      'match.unassign',
+      'cmd',
+      'admins.set',
+      'skins.loadout',
+    ]) {
+      expect(FLEET_MESSAGES[type as keyof typeof FLEET_MESSAGES]).toEqual({
+        direction: 'platform_to_server',
+        reliable: true,
+      });
     }
-    expect(FLEET_MESSAGES['state.snapshot']).toEqual({ direction: 'server_to_platform', reliable: false });
-    expect(FLEET_MESSAGES['state.request']).toEqual({ direction: 'platform_to_server', reliable: false });
+    expect(FLEET_MESSAGES['state.snapshot']).toEqual({
+      direction: 'server_to_platform',
+      reliable: false,
+    });
+    expect(FLEET_MESSAGES['state.request']).toEqual({
+      direction: 'platform_to_server',
+      reliable: false,
+    });
   });
 
   test('server notices and drain: schemas, directions, examples', () => {
@@ -225,20 +281,36 @@ test.describe('Fleet protocol schemas', () => {
     expect(validateMessage({ ...update, payload: { required_build: 0 } }).ok).toBe(false);
     expect(validateMessage({ ...update, payload: { required_build: '14035' } }).ok).toBe(false);
 
-    const selftest = { pass: false, passed: 57, total: 58, failures: ['fn:CCSPlayer_ItemServices_GiveNamedItem'] };
-    expect(validateMessage(envelope('server.selftest', selftest, { seq: 5 }))).toEqual({ ok: true, errors: [] });
+    const selftest = {
+      pass: false,
+      passed: 57,
+      total: 58,
+      failures: ['fn:CCSPlayer_ItemServices_GiveNamedItem'],
+    };
+    expect(validateMessage(envelope('server.selftest', selftest, { seq: 5 }))).toEqual({
+      ok: true,
+      errors: [],
+    });
     expect(validatePayload('server.selftest', { pass: true, failures: [] }).ok).toBe(false);
-    expect(validatePayload('hello', { ...helloPayload('fs_x', 'install-0001'), selftest }).ok).toBe(true);
+    expect(validatePayload('hello', { ...helloPayload('fs_x', 'install-0001'), selftest }).ok).toBe(
+      true
+    );
 
     expect(validatePayload('server.drain', { reason: 'maintenance' }).ok).toBe(true);
     expect(validatePayload('server.drain', {}).ok).toBe(true);
     expect(validatePayload('server.undrain', {}).ok).toBe(true);
 
     for (const type of ['server.cs2_update_required', 'server.selftest']) {
-      expect(FLEET_MESSAGES[type as keyof typeof FLEET_MESSAGES], type).toEqual({ direction: 'server_to_platform', reliable: true });
+      expect(FLEET_MESSAGES[type as keyof typeof FLEET_MESSAGES], type).toEqual({
+        direction: 'server_to_platform',
+        reliable: true,
+      });
     }
     for (const type of ['server.drain', 'server.undrain']) {
-      expect(FLEET_MESSAGES[type as keyof typeof FLEET_MESSAGES], type).toEqual({ direction: 'platform_to_server', reliable: true });
+      expect(FLEET_MESSAGES[type as keyof typeof FLEET_MESSAGES], type).toEqual({
+        direction: 'platform_to_server',
+        reliable: true,
+      });
     }
     // Every messages/*.json has a registered type, and the other way round.
     const files = fs
@@ -250,19 +322,31 @@ test.describe('Fleet protocol schemas', () => {
   });
 
   test('step 3: broken frames do not validate', () => {
-    const load = (file: string) => JSON.parse(fs.readFileSync(path.join(EXAMPLES_DIR, file), 'utf8')) as Envelope;
+    const load = (file: string) =>
+      JSON.parse(fs.readFileSync(path.join(EXAMPLES_DIR, file), 'utf8')) as Envelope;
     const patch = load('live.state.patch.json');
     expect(validateMessage({ ...patch, payload: { ...patch.payload, rev: 0 } }).ok).toBe(false);
-    expect(validateMessage({ ...patch, payload: { ...patch.payload, match_id: 'bad slug!' } }).ok).toBe(false);
+    expect(
+      validateMessage({ ...patch, payload: { ...patch.payload, match_id: 'bad slug!' } }).ok
+    ).toBe(false);
     const result = load('live.cmd.result.json');
     expect(validateMessage({ ...result, payload: { status: 'maybe' } }).ok).toBe(false);
     const assign = load('match.assign.json');
     const config = (assign.payload as { config: Record<string, unknown> }).config;
     expect(validateMessage({ ...assign, payload: { ...assign.payload, epoch: 0 } }).ok).toBe(false);
-    expect(validateMessage({ ...assign, payload: { ...assign.payload, config: { ...config, password: 'has space' } } }).ok).toBe(false);
+    expect(
+      validateMessage({
+        ...assign,
+        payload: { ...assign.payload, config: { ...config, password: 'has space' } },
+      }).ok
+    ).toBe(false);
     const snapshot = load('live.state.snapshot.json');
-    expect(validateMessage({ ...snapshot, payload: { ...snapshot.payload, state: null } }).ok).toBe(true);
-    expect(validateMessage({ ...snapshot, payload: { ...snapshot.payload, reason: 'whenever' } }).ok).toBe(false);
+    expect(validateMessage({ ...snapshot, payload: { ...snapshot.payload, state: null } }).ok).toBe(
+      true
+    );
+    expect(
+      validateMessage({ ...snapshot, payload: { ...snapshot.payload, reason: 'whenever' } }).ok
+    ).toBe(false);
   });
 
   test('enroll request / response', () => {
@@ -347,7 +431,9 @@ test.describe('Fleet credentials', () => {
   });
 
   test('the fleet migration stays in the cs2_ namespace', () => {
-    expect(validateModuleMigrations('cs2', CS2_MIGRATIONS, { installedModuleIds: ['cs2'] })).toBeNull();
+    expect(
+      validateModuleMigrations('cs2', CS2_MIGRATIONS, { installedModuleIds: ['cs2'] })
+    ).toBeNull();
     const fleet = CS2_MIGRATIONS.find((m) => m.id === '005-fleet');
     expect(fleet).toBeTruthy();
     expect(CS2_MIGRATIONS.indexOf(fleet!)).toBe(4);
@@ -367,10 +453,13 @@ test.describe('Fleet credentials', () => {
     expect(m!.up).toContain('ADD COLUMN IF NOT EXISTS transport');
     expect(m!.up).toContain('ADD COLUMN IF NOT EXISTS fleet_server_id');
     // persist-before-ack dedupe: one row per (server, stream, seq).
-    expect(m!.up).toMatch(/UNIQUE INDEX IF NOT EXISTS \w+ ON cs2_fleet_events\(server_id, stream_id, seq\)/);
+    expect(m!.up).toMatch(
+      /UNIQUE INDEX IF NOT EXISTS \w+ ON cs2_fleet_events\(server_id, stream_id, seq\)/
+    );
     // Every statement can run twice.
     for (const line of m!.up.split('\n').map((l) => l.trim())) {
-      if (/^CREATE (UNIQUE )?(TABLE|INDEX)/.test(line)) expect(line, line).toContain('IF NOT EXISTS');
+      if (/^CREATE (UNIQUE )?(TABLE|INDEX)/.test(line))
+        expect(line, line).toContain('IF NOT EXISTS');
       if (/^ALTER TABLE/.test(line)) expect(line, line).toContain('IF NOT EXISTS');
     }
   });

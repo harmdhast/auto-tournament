@@ -27,7 +27,10 @@ export function parseBusyReason(raw: unknown): BusyReason | null {
 export function parseBusyDetail(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   // eslint-disable-next-line no-control-regex
-  const clean = raw.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, DETAIL_MAX);
+  const clean = raw
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .trim()
+    .slice(0, DETAIL_MAX);
   return clean || null;
 }
 

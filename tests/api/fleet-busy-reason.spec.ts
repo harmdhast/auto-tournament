@@ -4,7 +4,11 @@ import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
 import { createTestServer, deleteServer } from '../helpers/servers';
 import { FakeReadyUp, link } from '../helpers/fleetFake';
 import { CS2_MIGRATIONS } from '../../api/src/integrations/cs2/migrations';
-import { effectiveBusyReason, parseBusyDetail, parseBusyReason } from '../../api/src/integrations/cs2/fleet/busyReason';
+import {
+  effectiveBusyReason,
+  parseBusyDetail,
+  parseBusyReason,
+} from '../../api/src/integrations/cs2/fleet/busyReason';
 
 /**
  * Why a Ready Up server takes no match (FLEET.md §8): the reason it reports with
@@ -31,8 +35,12 @@ test.describe('Fleet busy reason: parsing', () => {
   });
 
   test('match off and a held spare win over the stored reason in that order', () => {
-    expect(effectiveBusyReason('local_match', { matchDisabled: true, reserved: false })).toBe('match_disabled');
-    expect(effectiveBusyReason('local_match', { matchDisabled: false, reserved: true })).toBe('local_match');
+    expect(effectiveBusyReason('local_match', { matchDisabled: true, reserved: false })).toBe(
+      'match_disabled'
+    );
+    expect(effectiveBusyReason('local_match', { matchDisabled: false, reserved: true })).toBe(
+      'local_match'
+    );
     expect(effectiveBusyReason(null, { matchDisabled: false, reserved: true })).toBe('reserved');
     expect(effectiveBusyReason(null, { matchDisabled: false, reserved: false })).toBeNull();
   });
@@ -42,7 +50,12 @@ test.describe('Fleet busy reason: parsing', () => {
   });
 });
 
-type Row = { id: string; availability: string | null; availabilityReason: string | null; availabilityDetail: string | null };
+type Row = {
+  id: string;
+  availability: string | null;
+  availabilityReason: string | null;
+  availabilityDetail: string | null;
+};
 
 async function row(request: APIRequestContext, fleetServerId: string): Promise<Row | undefined> {
   const res = await request.get('/api/fleet/servers', { headers: getAuthHeader() });
@@ -70,24 +83,41 @@ test.describe.serial('Fleet busy reason: kept per server', () => {
     await fake.hello({ availability: 'busy', reason: 'local_match', detail: 'cup-final' });
     await expect
       .poll(() => row(request, fake.serverId))
-      .toMatchObject({ availability: 'busy', availabilityReason: 'local_match', availabilityDetail: 'cup-final' });
+      .toMatchObject({
+        availability: 'busy',
+        availabilityReason: 'local_match',
+        availabilityDetail: 'cup-final',
+      });
     fake.availability('busy', 'awaiting_reset', { detail: 'm1' });
     await expect
       .poll(() => row(request, fake.serverId))
       .toMatchObject({ availabilityReason: 'awaiting_reset', availabilityDetail: 'm1' });
     fake.availability('busy', 'assigned'); // older Ready Up: free text
-    await expect.poll(() => row(request, fake.serverId)).toMatchObject({ availabilityReason: null });
-    fake.snapshot('m1', 1, { state: null, availability: 'busy', availability_reason: 'local_match', availability_detail: 'x' });
+    await expect
+      .poll(() => row(request, fake.serverId))
+      .toMatchObject({ availabilityReason: null });
+    fake.snapshot('m1', 1, {
+      state: null,
+      availability: 'busy',
+      availability_reason: 'local_match',
+      availability_detail: 'x',
+    });
     await expect
       .poll(() => row(request, fake.serverId))
       .toMatchObject({ availabilityReason: 'local_match', availabilityDetail: 'x' });
     fake.availability('available', 'idle');
     await expect
       .poll(() => row(request, fake.serverId))
-      .toMatchObject({ availability: 'available', availabilityReason: null, availabilityDetail: null });
+      .toMatchObject({
+        availability: 'available',
+        availabilityReason: null,
+        availabilityDetail: null,
+      });
   });
 
-  test('a server whose plugin set turns match off reads match_disabled, even from an old plugin', async ({ request }) => {
+  test('a server whose plugin set turns match off reads match_disabled, even from an old plugin', async ({
+    request,
+  }) => {
     const fake = await FakeReadyUp.enroll(request, key.value);
     fakes.push(fake);
     await fake.hello({ availability: 'available', capabilities: ['match.v1', 'fleet.cmds.v1'] });
@@ -101,7 +131,9 @@ test.describe.serial('Fleet busy reason: kept per server', () => {
       fake.answer(cmd, 'ok');
     }
     expect((await changing).ok()).toBe(true);
-    await expect.poll(() => row(request, fake.serverId)).toMatchObject({ availabilityReason: 'match_disabled' });
+    await expect
+      .poll(() => row(request, fake.serverId))
+      .toMatchObject({ availabilityReason: 'match_disabled' });
   });
 
   test('the spare held back for failover reads reserved', async ({ request }) => {
@@ -112,18 +144,36 @@ test.describe.serial('Fleet busy reason: kept per server', () => {
     await b.hello({ availability: 'available' });
     await link(request, a.serverId);
     await link(request, b.serverId);
-    const put = await request.put('/api/fleet/failover/settings', { headers: getAuthHeader(), data: { reserve: 1 } });
+    const put = await request.put('/api/fleet/failover/settings', {
+      headers: getAuthHeader(),
+      data: { reserve: 1 },
+    });
     expect(put.ok(), await put.text()).toBe(true);
     await expect
-      .poll(async () => [(await row(request, a.serverId))?.availabilityReason, (await row(request, b.serverId))?.availabilityReason].sort())
+      .poll(async () =>
+        [
+          (await row(request, a.serverId))?.availabilityReason,
+          (await row(request, b.serverId))?.availabilityReason,
+        ].sort()
+      )
       .toEqual([null, 'reserved']);
   });
 
-  test('server-availability names the busy reason of a linked Ready Up server, and the held spare', async ({ request }) => {
+  test('server-availability names the busy reason of a linked Ready Up server, and the held spare', async ({
+    request,
+  }) => {
     const pool = async () =>
       (
-        (await (await request.get('/api/tournament/server-availability', { headers: getAuthHeader() })).json()) as {
-          servers: Array<{ id: string; allocatable: boolean; notAllocatableReason: string | null; busyReason: string | null; busyDetail: string | null }>;
+        (await (
+          await request.get('/api/tournament/server-availability', { headers: getAuthHeader() })
+        ).json()) as {
+          servers: Array<{
+            id: string;
+            allocatable: boolean;
+            notAllocatableReason: string | null;
+            busyReason: string | null;
+            busyDetail: string | null;
+          }>;
         }
       ).servers;
     const busy = await FakeReadyUp.enroll(request, key.value);
@@ -132,10 +182,20 @@ test.describe.serial('Fleet busy reason: kept per server', () => {
     const busyId = await link(request, busy.serverId);
     await expect
       .poll(async () => (await pool()).find((s) => s.id === busyId))
-      .toMatchObject({ notAllocatableReason: 'busy', busyReason: 'local_match', busyDetail: 'cup-final' });
+      .toMatchObject({
+        notAllocatableReason: 'busy',
+        busyReason: 'local_match',
+        busyDetail: 'cup-final',
+      });
     // The two idle servers linked by the previous test: one is the spare.
     await expect
-      .poll(async () => (await pool()).filter((s) => s.notAllocatableReason === 'reserved' && s.busyReason === 'reserved' && !s.allocatable).length)
+      .poll(
+        async () =>
+          (await pool()).filter(
+            (s) =>
+              s.notAllocatableReason === 'reserved' && s.busyReason === 'reserved' && !s.allocatable
+          ).length
+      )
       .toBe(1);
     const rcon = await createTestServer(request);
     expect(rcon).not.toBeNull();
