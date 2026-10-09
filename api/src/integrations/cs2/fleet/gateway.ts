@@ -448,6 +448,8 @@ class FleetSession {
     this.gateway.register(this);
     await registry.markConnected(serverId, this.sessionId, {
       availability: hello.availability,
+      reason: hello.reason,
+      detail: hello.detail,
       versions: hello.versions,
       capabilities: hello.capabilities,
       host: hello.host,
