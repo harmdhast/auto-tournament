@@ -1,6 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
+import { createTestServer, deleteServer } from '../helpers/servers';
 import { FakeReadyUp, link } from '../helpers/fleetFake';
 import { CS2_MIGRATIONS } from '../../api/src/integrations/cs2/migrations';
 import { effectiveBusyReason, parseBusyDetail, parseBusyReason } from '../../api/src/integrations/cs2/fleet/busyReason';
@@ -116,5 +117,33 @@ test.describe.serial('Fleet busy reason: kept per server', () => {
     await expect
       .poll(async () => [(await row(request, a.serverId))?.availabilityReason, (await row(request, b.serverId))?.availabilityReason].sort())
       .toEqual([null, 'reserved']);
+  });
+
+  test('server-availability names the busy reason of a linked Ready Up server, and the held spare', async ({ request }) => {
+    const pool = async () =>
+      (
+        (await (await request.get('/api/tournament/server-availability', { headers: getAuthHeader() })).json()) as {
+          servers: Array<{ id: string; allocatable: boolean; notAllocatableReason: string | null; busyReason: string | null; busyDetail: string | null }>;
+        }
+      ).servers;
+    const busy = await FakeReadyUp.enroll(request, key.value);
+    fakes.push(busy);
+    await busy.hello({ availability: 'busy', reason: 'local_match', detail: 'cup-final' });
+    const busyId = await link(request, busy.serverId);
+    await expect
+      .poll(async () => (await pool()).find((s) => s.id === busyId))
+      .toMatchObject({ notAllocatableReason: 'busy', busyReason: 'local_match', busyDetail: 'cup-final' });
+    // The two idle servers linked by the previous test: one is the spare.
+    await expect
+      .poll(async () => (await pool()).filter((s) => s.notAllocatableReason === 'reserved' && s.busyReason === 'reserved' && !s.allocatable).length)
+      .toBe(1);
+    const rcon = await createTestServer(request);
+    expect(rcon).not.toBeNull();
+    try {
+      const entry = (await pool()).find((s) => s.id === rcon!.id);
+      if (entry) expect(entry.busyReason).toBeNull();
+    } finally {
+      await deleteServer(request, rcon!.id);
+    }
   });
 });
