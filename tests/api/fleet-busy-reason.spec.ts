@@ -1,7 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
-import { FakeReadyUp } from '../helpers/fleetFake';
+import { FakeReadyUp, link } from '../helpers/fleetFake';
 import { CS2_MIGRATIONS } from '../../api/src/integrations/cs2/migrations';
 import { effectiveBusyReason, parseBusyDetail, parseBusyReason } from '../../api/src/integrations/cs2/fleet/busyReason';
 
@@ -84,5 +84,37 @@ test.describe.serial('Fleet busy reason: kept per server', () => {
     await expect
       .poll(() => row(request, fake.serverId))
       .toMatchObject({ availability: 'available', availabilityReason: null, availabilityDetail: null });
+  });
+
+  test('a server whose plugin set turns match off reads match_disabled, even from an old plugin', async ({ request }) => {
+    const fake = await FakeReadyUp.enroll(request, key.value);
+    fakes.push(fake);
+    await fake.hello({ availability: 'available', capabilities: ['match.v1', 'fleet.cmds.v1'] });
+    const changing = request.post(`/api/fleet/servers/${fake.serverId}/plugins`, {
+      headers: getAuthHeader(),
+      data: { preset: 'practice' },
+    });
+    for (let i = 0; i < 4; i++) {
+      const cmd = await fake.next('cmd', 3000).catch(() => null);
+      if (!cmd) break;
+      fake.answer(cmd, 'ok');
+    }
+    expect((await changing).ok()).toBe(true);
+    await expect.poll(() => row(request, fake.serverId)).toMatchObject({ availabilityReason: 'match_disabled' });
+  });
+
+  test('the spare held back for failover reads reserved', async ({ request }) => {
+    const a = await FakeReadyUp.enroll(request, key.value);
+    const b = await FakeReadyUp.enroll(request, key.value);
+    fakes.push(a, b);
+    await a.hello({ availability: 'available' });
+    await b.hello({ availability: 'available' });
+    await link(request, a.serverId);
+    await link(request, b.serverId);
+    const put = await request.put('/api/fleet/failover/settings', { headers: getAuthHeader(), data: { reserve: 1 } });
+    expect(put.ok(), await put.text()).toBe(true);
+    await expect
+      .poll(async () => [(await row(request, a.serverId))?.availabilityReason, (await row(request, b.serverId))?.availabilityReason].sort())
+      .toEqual([null, 'reserved']);
   });
 });
