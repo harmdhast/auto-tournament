@@ -9,6 +9,7 @@ import { checkServerReachesApi } from '../utils/connectionTest';
 import { getLastServerTestEvent } from '../services/serverConnectivityService';
 import { settleActiveMatchOn } from '../../../services/matchTerminationService';
 import {
+  adminCapabilitiesFor,
   answerUnsupportedOnFleet,
   answerWithFleetCommand,
   fleetCommandFor,
@@ -19,6 +20,7 @@ import {
 } from './fleetCommands';
 import { addPlayer, currentPosition, fleetServerStatus, runFleetCommand } from '../fleet/driver';
 import { serverService } from '../services/serverService';
+import { transportOf } from '../driver';
 
 const router = Router();
 
@@ -55,6 +57,23 @@ router.get('/test/:serverId', async (req: Request, res: Response) => {
       success: false,
       error: 'Failed to test connection',
     });
+  }
+});
+
+/**
+ * GET /api/rcon/capabilities/:serverId
+ * The admin controls the server's transport supports
+ */
+router.get('/capabilities/:serverId', async (req: Request, res: Response) => {
+  try {
+    const { serverId } = req.params;
+    if (!(await serverService.getServerById(serverId))) {
+      return res.status(404).json({ success: false, error: 'Server not found' });
+    }
+    return res.json({ success: true, ...adminCapabilitiesFor(await transportOf(serverId)) });
+  } catch (error) {
+    console.error('Error reading server capabilities:', error);
+    return res.status(500).json({ success: false, error: 'Failed to read server capabilities' });
   }
 });
 

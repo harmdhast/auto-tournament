@@ -39,6 +39,32 @@
 
 /**
  * @openapi
+ * /api/rcon/capabilities/{serverId}:
+ *   get:
+ *     tags:
+ *       - RCON
+ *     summary: Admin controls the server transport supports
+ *     description: >-
+ *       `transport` (`rcon` or `fleet`), the server `commands` (`custom`, plus
+ *       `kick` and `reset` on Ready Up) and the `matchControls` that work on it
+ *       (Ready Up has no skip veto).
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: serverId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Capabilities
+ *       404:
+ *         description: Server not found
+ */
+
+/**
+ * @openapi
  * /api/rcon/practice-mode:
  *   post:
  *     tags:

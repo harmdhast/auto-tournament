@@ -19,6 +19,54 @@ import {
   type IssuedBy,
 } from '../fleet/driver';
 import type { CmdName } from '../fleet/protocol/v1';
+import type { ServerTransport } from '../../../types/server.types';
+
+export type MatchControlId =
+  | 'pause'
+  | 'unpause'
+  | 'swap'
+  | 'restartRound'
+  | 'skipVeto'
+  | 'endWarmup'
+  | 'endMatch'
+  | 'startMatch'
+  | 'restoreBackup'
+  | 'addTime'
+  | 'broadcast';
+
+const ALL_MATCH_CONTROLS: MatchControlId[] = [
+  'pause',
+  'unpause',
+  'swap',
+  'restartRound',
+  'skipVeto',
+  'endWarmup',
+  'endMatch',
+  'startMatch',
+  'restoreBackup',
+  'addTime',
+  'broadcast',
+];
+
+/**
+ * The admin controls a server transport supports, so the UI shows only the
+ * buttons that work. Ready Up has no in-game veto (skip veto), and adds kick
+ * and reset as server commands.
+ */
+export function adminCapabilitiesFor(transport: ServerTransport): {
+  transport: ServerTransport;
+  commands: string[];
+  matchControls: MatchControlId[];
+} {
+  if (transport === 'fleet') {
+    return {
+      transport,
+      commands: ['custom', 'kick', 'reset'],
+      matchControls: ALL_MATCH_CONTROLS.filter((id) => id !== 'skipVeto'),
+    };
+  }
+  return { transport, commands: ['custom'], matchControls: [...ALL_MATCH_CONTROLS] };
+}
 
 /**
  * Root (FLEET.md D10: `exec`): an admin-scope API token, the local admin

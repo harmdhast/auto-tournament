@@ -3,6 +3,8 @@ import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
 import { FakeReadyUp, acceptAssign, createMatch, link } from '../helpers/fleetFake';
 import { configureWebhook } from '../helpers/setup';
+import { createTestServer, deleteServer } from '../helpers/servers';
+import { adminCapabilitiesFor } from '../../api/src/integrations/cs2/routes/fleetCommands';
 
 /**
  * What the RCON admin controls do on a Ready Up server: add round time is
@@ -102,4 +104,26 @@ test.describe.serial('Fleet: RCON parity', () => {
       serverName: body.serverName,
     });
   });
+
+  test('capabilities: what each transport supports', async ({ request }) => {
+    expect(adminCapabilitiesFor('fleet').matchControls).not.toContain('skipVeto');
+    expect(adminCapabilitiesFor('fleet').matchControls).toContain('addTime');
+    expect(adminCapabilitiesFor('fleet').commands).toEqual(['custom', 'kick', 'reset']);
+    expect(adminCapabilitiesFor('rcon').matchControls).toHaveLength(11);
+    expect(adminCapabilitiesFor('rcon').commands).toEqual(['custom']);
+    const fleet = await (await request.get(`/api/rcon/capabilities/${cs2Id}`, { headers: getAuthHeader() })).json();
+    expect(fleet).toMatchObject({ success: true, transport: 'fleet', commands: ['custom', 'kick', 'reset'] });
+    const rcon = await createTestServer(request);
+    expect(rcon).not.toBeNull();
+    try {
+      const body = await (await request.get(`/api/rcon/capabilities/${rcon!.id}`, { headers: getAuthHeader() })).json();
+      expect(body).toMatchObject({ success: true, transport: 'rcon' });
+      expect(body.matchControls).toContain('skipVeto');
+    } finally {
+      await deleteServer(request, rcon!.id);
+    }
+    const none = await request.get('/api/rcon/capabilities/no-such-server', { headers: getAuthHeader() });
+    expect(none.status()).toBe(404);
+  });
 });
+
