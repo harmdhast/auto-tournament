@@ -93,7 +93,10 @@ function bracketLabel(server: ServerAllocationInfo): string | null {
   });
 }
 
-function timeAgo(unixSeconds: number, t: (key: string, opts?: Record<string, unknown>) => string): string {
+function timeAgo(
+  unixSeconds: number,
+  t: (key: string, opts?: Record<string, unknown>) => string
+): string {
   const seconds = Math.max(0, Math.floor(Date.now() / 1000) - unixSeconds);
   if (seconds < 60) return t('managePage.needsYou.secondsAgo', { count: seconds });
   const minutes = Math.floor(seconds / 60);
@@ -114,6 +117,24 @@ function heldBackKey(reason: ServerAllocationInfo['notAllocatableReason']): stri
     default:
       return 'managePage.servers.heldBack.other';
   }
+}
+
+const BUSY_REASON_KEY: Record<string, string> = {
+  local_match: 'managePage.servers.busyReason.localMatch',
+  awaiting_reset: 'managePage.servers.busyReason.awaitingReset',
+  match_disabled: 'managePage.servers.busyReason.matchDisabled',
+  draining: 'managePage.servers.busyReason.draining',
+  reserved: 'managePage.servers.busyReason.reserved',
+};
+
+/** The busy tile's line: what Ready Up says, else why the allocator holds it back. */
+function busyLine(
+  server: ServerAllocationInfo,
+  t: (key: string, opts?: Record<string, unknown>) => string
+): string {
+  const key = server.busyReason ? BUSY_REASON_KEY[server.busyReason] : undefined;
+  if (key) return t(key, { slug: server.busyDetail ?? server.staleMatchSlug ?? '' });
+  return t(heldBackKey(server.notAllocatableReason));
 }
 
 /** The tiles' grid (the draft's `.servers`): as many 210px columns as fit. */
@@ -144,8 +165,19 @@ const Tile: React.FC<{
       borderRadius: radii.md,
     }}
   >
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-      <Box component="b" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 1.5,
+        minWidth: 0,
+      }}
+    >
+      <Box
+        component="b"
+        sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
         {name}
       </Box>
       {chip}
@@ -177,12 +209,24 @@ const ServerGridView: React.FC<{
   const body = () => {
     if (answers === 0) {
       return (
-        <Box sx={gridSx} aria-busy="true" aria-label={t('managePage.servers.loading')} data-testid="manage-servers-loading">
+        <Box
+          sx={gridSx}
+          aria-busy="true"
+          aria-label={t('managePage.servers.loading')}
+          data-testid="manage-servers-loading"
+        >
           {[0, 1, 2].map((key) => (
             <Tile
               key={key}
               name={<Skeleton width={80} />}
-              chip={<Skeleton variant="rounded" width={56} height={22} sx={{ borderRadius: radii.pill }} />}
+              chip={
+                <Skeleton
+                  variant="rounded"
+                  width={56}
+                  height={22}
+                  sx={{ borderRadius: radii.pill }}
+                />
+              }
               line={<Skeleton width="70%" />}
             />
           ))}
@@ -228,7 +272,11 @@ const ServerGridView: React.FC<{
                 bad
                 name={server.name}
                 chip={
-                  <Chip size="small" label={t('managePage.servers.offline')} sx={{ color: tokens.color.ban }} />
+                  <Chip
+                    size="small"
+                    label={t('managePage.servers.offline')}
+                    sx={{ color: tokens.color.ban }}
+                  />
                 }
                 line={
                   server.updatedAt
@@ -272,12 +320,18 @@ const ServerGridView: React.FC<{
               />
             );
           }
+          const spare = server.busyReason === 'reserved';
           return (
             <Tile
               key={server.id}
               name={server.name}
-              chip={<Chip size="small" label={t('managePage.servers.busy')} />}
-              line={t(heldBackKey(server.notAllocatableReason))}
+              chip={
+                <Chip
+                  size="small"
+                  label={t(spare ? 'managePage.servers.spare' : 'managePage.servers.busy')}
+                />
+              }
+              line={busyLine(server, t)}
             />
           );
         })}
@@ -286,7 +340,9 @@ const ServerGridView: React.FC<{
             key={server.id}
             data-testid="manage-server-not-configured"
             name={server.name}
-            chip={<Chip size="small" variant="outlined" label={t('managePage.servers.notConfigured')} />}
+            chip={
+              <Chip size="small" variant="outlined" label={t('managePage.servers.notConfigured')} />
+            }
             line={t('managePage.servers.notConfiguredHint')}
           />
         ))}
@@ -295,7 +351,12 @@ const ServerGridView: React.FC<{
   };
 
   return (
-    <Box component="section" mt={6} data-testid="manage-servers" aria-labelledby="manage-servers-heading">
+    <Box
+      component="section"
+      mt={6}
+      data-testid="manage-servers"
+      aria-labelledby="manage-servers-heading"
+    >
       <SectionHead
         id="manage-servers-heading"
         title={t('managePage.servers.heading')}
