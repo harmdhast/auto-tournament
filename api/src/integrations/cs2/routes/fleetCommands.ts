@@ -50,6 +50,7 @@ export function fleetResponseBody(outcome: FleetCommandOutcome & { auditId?: str
     ...(outcome.commandId ? { commandId: outcome.commandId } : {}),
     ...(outcome.matchSlug ? { matchSlug: outcome.matchSlug } : {}),
     ...(outcome.auditId ? { auditId: outcome.auditId } : {}),
+    ...(outcome.serverName ? { serverName: outcome.serverName } : {}),
   };
 }
 

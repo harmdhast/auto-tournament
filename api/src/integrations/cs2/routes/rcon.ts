@@ -17,7 +17,8 @@ import {
   isFleetServer,
   issuedBy,
 } from './fleetCommands';
-import { addPlayer, currentPosition, runFleetCommand } from '../fleet/driver';
+import { addPlayer, currentPosition, fleetServerStatus, runFleetCommand } from '../fleet/driver';
+import { serverService } from '../services/serverService';
 
 const router = Router();
 
@@ -31,6 +32,19 @@ router.use(requireAuth);
 router.get('/test/:serverId', async (req: Request, res: Response) => {
   try {
     const { serverId } = req.params;
+    if (await isFleetServer(serverId)) {
+      // A Ready Up server has no RCON: its link is the connection.
+      const [status, server] = await Promise.all([
+        fleetServerStatus(serverId),
+        serverService.getServerById(serverId),
+      ]);
+      return res.status(status.online ? 200 : 400).json({
+        success: status.online,
+        transport: 'fleet',
+        serverName: server?.name ?? null,
+        ...status,
+      });
+    }
     const result = await rconService.testConnection(serverId);
     const statusCode = result.success ? 200 : 400;
 

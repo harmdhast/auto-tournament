@@ -79,4 +79,27 @@ test.describe.serial('Fleet: RCON parity', () => {
     });
     expect(res.status()).toBe(400);
   });
+
+  test('fleet answers name the server; the connection test reads the fleet link', async ({
+    request,
+  }) => {
+    const p = request.post('/api/rcon/say', {
+      headers: getAuthHeader(),
+      data: { serverId: cs2Id, message: 'hi' },
+    });
+    const cmd = await fake.next('cmd');
+    fake.answer(cmd, 'ok');
+    const body = await (await p).json();
+    expect(body).toMatchObject({ success: true, transport: 'fleet' });
+    expect(typeof body.serverName).toBe('string');
+    expect(body.serverName.length).toBeGreaterThan(0);
+    const t = await request.get(`/api/rcon/test/${cs2Id}`, { headers: getAuthHeader() });
+    expect(t.status()).toBe(200);
+    expect(await t.json()).toMatchObject({
+      success: true,
+      transport: 'fleet',
+      online: true,
+      serverName: body.serverName,
+    });
+  });
 });

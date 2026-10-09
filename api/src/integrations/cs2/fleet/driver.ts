@@ -792,6 +792,8 @@ export interface FleetCommandOutcome {
   output?: string;
   /** `cmd.result.result` (reset: what it ended). */
   data?: Record<string, unknown>;
+  /** The cs2_servers name it plays as (RCON answers carry one too). */
+  serverName?: string | null;
   commandId?: string;
   matchSlug?: string | null;
 }
@@ -817,7 +819,11 @@ export async function runFleetCommand(
       error: 'Not a Ready Up fleet server',
     };
   }
-  return runFleetCommandOn(fleetServerId, name, args, issuedBy, options);
+  const [outcome, row] = await Promise.all([
+    runFleetCommandOn(fleetServerId, name, args, issuedBy, options),
+    db.queryOneAsync<{ name: string }>('SELECT name FROM cs2_servers WHERE id = ?', [cs2ServerId]),
+  ]);
+  return { ...outcome, serverName: row?.name ?? null };
 }
 
 /** runFleetCommand by the fleet server's own id (servers that are not linked for matches too). */
