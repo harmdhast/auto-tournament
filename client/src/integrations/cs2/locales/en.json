@@ -2164,6 +2164,15 @@
         "spare": "Spare",
         "draining": "Draining",
         "offline": "Offline"
+      },
+      "sheet": {
+        "offline": "Offline: actions wait until it connects again",
+        "gone": "This server is gone",
+        "state": "State",
+        "connect": "Connect",
+        "version": "Ready Up",
+        "cs2": "CS2 build",
+        "lastSeen": "Last seen"
       }
     }
   },

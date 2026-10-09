@@ -105,4 +105,35 @@ test.describe('Ready Up fleet: servers tab', () => {
     await expect(page.getByTestId('readyup-fleet')).toBeVisible();
     await expect(page.getByTestId('servers-other')).toHaveCount(0);
   });
+
+  test('a Ready Up server opens in its own panel; offline and gone servers say so', async ({
+    page,
+  }) => {
+    await stubFleet(page, [
+      fleetServer('a', {
+        availability: 'busy',
+        availabilityReason: 'local_match',
+        availabilityDetail: 'cup-final',
+      }),
+      fleetServer('off', { online: false }),
+    ]);
+    await page.goto('/manage/servers#fleet');
+    await page.getByTestId('fleet-open-a').click();
+    const sheet = page.getByTestId('fleet-server-sheet');
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toContainText('ru-a');
+    await expect(sheet).toContainText('Local match cup-final still loaded');
+    await expect(page).toHaveURL(/[?&]fleetServer=a/);
+    await page.reload();
+    await expect(page.getByTestId('fleet-server-sheet')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('fleet-server-sheet')).toHaveCount(0);
+    await expect(page).not.toHaveURL(/fleetServer=/);
+
+    await page.getByTestId('fleet-open-off').click();
+    await expect(page.getByTestId('fleet-server-sheet')).toContainText('Offline');
+
+    await page.goto('/manage/servers?fleetServer=nope#fleet');
+    await expect(page.getByTestId('fleet-server-sheet')).toContainText('This server is gone');
+  });
 });

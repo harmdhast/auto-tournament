@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Box,
+  ButtonBase,
   Button,
   Checkbox,
   Chip,
@@ -83,7 +84,10 @@ function statusDot(server: FleetServer): 'live' | 'free' | 'loading' | 'error' {
 /** `servers` / `keys`: one half, for the Ready Up fleet section's tabs; `all`: both. */
 export type FleetPanelPart = 'all' | 'servers' | 'keys';
 
-export default function FleetPanel({ part = 'all' }: { part?: FleetPanelPart } = {}) {
+export default function FleetPanel({
+  part = 'all',
+  onOpenServer,
+}: { part?: FleetPanelPart; onOpenServer?: (id: string) => void } = {}) {
   const { t, i18n } = useModuleTranslation('cs2');
   const { showSnackbar, showError } = useSnackbar();
   const [servers, setServers] = useState<FleetServer[]>([]);
@@ -386,9 +390,26 @@ export default function FleetPanel({ part = 'all' }: { part?: FleetPanelPart } =
                 <StatusDot state={statusDot(server)} />
                 <Box minWidth={0}>
                   <Stack direction="row" alignItems="center" gap={1} minWidth={0}>
-                    <Typography fontWeight={600} noWrap>
-                      {server.name}
-                    </Typography>
+                    {onOpenServer ? (
+                      <ButtonBase
+                        onClick={() => onOpenServer(server.id)}
+                        data-testid={`fleet-open-${server.id}`}
+                        sx={{
+                          minWidth: 0,
+                          borderRadius: 1,
+                          textDecoration: 'underline',
+                          textUnderlineOffset: 3,
+                        }}
+                      >
+                        <Typography fontWeight={600} noWrap>
+                          {server.name}
+                        </Typography>
+                      </ButtonBase>
+                    ) : (
+                      <Typography fontWeight={600} noWrap>
+                        {server.name}
+                      </Typography>
+                    )}
                     {server.status === 'enrolled' && <AvailabilityChip server={server} />}
                   </Stack>
                   <AvailabilityReason server={server} />

@@ -2164,6 +2164,15 @@
         "spare": "Reserva",
         "draining": "A esvaziar",
         "offline": "Offline"
+      },
+      "sheet": {
+        "offline": "Offline: as ações esperam que volte a ligar-se",
+        "gone": "Este servidor já não existe",
+        "state": "Estado",
+        "connect": "Ligar",
+        "version": "Ready Up",
+        "cs2": "Build do CS2",
+        "lastSeen": "Visto pela última vez"
       }
     }
   },

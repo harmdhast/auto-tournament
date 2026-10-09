@@ -2164,6 +2164,15 @@
         "spare": "备用",
         "draining": "正在排空",
         "offline": "离线"
+      },
+      "sheet": {
+        "offline": "离线：操作将在重新连接后执行",
+        "gone": "此服务器已不存在",
+        "state": "状态",
+        "connect": "连接",
+        "version": "Ready Up",
+        "cs2": "CS2 版本",
+        "lastSeen": "最后在线"
       }
     }
   },

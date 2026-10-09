@@ -2204,6 +2204,15 @@
         "spare": "Zapas",
         "draining": "Opróżnianie",
         "offline": "Offline"
+      },
+      "sheet": {
+        "offline": "Offline: akcje czekają, aż znów się połączy",
+        "gone": "Tego serwera już nie ma",
+        "state": "Stan",
+        "connect": "Połączenie",
+        "version": "Ready Up",
+        "cs2": "Kompilacja CS2",
+        "lastSeen": "Ostatnio widziany"
       }
     }
   },

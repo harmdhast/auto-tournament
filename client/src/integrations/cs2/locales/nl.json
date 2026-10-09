@@ -2164,6 +2164,15 @@
         "spare": "Reserve",
         "draining": "Wordt geleegd",
         "offline": "Offline"
+      },
+      "sheet": {
+        "offline": "Offline: acties wachten tot hij weer verbindt",
+        "gone": "Deze server is weg",
+        "state": "Status",
+        "connect": "Verbinden",
+        "version": "Ready Up",
+        "cs2": "CS2-build",
+        "lastSeen": "Laatst gezien"
       }
     }
   },

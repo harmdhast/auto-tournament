@@ -5,6 +5,7 @@
  * `#fleet-settings`, `#autoscale`, `#failover`) or openServerSection() selects it.
  */
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Box, Tab, Tabs, Typography } from '@mui/material';
 import { useModuleTranslation } from '../../../../../module-sdk';
 import AutoScalePanel from '../../AutoScalePanel';
@@ -13,6 +14,7 @@ import FleetPushPanel from '../../FleetPushPanel';
 import FailoverSettingsPanel from '../../FailoverSettingsPanel';
 import { EmbeddedServerSections } from '../../ServerSection';
 import { OPEN_EVENT } from '../../openServerSection';
+import { FleetServerSheet } from './FleetServerSheet';
 
 export type ReadyUpTab = 'servers' | 'keys' | 'push' | 'autoscale' | 'failover';
 
@@ -34,6 +36,15 @@ function tabFromHash(): ReadyUpTab | null {
 export function ReadyUpFleetSection() {
   const { t } = useModuleTranslation('cs2');
   const [tab, setTab] = useState<ReadyUpTab>(() => tabFromHash() ?? 'servers');
+  // A server's panel is `?fleetServer=<id>`: a link or a reload opens it again.
+  const [params, setParams] = useSearchParams();
+  const openServer = (id: string | null) =>
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (id) next.set('fleetServer', id);
+      else next.delete('fleetServer');
+      return next;
+    });
 
   useEffect(() => {
     const onHash = () => {
@@ -88,12 +99,13 @@ export function ReadyUpFleetSection() {
         ))}
       </Tabs>
       <EmbeddedServerSections value>
-        {tab === 'servers' && <FleetPanel part="servers" />}
+        {tab === 'servers' && <FleetPanel part="servers" onOpenServer={openServer} />}
         {tab === 'keys' && <FleetPanel part="keys" />}
         {tab === 'push' && <FleetPushPanel />}
         {tab === 'autoscale' && <AutoScalePanel />}
         {tab === 'failover' && <FailoverSettingsPanel />}
       </EmbeddedServerSections>
+      <FleetServerSheet serverId={params.get('fleetServer')} onClose={() => openServer(null)} />
     </Box>
   );
 }

@@ -2164,6 +2164,15 @@
         "spare": "Reserva",
         "draining": "Vaciándose",
         "offline": "Desconectado"
+      },
+      "sheet": {
+        "offline": "Desconectado: las acciones esperan a que vuelva a conectarse",
+        "gone": "Este servidor ya no existe",
+        "state": "Estado",
+        "connect": "Conectar",
+        "version": "Ready Up",
+        "cs2": "Build de CS2",
+        "lastSeen": "Visto por última vez"
       }
     }
   },

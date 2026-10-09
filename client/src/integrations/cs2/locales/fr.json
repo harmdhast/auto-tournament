@@ -2164,6 +2164,15 @@
         "spare": "Réserve",
         "draining": "En vidange",
         "offline": "Hors ligne"
+      },
+      "sheet": {
+        "offline": "Hors ligne : les actions attendent sa reconnexion",
+        "gone": "Ce serveur n’existe plus",
+        "state": "État",
+        "connect": "Connexion",
+        "version": "Ready Up",
+        "cs2": "Build CS2",
+        "lastSeen": "Vu pour la dernière fois"
       }
     }
   },
