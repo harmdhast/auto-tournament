@@ -7,10 +7,7 @@ import { db } from '../../../config/database';
 import { parseConVarReply } from '../../../utils/pluginServerReplies';
 import { checkServerReachesApi } from '../utils/connectionTest';
 import { getLastServerTestEvent } from '../services/serverConnectivityService';
-import {
-  findActiveMatchForServer,
-  settleEndedMatch,
-} from '../../../services/matchTerminationService';
+import { settleActiveMatchOn } from '../../../services/matchTerminationService';
 import {
   answerUnsupportedOnFleet,
   answerWithFleetCommand,
@@ -101,7 +98,7 @@ router.post('/test-connection', async (req: Request, res: Response) => {
 
     // Test RCON connection first (API -> Server)
     const rconResult = await rconService.testConnectionByParams(host, portNum, password, name);
-    
+
     // If RCON failed, return early (can't test server->API if we can't reach server)
     if (!rconResult.success) {
       return res.status(400).json({
@@ -227,7 +224,8 @@ router.post('/change-map', async (req: Request, res: Response) => {
       });
     }
 
-    if (await answerWithFleetCommand(req, res, serverId, 'change_map', { name: mapName })) return res;
+    if (await answerWithFleetCommand(req, res, serverId, 'change_map', { name: mapName }))
+      return res;
     const result = await rconService.sendCommand(serverId, `css_map ${mapName}`);
     const statusCode = result.success ? 200 : 400;
 
@@ -256,7 +254,8 @@ router.post('/pause-match', async (req: Request, res: Response) => {
       });
     }
 
-    if (await answerWithFleetCommand(req, res, serverId, 'pause', { type: 'technical' })) return res;
+    if (await answerWithFleetCommand(req, res, serverId, 'pause', { type: 'technical' }))
+      return res;
     const result = await rconService.sendCommand(serverId, 'css_pause');
     const statusCode = result.success ? 200 : 400;
 
@@ -471,7 +470,11 @@ router.post('/say', async (req: Request, res: Response) => {
     // Sanitize message (remove special characters that could be exploited)
     const sanitizedMessage = message.replace(/[";\\]/g, '').substring(0, 200);
 
-    if (await answerWithFleetCommand(req, res, serverId, 'say', { text: sanitizedMessage.slice(0, 190) })) {
+    if (
+      await answerWithFleetCommand(req, res, serverId, 'say', {
+        text: sanitizedMessage.slice(0, 190),
+      })
+    ) {
       return res;
     }
     const result = await rconService.sendCommand(serverId, `say ${sanitizedMessage}`);
@@ -601,7 +604,13 @@ router.post('/restore-backup', async (req: Request, res: Response) => {
       // backup starts (1-based), and the server uses its own backup file.
       const position = await currentPosition(serverId);
       if (!position) {
-        return res.status(409).json({ success: false, transport: 'fleet', error: 'No match is assigned to this server' });
+        return res
+          .status(409)
+          .json({
+            success: false,
+            transport: 'fleet',
+            error: 'No match is assigned to this server',
+          });
       }
       const outcome = await runFleetCommand(
         serverId,
@@ -672,7 +681,9 @@ router.post('/restart-round', async (req: Request, res: Response) => {
       // Ready Up: restore the backup the current round started from.
       const position = await currentPosition(serverId);
       if (!position?.round) {
-        return res.status(409).json({ success: false, transport: 'fleet', error: 'No round is being played' });
+        return res
+          .status(409)
+          .json({ success: false, transport: 'fleet', error: 'No round is being played' });
       }
       const outcome = await runFleetCommand(
         serverId,
@@ -754,17 +765,7 @@ router.post('/end-match', async (req: Request, res: Response) => {
     // when a match is force-ended, so unless MAT settles its own record here the
     // row stays 'live' and the Matches tab keeps showing LIVE — which is exactly
     // what was reported. Force Cancel already did this; End Match never did.
-    if (result.success) {
-      const match = await findActiveMatchForServer(serverId);
-      if (match) {
-        await settleEndedMatch(match, 'end match');
-      } else {
-        log.warn(
-          `[RCON] End match sent to ${serverId} but no loaded/live match was found for it; ` +
-            'nothing to settle'
-        );
-      }
-    }
+    if (result.success) await settleActiveMatchOn(serverId, 'end match');
 
     return res.status(statusCode).json(result);
   } catch (error) {
@@ -832,9 +833,15 @@ router.post('/:serverId/add-player', async (req: Request, res: Response) => {
         team: team === 'spec' ? 'spectator' : (team as 'team1' | 'team2'),
       });
       if (outcome.ok) {
-        return res.json({ success: true, transport: 'fleet', message: `${safeName} added to ${team}` });
+        return res.json({
+          success: true,
+          transport: 'fleet',
+          message: `${safeName} added to ${team}`,
+        });
       }
-      return res.status(outcome.status).json({ success: false, transport: 'fleet', error: outcome.error });
+      return res
+        .status(outcome.status)
+        .json({ success: false, transport: 'fleet', error: outcome.error });
     }
 
     const result = await rconService.sendCommand(
@@ -901,7 +908,15 @@ router.post('/command', async (req: Request, res: Response) => {
       fullCommand = value;
     } else {
       // List of base RCON commands and prefixes that don't need modification
-      const baseRconCommands = ['status', 'changelevel', 'kick', 'ban', 'exec', 'rcon_password', 'say'];
+      const baseRconCommands = [
+        'status',
+        'changelevel',
+        'kick',
+        'ban',
+        'exec',
+        'rcon_password',
+        'say',
+      ];
 
       // Add css_ prefix if not present and not a raw RCON command or already prefixed
       if (
