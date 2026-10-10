@@ -20,7 +20,7 @@ import { DotsThreeIcon, WarningIcon } from '@phosphor-icons/react';
 import { mono, radii, tokens, useModuleTranslation } from '../../../../module-sdk';
 import type { FleetHost, FleetHostCommand, FleetServer, Server } from '../../cs2.types';
 import { serverState } from '../machineState';
-import { MachineCard } from '../fleet/MachineCard';
+import { MachineCard, runningOf } from '../fleet/MachineCard';
 import { MOVING, StateMark, useStateLabel } from '../fleet/serverStateMark';
 import type { Fleet } from '../fleet/useFleet';
 import type { ServerMatch } from '../fleet/useServerMatches';
@@ -243,16 +243,27 @@ function ServerListRow({
           {[
             `${match.team1} vs ${match.team2}`,
             match.score && match.phase !== 'veto' ? `${match.score[0]} – ${match.score[1]}` : null,
+            match.maps > 1 && match.mapNumber !== null
+              ? t('serversBoard.mapOf', {
+                  defaultValue: 'Map {{n}} of {{count}}',
+                  n: match.mapNumber + 1,
+                  count: match.maps,
+                })
+              : null,
           ]
             .filter(Boolean)
             .join(' · ')}
         </Line>
       );
     } else if (MOVING.includes(machineState)) {
-      const own = host.commands.find(
-        (c) =>
-          c.status === 'pending' && (c.server === server.name || c.payload.server === server.name)
-      );
+      // Its own command, else the machine update it is part of.
+      const own =
+        host.commands.find(
+          (c) =>
+            c.status === 'pending' && (c.server === server.name || c.payload.server === server.name)
+        ) ??
+        runningOf(host, 'host.update_game') ??
+        runningOf(host, 'host.update_plugins');
       reason = (
         <Line area="sub">
           {own?.progress.step ??
@@ -261,8 +272,31 @@ function ServerListRow({
               : t('serversBoard.csmOnIt', { defaultValue: 'csm is on it' }))}
         </Line>
       );
+    } else if (machineState === 'stopped') {
+      reason = (
+        <Line area="sub">
+          {t('serversBoard.stoppedLine', { defaultValue: 'Starts when a match needs it' })}
+        </Line>
+      );
+    } else if (machineState === 'offline') {
+      reason = (
+        <Line area="sub">
+          {host.online
+            ? t('serversBoard.notAnswering', { defaultValue: 'Not answering' })
+            : t('serversBoard.machineOffline', { defaultValue: 'Its machine is offline' })}
+        </Line>
+      );
     } else if (readyUpSays && row.fleet && hasAvailabilityReason(row.fleet)) {
       reason = <AvailabilityReason server={row.fleet} />;
+    } else if (server.process.restarts_24h > 0) {
+      reason = (
+        <Line area="sub">
+          {t('serversBoard.restarts', {
+            defaultValue: '{{count}} restarts in 24 h',
+            count: server.process.restarts_24h,
+          })}
+        </Line>
+      );
     }
     address = row.fleet?.connect?.address ?? `${host.hostname ?? host.name}:${server.game_port}`;
     version = row.fleet?.versions?.core ?? server.readyup.installed;

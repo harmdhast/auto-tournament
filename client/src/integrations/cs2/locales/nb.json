@@ -2135,8 +2135,7 @@
       "stopped": "Stoppet",
       "offline": "Nede",
       "veto": "Veto",
-      "warmup": "Oppvarming",
-      "creating": "Lager…"
+      "warmup": "Oppvarming"
     },
     "offlineFor": "Frakoblet i {{time}}",
     "readyUp": {

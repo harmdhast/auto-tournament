@@ -64,7 +64,7 @@ export async function stubFleetDetail(
 /** A linked csm machine as GET /api/fleet/hosts lists it; `servers` link to Ready Up ids when given. */
 export const machineHost = (
   id: string,
-  servers: Array<{ name: string; fleetId?: string }>,
+  servers: Array<{ name: string; fleetId?: string; process?: Record<string, unknown> }>,
   over: Record<string, unknown> = {}
 ) => ({
   id,
@@ -92,7 +92,7 @@ export const machineHost = (
     dir: `/srv/${s.name}`,
     game_port: 27015 + i,
     status_port: 28015 + i,
-    process: { running: true, restarts_24h: 0 },
+    process: { running: true, restarts_24h: 0, ...s.process },
     readyup: { installed: s.fleetId ? '0.4.0' : null, health: s.fleetId ? 'ok' : 'not_running' },
     cs2_build: 14032,
     launch_args: [],
