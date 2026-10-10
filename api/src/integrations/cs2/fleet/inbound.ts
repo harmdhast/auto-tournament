@@ -178,6 +178,7 @@ class FleetInboundHooks {
       availability: Availability;
       reason: string;
       busyReason: BusyReason | null;
+      busyDetail: string | null;
     }) => void
   ): () => void {
     return this.on('availability', listener);
@@ -395,18 +396,15 @@ async function applyAvailability(
   payload: ServerAvailabilityPayload
 ): Promise<void> {
   const busyReason = parseBusyReason(payload.reason);
-  await setAvailability(
-    ctx.serverId,
-    payload.availability,
-    busyReason,
-    parseBusyDetail(payload.detail)
-  );
+  const busyDetail = parseBusyDetail(payload.detail);
+  await setAvailability(ctx.serverId, payload.availability, busyReason, busyDetail);
   log.info(`[FLEET] ${ctx.serverId}: ${payload.availability} (${payload.reason})`);
   fleetInbound.emit('availability', {
     serverId: ctx.serverId,
     availability: payload.availability,
     reason: payload.reason,
     busyReason,
+    busyDetail,
   });
 }
 
