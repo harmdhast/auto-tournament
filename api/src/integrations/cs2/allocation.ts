@@ -131,6 +131,11 @@ export class Cs2ServerPool {
    */
   private readonly allocatingServers = new Set<string>();
 
+  /** A match is being handed to this server right now. */
+  isAllocating(serverId: string): boolean {
+    return this.allocatingServers.has(serverId);
+  }
+
   /**
    * Effective grace period to use for allocations in the current mode.
    * Mirrors the constants above so callers (e.g. shuffle round advancement)
@@ -722,7 +727,9 @@ export class Cs2ServerPool {
    * The Ready Up servers that can take a match now (getAvailableServers' fleet
    * half), without probing any RCON server: for the fleet views and failover.
    */
-  async getAvailableFleetServers(options: { includeFleetReserve?: boolean } = {}): Promise<ServerResponse[]> {
+  async getAvailableFleetServers(
+    options: { includeFleetReserve?: boolean } = {}
+  ): Promise<ServerResponse[]> {
     const fleetServers = (await serverService.getAllServers(true)).filter(
       (s) => s.tournamentUse !== false && s.transport === 'fleet'
     );

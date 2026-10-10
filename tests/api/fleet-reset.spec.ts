@@ -117,4 +117,33 @@ test.describe.serial('Fleet reset', () => {
     fake.answer(cmd, 'ok', { result: { ended: 'none', match_id: null } });
     expect((await first).ok()).toBe(true);
   });
+
+  test('the allocator leaves a server alone while it is being reset', async ({ request }) => {
+    test.setTimeout(90_000);
+    // No spare held back: this server is the one the allocator would pick.
+    await request.put('/api/fleet/failover/settings', {
+      headers: getAuthHeader(),
+      data: { reserve: 0 },
+    });
+    const fake = await online(request, { availability: 'available' });
+    await link(request, fake.serverId);
+    const res = reset(request, fake.serverId);
+    const cmd = await fake.next('cmd');
+    const slug = `reset-alloc-${Date.now()}`;
+    await createMatch(request, slug);
+    // Not while the reset runs...
+    expect(await fake.next('match.assign', 3_000).catch(() => null)).toBeNull();
+    fake.answer(cmd, 'ok', { result: { ended: 'none', match_id: null } });
+    expect((await res).ok()).toBe(true);
+    // ...and it takes matches again once it is reset and available.
+    fake.availability('available', 'idle');
+    const assign = await fake.next('match.assign', 30_000);
+    expect((assign.payload as { match_id: string }).match_id).toBe(slug);
+    fake.answer(assign, 'ok');
+    await request.post(`/api/matches/${slug}/force-cancel`, { headers: getAuthHeader() });
+    await request.put('/api/fleet/failover/settings', {
+      headers: getAuthHeader(),
+      data: { reserve: null },
+    });
+  });
 });

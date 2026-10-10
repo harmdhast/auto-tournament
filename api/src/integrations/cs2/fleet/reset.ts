@@ -53,9 +53,23 @@ export async function resetFleetServer(
       error: 'This server is already being reset',
     };
   }
-  resetting.add(fleetServerId);
+  resetting.add(fleetServerId); // before any await: a second press is refused above
+  const cs2ServerId = await cs2ServerIdOf(fleetServerId);
+  const { cs2ServerPool } = await import('../allocation');
+  const { serverAllocationTracker } = await import('../services/serverAllocationTracker');
+  if (cs2ServerId && cs2ServerPool.isAllocating(cs2ServerId)) {
+    resetting.delete(fleetServerId);
+    return {
+      ok: false,
+      httpStatus: 409,
+      errorCode: 'busy',
+      error: 'A match is being loaded on this server',
+    };
+  }
+  // The allocator leaves it alone until the reset is over (it is offered again once Ready Up
+  // says it is available).
+  if (cs2ServerId) serverAllocationTracker.markPreparing(cs2ServerId, null);
   try {
-    const cs2ServerId = await cs2ServerIdOf(fleetServerId);
     const assignment = await openAssignmentOn(fleetServerId);
     const match = cs2ServerId ? await findActiveMatchForServer(cs2ServerId) : null;
     const stored = await db.queryOneAsync<{ availability_reason: string | null }>(
@@ -85,7 +99,8 @@ export async function resetFleetServer(
 
     let settledMatchSlug: string | null = null;
     if (cs2ServerId) {
-      if (match) settledMatchSlug = await settleActiveMatchOn(cs2ServerId, 'server reset');
+      // Whatever runs there now, not only what was seen before the command.
+      settledMatchSlug = await settleActiveMatchOn(cs2ServerId, 'server reset');
       await unassignAll(cs2ServerId, 'admin');
     }
     const said = outcome.data?.ended;
@@ -102,5 +117,6 @@ export async function resetFleetServer(
     return { ok: true, ended, settledMatchSlug };
   } finally {
     resetting.delete(fleetServerId);
+    if (cs2ServerId) serverAllocationTracker.markIdle(cs2ServerId);
   }
 }
