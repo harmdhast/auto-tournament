@@ -1281,7 +1281,6 @@
     "codeExpires": "Kod ważny do {{time}}",
     "newCode": "Nowy kod",
     "rotate": "Odnów token",
-    "rotateTooltip": "Odnów token (termin: {{time}})",
     "revoke": "Unieważnij",
     "remove": "Usuń",
     "keysTitle": "Klucze floty",
@@ -1353,7 +1352,10 @@
     "rename": "Rename",
     "renamed": "Renamed",
     "renameSave": "Save",
-    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use."
+    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
+    "updateAvailable": "Dostępna aktualizacja: {{version}}",
+    "upToDate": "Aktualny",
+    "noUpdateCheck": "Brak sprawdzenia aktualizacji"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -2200,7 +2202,9 @@
         "connect": "Połączenie",
         "version": "Ready Up",
         "cs2": "Kompilacja CS2",
-        "lastSeen": "Ostatnio widziany"
+        "lastSeen": "Ostatnio widziany",
+        "update": "Aktualizacja",
+        "token": "Odnowienie tokenu"
       },
       "reset": {
         "action": "Resetuj",

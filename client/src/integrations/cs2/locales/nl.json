@@ -1243,7 +1243,6 @@
     "codeExpires": "Code geldig tot {{time}}",
     "newCode": "Nieuwe code",
     "rotate": "Token vernieuwen",
-    "rotateTooltip": "Token vernieuwen (gepland op {{time}})",
     "revoke": "Intrekken",
     "remove": "Verwijderen",
     "keysTitle": "Vlootsleutels",
@@ -1313,7 +1312,10 @@
     "rename": "Rename",
     "renamed": "Renamed",
     "renameSave": "Save",
-    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use."
+    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
+    "updateAvailable": "Update beschikbaar: {{version}}",
+    "upToDate": "Bijgewerkt",
+    "noUpdateCheck": "Nog geen updatecontrole"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -2160,7 +2162,9 @@
         "connect": "Verbinden",
         "version": "Ready Up",
         "cs2": "CS2-build",
-        "lastSeen": "Laatst gezien"
+        "lastSeen": "Laatst gezien",
+        "update": "Update",
+        "token": "Tokenvernieuwing"
       },
       "reset": {
         "action": "Resetten",

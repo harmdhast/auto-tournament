@@ -1243,7 +1243,6 @@
     "codeExpires": "Code valable jusqu’à {{time}}",
     "newCode": "Nouveau code",
     "rotate": "Renouveler le jeton",
-    "rotateTooltip": "Renouveler le jeton (prévu le {{time}})",
     "revoke": "Révoquer",
     "remove": "Retirer",
     "keysTitle": "Clés de flotte",
@@ -1313,7 +1312,10 @@
     "rename": "Rename",
     "renamed": "Renamed",
     "renameSave": "Save",
-    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use."
+    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
+    "updateAvailable": "Mise à jour disponible : {{version}}",
+    "upToDate": "À jour",
+    "noUpdateCheck": "Pas encore de vérification"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -2160,7 +2162,9 @@
         "connect": "Connexion",
         "version": "Ready Up",
         "cs2": "Build CS2",
-        "lastSeen": "Vu pour la dernière fois"
+        "lastSeen": "Vu pour la dernière fois",
+        "update": "Mise à jour",
+        "token": "Renouvellement du jeton"
       },
       "reset": {
         "action": "Réinitialiser",

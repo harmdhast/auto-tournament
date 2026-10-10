@@ -1243,7 +1243,6 @@
     "codeExpires": "Código válido até {{time}}",
     "newCode": "Novo código",
     "rotate": "Renovar token",
-    "rotateTooltip": "Renovar token (previsto para {{time}})",
     "revoke": "Revogar",
     "remove": "Remover",
     "keysTitle": "Chaves de frota",
@@ -1313,7 +1312,10 @@
     "rename": "Rename",
     "renamed": "Renamed",
     "renameSave": "Save",
-    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use."
+    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
+    "updateAvailable": "Atualização disponível: {{version}}",
+    "upToDate": "Atualizado",
+    "noUpdateCheck": "Ainda sem verificação de atualizações"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -2160,7 +2162,9 @@
         "connect": "Ligar",
         "version": "Ready Up",
         "cs2": "Build do CS2",
-        "lastSeen": "Visto pela última vez"
+        "lastSeen": "Visto pela última vez",
+        "update": "Atualização",
+        "token": "Renovação do token"
       },
       "reset": {
         "action": "Reiniciar",

@@ -58,6 +58,21 @@ export function ReadyUpServerSection({
             </Box>,
           ],
           !!server.versions && [t('serversBoard.readyUp.sheet.version'), server.versions.core],
+          !!server.versions && [
+            t('serversBoard.readyUp.sheet.update', { defaultValue: 'Update' }),
+            server.readyUpUpdate?.state === 'outdated'
+              ? t('fleetPanel.updateAvailable', {
+                  version: server.readyUpUpdate.latest,
+                  defaultValue: 'Update available: {{version}}',
+                })
+              : server.readyUpUpdate?.state === 'current'
+                ? t('fleetPanel.upToDate', { defaultValue: 'Up to date' })
+                : t('fleetPanel.noUpdateCheck', { defaultValue: 'No update check yet' }),
+          ],
+          !!server.token && [
+            t('serversBoard.readyUp.sheet.token', { defaultValue: 'Token renewal' }),
+            when(server.token.rotationDueAt),
+          ],
           server.versions?.cs2_build !== undefined && [
             t('serversBoard.readyUp.sheet.cs2'),
             String(server.versions?.cs2_build),

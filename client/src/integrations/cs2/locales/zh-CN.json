@@ -1243,7 +1243,6 @@
     "codeExpires": "代码有效期至 {{time}}",
     "newCode": "新代码",
     "rotate": "轮换令牌",
-    "rotateTooltip": "轮换令牌（到期：{{time}}）",
     "revoke": "吊销",
     "remove": "移除",
     "keysTitle": "服务器组密钥",
@@ -1313,7 +1312,10 @@
     "rename": "Rename",
     "renamed": "Renamed",
     "renameSave": "Save",
-    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use."
+    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
+    "updateAvailable": "有可用更新：{{version}}",
+    "upToDate": "已是最新",
+    "noUpdateCheck": "尚未检查更新"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -2160,7 +2162,9 @@
         "connect": "连接",
         "version": "Ready Up",
         "cs2": "CS2 版本",
-        "lastSeen": "最后在线"
+        "lastSeen": "最后在线",
+        "update": "更新",
+        "token": "令牌续期"
       },
       "reset": {
         "action": "重置",

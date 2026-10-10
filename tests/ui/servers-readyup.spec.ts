@@ -75,6 +75,16 @@ test.describe('Ready Up servers on the server list', () => {
         availabilityDetail: 'cup-final',
       }),
       fleetServer('off', { online: false }),
+      fleetServer('old', {
+        readyUpUpdate: { state: 'outdated', running: '0.1.0', latest: '0.5.0', releaseUrl: null },
+        token: {
+          id: 't1',
+          createdAt: 1,
+          lastUsedAt: null,
+          rotationDueAt: 1893456000,
+          rotationPending: false,
+        },
+      }),
     ];
     await stubFleet(page, servers);
     await stubFleetDetail(page, servers);
@@ -95,6 +105,11 @@ test.describe('Ready Up servers on the server list', () => {
 
     await page.getByTestId('server-row-r:off').click();
     await expect(page.getByTestId('server-panel')).toContainText('Offline');
+
+    await page.getByTestId('side-sheet-close').click();
+    await page.getByTestId('server-row-r:old').click();
+    await expect(page.getByTestId('server-panel')).toContainText('Update available: 0.5.0');
+    await expect(page.getByTestId('server-panel')).toContainText('Token renewal');
 
     await page.goto('/manage/servers?fleetServer=nope');
     await expect(page.getByTestId('server-panel')).toContainText('This server is gone');
