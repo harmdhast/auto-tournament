@@ -246,6 +246,13 @@ test.describe('Server list', () => {
     expect(await lefts('server-row-version-')).toHaveLength(1);
   });
 
+  test('no summary pills: each row says its own state', async ({ page }) => {
+    await stubAll(page);
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('server-row-x:rc1')).toBeVisible();
+    await expect(page.getByTestId('machines-summary')).toHaveCount(0);
+  });
+
   test('phone rows fit 390px', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await stubAll(page, {

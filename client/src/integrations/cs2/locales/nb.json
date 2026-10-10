@@ -1538,12 +1538,6 @@
     "cpu": "CPU-last",
     "ram": "RAM",
     "diskLabel": "Disk {{mount}}",
-    "counts": {
-      "free": "Ledige",
-      "match": "I en kamp",
-      "busy": "Oppdateres eller starter på nytt",
-      "down": "Stoppet eller frakoblet"
-    },
     "step": {
       "name": "Gi maskinen et navn",
       "run": "Kjør dette på den",
@@ -2125,7 +2119,6 @@
     "restarts_one": "{{count}} omstart på 24 t",
     "restarts_other": "{{count}} omstarter på 24 t",
     "stoppedLine": "Starter når en kamp trenger den",
-    "summary": "Alle servere",
     "update": "Oppdater",
     "updateEllipsis": "Oppdater…",
     "updatingWhat": "Oppdaterer {{what}}",

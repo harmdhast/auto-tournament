@@ -17,14 +17,10 @@ import {
   apiErrorMessage,
   ConfirmDialog,
   PageHead,
-  radii,
-  textSize,
-  tokens,
   useModuleTranslation,
   useSnackbar,
 } from '../../../module-sdk';
 import type { FleetHost } from '../cs2.types';
-import { countServers } from '../servers/machineState';
 import { insecureFlag } from '../servers/insecureLink';
 import { serverLimitText, useServerLimit } from '../servers/serverLimit';
 import { useFleet } from '../servers/fleet/useFleet';
@@ -50,8 +46,6 @@ import {
   ReadyUpDialog,
   type LinkInfo,
 } from '../servers/fleet/FleetDialogs';
-
-const { color } = tokens;
 
 type ServersTab = 'servers' | 'keys' | 'push' | 'autoscale' | 'failover';
 const TABS: ServersTab[] = ['servers', 'keys', 'push', 'autoscale', 'failover'];
@@ -276,33 +270,8 @@ export default function Servers() {
   const linked = link ? hosts.find((h) => h.id === link.hostId) : undefined;
   const linkConnected = !!linked && linked.status === 'enrolled' && linked.online;
 
-  const counts = countServers(hosts, fleet.isDeleting);
   const total = groups.reduce((n, g) => n + g.rows.length, 0);
   const machineHost = machineId ? (hosts.find((h) => h.id === machineId) ?? null) : null;
-
-  const pill = (key: string, n: number, tone: string, label: string) => (
-    <Box
-      key={key}
-      data-testid={`machines-count-${key}`}
-      sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 0.9,
-        px: 1.5,
-        py: 0.75,
-        borderRadius: radii.pill,
-        border: `1px solid ${color.rule}`,
-        fontSize: textSize.sm,
-        color: color.ink2,
-      }}
-    >
-      <Box aria-hidden sx={{ width: 9, height: 9, borderRadius: radii.pill, bgcolor: tone }} />
-      <Box component="b" sx={{ color: color.ink, fontVariantNumeric: 'tabular-nums' }}>
-        {n}
-      </Box>
-      {label}
-    </Box>
-  );
 
   return (
     <Box
@@ -371,42 +340,6 @@ export default function Servers() {
               data-testid="machines-panel"
               sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
             >
-              {hosts.length > 0 && (
-                <Box
-                  data-testid="machines-summary"
-                  sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}
-                  aria-label={t('serversBoard.summary', { defaultValue: 'All servers' })}
-                >
-                  {pill(
-                    'free',
-                    counts.free,
-                    color.live,
-                    t('machinesPanel.counts.free', { defaultValue: 'Free' }).toLowerCase()
-                  )}
-                  {pill(
-                    'match',
-                    counts.match,
-                    color.accent,
-                    t('machinesPanel.counts.match', { defaultValue: 'In a match' }).toLowerCase()
-                  )}
-                  {pill(
-                    'busy',
-                    counts.busy,
-                    color.info,
-                    t('machinesPanel.counts.busy', {
-                      defaultValue: 'Updating or restarting',
-                    }).toLowerCase()
-                  )}
-                  {pill(
-                    'down',
-                    counts.down,
-                    color.muted,
-                    t('machinesPanel.counts.down', {
-                      defaultValue: 'Stopped or offline',
-                    }).toLowerCase()
-                  )}
-                </Box>
-              )}
               <ServerList
                 groups={groups}
                 fleet={fleet}
