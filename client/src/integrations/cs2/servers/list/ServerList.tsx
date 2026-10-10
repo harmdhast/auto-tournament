@@ -94,7 +94,7 @@ const rowGrid = {
   cursor: 'pointer',
   gridTemplateColumns: {
     xs: '12px minmax(0, 1fr) auto auto',
-    md: '12px minmax(0, 1.3fr) auto minmax(0, 1.6fr) minmax(0, 1fr) 64px auto',
+    md: '12px minmax(0, 1.3fr) 104px minmax(0, 1.6fr) minmax(0, 1fr) 64px 96px',
   },
   gridTemplateAreas: {
     xs: '"dot name state actions" ". sub sub sub"',
@@ -391,7 +391,12 @@ function ServerListRow({
           </Box>
         )}
       </Box>
-      <Box sx={{ gridArea: 'state', display: 'flex' }}>{state}</Box>
+      <Box
+        data-testid={`server-row-state-${row.key}`}
+        sx={{ gridArea: 'state', display: 'flex', minWidth: 0 }}
+      >
+        {state}
+      </Box>
       {reason ? (
         <Box
           sx={{
@@ -412,7 +417,7 @@ function ServerListRow({
       <Line area="addr" wide monoText testId={`server-row-address-${row.key}`}>
         {addressLine ?? '—'}
       </Line>
-      <Line area="ver" wide monoText>
+      <Line area="ver" wide monoText testId={`server-row-version-${row.key}`}>
         {version ?? '—'}
       </Line>
       <Box
@@ -515,10 +520,13 @@ export function ServerList(props: ServerListProps) {
               borderRadius: radii.lg,
               bgcolor: color.paper2,
               border: `1px solid ${color.rule}`,
-              py: 1,
+              p: { xs: 1.5, md: 2 },
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1,
             }}
           >
-            <Box sx={{ px: 2, pb: 0.5 }}>
+            <Box>
               <Typography
                 id="server-group-none-title"
                 component="h2"

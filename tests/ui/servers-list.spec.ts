@@ -230,6 +230,22 @@ test.describe('Server list', () => {
     for (const h of heights) expect(h).toBeLessThanOrEqual(52);
   });
 
+  test('columns line up across rows and groups', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await stubAll(page);
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('server-row-x:rc1')).toBeVisible();
+    const lefts = async (prefix: string) =>
+      page
+        .locator(`[data-testid^="${prefix}"]`)
+        .evaluateAll((els) => [
+          ...new Set(els.map((e) => Math.round(e.getBoundingClientRect().left))),
+        ]);
+    expect(await lefts('server-row-state-')).toHaveLength(1);
+    expect(await lefts('server-row-address-')).toHaveLength(1);
+    expect(await lefts('server-row-version-')).toHaveLength(1);
+  });
+
   test('phone rows fit 390px', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await stubAll(page, {
