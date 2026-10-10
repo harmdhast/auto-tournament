@@ -967,6 +967,19 @@ async function supersede(
 ): Promise<void> {
   const key = `${fleetServerId}:${matchSlug}:${epoch}`;
   if (supersededSent.has(key)) return;
+  // A failover is moving the match off this server right now: its epoch is
+  // not dead until the target accepts (the move fences it then, failover.ts);
+  // if the target refuses, this server keeps the match.
+  const moving = await db.queryOneAsync<{ id: string }>(
+    `SELECT id FROM cs2_fleet_failovers WHERE match_slug = ? AND from_server_id = ? AND status = 'moving' LIMIT 1`,
+    [matchSlug, fleetServerId]
+  );
+  if (moving) {
+    log.info(
+      `[FLEET] ${fleetServerId}: ${matchSlug} epoch ${epoch} is being moved; not superseding it yet (${why})`
+    );
+    return;
+  }
   supersededSent.add(key);
   if (supersededSent.size > 10_000) supersededSent.clear();
   log.warn(

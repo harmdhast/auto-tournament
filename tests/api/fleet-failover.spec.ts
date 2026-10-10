@@ -1010,6 +1010,48 @@ test.describe.serial('Fleet failover (FLEET.md §11)', () => {
     expect(await a.next('match.unassign', 3_000).catch(() => null)).toBeNull();
   });
 
+  test('a live old server is not superseded while its match is being moved', async ({
+    request,
+  }) => {
+    test.setTimeout(180_000);
+    await setFailover(request, { auto: false });
+    const a = await FakeReadyUp.enroll(request);
+    cleanup.push(() => a.close());
+    await a.hello();
+    const cs2A = await link(request, a.serverId);
+    cleanup.push(() => unlink(request, a.serverId));
+    const slug = `fleet-fo-alive-${Date.now()}`;
+    cleanup.push(async () => {
+      await request.post(`/api/matches/${slug}/force-cancel`, { headers: getAuthHeader() });
+    });
+    const { epoch, backup } = await liveWithBackup(request, a, slug);
+    const b = await FakeReadyUp.enroll(request);
+    cleanup.push(() => b.close());
+    await b.hello();
+    const cs2B = await link(request, b.serverId);
+    cleanup.push(() => unlink(request, b.serverId));
+
+    // An admin moves the match off A, which is still alive and playing.
+    const accepting = request.post(`/api/game/cs2/matches/${slug}/failover/move`, {
+      headers: getAuthHeader(),
+      data: { targetServerId: cs2B, round: backup.round },
+    });
+    const assign = await b.next('match.assign', 30_000);
+    // While B thinks it over, A plays on and reports at its epoch.
+    a.event('live.event.phase.json', {
+      slug,
+      epoch,
+      rev: 3,
+      patch: { phase: 'paused' },
+      data: { from: 'live', to: 'paused', reason: 'flow' },
+    });
+    await new Promise((r) => setTimeout(r, 1500));
+    b.answer(assign, 'rejected', { error: { code: 'busy', message: 'busy' } });
+    expect((await accepting).status()).toBe(502);
+    expect(await a.next('match.unassign', 3_000).catch(() => null)).toBeNull();
+    expect((await matchRow(request, slug))?.serverId).toBe(cs2A);
+  });
+
   test('settings: validated, admin only', async ({ request, playwright, baseURL }) => {
     const bad = await request.put('/api/fleet/failover/settings', {
       headers: getAuthHeader(),
