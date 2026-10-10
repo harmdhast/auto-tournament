@@ -154,4 +154,31 @@ test.describe.serial('Fleet: RCON parity', () => {
       .toEqual(players);
     expect((await detail('no-such-server')).status()).toBe(404);
   });
+
+  test('kick sends cmd kick without an assignment; bad input and offline servers are refused', async ({
+    request,
+  }) => {
+    const idle = await FakeReadyUp.enroll(request, key.value);
+    fakes.push(idle);
+    const kick = (id: string, data: Record<string, unknown>) =>
+      request.post(`/api/fleet/servers/${id}/kick`, { headers: getAuthHeader(), data });
+    const offline = await kick(idle.serverId, { steamid64: STEAM(9) });
+    expect(offline.status()).toBe(409);
+    expect((await offline.json()).errorCode).toBe('offline');
+    await idle.hello({ availability: 'available' });
+    const p = kick(idle.serverId, { steamid64: STEAM(9), message: 'afk' });
+    const cmd = await idle.next('cmd');
+    expect(cmd.payload).toMatchObject({
+      name: 'kick',
+      args: { steamid64: STEAM(9), message: 'afk' },
+    });
+    expect(cmd.payload).not.toHaveProperty('match_id');
+    idle.answer(cmd, 'ok');
+    expect(await (await p).json()).toEqual({ ok: true });
+    expect((await kick(idle.serverId, { steamid64: '123' })).status()).toBe(400);
+    expect((await kick(idle.serverId, { steamid64: STEAM(9), message: 'a\u0007b' })).status()).toBe(
+      400
+    );
+    expect((await kick('no-such-server', { steamid64: STEAM(9) })).status()).toBe(404);
+  });
 });

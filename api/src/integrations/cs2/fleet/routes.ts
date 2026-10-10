@@ -54,11 +54,13 @@ import {
   unlinkFleetServer,
 } from './link';
 import { formatConnectAddress, unmapV4, type ConnectSource } from './address';
-import { getAssignment, syncMatch } from './driver';
+import { getAssignment, runFleetCommandOn, syncMatch } from './driver';
 import { listCommands } from './reliable';
 import { liveStateStore } from './state';
 import { resetFleetServer } from './reset';
 import { fleetPlayersOf } from './players';
+import { isSteam64 } from './push/admins';
+import { hasControlChars } from './push/settings';
 import { issuedBy } from '../routes/fleetCommands';
 import { effectiveBusyReason } from './busyReason';
 import { heldFleetSpares } from './failover';
@@ -421,6 +423,43 @@ fleetAdminRouter.post('/servers/:id/reset', async (req: Request, res: Response) 
   } catch (error) {
     log.error(`[FLEET] ${req.params.id}: reset failed: ${(error as Error).message}`);
     return res.status(500).json({ ok: false, error: 'Reset failed', errorCode: null });
+  }
+});
+
+/** Kick a player (cmd kick, no match needed). Any admin. */
+fleetAdminRouter.post('/servers/:id/kick', async (req: Request, res: Response) => {
+  const { steamid64, message } = (req.body ?? {}) as { steamid64?: unknown; message?: unknown };
+  if (!isSteam64(steamid64))
+    return res.status(400).json({ ok: false, error: 'steamid64 must be a SteamID64' });
+  if (
+    message !== undefined &&
+    (typeof message !== 'string' || message.length > 128 || hasControlChars(message))
+  ) {
+    return res.status(400).json({ ok: false, error: 'message: one line, at most 128 characters' });
+  }
+  const server = await registry.getFleetServer(req.params.id);
+  if (!server) return res.status(404).json({ ok: false, error: 'Fleet server not found' });
+  if (!fleetBus().isConnected(server.id)) {
+    return res
+      .status(409)
+      .json({ ok: false, errorCode: 'offline', error: 'The Ready Up server is offline' });
+  }
+  try {
+    const outcome = await runFleetCommandOn(
+      server.id,
+      'kick',
+      { steamid64, ...(message ? { message } : {}) },
+      issuedBy(req)
+    );
+    if (!outcome.ok) {
+      return res
+        .status(outcome.httpStatus)
+        .json({ ok: false, errorCode: outcome.errorCode, error: outcome.error ?? 'Kick failed' });
+    }
+    return res.json({ ok: true });
+  } catch (error) {
+    log.error(`[FLEET] ${server.id}: kick failed: ${(error as Error).message}`);
+    return res.status(500).json({ ok: false, error: 'Kick failed' });
   }
 });
 
