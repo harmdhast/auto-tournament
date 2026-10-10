@@ -494,7 +494,7 @@ function ServerListRow({
 export function ServerList(props: ServerListProps) {
   const { t } = useModuleTranslation('cs2');
   const fleetIds = props.groups.flatMap((g) =>
-    g.rows.flatMap((r) => (r.kind !== 'rcon' && r.fleet ? [r.fleet.id] : []))
+    g.rows.flatMap((r) => (r.kind !== 'rcon' && r.fleet?.status === 'enrolled' ? [r.fleet.id] : []))
   );
   const pushProblems = useFleetPushProblems(fleetIds);
   const guessedAny = props.groups.some((g) =>

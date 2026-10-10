@@ -136,67 +136,6 @@ test.describe('Server list', () => {
     await expect(page).toHaveURL(/\/manage\/servers$/);
   });
 
-  test('back leaves an old fleetServer link', async ({ page }) => {
-    await stubAll(page);
-    await page.goto('/manage/servers');
-    await expect(page.getByTestId('server-row-x:rc1')).toBeVisible();
-    await page.goto('/manage/servers?fleetServer=b');
-    await expect(page).toHaveURL(/[?&]server=r%3Ab/);
-    await page.goBack();
-    await expect(page).toHaveURL(/\/manage\/servers$/);
-  });
-
-  test('the header counts active servers only', async ({ page }) => {
-    await stubAll(page);
-    const fleet = [
-      fleetServer('a', { availability: 'busy', availabilityReason: 'local_match' }),
-      fleetServer('b'),
-      fleetServer('c'),
-      fleetServer('d', { status: 'revoked', online: false }),
-    ];
-    await stubFleet(page, fleet);
-    await page.route(
-      (url) => url.pathname === '/api/servers',
-      (route) =>
-        route.fulfill({
-          json: {
-            success: true,
-            servers: [
-              {
-                id: 'rc1',
-                name: 'rcon-legacy',
-                host: '10.0.0.9',
-                port: 27015,
-                enabled: true,
-                transport: 'rcon',
-              },
-              {
-                id: 'rc2',
-                name: 'rcon-off',
-                host: '10.0.0.8',
-                port: 27015,
-                enabled: false,
-                transport: 'rcon',
-              },
-            ],
-          },
-        })
-    );
-    await page.goto('/manage/servers');
-    await expect(page.getByTestId('server-row-r:d')).toBeVisible();
-    await expect(page.getByTestId('servers-limit')).toContainText('1 machine · 4 servers');
-  });
-
-  test('back leaves an old fleetServer link', async ({ page }) => {
-    await stubAll(page);
-    await page.goto('/manage/servers');
-    await expect(page.getByTestId('server-row-x:rc1')).toBeVisible();
-    await page.goto('/manage/servers?fleetServer=b');
-    await expect(page).toHaveURL(/[?&]server=r%3Ab/);
-    await page.goBack();
-    await expect(page).toHaveURL(/\/manage\/servers$/);
-  });
-
   test('the header counts active servers only', async ({ page }) => {
     await stubAll(page);
     const fleet = [
@@ -279,6 +218,25 @@ test.describe('Server list', () => {
     await expect(page.getByTestId('server-row-m:m3:server-1')).toContainText(
       'Its machine is offline'
     );
+  });
+
+  test('push state is read for enrolled servers only', async ({ page }) => {
+    await stubAll(page);
+    await stubFleet(page, [
+      fleetServer('b'),
+      fleetServer('p', { status: 'pending', online: false }),
+    ]);
+    let pendingReads = 0;
+    await page.route(
+      (url) => url.pathname === '/api/fleet/servers/p/push',
+      (route) => {
+        pendingReads += 1;
+        return route.fulfill({ status: 404, json: { success: false } });
+      }
+    );
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('server-row-push-r:b')).toBeVisible();
+    expect(pendingReads).toBe(0);
   });
 
   test('reset shows inline only on a busy Ready Up server', async ({ page }) => {

@@ -27,6 +27,8 @@ export function useFleetPushProblems(ids: string[]): Set<string> {
     if (!key) return;
     let live = true;
     const load = async () => {
+      // A hidden browser tab skips the round: one request per server adds up.
+      if (document.hidden) return;
       const list = key.split(',');
       const answers = await Promise.all(
         list.map((id) =>
