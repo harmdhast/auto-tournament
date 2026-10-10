@@ -2182,6 +2182,22 @@
         "done": "{{name}} reimpostato",
         "doneMatch": "{{name}} reimpostato. Partita {{slug}} chiusa.",
         "failed": "Impossibile reimpostare il server"
+      },
+      "players": {
+        "title": "Giocatori",
+        "empty": "Nessuno sul server",
+        "kick": "Espelli",
+        "kickTitle": "Espellere {{name}}?",
+        "kickMessage": "Lascia il server e può rientrare.",
+        "kickReason": "Messaggio mostrato all’espulsione (facoltativo)",
+        "kicked": "{{name}} espulso",
+        "kickFailed": "Impossibile espellere il giocatore",
+        "team": {
+          "ct": "CT",
+          "t": "T",
+          "spectator": "Spettatore",
+          "none": "Nessuna squadra"
+        }
       }
     }
   },

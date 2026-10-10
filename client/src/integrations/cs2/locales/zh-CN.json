@@ -2182,6 +2182,22 @@
         "done": "{{name}} 已重置",
         "doneMatch": "{{name}} 已重置，比赛 {{slug}} 已结算。",
         "failed": "无法重置服务器"
+      },
+      "players": {
+        "title": "玩家",
+        "empty": "服务器上没有人",
+        "kick": "踢出",
+        "kickTitle": "踢出 {{name}}？",
+        "kickMessage": "离开服务器，之后可以重新加入。",
+        "kickReason": "踢出时显示的消息（可选）",
+        "kicked": "{{name}} 已被踢出",
+        "kickFailed": "无法踢出该玩家",
+        "team": {
+          "ct": "CT",
+          "t": "T",
+          "spectator": "观众",
+          "none": "无队伍"
+        }
       }
     }
   },

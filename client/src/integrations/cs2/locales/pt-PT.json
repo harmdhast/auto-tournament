@@ -2182,6 +2182,22 @@
         "done": "{{name}} reiniciado",
         "doneMatch": "{{name}} reiniciado. Partida {{slug}} fechada.",
         "failed": "Não foi possível reiniciar o servidor"
+      },
+      "players": {
+        "title": "Jogadores",
+        "empty": "Ninguém no servidor",
+        "kick": "Expulsar",
+        "kickTitle": "Expulsar {{name}}?",
+        "kickMessage": "Sai do servidor e pode voltar a entrar.",
+        "kickReason": "Mensagem ao expulsar (opcional)",
+        "kicked": "{{name}} expulso",
+        "kickFailed": "Não foi possível expulsar o jogador",
+        "team": {
+          "ct": "CT",
+          "t": "T",
+          "spectator": "Espectador",
+          "none": "Sem equipa"
+        }
       }
     }
   },

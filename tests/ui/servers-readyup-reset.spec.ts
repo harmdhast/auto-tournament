@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { setupTestContext } from '../helpers/setup';
-import { fleetServer, stubFleet } from '../helpers/fleetUi';
+import { fleetServer, stubFleet, stubFleetDetail } from '../helpers/fleetUi';
 
 /**
  * Reset from a Ready Up server's row or its panel: a confirm that names the
@@ -17,14 +17,16 @@ test.describe('Ready Up fleet: reset', () => {
   });
 
   test('reset asks first, sends once, and says what it did or why not', async ({ page }) => {
-    await stubFleet(page, [
+    const servers = [
       fleetServer('a', {
         availability: 'busy',
         availabilityReason: 'local_match',
         availabilityDetail: 'cup-final',
       }),
       fleetServer('b'),
-    ]);
+    ];
+    await stubFleet(page, servers);
+    await stubFleetDetail(page, servers);
     let posts = 0;
     let answer: { status: number; json: unknown } = {
       status: 200,
@@ -64,7 +66,9 @@ test.describe('Ready Up fleet: reset', () => {
   });
 
   test('an offline server cannot be reset', async ({ page }) => {
-    await stubFleet(page, [fleetServer('off', { online: false })]);
+    const servers = [fleetServer('off', { online: false })];
+    await stubFleet(page, servers);
+    await stubFleetDetail(page, servers);
     await page.goto('/manage/servers#fleet');
     await expect(page.getByTestId('fleet-reset-off')).toBeDisabled();
   });

@@ -4,6 +4,7 @@ import { mono, useModuleTranslation } from '../../../../../module-sdk';
 import { Facts, SideSheet } from '../SideSheet';
 import { AvailabilityChip, AvailabilityReason } from './AvailabilityChip';
 import { ResetServerButton } from './ResetServerButton';
+import { FleetPlayers } from './FleetPlayers';
 import { useFleetServer } from './useFleetServer';
 
 export function FleetServerSheet({
@@ -66,6 +67,7 @@ export function FleetServerSheet({
               [t('serversBoard.readyUp.sheet.lastSeen'), when(server.lastSeen)],
             ]}
           />
+          <FleetPlayers server={server} onChanged={() => void reload()} />
         </Box>
       ) : (
         loaded && null

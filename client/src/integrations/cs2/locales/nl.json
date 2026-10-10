@@ -2182,6 +2182,22 @@
         "done": "{{name}} gereset",
         "doneMatch": "{{name}} gereset. Wedstrijd {{slug}} afgerond.",
         "failed": "Kon de server niet resetten"
+      },
+      "players": {
+        "title": "Spelers",
+        "empty": "Niemand op de server",
+        "kick": "Kicken",
+        "kickTitle": "{{name}} kicken?",
+        "kickMessage": "Verlaat de server en kan weer meedoen.",
+        "kickReason": "Bericht bij het kicken (optioneel)",
+        "kicked": "{{name}} gekickt",
+        "kickFailed": "Kon de speler niet kicken",
+        "team": {
+          "ct": "CT",
+          "t": "T",
+          "spectator": "Toeschouwer",
+          "none": "Geen team"
+        }
       }
     }
   },

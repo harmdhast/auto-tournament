@@ -2182,6 +2182,22 @@
         "done": "{{name}} réinitialisé",
         "doneMatch": "{{name}} réinitialisé. Match {{slug}} clôturé.",
         "failed": "Impossible de réinitialiser le serveur"
+      },
+      "players": {
+        "title": "Joueurs",
+        "empty": "Personne sur le serveur",
+        "kick": "Expulser",
+        "kickTitle": "Expulser {{name}} ?",
+        "kickMessage": "Quitte le serveur et peut revenir.",
+        "kickReason": "Message affiché à l’expulsion (facultatif)",
+        "kicked": "{{name}} expulsé",
+        "kickFailed": "Impossible d’expulser le joueur",
+        "team": {
+          "ct": "CT",
+          "t": "T",
+          "spectator": "Spectateur",
+          "none": "Sans équipe"
+        }
       }
     }
   },

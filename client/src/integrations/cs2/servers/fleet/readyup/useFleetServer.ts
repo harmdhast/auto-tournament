@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../../../../../module-sdk';
 import type { FleetServer } from '../../../cs2.types';
 
 const POLL_MS = 5_000;
@@ -18,12 +17,19 @@ export function useFleetServer(id: string | null): {
   const reload = useCallback(async () => {
     if (!id) return;
     try {
-      const res = await api.get<{ success: boolean; servers?: FleetServer[] }>(
-        '/api/fleet/servers'
-      );
-      const found = (res.servers ?? []).find((s) => s.id === id) ?? null;
-      setServer(found);
-      setGone(found === null);
+      // fetch, not api.get: a 404 (the server was removed) is an answer here, not an error.
+      const res = await fetch(`/api/fleet/servers/${encodeURIComponent(id)}`, {
+        credentials: 'same-origin',
+      });
+      if (res.status === 404) {
+        setServer(null);
+        setGone(true);
+        return;
+      }
+      if (!res.ok) return;
+      const body = (await res.json()) as { success: boolean; server?: FleetServer };
+      setServer(body.server ?? null);
+      setGone(false);
     } catch {
       // Keep what is shown; the next poll tries again.
     } finally {
