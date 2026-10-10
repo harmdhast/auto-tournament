@@ -17,8 +17,31 @@ test.describe('Servers tabs render', () => {
 
   test('scaling and failover say why they are empty', async ({ page }) => {
     await page.route(
-      (url) => url.pathname === '/api/fleet/hosts',
-      (route) => route.fulfill({ json: { success: true, count: 0, hosts: [] } })
+      (url) => url.pathname === '/api/fleet/autoscale',
+      (route) =>
+        route.fulfill({
+          json: {
+            settings: {},
+            desired: 0,
+            warm: 0,
+            reserve: 0,
+            demand: { running: 0, waiting: 0, soon: 0, total: 0 },
+            note: null,
+            machines: 0,
+            servers: [],
+            activity: [],
+          },
+        })
+    );
+    await page.route(
+      (url) => url.pathname === '/api/fleet/failover/settings',
+      (route) =>
+        route.fulfill({
+          json: {
+            settings: { auto: true, csm: true, reserve: null },
+            reserve: { configured: null, effective: 0, poolSize: 0, held: [] },
+          },
+        })
     );
     await page.goto('/manage/servers#autoscale');
     await expect(page.getByTestId('autoscale-empty')).toContainText('machine');
