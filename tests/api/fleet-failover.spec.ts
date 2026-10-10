@@ -1051,6 +1051,8 @@ test.describe.serial('Fleet failover (FLEET.md §11)', () => {
     expect((await accepting).status()).toBe(502);
     expect(await a.next('match.unassign', 3_000).catch(() => null)).toBeNull();
     expect((await matchRow(request, slug))?.serverId).toBe(cs2A);
+  });
+
   test('the server shown as the spare is the one failover picks', async ({ request }) => {
     test.setTimeout(180_000);
     await setFailover(request, { auto: true, reserve: 1 });
