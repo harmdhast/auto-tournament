@@ -105,12 +105,16 @@ export default function Servers() {
   useEffect(() => {
     if (!legacyFleetId || !ready) return;
     const key = rowForFleetServer(groups, legacyFleetId)?.key ?? `r:${legacyFleetId}`;
-    setParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete('fleetServer');
-      next.set('server', key);
-      return next;
-    });
+    // Replace: Back must not land on the old link and be sent forward again.
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('fleetServer');
+        next.set('server', key);
+        return next;
+      },
+      { replace: true }
+    );
   }, [legacyFleetId, ready, groups, setParams]);
   const panelRow = serverKey
     ? (groups.flatMap((g) => g.rows).find((r) => r.key === serverKey) ?? null)

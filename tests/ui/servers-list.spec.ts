@@ -126,6 +126,16 @@ test.describe('Server list', () => {
     await expect(page.getByTestId('servers-limit')).toContainText('1 machine · 4 servers');
   });
 
+  test('back leaves an old fleetServer link', async ({ page }) => {
+    await stubAll(page);
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('server-row-x:rc1')).toBeVisible();
+    await page.goto('/manage/servers?fleetServer=b');
+    await expect(page).toHaveURL(/[?&]server=r%3Ab/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/manage\/servers$/);
+  });
+
   test('reset shows inline only on a busy Ready Up server', async ({ page }) => {
     await stubAll(page);
     await page.goto('/manage/servers');
