@@ -28,6 +28,7 @@ import {
   AvailabilityChip,
   AvailabilityReason,
   availabilityOf,
+  hasAvailabilityReason,
 } from '../fleet/readyup/AvailabilityChip';
 import { ResetServerButton } from '../fleet/readyup/ResetServerButton';
 import { isGuessedAddress, type ServerGroup, type ServerRow } from './serverGroups';
@@ -260,7 +261,7 @@ function ServerListRow({
               : t('serversBoard.csmOnIt', { defaultValue: 'csm is on it' }))}
         </Line>
       );
-    } else if (readyUpSays && row.fleet) {
+    } else if (readyUpSays && row.fleet && hasAvailabilityReason(row.fleet)) {
       reason = <AvailabilityReason server={row.fleet} />;
     }
     address = row.fleet?.connect?.address ?? `${host.hostname ?? host.name}:${server.game_port}`;
@@ -296,7 +297,7 @@ function ServerListRow({
           {t('fleetPanel.codeExpires', { time: when(f.codeExpiresAt, locale) })}
         </Line>
       );
-    } else {
+    } else if (hasAvailabilityReason(f)) {
       reason = <AvailabilityReason server={f} />;
     }
     address = f.connect?.address ?? (f.host ? `${f.host.hostname}:${f.host.game_port}` : null);

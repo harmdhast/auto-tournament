@@ -146,7 +146,9 @@ test.describe('Server list', () => {
     await stubAll(page);
     await page.goto('/manage/servers');
     await expect(page.getByTestId('servers-guessed-banner')).toHaveCount(1);
-    await expect(page.getByTestId('server-row-guessed-r:b').first()).toBeVisible();
+    await expect(page.getByTestId('server-row-guessed-r:b').filter({ visible: true })).toHaveCount(
+      1
+    );
     await expect(page.getByTestId('server-row-guessed-r:c')).toHaveCount(0);
   });
 
@@ -266,6 +268,10 @@ test.describe('Server list', () => {
       .locator('[role="listitem"][data-testid^="server-row-"]')
       .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
     for (const h of heights) expect(h).toBeLessThanOrEqual(72);
+    // A free server has no reason: its second line is where players connect.
+    await expect(
+      page.getByTestId('server-row-r:b').getByText('203.0.113.5:27015').filter({ visible: true })
+    ).toHaveCount(1);
     await page.getByTestId('server-row-menu-r:b').click();
     await expect(page.getByTestId('fleet-rename-b')).toBeVisible();
   });
