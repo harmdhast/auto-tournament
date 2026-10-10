@@ -2198,6 +2198,13 @@
           "spectator": "Espectador",
           "none": "Sem equipa"
         }
+      },
+      "console": {
+        "title": "Consola",
+        "placeholder": "Comando",
+        "rootOnly": "Só para administradores root",
+        "noOutput": "Sem saída",
+        "notLinked": "Só para servidores usados em partidas"
       }
     }
   },

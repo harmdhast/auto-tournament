@@ -2198,6 +2198,13 @@
           "spectator": "Toeschouwer",
           "none": "Geen team"
         }
+      },
+      "console": {
+        "title": "Console",
+        "placeholder": "Opdracht",
+        "rootOnly": "Alleen voor root-beheerders",
+        "noOutput": "Geen uitvoer",
+        "notLinked": "Alleen voor servers die voor wedstrijden worden gebruikt"
       }
     }
   },

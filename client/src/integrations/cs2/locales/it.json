@@ -2198,6 +2198,13 @@
           "spectator": "Spettatore",
           "none": "Nessuna squadra"
         }
+      },
+      "console": {
+        "title": "Console",
+        "placeholder": "Comando",
+        "rootOnly": "Solo per gli amministratori root",
+        "noOutput": "Nessun output",
+        "notLinked": "Solo per i server usati per le partite"
       }
     }
   },

@@ -146,5 +146,8 @@
  *
  * 0.2.18 (additive): `highlightsAdmin` (the game's tab on core's Highlights
  * page) and `links.highlights()`.
+ *
+ * 0.2.19 (additive): `useAuth().isRoot` (a root admin, who may run raw console
+ * lines on a Ready Up server).
  */
-export const CLIENT_API_VERSION = '0.2.18';
+export const CLIENT_API_VERSION = '0.2.19';

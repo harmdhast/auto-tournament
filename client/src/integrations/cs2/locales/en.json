@@ -2198,6 +2198,13 @@
           "spectator": "Spectator",
           "none": "No team"
         }
+      },
+      "console": {
+        "title": "Console",
+        "placeholder": "Command",
+        "rootOnly": "Root admins only",
+        "noOutput": "No output",
+        "notLinked": "Only for servers used for matches"
       }
     }
   },

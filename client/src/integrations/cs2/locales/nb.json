@@ -2198,6 +2198,13 @@
           "spectator": "Tilskuer",
           "none": "Uten lag"
         }
+      },
+      "console": {
+        "title": "Konsoll",
+        "placeholder": "Kommando",
+        "rootOnly": "Bare for root-administratorer",
+        "noOutput": "Ingen utdata",
+        "notLinked": "Bare for servere som brukes til kamper"
       }
     }
   },

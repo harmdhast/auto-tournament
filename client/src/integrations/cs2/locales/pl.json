@@ -2238,6 +2238,13 @@
           "spectator": "Widz",
           "none": "Bez drużyny"
         }
+      },
+      "console": {
+        "title": "Konsola",
+        "placeholder": "Polecenie",
+        "rootOnly": "Tylko dla administratorów root",
+        "noOutput": "Brak wyniku",
+        "notLinked": "Tylko dla serwerów używanych do meczów"
       }
     }
   },

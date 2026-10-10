@@ -2198,6 +2198,13 @@
           "spectator": "Spectateur",
           "none": "Sans équipe"
         }
+      },
+      "console": {
+        "title": "Console",
+        "placeholder": "Commande",
+        "rootOnly": "Réservé aux admins root",
+        "noOutput": "Aucune sortie",
+        "notLinked": "Seulement pour les serveurs utilisés pour les matchs"
       }
     }
   },
