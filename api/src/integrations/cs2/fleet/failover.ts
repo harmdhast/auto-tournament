@@ -289,9 +289,7 @@ export async function heldFleetSpares(): Promise<FailoverCandidate[]> {
 
 export async function freeFleetServers(): Promise<FailoverCandidate[]> {
   const { cs2ServerPool } = await import('../allocation');
-  const free = (await cs2ServerPool.getAvailableServers({ includeFleetReserve: true })).filter(
-    (s) => s.transport === 'fleet'
-  );
+  const free = await cs2ServerPool.getAvailableFleetServers({ includeFleetReserve: true });
   if (free.length === 0) return [];
   const rows = await db.queryAsync<{
     id: string;

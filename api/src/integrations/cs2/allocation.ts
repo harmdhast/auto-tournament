@@ -718,6 +718,27 @@ export class Cs2ServerPool {
    * failover reserve (idle servers kept for FLEET.md §11) is held back unless
    * `includeReserve`.
    */
+  /**
+   * The Ready Up servers that can take a match now (getAvailableServers' fleet
+   * half), without probing any RCON server: for the fleet views and failover.
+   */
+  async getAvailableFleetServers(options: { includeFleetReserve?: boolean } = {}): Promise<ServerResponse[]> {
+    const fleetServers = (await serverService.getAllServers(true)).filter(
+      (s) => s.tournamentUse !== false && s.transport === 'fleet'
+    );
+    if (fleetServers.length === 0) return [];
+    const dbBusyRows = await db.queryAsync<{ server_id: string }>(
+      `SELECT server_id FROM matches
+        WHERE server_id IS NOT NULL AND server_id != '' AND status IN ('loaded', 'live')`
+    );
+    return this.availableFleetServers(
+      fleetServers,
+      new Set(dbBusyRows.map((row) => row.server_id)),
+      Math.floor(Date.now() / 1000),
+      options.includeFleetReserve === true
+    );
+  }
+
   private async availableFleetServers(
     servers: ServerResponse[],
     dbBusyServers: Set<string>,
