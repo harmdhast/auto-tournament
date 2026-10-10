@@ -222,7 +222,7 @@ export function FleetServerPushSection({ server }: { server: FleetServer }) {
 
   return (
     <Box data-testid="server-panel-push" sx={{ display: 'grid', gap: 1.5 }}>
-      <Typography variant="body2" color="text.secondary" sx={mono}>
+      <Typography variant="body2" color="text.secondary" data-testid="server-panel-push-source">
         {push?.override
           ? t('fleetPush.hasOverride', { defaultValue: 'Own settings' })
           : t('fleetPush.usesDefault', { defaultValue: 'Fleet default settings' })}

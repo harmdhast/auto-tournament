@@ -75,6 +75,10 @@ test.describe('Ready Up server panel: push', () => {
     );
     await page.goto('/manage/servers?server=r:a');
     const push = page.getByTestId('server-panel').getByTestId('server-panel-push');
+    const font = await push
+      .getByTestId('server-panel-push-source')
+      .evaluate((e) => window.getComputedStyle(e).fontFamily);
+    expect(font).not.toMatch(/mono/i);
     await push.getByTestId('fleet-practice-a').click();
     await expect.poll(() => sent).toEqual({ on: true });
   });
