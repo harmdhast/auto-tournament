@@ -277,7 +277,7 @@ export default function Servers() {
   const linkConnected = !!linked && linked.status === 'enrolled' && linked.online;
 
   const counts = countServers(hosts, fleet.isDeleting);
-  const total = hosts.reduce((n, h) => n + h.servers.length, 0);
+  const total = groups.reduce((n, g) => n + g.rows.length, 0);
   const machineHost = machineId ? (hosts.find((h) => h.id === machineId) ?? null) : null;
 
   const pill = (key: string, n: number, tone: string, label: string) => (

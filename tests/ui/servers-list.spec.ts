@@ -119,6 +119,13 @@ test.describe('Server list', () => {
     await expect(page.getByTestId('server-row-r:a')).toHaveCount(0);
   });
 
+  test('the header counts every listed server', async ({ page }) => {
+    await stubAll(page);
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('server-row-x:rc1')).toBeVisible();
+    await expect(page.getByTestId('servers-limit')).toContainText('1 machine · 4 servers');
+  });
+
   test('reset shows inline only on a busy Ready Up server', async ({ page }) => {
     await stubAll(page);
     await page.goto('/manage/servers');
