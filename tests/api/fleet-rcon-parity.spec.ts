@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
-import { FakeReadyUp, acceptAssign, createMatch, link } from '../helpers/fleetFake';
+import { FakeReadyUp, STEAM, acceptAssign, createMatch, link } from '../helpers/fleetFake';
 import { configureWebhook } from '../helpers/setup';
 import { createTestServer, deleteServer } from '../helpers/servers';
 import { adminCapabilitiesFor } from '../../api/src/integrations/cs2/routes/fleetCommands';
@@ -111,19 +111,47 @@ test.describe.serial('Fleet: RCON parity', () => {
     expect(adminCapabilitiesFor('fleet').commands).toEqual(['custom', 'kick', 'reset']);
     expect(adminCapabilitiesFor('rcon').matchControls).toHaveLength(11);
     expect(adminCapabilitiesFor('rcon').commands).toEqual(['custom']);
-    const fleet = await (await request.get(`/api/rcon/capabilities/${cs2Id}`, { headers: getAuthHeader() })).json();
-    expect(fleet).toMatchObject({ success: true, transport: 'fleet', commands: ['custom', 'kick', 'reset'] });
+    const fleet = await (
+      await request.get(`/api/rcon/capabilities/${cs2Id}`, { headers: getAuthHeader() })
+    ).json();
+    expect(fleet).toMatchObject({
+      success: true,
+      transport: 'fleet',
+      commands: ['custom', 'kick', 'reset'],
+    });
     const rcon = await createTestServer(request);
     expect(rcon).not.toBeNull();
     try {
-      const body = await (await request.get(`/api/rcon/capabilities/${rcon!.id}`, { headers: getAuthHeader() })).json();
+      const body = await (
+        await request.get(`/api/rcon/capabilities/${rcon!.id}`, { headers: getAuthHeader() })
+      ).json();
       expect(body).toMatchObject({ success: true, transport: 'rcon' });
       expect(body.matchControls).toContain('skipVeto');
     } finally {
       await deleteServer(request, rcon!.id);
     }
-    const none = await request.get('/api/rcon/capabilities/no-such-server', { headers: getAuthHeader() });
+    const none = await request.get('/api/rcon/capabilities/no-such-server', {
+      headers: getAuthHeader(),
+    });
     expect(none.status()).toBe(404);
   });
-});
 
+  test('a server detail lists the players its last snapshot reported', async ({ request }) => {
+    const other = await FakeReadyUp.enroll(request, key.value);
+    fakes.push(other);
+    await other.hello({ availability: 'available' });
+    const detail = async (id: string) =>
+      request.get(`/api/fleet/servers/${id}`, { headers: getAuthHeader() });
+    const empty = await (await detail(other.serverId)).json();
+    expect(empty).toMatchObject({ success: true, server: { id: other.serverId, players: [] } });
+    const players = [
+      { steamid64: STEAM(1), name: 'alice', team: 'ct' },
+      { steamid64: STEAM(2), name: 'bob', team: 'spectator' },
+    ];
+    other.snapshot('none', 1, { state: null, availability: 'available', players });
+    await expect
+      .poll(async () => (await (await detail(other.serverId)).json()).server.players)
+      .toEqual(players);
+    expect((await detail('no-such-server')).status()).toBe(404);
+  });
+});

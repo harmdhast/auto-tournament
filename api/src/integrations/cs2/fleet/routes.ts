@@ -58,6 +58,7 @@ import { getAssignment, syncMatch } from './driver';
 import { listCommands } from './reliable';
 import { liveStateStore } from './state';
 import { resetFleetServer } from './reset';
+import { fleetPlayersOf } from './players';
 import { issuedBy } from '../routes/fleetCommands';
 import { effectiveBusyReason } from './busyReason';
 import { heldFleetSpares } from './failover';
@@ -287,6 +288,30 @@ fleetAdminRouter.get('/servers', async (_req: Request, res: Response) => {
   } catch (error) {
     log.error(`[FLEET] listing servers failed: ${(error as Error).message}`);
     return res.status(500).json({ success: false, error: 'Failed to list fleet servers' });
+  }
+});
+
+/** One server, as the list shows it, with the players its last snapshot reported (its panel). */
+fleetAdminRouter.get('/servers/:id', async (req: Request, res: Response) => {
+  try {
+    const found = await registry.getFleetServerView(req.params.id);
+    if (!found) return res.status(404).json({ success: false, error: 'Fleet server not found' });
+    const [matchOff, spares] = await Promise.all([matchDisabledServerIds(), heldFleetSpares()]);
+    const [view] = await withLinks(withLiveState([found]));
+    return res.json({
+      success: true,
+      server: {
+        ...view,
+        availabilityReason: effectiveBusyReason(view.availabilityReason, {
+          matchDisabled: matchOff.has(view.id),
+          reserved: spares.some((c) => c.fleetServerId === view.id),
+        }),
+        players: fleetPlayersOf(view.id),
+      },
+    });
+  } catch (error) {
+    log.error(`[FLEET] reading server ${req.params.id} failed: ${(error as Error).message}`);
+    return res.status(500).json({ success: false, error: 'Failed to read the fleet server' });
   }
 });
 

@@ -47,6 +47,7 @@ import {
 } from './protocol/v1';
 import { pushSkinsOnConnect } from './push/skins';
 import { parseBusyDetail, parseBusyReason } from './busyReason';
+import { noteSnapshot } from './players';
 import type { BusyReason } from './protocol/v1/types';
 import {
   liveStateStore,
@@ -524,6 +525,7 @@ export async function handleSnapshot(
   ctx: InboundContext,
   payload: StateSnapshotPayload
 ): Promise<SnapshotOutcome> {
+  noteSnapshot(ctx.serverId, payload);
   const outcome = await liveStateStore.applySnapshot(ctx.serverId, payload);
   if (outcome.kind === 'replaced' && outcome.record.needsSnapshot) {
     // Still a gap after the patches that followed on from it: ask again.
