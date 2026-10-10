@@ -4161,6 +4161,36 @@
       }
     },
     "/api/fleet/servers/{id}": {
+      "get": {
+        "tags": [
+          "Fleet"
+        ],
+        "summary": "GET /api/fleet/servers/:id",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      },
       "patch": {
         "tags": [
           "Fleet"
@@ -4260,6 +4290,38 @@
           "Fleet"
         ],
         "summary": "POST /api/fleet/servers/:id/code",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/fleet/servers/{id}/kick": {
+      "post": {
+        "tags": [
+          "Fleet"
+        ],
+        "summary": "POST /api/fleet/servers/:id/kick",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
         "responses": {
           "200": {
@@ -11429,6 +11491,41 @@
           },
           "207": {
             "description": "Partial success"
+          }
+        }
+      }
+    },
+    "/api/rcon/capabilities/{serverId}": {
+      "get": {
+        "tags": [
+          "RCON"
+        ],
+        "summary": "Admin controls the server transport supports",
+        "description": "`transport` (`rcon` or `fleet`), the server `commands` (`custom`, plus `kick` and `reset` on Ready Up) and the `matchControls` that work on it (Ready Up has no skip veto).",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "serverId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Capabilities"
+          },
+          "404": {
+            "description": "Server not found"
           }
         }
       }
