@@ -60,3 +60,65 @@ export async function stubFleetDetail(
     }
   );
 }
+
+/** A linked csm machine as GET /api/fleet/hosts lists it; `servers` link to Ready Up ids when given. */
+export const machineHost = (
+  id: string,
+  servers: Array<{ name: string; fleetId?: string }>,
+  over: Record<string, unknown> = {}
+) => ({
+  id,
+  name: `machine-${id}`,
+  status: 'enrolled',
+  machineId: null,
+  enrolledVia: 'code',
+  hostname: `${id}.lan`,
+  os: 'linux',
+  csmVersion: '1.4.0',
+  online: true,
+  connectedAt: 1,
+  lastSeen: 1,
+  createdAt: 1,
+  inventory: {
+    resources: { cpus: 8, load1: 0.2, ram_mb: 16000, ram_free_mb: 8000, disk: [] },
+    cs2: { master_build: 14032, update_available: false, updates_hold: 'auto' },
+  },
+  inventoryAt: 1,
+  token: null,
+  rotateRequested: false,
+  codeExpiresAt: null,
+  servers: servers.map((s, i) => ({
+    name: s.name,
+    dir: `/srv/${s.name}`,
+    game_port: 27015 + i,
+    status_port: 28015 + i,
+    process: { running: true, restarts_24h: 0 },
+    readyup: { installed: s.fleetId ? '0.4.0' : null, health: s.fleetId ? 'ok' : 'not_running' },
+    cs2_build: 14032,
+    launch_args: [],
+    fleetServer: s.fleetId
+      ? {
+          id: s.fleetId,
+          name: `ru-${s.fleetId}`,
+          status: 'enrolled',
+          online: true,
+          availability: 'available',
+          readyUpVersion: '0.4.0',
+        }
+      : null,
+    matchInProgress: false,
+  })),
+  enrolledServers: [],
+  autoUpdate: null,
+  commands: [],
+  health: [],
+  ...over,
+});
+
+/** GET /api/fleet/hosts with these machines. */
+export async function stubMachines(page: Page, hosts: unknown[]) {
+  await page.route(
+    (url) => url.pathname === '/api/fleet/hosts',
+    (route) => route.fulfill({ json: { success: true, count: hosts.length, hosts } })
+  );
+}

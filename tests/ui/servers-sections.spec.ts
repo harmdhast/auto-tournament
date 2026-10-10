@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test';
 import { setupTestContext } from '../helpers/setup';
 
 /**
- * The Servers page: machines on top, then the Ready Up fleet section with its
- * tabs (servers, keys and enrollment, push, automatic scaling, failover). A
- * link to a fleet anchor (`#autoscale`, `#fleet`, ...) selects its tab.
+ * The Servers page has tabs: the server list, keys and enrollment, push,
+ * automatic scaling, failover. A link to a fleet anchor (`#autoscale`,
+ * `#fleet`, ...) selects its tab. One Add menu adds a machine or a Ready Up server.
  *
  * @tag ui
  * @tag servers
@@ -16,33 +16,34 @@ test.describe('Servers page sections', () => {
   });
 
   test(
-    'the Ready Up fleet is a section with tabs; links select a tab',
+    'the page has five tabs; links select a tab; Add offers a machine or a Ready Up server',
     { tag: ['@ui', '@servers'] },
     async ({ page }) => {
       await page.goto('/manage/servers');
-      await expect(page.getByTestId('machines-add')).toBeVisible();
-      const section = page.getByTestId('readyup-fleet');
-      await expect(section).toBeVisible();
-      await expect(section.getByRole('tab')).toHaveCount(5);
-      await expect(page.getByTestId('servers-settings-toggle')).toHaveCount(0);
-      await expect(page.getByTestId('servers-settings')).toHaveCount(0);
+      const tab = (name: string) => page.getByRole('tab', { name });
+      await expect(page.getByRole('tab')).toHaveCount(5);
+      await expect(tab('Servers')).toHaveAttribute('aria-selected', 'true');
+      await expect(page.getByTestId('readyup-fleet')).toHaveCount(0);
 
-      await section.getByRole('tab', { name: 'Keys and enrollment' }).click();
-      await expect(page.getByTestId('fleet-add-server')).toBeVisible();
-      await expect(page.getByTestId('fleet-toggle')).toHaveCount(0);
+      await page.getByTestId('servers-add').click();
+      await expect(page.getByTestId('servers-add-machine')).toBeVisible();
+      await page.getByTestId('servers-add-readyup').click();
+      await expect(page.getByTestId('fleet-create-code')).toBeVisible();
+      await page.keyboard.press('Escape');
+
+      await tab('Keys and enrollment').click();
+      await expect(page.getByTestId('fleet-panel')).toBeVisible();
+      await expect(page.getByTestId('fleet-add-server')).toHaveCount(0);
+      await expect(page.getByTestId('fleet-panel')).not.toContainText('Ready Up server(s)');
 
       await page.goto('/manage/servers#autoscale');
-      await expect(
-        page.getByTestId('readyup-fleet').getByRole('tab', { name: 'Automatic scaling' })
-      ).toHaveAttribute('aria-selected', 'true');
+      await expect(tab('Automatic scaling')).toHaveAttribute('aria-selected', 'true');
+      await page.goto('/manage/servers#fleet-settings');
+      await expect(tab('Push')).toHaveAttribute('aria-selected', 'true');
       await page.goto('/manage/servers#fleet');
-      await expect(
-        page.getByTestId('readyup-fleet').getByRole('tab', { name: 'Servers' })
-      ).toHaveAttribute('aria-selected', 'true');
+      await expect(tab('Servers')).toHaveAttribute('aria-selected', 'true');
       await page.goto('/manage/servers#failover');
-      await expect(
-        page.getByTestId('readyup-fleet').getByRole('tab', { name: 'Failover' })
-      ).toHaveAttribute('aria-selected', 'true');
+      await expect(tab('Failover')).toHaveAttribute('aria-selected', 'true');
     }
   );
 });

@@ -652,6 +652,11 @@
       "summary_one": "{{count}} server not on a machine",
       "summary_other": "{{count}} servers not on a machine",
       "about": "Servers added by address, not run by csm on a linked machine."
+    },
+    "add": {
+      "button": "Hinzufügen",
+      "machine": "Maschine",
+      "readyUp": "Ready-Up-Server"
     }
   },
   "serverModal": {
@@ -1227,11 +1232,8 @@
     "offType": "{{maps}}: keine {{mode}}-Karte. Entferne sie oder ändere den Kartentyp."
   },
   "fleetPanel": {
-    "title": "Ready-Up-Flotte",
-    "description": "Ready-Up-Server melden sich selbst mit einem Einmalcode oder einem Flottenschlüssel an und bleiben mit der Plattform verbunden. Kein RCON-Passwort nötig.",
     "addServer": "Server hinzufügen",
     "createKey": "Flottenschlüssel erstellen",
-    "empty": "Noch keine Ready-Up-Server. Füge einen mit einem Einmalcode hinzu oder gib csm einen Flottenschlüssel.",
     "status": {
       "online": "Online",
       "offline": "Offline",
@@ -1239,9 +1241,6 @@
       "revoked": "Widerrufen"
     },
     "codeExpires": "Code gültig bis {{time}}",
-    "lastSeen": "Zuletzt gesehen am {{time}}",
-    "readyUpVersion": "Ready Up {{version}}",
-    "cs2Build": "CS2-Build {{build}}",
     "newCode": "Neuer Code",
     "rotate": "Token erneuern",
     "rotateTooltip": "Token erneuern (fällig am {{time}})",
@@ -1314,7 +1313,6 @@
     "rename": "Rename",
     "renamed": "Renamed",
     "renameSave": "Save",
-    "summary": "{{servers}} Ready Up server(s), {{online}} online · {{keys}} fleet key(s)",
     "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use."
   },
   "roundBackups": {
@@ -2118,9 +2116,7 @@
     "notAnswering": "Not answering",
     "openMatch": "Open the match",
     "other": {
-      "about": "Added by address, or enrolled on their own. They keep working; new servers are made on a machine.",
-      "disabled": "Disabled",
-      "title": "Servers not on a machine"
+      "disabled": "Disabled"
     },
     "state": {
       "creating": "Creating…",
@@ -2149,8 +2145,6 @@
     "restarts_other": "{{count}} restarts in 24 h",
     "offlineFor": "Offline for {{time}}",
     "readyUp": {
-      "title": "Ready-Up-Flotte",
-      "about": "Server, die sich mit Ready Up mit der Plattform verbinden",
       "tabs": {
         "servers": "Server",
         "keys": "Schlüssel und Registrierung",
@@ -2334,5 +2328,26 @@
     "renameLabel": "Name",
     "renameHelp": "It calls itself {{name}}. Empty: that name.",
     "renameSave": "Save"
+  },
+  "serversList": {
+    "noMachine": "Ohne Maschine",
+    "noMachineAbout": "Ready-Up-Server, die sich selbst angemeldet haben, und per Adresse hinzugefügte Server.",
+    "guessedBanner": "Einige Adressen wurden aus der Verbindung des Servers geschätzt. Prüfe sie oder lege die Adresse für Spieler fest.",
+    "transport": {
+      "readyUp": "Ready Up",
+      "rcon": "RCON"
+    },
+    "seen": "Gesehen {{time}}",
+    "pushProblem": "Eine Übertragung an diesen Server ist fehlgeschlagen oder blieb unbeantwortet",
+    "menu": "Mehr zu {{name}}",
+    "open": "Öffnen",
+    "edit": "Bearbeiten",
+    "section": {
+      "machine": "Maschine"
+    },
+    "facts": {
+      "address": "Adresse",
+      "plugin": "Plugin"
+    }
   }
 }

@@ -652,6 +652,11 @@
       "summary_one": "{{count}} server som ikke er på en maskin",
       "summary_other": "{{count}} servere som ikke er på en maskin",
       "about": "Servere lagt til med adresse, ikke drevet av csm på en koblet maskin."
+    },
+    "add": {
+      "button": "Legg til",
+      "machine": "Maskin",
+      "readyUp": "Ready Up-server"
     }
   },
   "serverModal": {
@@ -1227,11 +1232,8 @@
     "offType": "{{maps}}: ikke et {{mode}}-kart. Fjern det, eller endre karttypen."
   },
   "fleetPanel": {
-    "title": "Ready Up-flåte",
-    "description": "Ready Up-servere melder seg inn selv med en engangskode eller en flåtenøkkel, og holder seg koblet til plattformen. Ingen RCON-passord trengs.",
     "addServer": "Legg til server",
     "createKey": "Opprett flåtenøkkel",
-    "empty": "Ingen Ready Up-servere ennå. Legg til en med en engangskode, eller gi csm en flåtenøkkel.",
     "status": {
       "online": "Tilkoblet",
       "offline": "Frakoblet",
@@ -1239,9 +1241,6 @@
       "revoked": "Tilbakekalt"
     },
     "codeExpires": "Koden gjelder til {{time}}",
-    "lastSeen": "Sist sett {{time}}",
-    "readyUpVersion": "Ready Up {{version}}",
-    "cs2Build": "CS2-bygg {{build}}",
     "newCode": "Ny kode",
     "rotate": "Forny token",
     "rotateTooltip": "Forny token (forfaller {{time}})",
@@ -1314,7 +1313,6 @@
     "rename": "Gi nytt navn",
     "renamed": "Navnet er endret",
     "renameSave": "Lagre",
-    "summary": "{{servers}} Ready Up-server(e), {{online}} tilkoblet · {{keys}} flåtenøkkel(er)",
     "connectGuessed": "Gjettet ut fra hvor serveren kobler seg til fra. Sjekk den, eller sett adressen spillerne bruker."
   },
   "roundBackups": {
@@ -2120,9 +2118,7 @@
     "notAnswering": "Svarer ikke",
     "openMatch": "Åpne kampen",
     "other": {
-      "about": "Lagt til med adresse, eller registrert på egen hånd. De fungerer fortsatt; nye servere lages på en maskin.",
-      "disabled": "Deaktivert",
-      "title": "Servere som ikke er på en maskin"
+      "disabled": "Deaktivert"
     },
     "restarts_one": "{{count}} omstart på 24 t",
     "restarts_other": "{{count}} omstarter på 24 t",
@@ -2149,8 +2145,6 @@
     },
     "offlineFor": "Frakoblet i {{time}}",
     "readyUp": {
-      "title": "Ready Up-flåte",
-      "about": "Servere som kobler til plattformen med Ready Up",
       "tabs": {
         "servers": "Servere",
         "keys": "Nøkler og innrullering",
@@ -2334,5 +2328,26 @@
     "renameLabel": "Navn",
     "renameHelp": "Den kaller seg {{name}}. Tomt: det navnet.",
     "renameSave": "Lagre"
+  },
+  "serversList": {
+    "noMachine": "Uten maskin",
+    "noMachineAbout": "Ready Up-servere som meldte seg på selv, og servere lagt til med adresse.",
+    "guessedBanner": "Noen adresser ble gjettet ut fra hvor serveren kobler til fra. Sjekk dem, eller angi adressen spillerne bruker.",
+    "transport": {
+      "readyUp": "Ready Up",
+      "rcon": "RCON"
+    },
+    "seen": "Sist sett {{time}}",
+    "pushProblem": "En sending til denne serveren feilet eller fikk ikke svar",
+    "menu": "Mer for {{name}}",
+    "open": "Åpne",
+    "edit": "Rediger",
+    "section": {
+      "machine": "Maskin"
+    },
+    "facts": {
+      "address": "Adresse",
+      "plugin": "Plugin"
+    }
   }
 }

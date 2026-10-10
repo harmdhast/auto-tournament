@@ -64,7 +64,7 @@ test.describe('Ready Up fleet: console', () => {
   test('other admins see that the console is for root admins', async ({ page }) => {
     await asRoot(page, false);
     await page.goto('/manage/servers?fleetServer=a#fleet');
-    await expect(page.getByTestId('fleet-server-sheet')).toContainText('Root admins only');
+    await expect(page.getByTestId('server-panel')).toContainText('Root admins only');
     await expect(page.getByTestId('fleet-console-input')).toHaveCount(0);
   });
 
@@ -90,7 +90,7 @@ test.describe('Ready Up fleet: console', () => {
     await page.goto('/manage/servers?fleetServer=a#fleet');
     await page.getByTestId('fleet-console-input').fill('status');
     await page.getByTestId('fleet-console-input').press('Enter');
-    await expect(page.getByTestId('fleet-server-sheet')).toContainText('Root admins only');
+    await expect(page.getByTestId('server-panel')).toContainText('Root admins only');
     await expect(page.getByText(/Raw console commands/)).toHaveCount(0);
   });
 });

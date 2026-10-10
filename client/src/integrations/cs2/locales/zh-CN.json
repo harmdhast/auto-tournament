@@ -652,6 +652,11 @@
       "summary_one": "{{count}} server not on a machine",
       "summary_other": "{{count}} servers not on a machine",
       "about": "Servers added by address, not run by csm on a linked machine."
+    },
+    "add": {
+      "button": "添加",
+      "machine": "机器",
+      "readyUp": "Ready Up 服务器"
     }
   },
   "serverModal": {
@@ -1227,11 +1232,8 @@
     "offType": "{{maps}}：不是{{mode}}地图。请移除，或更改地图类型。"
   },
   "fleetPanel": {
-    "title": "Ready Up 服务器组",
-    "description": "Ready Up 服务器通过一次性代码或服务器组密钥自行注册，并与平台保持连接。无需 RCON 密码。",
     "addServer": "添加服务器",
     "createKey": "创建服务器组密钥",
-    "empty": "还没有 Ready Up 服务器。使用一次性代码添加一台，或给 csm 一个服务器组密钥。",
     "status": {
       "online": "在线",
       "offline": "离线",
@@ -1239,9 +1241,6 @@
       "revoked": "已吊销"
     },
     "codeExpires": "代码有效期至 {{time}}",
-    "lastSeen": "最后在线：{{time}}",
-    "readyUpVersion": "Ready Up {{version}}",
-    "cs2Build": "CS2 版本 {{build}}",
     "newCode": "新代码",
     "rotate": "轮换令牌",
     "rotateTooltip": "轮换令牌（到期：{{time}}）",
@@ -1314,7 +1313,6 @@
     "rename": "Rename",
     "renamed": "Renamed",
     "renameSave": "Save",
-    "summary": "{{servers}} Ready Up server(s), {{online}} online · {{keys}} fleet key(s)",
     "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use."
   },
   "roundBackups": {
@@ -2118,9 +2116,7 @@
     "notAnswering": "Not answering",
     "openMatch": "Open the match",
     "other": {
-      "about": "Added by address, or enrolled on their own. They keep working; new servers are made on a machine.",
-      "disabled": "Disabled",
-      "title": "Servers not on a machine"
+      "disabled": "Disabled"
     },
     "state": {
       "creating": "Creating…",
@@ -2149,8 +2145,6 @@
     "restarts_other": "{{count}} restarts in 24 h",
     "offlineFor": "Offline for {{time}}",
     "readyUp": {
-      "title": "Ready Up 服务器群",
-      "about": "通过 Ready Up 连接平台的服务器",
       "tabs": {
         "servers": "服务器",
         "keys": "密钥与注册",
@@ -2334,5 +2328,26 @@
     "renameLabel": "Name",
     "renameHelp": "It calls itself {{name}}. Empty: that name.",
     "renameSave": "Save"
+  },
+  "serversList": {
+    "noMachine": "无机器",
+    "noMachineAbout": "自行注册的 Ready Up 服务器，以及按地址添加的服务器。",
+    "guessedBanner": "部分地址是根据服务器的连接来源推测的。请检查，或设置玩家使用的地址。",
+    "transport": {
+      "readyUp": "Ready Up",
+      "rcon": "RCON"
+    },
+    "seen": "最后在线 {{time}}",
+    "pushProblem": "向此服务器的推送失败或无响应",
+    "menu": "{{name}} 的更多操作",
+    "open": "打开",
+    "edit": "编辑",
+    "section": {
+      "machine": "机器"
+    },
+    "facts": {
+      "address": "地址",
+      "plugin": "插件"
+    }
   }
 }

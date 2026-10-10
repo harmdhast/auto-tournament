@@ -652,6 +652,11 @@
       "summary_one": "{{count}} server not on a machine",
       "summary_other": "{{count}} servers not on a machine",
       "about": "Servers added by address, not run by csm on a linked machine."
+    },
+    "add": {
+      "button": "Toevoegen",
+      "machine": "Machine",
+      "readyUp": "Ready Up-server"
     }
   },
   "serverModal": {
@@ -1227,11 +1232,8 @@
     "offType": "{{maps}}: geen {{mode}}-map. Verwijder hem of wijzig het maptype."
   },
   "fleetPanel": {
-    "title": "Ready Up-vloot",
-    "description": "Ready Up-servers melden zich zelf aan met een eenmalige code of een vlootsleutel en blijven verbonden met het platform. Geen RCON-wachtwoord nodig.",
     "addServer": "Server toevoegen",
     "createKey": "Vlootsleutel maken",
-    "empty": "Nog geen Ready Up-servers. Voeg er een toe met een eenmalige code, of geef csm een vlootsleutel.",
     "status": {
       "online": "Online",
       "offline": "Offline",
@@ -1239,9 +1241,6 @@
       "revoked": "Ingetrokken"
     },
     "codeExpires": "Code geldig tot {{time}}",
-    "lastSeen": "Laatst gezien op {{time}}",
-    "readyUpVersion": "Ready Up {{version}}",
-    "cs2Build": "CS2-build {{build}}",
     "newCode": "Nieuwe code",
     "rotate": "Token vernieuwen",
     "rotateTooltip": "Token vernieuwen (gepland op {{time}})",
@@ -1314,7 +1313,6 @@
     "rename": "Rename",
     "renamed": "Renamed",
     "renameSave": "Save",
-    "summary": "{{servers}} Ready Up server(s), {{online}} online · {{keys}} fleet key(s)",
     "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use."
   },
   "roundBackups": {
@@ -2118,9 +2116,7 @@
     "notAnswering": "Not answering",
     "openMatch": "Open the match",
     "other": {
-      "about": "Added by address, or enrolled on their own. They keep working; new servers are made on a machine.",
-      "disabled": "Disabled",
-      "title": "Servers not on a machine"
+      "disabled": "Disabled"
     },
     "state": {
       "creating": "Creating…",
@@ -2149,8 +2145,6 @@
     "restarts_other": "{{count}} restarts in 24 h",
     "offlineFor": "Offline for {{time}}",
     "readyUp": {
-      "title": "Ready Up-vloot",
-      "about": "Servers die met Ready Up verbinden met het platform",
       "tabs": {
         "servers": "Servers",
         "keys": "Sleutels en aanmelding",
@@ -2334,5 +2328,26 @@
     "renameLabel": "Name",
     "renameHelp": "It calls itself {{name}}. Empty: that name.",
     "renameSave": "Save"
+  },
+  "serversList": {
+    "noMachine": "Zonder machine",
+    "noMachineAbout": "Ready Up-servers die zich zelf hebben aangemeld, en servers toegevoegd op adres.",
+    "guessedBanner": "Sommige adressen zijn geraden op basis van waar de server vandaan verbindt. Controleer ze, of stel het adres in dat spelers gebruiken.",
+    "transport": {
+      "readyUp": "Ready Up",
+      "rcon": "RCON"
+    },
+    "seen": "Gezien {{time}}",
+    "pushProblem": "Een verzending naar deze server is mislukt of kreeg geen antwoord",
+    "menu": "Meer voor {{name}}",
+    "open": "Openen",
+    "edit": "Bewerken",
+    "section": {
+      "machine": "Machine"
+    },
+    "facts": {
+      "address": "Adres",
+      "plugin": "Plugin"
+    }
   }
 }

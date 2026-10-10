@@ -1,19 +1,17 @@
 /**
- * Servers: the csm machines and the servers on them (Vikunja 1873, the draft
- * website/drafts/platform/servers.html).
+ * Servers: every server on one list, grouped by the csm machine that runs it
+ * (Ready Up servers and servers added by address on no machine), and the
+ * fleet-wide settings as tabs (keys, push, automatic scaling, failover).
  *
- * Servers come only through csm now: a machine is linked with one command,
- * and every server on it is created, started, stopped, restarted, updated and
- * deleted from here. The platform talks to csm, never to a server by RCON.
- * State is colour and a word on each tile; details and actions open in a side
- * panel. Whatever is asked of csm shows at once and follows csm's progress
- * over the socket. Fleet settings (scaling, the fleet link, what is pushed to
- * servers, failover) sit behind one button.
+ * A machine is linked with one command; every server on it is created,
+ * started, stopped, restarted, updated and deleted from here. A server's
+ * details and actions open in one side panel (`?server=<row key>`). Whatever
+ * is asked of csm shows at once and follows csm's progress over the socket.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Box, Button, Menu, MenuItem, Typography } from '@mui/material';
-import { PlusIcon } from '@phosphor-icons/react';
+import { Box, Button, Menu, MenuItem, Tab, Tabs, Typography } from '@mui/material';
+import { CaretDownIcon, PlusIcon } from '@phosphor-icons/react';
 import {
   api,
   apiErrorMessage,
@@ -31,13 +29,19 @@ import { insecureFlag } from '../servers/insecureLink';
 import { serverLimitText, useServerLimit } from '../servers/serverLimit';
 import { useFleet } from '../servers/fleet/useFleet';
 import { useServerMatches } from '../servers/fleet/useServerMatches';
-import { MachineCard } from '../servers/fleet/MachineCard';
-import { ServerSheet } from '../servers/fleet/ServerSheet';
 import { MachineSheet } from '../servers/fleet/MachineSheet';
 import { FirstMachine } from '../servers/fleet/FirstMachine';
-import { OtherServers } from '../servers/fleet/OtherServers';
-import { ReadyUpFleetSection } from '../servers/fleet/readyup/ReadyUpFleetSection';
-import { hostRank } from '../servers/list/serverGroups';
+import AutoScalePanel from '../servers/AutoScalePanel';
+import FleetPanel from '../servers/FleetPanel';
+import FleetPushPanel from '../servers/FleetPushPanel';
+import FailoverSettingsPanel from '../servers/FailoverSettingsPanel';
+import { EmbeddedServerSections } from '../servers/ServerSection';
+import { OPEN_EVENT } from '../servers/openServerSection';
+import { ServerList } from '../servers/list/ServerList';
+import { ServerPanel } from '../servers/list/ServerPanel';
+import { buildServerGroups, rowForFleetServer } from '../servers/list/serverGroups';
+import { useFleetServerActions } from '../servers/list/useFleetServerActions';
+import { useServerSources } from '../servers/list/useServerSources';
 import {
   AddMachineDialog,
   AddServersDialog,
@@ -49,6 +53,22 @@ import {
 
 const { color } = tokens;
 
+type ServersTab = 'servers' | 'keys' | 'push' | 'autoscale' | 'failover';
+const TABS: ServersTab[] = ['servers', 'keys', 'push', 'autoscale', 'failover'];
+
+/** The anchors other pages and buttons link to, and the tab each one shows. */
+const ANCHOR_TAB: Record<string, ServersTab> = {
+  fleet: 'servers',
+  'fleet-keys': 'keys',
+  'fleet-settings': 'push',
+  autoscale: 'autoscale',
+  failover: 'failover',
+};
+
+function tabFromHash(): ServersTab | null {
+  return ANCHOR_TAB[window.location.hash.slice(1)] ?? null;
+}
+
 export default function Servers() {
   const { t } = useModuleTranslation('cs2');
   const { showSnackbar, showError } = useSnackbar();
@@ -57,6 +77,16 @@ export default function Servers() {
   const matches = useServerMatches();
   const limit = useServerLimit();
   const [params, setParams] = useSearchParams();
+  const sources = useServerSources();
+  const { actionsFor, addServer, showSecret, sourceLabel, dialogs } = useFleetServerActions(
+    sources.reload
+  );
+  const groups = useMemo(
+    () => buildServerGroups(hosts, sources.fleetServers, sources.servers),
+    [hosts, sources.fleetServers, sources.servers]
+  );
+  const [tab, setTab] = useState<ServersTab>(() => tabFromHash() ?? 'servers');
+  const [addMenu, setAddMenu] = useState<HTMLElement | null>(null);
 
   // A machine's panel is `?machine=<id>` (links from elsewhere open it); a server's is local.
   const machineId = params.get('machine');
@@ -67,7 +97,47 @@ export default function Servers() {
       else next.delete('machine');
       return next;
     });
-  const [serverOpen, setServerOpen] = useState<{ hostId: string; name: string } | null>(null);
+  // A server's panel is `?server=<row key>`; the older `?fleetServer=<id>` is turned into it.
+  const serverKey = params.get('server');
+  const openServer = (key: string | null) =>
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (key) next.set('server', key);
+      else next.delete('server');
+      return next;
+    });
+  const legacyFleetId = params.get('fleetServer');
+  const ready = loaded && sources.loaded;
+  useEffect(() => {
+    if (!legacyFleetId || !ready) return;
+    const key = rowForFleetServer(groups, legacyFleetId)?.key ?? `r:${legacyFleetId}`;
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('fleetServer');
+      next.set('server', key);
+      return next;
+    });
+  }, [legacyFleetId, ready, groups, setParams]);
+  const panelRow = serverKey
+    ? (groups.flatMap((g) => g.rows).find((r) => r.key === serverKey) ?? null)
+    : null;
+
+  useEffect(() => {
+    const onHash = () => {
+      const next = tabFromHash();
+      if (next) setTab(next);
+    };
+    const onOpen = (e: Event) => {
+      const next = ANCHOR_TAB[(e as CustomEvent<string>).detail];
+      if (next) setTab(next);
+    };
+    window.addEventListener('hashchange', onHash);
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => {
+      window.removeEventListener('hashchange', onHash);
+      window.removeEventListener(OPEN_EVENT, onOpen);
+    };
+  }, []);
 
   const [menu, setMenu] = useState<{ host: FleetHost; anchor: HTMLElement } | null>(null);
   const [addServersFor, setAddServersFor] = useState<FleetHost | null>(null);
@@ -196,8 +266,8 @@ export default function Servers() {
   // The first machine's guide stays up from "Get the command" until csm
   // connects: the code adds the (not yet linked) machine to the list.
   const firstSetup =
-    loaded &&
-    (hosts.length === 0 ||
+    ready &&
+    ((hosts.length === 0 && groups.length === 0) ||
       (linkInline &&
         link !== null &&
         hosts.length === 1 &&
@@ -208,8 +278,6 @@ export default function Servers() {
 
   const counts = countServers(hosts, fleet.isDeleting);
   const total = hosts.reduce((n, h) => n + h.servers.length, 0);
-  const sheetHost = serverOpen ? (hosts.find((h) => h.id === serverOpen.hostId) ?? null) : null;
-  const sheetServer = sheetHost?.servers.find((s) => s.name === serverOpen?.name) ?? null;
   const machineHost = machineId ? (hosts.find((h) => h.id === machineId) ?? null) : null;
 
   const pill = (key: string, n: number, tone: string, label: string) => (
@@ -256,97 +324,152 @@ export default function Servers() {
           </span>
         }
         actions={
-          <>
-            <Button
-              variant="contained"
-              startIcon={<PlusIcon />}
-              onClick={() => setAddMachineOpen(true)}
-              data-testid="machines-add"
-            >
-              {t('machinesPanel.add', { defaultValue: 'Add machine' })}
-            </Button>
-          </>
+          <Button
+            variant="contained"
+            startIcon={<PlusIcon />}
+            endIcon={<CaretDownIcon size={14} />}
+            onClick={(e) => setAddMenu(e.currentTarget)}
+            data-testid="servers-add"
+          >
+            {t('serversPage.add.button', { defaultValue: 'Add' })}
+          </Button>
         }
       />
 
-      {firstSetup ? (
-        <FirstMachine
-          link={linkInline ? link : null}
-          busy={busy}
-          onCreate={(name) => void addMachine(name, true)}
-        />
-      ) : (
-        <Box data-testid="machines-panel" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {hosts.length > 0 && (
+      <Tabs
+        value={tab}
+        onChange={(_e, value: ServersTab) => setTab(value)}
+        variant="scrollable"
+        allowScrollButtonsMobile
+        sx={{
+          borderBottom: 1,
+          borderColor: 'divider',
+          minHeight: 40,
+          '& .MuiTab-root': { px: 2, minWidth: 0, minHeight: 40 },
+        }}
+      >
+        {TABS.map((id) => (
+          <Tab
+            key={id}
+            value={id}
+            label={t(`serversBoard.readyUp.tabs.${id}`)}
+            data-testid={`servers-tab-${id}`}
+          />
+        ))}
+      </Tabs>
+
+      {tab === 'servers' && (
+        <>
+          {firstSetup ? (
+            <FirstMachine
+              link={linkInline ? link : null}
+              busy={busy}
+              onCreate={(name) => void addMachine(name, true)}
+            />
+          ) : (
             <Box
-              data-testid="machines-summary"
-              sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}
-              aria-label={t('serversBoard.summary', { defaultValue: 'All servers' })}
+              data-testid="machines-panel"
+              sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
             >
-              {pill(
-                'free',
-                counts.free,
-                color.live,
-                t('machinesPanel.counts.free', { defaultValue: 'Free' }).toLowerCase()
+              {hosts.length > 0 && (
+                <Box
+                  data-testid="machines-summary"
+                  sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}
+                  aria-label={t('serversBoard.summary', { defaultValue: 'All servers' })}
+                >
+                  {pill(
+                    'free',
+                    counts.free,
+                    color.live,
+                    t('machinesPanel.counts.free', { defaultValue: 'Free' }).toLowerCase()
+                  )}
+                  {pill(
+                    'match',
+                    counts.match,
+                    color.accent,
+                    t('machinesPanel.counts.match', { defaultValue: 'In a match' }).toLowerCase()
+                  )}
+                  {pill(
+                    'busy',
+                    counts.busy,
+                    color.info,
+                    t('machinesPanel.counts.busy', {
+                      defaultValue: 'Updating or restarting',
+                    }).toLowerCase()
+                  )}
+                  {pill(
+                    'down',
+                    counts.down,
+                    color.muted,
+                    t('machinesPanel.counts.down', {
+                      defaultValue: 'Stopped or offline',
+                    }).toLowerCase()
+                  )}
+                </Box>
               )}
-              {pill(
-                'match',
-                counts.match,
-                color.accent,
-                t('machinesPanel.counts.match', { defaultValue: 'In a match' }).toLowerCase()
-              )}
-              {pill(
-                'busy',
-                counts.busy,
-                color.info,
-                t('machinesPanel.counts.busy', {
-                  defaultValue: 'Updating or restarting',
-                }).toLowerCase()
-              )}
-              {pill(
-                'down',
-                counts.down,
-                color.muted,
-                t('machinesPanel.counts.down', { defaultValue: 'Stopped or offline' }).toLowerCase()
+              <ServerList
+                groups={groups}
+                fleet={fleet}
+                matches={matches}
+                readAt={sources.readAt}
+                actionsFor={actionsFor}
+                sourceLabel={sourceLabel}
+                onOpen={(row) => openServer(row.key)}
+                onChanged={() => void sources.reload()}
+                machine={{
+                  onOpen: (host) => openMachine(host.id),
+                  onMenu: (host, anchor) => setMenu({ host, anchor }),
+                  onAddServers: (host) => setAddServersFor(host),
+                  onUpdateGame: (host) => void fleet.send(host, 'host.update_game', {}),
+                  onUpdateReadyUp: (host) => setReadyUpFor(host),
+                  onNewCode: (host) => void newCode(host),
+                  onRetry: (host, c) => void fleet.send(host, c.type, c.payload),
+                }}
+              />
+              {licenseMax !== null && hosts.length > 0 && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  data-testid="machines-license-note"
+                >
+                  {t('machinesPanel.licenseNote', {
+                    defaultValue:
+                      'Your license covers up to {{count}} servers. Every server counts, spares included.',
+                    count: licenseMax,
+                  })}
+                </Typography>
               )}
             </Box>
           )}
-          {[...hosts]
-            .sort((a, b) => hostRank(a) - hostRank(b))
-            .map((host) => (
-              <MachineCard
-                key={host.id}
-                host={host}
-                matchByServer={matches}
-                isDeleting={fleet.isDeleting}
-                onOpenMachine={() => openMachine(host.id)}
-                onOpenServer={(name) => setServerOpen({ hostId: host.id, name })}
-                onMenu={(anchor) => setMenu({ host, anchor })}
-                onAddServers={() => setAddServersFor(host)}
-                onUpdateGame={() => void fleet.send(host, 'host.update_game', {})}
-                onUpdateReadyUp={() => setReadyUpFor(host)}
-                onNewCode={() => void newCode(host)}
-                onRetry={(c) => void fleet.send(host, c.type, c.payload)}
-              />
-            ))}
-          {licenseMax !== null && hosts.length > 0 && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              data-testid="machines-license-note"
-            >
-              {t('machinesPanel.licenseNote', {
-                defaultValue:
-                  'Your license covers up to {{count}} servers. Every server counts, spares included.',
-                count: licenseMax,
-              })}
-            </Typography>
-          )}
-        </Box>
+        </>
       )}
+      <EmbeddedServerSections value>
+        {tab === 'keys' && <FleetPanel showSecret={showSecret} />}
+        {tab === 'push' && <FleetPushPanel />}
+        {tab === 'autoscale' && <AutoScalePanel />}
+        {tab === 'failover' && <FailoverSettingsPanel />}
+      </EmbeddedServerSections>
 
-      <OtherServers hosts={hosts} />
-      <ReadyUpFleetSection />
+      <Menu anchorEl={addMenu} open={addMenu !== null} onClose={() => setAddMenu(null)}>
+        <MenuItem
+          data-testid="servers-add-machine"
+          onClick={() => {
+            setAddMenu(null);
+            setAddMachineOpen(true);
+          }}
+        >
+          {t('serversPage.add.machine', { defaultValue: 'Machine' })}
+        </MenuItem>
+        <MenuItem
+          data-testid="servers-add-readyup"
+          onClick={() => {
+            setAddMenu(null);
+            addServer();
+          }}
+        >
+          {t('serversPage.add.readyUp', { defaultValue: 'Ready Up server' })}
+        </MenuItem>
+      </Menu>
 
       <Menu anchorEl={menu?.anchor ?? null} open={menu !== null} onClose={() => setMenu(null)}>
         <MenuItem
@@ -406,14 +529,18 @@ export default function Servers() {
         )}
       </Menu>
 
-      <ServerSheet
+      <ServerPanel
+        rowKey={serverKey}
+        row={panelRow}
         fleet={fleet}
-        host={sheetServer ? sheetHost : null}
-        serverName={sheetServer ? (serverOpen?.name ?? null) : null}
-        match={sheetServer?.fleetServer ? (matches[sheetServer.fleetServer.id] ?? null) : null}
-        onClose={() => setServerOpen(null)}
-        onDelete={(host, server) => setDeleteServer({ host, server })}
+        matches={matches}
+        servers={sources.servers}
+        readAt={sources.readAt}
+        onClose={() => openServer(null)}
+        onDeleteMachineServer={(host, server) => setDeleteServer({ host, server })}
+        onChanged={() => void sources.reload()}
       />
+      {dialogs}
       <MachineSheet
         fleet={fleet}
         host={machineHost}
@@ -477,7 +604,7 @@ export default function Servers() {
         onConfirm={() => {
           const target = deleteServer;
           setDeleteServer(null);
-          setServerOpen(null);
+          openServer(null);
           if (target) void fleet.removeServer(target.host, target.server);
         }}
         onCancel={() => setDeleteServer(null)}

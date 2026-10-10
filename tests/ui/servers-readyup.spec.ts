@@ -3,14 +3,14 @@ import { setupTestContext } from '../helpers/setup';
 import { fleetServer, stubFleet, stubFleetDetail } from '../helpers/fleetUi';
 
 /**
- * The Ready Up fleet section's Servers tab: each server says whether it takes
- * matches and, when not, why (fleet/busyReason.ts).
+ * Ready Up servers on the server list: each says whether it takes matches
+ * and, when not, why (fleet/busyReason.ts); each opens its panel.
  *
  * @tag ui
  * @tag fleet
  */
 
-test.describe('Ready Up fleet: servers tab', () => {
+test.describe('Ready Up servers on the server list', () => {
   test.beforeEach(async ({ page, request }) => {
     await setupTestContext(page, request);
   });
@@ -28,8 +28,8 @@ test.describe('Ready Up fleet: servers tab', () => {
     ];
     await stubFleet(page, servers);
     await stubFleetDetail(page, servers);
-    await page.goto('/manage/servers#fleet');
-    const row = (id: string) => page.getByTestId(`fleet-server-${id}`);
+    await page.goto('/manage/servers');
+    const row = (id: string) => page.getByTestId(`server-row-r:${id}`);
     await expect(row('a')).toContainText('Waiting for reset after the series');
     await expect(row('a').getByTestId('fleet-availability-a')).toHaveText('Busy');
     await expect(row('b').getByTestId('fleet-availability-b')).toHaveText('Spare');
@@ -41,7 +41,7 @@ test.describe('Ready Up fleet: servers tab', () => {
     await expect(row('d').getByTestId('fleet-reason-d')).toHaveCount(0);
   });
 
-  test('servers not on a machine lists RCON servers only, and hides when there are none', async ({
+  test('RCON servers are listed under No machine; Ready Up records are not listed twice', async ({
     page,
   }) => {
     const row = (id: string, transport: 'rcon' | 'fleet') => ({
@@ -54,19 +54,15 @@ test.describe('Ready Up fleet: servers tab', () => {
       status: 'online',
       lastSeen: Math.floor(Date.now() / 1000),
     });
-    let servers = [row('rcon-1', 'rcon'), row('fleet-1', 'fleet')];
+    const servers = [row('rcon-1', 'rcon'), row('fleet-1', 'fleet')];
     await page.route(
       (url) => url.pathname === '/api/servers',
       (route) => route.fulfill({ json: { success: true, servers } })
     );
     await page.goto('/manage/servers');
-    const other = page.getByTestId('servers-other');
-    await expect(other).toContainText('srv-rcon-1');
-    await expect(other).not.toContainText('srv-fleet-1');
-    servers = [row('fleet-1', 'fleet')];
-    await page.reload();
-    await expect(page.getByTestId('readyup-fleet')).toBeVisible();
-    await expect(page.getByTestId('servers-other')).toHaveCount(0);
+    const none = page.getByTestId('server-group-none');
+    await expect(none.getByTestId('server-row-x:rcon-1')).toContainText('srv-rcon-1');
+    await expect(none).not.toContainText('srv-fleet-1');
   });
 
   test('a Ready Up server opens in its own panel; offline and gone servers say so', async ({
@@ -82,23 +78,25 @@ test.describe('Ready Up fleet: servers tab', () => {
     ];
     await stubFleet(page, servers);
     await stubFleetDetail(page, servers);
-    await page.goto('/manage/servers#fleet');
-    await page.getByTestId('fleet-open-a').click();
-    const sheet = page.getByTestId('fleet-server-sheet');
+    await page.goto('/manage/servers');
+    await page.getByTestId('server-row-r:a').click();
+    const sheet = page.getByTestId('server-panel');
     await expect(sheet).toBeVisible();
     await expect(sheet).toContainText('ru-a');
     await expect(sheet).toContainText('Local match cup-final still loaded');
-    await expect(page).toHaveURL(/[?&]fleetServer=a/);
+    await expect(page).toHaveURL(/[?&]server=r%3Aa/);
     await page.reload();
-    await expect(page.getByTestId('fleet-server-sheet')).toBeVisible();
+    await expect(page.getByTestId('server-panel')).toContainText(
+      'Local match cup-final still loaded'
+    );
     await page.keyboard.press('Escape');
-    await expect(page.getByTestId('fleet-server-sheet')).toHaveCount(0);
-    await expect(page).not.toHaveURL(/fleetServer=/);
+    await expect(page.getByTestId('server-panel')).toHaveCount(0);
+    await expect(page).not.toHaveURL(/server=/);
 
-    await page.getByTestId('fleet-open-off').click();
-    await expect(page.getByTestId('fleet-server-sheet')).toContainText('Offline');
+    await page.getByTestId('server-row-r:off').click();
+    await expect(page.getByTestId('server-panel')).toContainText('Offline');
 
-    await page.goto('/manage/servers?fleetServer=nope#fleet');
-    await expect(page.getByTestId('fleet-server-sheet')).toContainText('This server is gone');
+    await page.goto('/manage/servers?fleetServer=nope');
+    await expect(page.getByTestId('server-panel')).toContainText('This server is gone');
   });
 });

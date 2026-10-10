@@ -47,9 +47,9 @@ export type Secret = {
 };
 
 export interface ServerAction {
-  id: 'newCode' | 'link' | 'address' | 'rotate' | 'revoke' | 'rename' | 'remove';
+  id: 'open' | 'newCode' | 'link' | 'address' | 'rotate' | 'revoke' | 'rename' | 'remove';
   label: string;
-  icon: ReactNode;
+  icon?: ReactNode;
   danger?: boolean;
   testId?: string;
   run: () => void;
