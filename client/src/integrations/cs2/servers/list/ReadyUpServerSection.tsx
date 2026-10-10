@@ -7,6 +7,7 @@ import { ResetServerButton } from '../fleet/readyup/ResetServerButton';
 import { FleetPlayers } from '../fleet/readyup/FleetPlayers';
 import { FleetConsole } from '../fleet/readyup/FleetConsole';
 import { useFleetServer } from '../fleet/readyup/useFleetServer';
+import { FleetServerPushSection } from './FleetServerPushSection';
 
 export function ReadyUpServerSection({
   fleetId,
@@ -66,6 +67,14 @@ export function ReadyUpServerSection({
       />
       <FleetPlayers server={server} onChanged={changed} />
       <FleetConsole server={server} />
+      {server.status === 'enrolled' && (
+        <Box>
+          <Typography variant="subtitle2" fontWeight={600} mb={1}>
+            {t('serversBoard.readyUp.tabs.push')}
+          </Typography>
+          <FleetServerPushSection server={server} />
+        </Box>
+      )}
     </Box>
   );
 }
