@@ -19,21 +19,26 @@ export function FleetConsole({ server }: { server: FleetServer }) {
     if (!command || busy || !server.linkedServerId) return;
     setBusy(true);
     try {
-      const res = await api.post<{ success: boolean; response?: string; error?: string }>(
-        '/api/rcon/command',
-        {
-          serverId: server.linkedServerId,
-          command: 'custom',
-          value: command,
-        }
-      );
+      const res = await api.post<{
+        results?: { success: boolean; response?: string; error?: string }[];
+      }>('/api/rcon/command', {
+        serverIds: [server.linkedServerId],
+        command: 'custom',
+        value: command,
+      });
+      const result = res.results?.[0];
+      // The batch route answers per server: a non-root refusal comes back in the result.
+      if (result && !result.success && /root/i.test(result.error ?? '')) {
+        setRefused(true);
+        return;
+      }
       setLines((prev) =>
         [
           ...prev,
           {
             command,
-            output: res.response || t('serversBoard.readyUp.console.noOutput'),
-            failed: !res.success,
+            output: result?.response || result?.error || t('serversBoard.readyUp.console.noOutput'),
+            failed: !result?.success,
           },
         ].slice(-20)
       );

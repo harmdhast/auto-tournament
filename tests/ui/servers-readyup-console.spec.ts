@@ -40,9 +40,15 @@ test.describe('Ready Up fleet: console', () => {
         await route.fulfill({
           json: {
             success: true,
-            transport: 'fleet',
-            status: 'ok',
-            response: 'hostname: lan-1\nplayers: 2',
+            results: [
+              {
+                serverId: 'cs2-a',
+                success: true,
+                transport: 'fleet',
+                status: 'ok',
+                response: 'hostname: lan-1\nplayers: 2',
+              },
+            ],
           },
         });
       }
@@ -52,7 +58,7 @@ test.describe('Ready Up fleet: console', () => {
     await input.fill('status');
     await input.press('Enter');
     await expect(page.getByTestId('fleet-console-output')).toContainText('hostname: lan-1');
-    expect(sent).toEqual({ serverId: 'cs2-a', command: 'custom', value: 'status' });
+    expect(sent).toEqual({ serverIds: ['cs2-a'], command: 'custom', value: 'status' });
   });
 
   test('other admins see that the console is for root admins', async ({ page }) => {
@@ -68,14 +74,23 @@ test.describe('Ready Up fleet: console', () => {
       (url) => url.pathname === '/api/rcon/command',
       (route) =>
         route.fulfill({
-          status: 403,
-          json: { success: false, error: 'forbidden: exec is root only' },
+          status: 207,
+          json: {
+            success: false,
+            results: [
+              {
+                serverId: 'cs2-a',
+                success: false,
+                error: 'Raw console commands on Ready Up servers are for root admins only',
+              },
+            ],
+          },
         })
     );
     await page.goto('/manage/servers?fleetServer=a#fleet');
     await page.getByTestId('fleet-console-input').fill('status');
     await page.getByTestId('fleet-console-input').press('Enter');
     await expect(page.getByTestId('fleet-server-sheet')).toContainText('Root admins only');
-    await expect(page.getByText('forbidden: exec is root only')).toHaveCount(0);
+    await expect(page.getByText(/Raw console commands/)).toHaveCount(0);
   });
 });
