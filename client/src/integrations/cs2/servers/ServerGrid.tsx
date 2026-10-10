@@ -170,7 +170,9 @@ const Tile: React.FC<{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        gap: 1.5,
+        flexWrap: 'wrap',
+        columnGap: 1.5,
+        rowGap: 0.5,
         minWidth: 0,
       }}
     >
@@ -178,6 +180,7 @@ const Tile: React.FC<{
         component="b"
         title={typeof name === 'string' ? name : undefined}
         sx={{
+          flex: '1 1 8rem',
           minWidth: 0,
           overflow: 'hidden',
           overflowWrap: 'anywhere',

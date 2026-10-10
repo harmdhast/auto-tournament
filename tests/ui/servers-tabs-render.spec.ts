@@ -51,7 +51,9 @@ test.describe('Servers tabs render', () => {
     await page.goto('/manage');
     const name = page.locator(`[data-testid="manage-servers"] [title="${server!.name}"]`);
     await expect(name).toBeVisible();
-    const fits = await name.evaluate((el) => el.scrollWidth <= el.clientWidth);
+    const fits = await name.evaluate(
+      (el) => el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight
+    );
     expect(fits).toBe(true);
     await expect(name).toHaveText(server!.name);
   });
