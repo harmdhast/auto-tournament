@@ -180,7 +180,7 @@ const Tile: React.FC<{
         component="b"
         title={typeof name === 'string' ? name : undefined}
         sx={{
-          flex: '1 1 8rem',
+          flex: '1 1 auto',
           minWidth: 0,
           overflow: 'hidden',
           overflowWrap: 'anywhere',

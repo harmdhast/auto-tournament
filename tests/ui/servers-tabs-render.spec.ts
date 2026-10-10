@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { setupTestContext } from '../helpers/setup';
-import { createTestServer } from '../helpers/servers';
+import { createServer, createTestServer } from '../helpers/servers';
 
 /**
  * The Servers page tabs never render empty, carry no stray summary line, and
@@ -56,5 +56,23 @@ test.describe('Servers tabs render', () => {
     );
     expect(fits).toBe(true);
     await expect(name).toHaveText(server!.name);
+    // A short name keeps its chip on the same line.
+    const short = await createServer(request, {
+      id: `short-${Date.now()}`,
+      name: 'lan-x',
+      host: '127.0.0.2',
+      port: 27999,
+      password: 'testpassword123',
+      enabled: true,
+    });
+    await page.reload();
+    const tile = page.locator(`[data-testid="manage-servers"] [title="${short!.name}"]`);
+    await expect(tile).toBeVisible();
+    const sameLine = await tile.evaluate((el) => {
+      const chip = el.nextElementSibling!.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      return Math.abs(chip.top + chip.height / 2 - (r.top + r.height / 2)) < 8;
+    });
+    expect(sameLine).toBe(true);
   });
 });
