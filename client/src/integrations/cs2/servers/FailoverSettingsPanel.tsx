@@ -78,7 +78,13 @@ export default function FailoverSettingsPanel() {
   if (!data) return null;
   // Nothing to fail over to or from yet.
   if (data.reserve.poolSize === 0 && data.settings.auto && data.settings.reserve === null)
-    return null;
+    return (
+      <Typography variant="body2" color="text.secondary" data-testid="failover-empty">
+        {t('failoverSettings.empty', {
+          defaultValue: 'Failover needs at least one Ready Up server.',
+        })}
+      </Typography>
+    );
 
   const reserveValue = data.settings.reserve === null ? AUTO : String(data.settings.reserve);
 

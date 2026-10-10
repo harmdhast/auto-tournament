@@ -124,8 +124,16 @@ export default function AutoScalePanel() {
     }
   };
 
+  if (!data) return null;
   // Scaling needs a csm machine.
-  if (!data || (data.machines === 0 && data.activity.length === 0)) return null;
+  if (data.machines === 0 && data.activity.length === 0)
+    return (
+      <Typography variant="body2" color="text.secondary" data-testid="autoscale-empty">
+        {t('autoscale.empty', {
+          defaultValue: 'Automatic scaling needs a machine linked with csm.',
+        })}
+      </Typography>
+    );
   const s = data.settings;
 
   return (

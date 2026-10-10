@@ -1612,7 +1612,8 @@
     "reserveStatus": "{{effective}} of {{pool}} online server(s) kept free for failover",
     "reserveHelp": "Spare servers stay idle: matches are not put on them, so one is ready when a server goes down. At least one server always takes matches. Spare servers count toward your license like any other server.",
     "summaryOn": "Automatic moves on",
-    "summaryOff": "Automatic moves off"
+    "summaryOff": "Automatic moves off",
+    "empty": "故障转移至少需要一台 Ready Up 服务器。"
   },
   "pluginSets": {
     "presetLabel": "插件预设",
@@ -1662,7 +1663,8 @@
   },
   "autoscale": {
     "summaryOn": "On",
-    "summaryOff": "Off"
+    "summaryOff": "Off",
+    "empty": "自动扩缩需要一台通过 csm 关联的机器。"
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers"

@@ -1612,7 +1612,8 @@
     "reserveStatus": "{{effective}} of {{pool}} online server(s) kept free for failover",
     "reserveHelp": "Spare servers stay idle: matches are not put on them, so one is ready when a server goes down. At least one server always takes matches. Spare servers count toward your license like any other server.",
     "summaryOn": "Automatisk flytting på",
-    "summaryOff": "Automatisk flytting av"
+    "summaryOff": "Automatisk flytting av",
+    "empty": "Failover trenger minst én Ready Up-server."
   },
   "pluginSets": {
     "presetLabel": "Utvidelsesoppsett",
@@ -1662,7 +1663,8 @@
   },
   "autoscale": {
     "summaryOn": "På",
-    "summaryOff": "Av"
+    "summaryOff": "Av",
+    "empty": "Automatisk skalering trenger en maskin koblet med csm."
   },
   "fleetPush": {
     "summary": "Administratorer, innstillinger og programtillegg sendt til Ready Up-servere"

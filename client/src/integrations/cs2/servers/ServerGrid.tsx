@@ -176,7 +176,15 @@ const Tile: React.FC<{
     >
       <Box
         component="b"
-        sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        title={typeof name === 'string' ? name : undefined}
+        sx={{
+          minWidth: 0,
+          overflow: 'hidden',
+          overflowWrap: 'anywhere',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+        }}
       >
         {name}
       </Box>

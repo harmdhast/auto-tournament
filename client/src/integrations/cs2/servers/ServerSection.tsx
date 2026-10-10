@@ -89,12 +89,10 @@ export function ServerSection({
   if (embedded) {
     return (
       <Box component="section" id={id} data-testid={rest['data-testid']}>
-        {(summary || action) && (
-          <Stack direction="row" alignItems="center" gap={2} mb={2}>
-            <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 0 }} noWrap>
-              {summary}
-            </Typography>
-            {action && <Box sx={{ flex: 'none' }}>{action}</Box>}
+        {/* The tab names the section; its collapsed-state summary would be a stray line here. */}
+        {action && (
+          <Stack direction="row" justifyContent="flex-end" mb={2}>
+            {action}
           </Stack>
         )}
         {about && (
