@@ -34,6 +34,7 @@ import {
 } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../utils/api';
+import { useServerCapabilities } from '../../hooks/useServerCapabilities';
 
 interface AdminMatchControlsProps {
   serverId?: string;
@@ -66,6 +67,21 @@ interface InputDialogState {
   defaultValue?: string | number;
 }
 
+/** Controls that act on the server, which may not support all of them. */
+const MATCH_ACTIONS = new Set([
+  'pause',
+  'unpause',
+  'swap',
+  'restartRound',
+  'skipVeto',
+  'endWarmup',
+  'endMatch',
+  'startMatch',
+  'restoreBackup',
+  'addTime',
+  'broadcast',
+]);
+
 const AdminMatchControls: React.FC<AdminMatchControlsProps> = ({
   serverId,
   matchSlug,
@@ -75,6 +91,10 @@ const AdminMatchControls: React.FC<AdminMatchControlsProps> = ({
   onError,
 }) => {
   const { t } = useTranslation();
+  // Only what the server supports; everything when that cannot be read.
+  const { caps } = useServerCapabilities(serverId);
+  const supported = (action: string) =>
+    !caps || !MATCH_ACTIONS.has(action) || caps.matchControls.includes(action);
   const [executing, setExecuting] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
     open: false,
@@ -105,7 +125,12 @@ const AdminMatchControls: React.FC<AdminMatchControlsProps> = ({
 
   const executeAction = async (action: string, params?: Record<string, unknown>) => {
     // Force cancel doesn't require a server - it works even when server is offline
-    if (!serverId && action !== 'forceCancel' && action !== 'restartMatch' && action !== 'reallocateServer') {
+    if (
+      !serverId &&
+      action !== 'forceCancel' &&
+      action !== 'restartMatch' &&
+      action !== 'reallocateServer'
+    ) {
       showError(t('adminMatchControls.noServer'));
       return;
     }
@@ -220,7 +245,7 @@ const AdminMatchControls: React.FC<AdminMatchControlsProps> = ({
   const handleInputConfirm = () => {
     if (inputDialog.action) {
       const params: Record<string, unknown> = {};
-      
+
       if (inputDialog.action === 'restoreBackup') {
         params.round = Number(inputValue);
       } else if (inputDialog.action === 'addTime') {
@@ -293,12 +318,17 @@ const AdminMatchControls: React.FC<AdminMatchControlsProps> = ({
   };
 
   const allInputActions: InputAction[] = [
-    { action: 'restoreBackup', icon: <ClockCounterClockwiseIcon />, inputType: 'number', defaultValue: 1 },
+    {
+      action: 'restoreBackup',
+      icon: <ClockCounterClockwiseIcon />,
+      inputType: 'number',
+      defaultValue: 1,
+    },
     { action: 'addTime', icon: <TimerIcon />, inputType: 'number', defaultValue: 60 },
     { action: 'broadcast', icon: <ChatTextIcon />, inputType: 'text', defaultValue: '' },
   ];
   const inputActions = allInputActions.filter(
-    (item) => !(hideRestoreBackup && item.action === 'restoreBackup')
+    (item) => !(hideRestoreBackup && item.action === 'restoreBackup') && supported(item.action)
   );
 
   return (
@@ -318,7 +348,7 @@ const AdminMatchControls: React.FC<AdminMatchControlsProps> = ({
           <AccordionDetails>
             <Grid container spacing={1}>
               {confirmActions
-                .filter((item) => !item.requiresMatch || matchSlug)
+                .filter((item) => (!item.requiresMatch || matchSlug) && supported(item.action))
                 .map((item) => (
                   <Grid size={{ xs: 6, sm: 4 }} key={item.action}>
                     <Tooltip
@@ -403,7 +433,10 @@ const AdminMatchControls: React.FC<AdminMatchControlsProps> = ({
       </Stack>
 
       {/* Confirm Dialog */}
-      <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}>
+      <Dialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
+      >
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             {confirmDialog.title}
@@ -435,7 +468,10 @@ const AdminMatchControls: React.FC<AdminMatchControlsProps> = ({
       </Dialog>
 
       {/* Input Dialog */}
-      <Dialog open={inputDialog.open} onClose={() => setInputDialog({ ...inputDialog, open: false })}>
+      <Dialog
+        open={inputDialog.open}
+        onClose={() => setInputDialog({ ...inputDialog, open: false })}
+      >
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             {inputDialog.title}
