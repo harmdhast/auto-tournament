@@ -1050,6 +1050,55 @@ test.describe.serial('Fleet failover (FLEET.md §11)', () => {
     expect((await accepting).status()).toBe(502);
     expect(await a.next('match.unassign', 3_000).catch(() => null)).toBeNull();
     expect((await matchRow(request, slug))?.serverId).toBe(cs2A);
+  test('the server shown as the spare is the one failover picks', async ({ request }) => {
+    test.setTimeout(180_000);
+    await setFailover(request, { auto: true, reserve: 1 });
+    const fakes = await Promise.all([0, 1, 2].map(() => FakeReadyUp.enroll(request)));
+    for (const f of fakes) {
+      cleanup.push(() => f.close());
+      await f.hello();
+      await link(request, f.serverId);
+      cleanup.push(() => unlink(request, f.serverId));
+    }
+    const listed = async () =>
+      (
+        (await (await request.get('/api/fleet/servers', { headers: getAuthHeader() })).json())
+          .servers as Array<{
+          id: string;
+          availabilityReason: string | null;
+        }>
+      ).filter((s) => fakes.some((f) => f.serverId === s.id));
+    await expect
+      .poll(async () => (await listed()).filter((s) => s.availabilityReason === 'reserved').length)
+      .toBe(1);
+    const spareId = (await listed()).find((s) => s.availabilityReason === 'reserved')!.id;
+    const spare = fakes.find((f) => f.serverId === spareId)!;
+
+    // The match goes to a server that is not the spare (allocation leaves the spare alone).
+    const slug = `fleet-fo-spare-${Date.now()}`;
+    cleanup.push(async () => {
+      await request.post(`/api/matches/${slug}/force-cancel`, { headers: getAuthHeader() });
+    });
+    await createMatch(request, slug);
+    const first = await Promise.race(
+      fakes
+        .filter((f) => f !== spare)
+        .map((f) => f.next('match.assign', 30_000).then((m) => ({ f, m })))
+    );
+    first.f.answer(first.m, 'ok');
+    const epoch = first.m.epoch as number;
+    await expect
+      .poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 })
+      .toBe('loaded');
+    first.f.availability('busy', 'assigned');
+    first.f.snapshot(slug, epoch);
+
+    first.f.kill();
+    const moved = spare.next('match.assign', 60_000);
+    await scanUntilProposed(request, slug);
+    const assign = await moved;
+    expect((assign.payload as { match_id: string }).match_id).toBe(slug);
+    spare.answer(assign, 'ok');
   });
 
   test('settings: validated, admin only', async ({ request, playwright, baseURL }) => {
