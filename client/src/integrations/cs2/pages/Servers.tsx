@@ -37,6 +37,7 @@ import { MachineSheet } from '../servers/fleet/MachineSheet';
 import { FirstMachine } from '../servers/fleet/FirstMachine';
 import { OtherServers } from '../servers/fleet/OtherServers';
 import { ReadyUpFleetSection } from '../servers/fleet/readyup/ReadyUpFleetSection';
+import { hostRank } from '../servers/list/serverGroups';
 import {
   AddMachineDialog,
   AddServersDialog,
@@ -47,12 +48,6 @@ import {
 } from '../servers/fleet/FleetDialogs';
 
 const { color } = tokens;
-
-/** Online machines first; then the ones waiting to be linked, the offline ones, the revoked. */
-function hostRank(host: FleetHost): number {
-  if (host.status === 'enrolled') return host.online ? 0 : 2;
-  return host.status === 'pending' ? 1 : 3;
-}
 
 export default function Servers() {
   const { t } = useModuleTranslation('cs2');

@@ -55,6 +55,7 @@ import {
   useModuleTranslation,
   useSnackbar,
 } from '../../../module-sdk';
+import { isGuessedAddress } from './list/serverGroups';
 import type { FleetKey, FleetKeysResponse, FleetServer, FleetServersResponse } from '../cs2.types';
 import { insecureFlag, platformIsPlainHttp } from './insecureLink';
 import { ServerSection } from './ServerSection';
@@ -439,7 +440,7 @@ export default function FleetPanel({
                       {server.host ? `${server.host.hostname}:${server.host.game_port}` : server.id}
                     </Typography>
                   )}
-                  {server.connect?.source === 'peer' && (
+                  {isGuessedAddress(server) && (
                     <Typography
                       variant="caption"
                       color="warning.main"
