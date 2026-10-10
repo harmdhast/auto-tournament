@@ -274,7 +274,19 @@ export default function Servers() {
   const linked = link ? hosts.find((h) => h.id === link.hostId) : undefined;
   const linkConnected = !!linked && linked.status === 'enrolled' && linked.online;
 
-  const total = groups.reduce((n, g) => n + g.rows.length, 0);
+  // The servers that count: revoked or not yet enrolled Ready Up records and disabled RCON servers do not.
+  const total = groups.reduce(
+    (n, g) =>
+      n +
+      g.rows.filter((r) =>
+        r.kind === 'readyup'
+          ? r.fleet.status === 'enrolled'
+          : r.kind === 'rcon'
+            ? r.server.enabled
+            : true
+      ).length,
+    0
+  );
   const machineHost = machineId ? (hosts.find((h) => h.id === machineId) ?? null) : null;
 
   return (
