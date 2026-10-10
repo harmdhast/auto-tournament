@@ -10,10 +10,12 @@ export interface FleetPlayer {
 
 const latest = new Map<string, FleetPlayer[]>();
 
-/** Keep the players a snapshot reports; a snapshot from an older Ready Up (no `players`) keeps nothing. */
+/**
+ * Keep the players a snapshot reports. One without `players` (built by fleet.so itself:
+ * a state.request answer, a reconnect; or an older Ready Up) leaves the list as it was.
+ */
 export function noteSnapshot(fleetServerId: string, payload: StateSnapshotPayload): void {
   if (Array.isArray(payload.players)) latest.set(fleetServerId, payload.players.slice(0, 64));
-  else latest.delete(fleetServerId);
 }
 
 /** Who is on the server now: nobody when it is offline or never said. */

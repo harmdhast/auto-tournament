@@ -152,6 +152,10 @@ test.describe.serial('Fleet: RCON parity', () => {
     await expect
       .poll(async () => (await (await detail(other.serverId)).json()).server.players)
       .toEqual(players);
+    // A snapshot fleet.so builds itself (state.request answer, reconnect) has no players: the list stays.
+    other.snapshot('none', 1, { state: null, availability: 'available' });
+    await new Promise((r) => setTimeout(r, 500));
+    expect((await (await detail(other.serverId)).json()).server.players).toEqual(players);
     expect((await detail('no-such-server')).status()).toBe(404);
   });
 
