@@ -149,4 +149,22 @@ test.describe.serial('Fleet orphan unassign', () => {
     // no state and no assignment row: nothing to address
     await expect(fake.next('match.unassign', 2000)).rejects.toThrow();
   });
+
+  test('a stale epoch on an orphan match gets one match.unassign, not two', async ({ request }) => {
+    const { fake, cs2Id } = await online(request);
+    const slug = `orphan-stale-${Date.now()}`;
+    await createMatch(request, slug);
+    report(fake, slug, 2, 'idle');
+    await setState(request, slug, 'completed', cs2Id);
+    await fake.reconnect({
+      availability: 'busy',
+      reason: 'assigned',
+      detail: slug,
+      state: { match_id: slug, epoch: 1, live_rev: 0 } as never,
+    });
+    const msg = await fake.next('match.unassign');
+    expect(msg.payload).toMatchObject({ match_id: slug, epoch: 1 });
+    fake.answer(msg, 'ok');
+    await expect(fake.next('match.unassign', 2000)).rejects.toThrow();
+  });
 });

@@ -4,7 +4,6 @@ import { ulid } from './credentials';
 import { cs2ServerIdOf } from './link';
 import { awaitCommandResult } from './reliable';
 import { activeProposal } from './failover';
-import { getAssignment, unassignEpoch } from './driver';
 
 export type OrphanReason = 'cancelled' | 'ended' | 'superseded';
 
@@ -17,8 +16,34 @@ export interface OrphanReport {
 const ANSWER_TIMEOUT_MS = 10_000;
 const nowS = () => Math.floor(Date.now() / 1000);
 
-/** Dropped assignments already sent: `${server}:${slug}:${epoch}`, cleared per server on hello. */
-const dropped = new Set<string>();
+interface OrphanDeps {
+  unassign(
+    fleetServerId: string,
+    slug: string,
+    epoch: number,
+    reason: OrphanReason
+  ): Promise<string>;
+  epochOf(slug: string): Promise<number | null>;
+}
+
+let deps: OrphanDeps;
+
+export function bindOrphanDeps(bound: OrphanDeps): void {
+  deps = bound;
+}
+
+/** Unassigns already sent or in flight: `${server}:${slug}:${epoch}`. Shared with the stale-epoch check. */
+const sent = new Set<string>();
+/** The keys the orphan path claimed, cleared per server on hello. */
+const claimedHere = new Set<string>();
+
+/** True when this unassign was not sent yet; the caller then owns it. */
+export function claimUnassign(key: string): boolean {
+  if (sent.has(key)) return false;
+  sent.add(key);
+  if (sent.size > 10_000) sent.clear();
+  return true;
+}
 
 /** Why the platform no longer runs `slug` on this fleet server; null when it still does. */
 export async function orphanReason(
@@ -38,7 +63,11 @@ export async function orphanReason(
 }
 
 export function forgetDroppedOrphans(fleetServerId: string): void {
-  for (const key of dropped) if (key.startsWith(`${fleetServerId}:`)) dropped.delete(key);
+  for (const key of claimedHere) {
+    if (!key.startsWith(`${fleetServerId}:`)) continue;
+    claimedHere.delete(key);
+    sent.delete(key);
+  }
 }
 
 /** A server reporting a platform assignment the platform no longer runs gets `match.unassign`. */
@@ -49,15 +78,15 @@ export async function dropOrphanAssignment(
   if (report.reason !== 'assigned' && report.reason !== 'awaiting_reset') return false;
   const slug = report.state?.match_id ?? report.detail;
   if (!slug) return false;
-  const epoch = report.state?.epoch ?? (await getAssignment(slug))?.epoch;
+  const epoch = report.state?.epoch ?? (await deps.epochOf(slug));
   if (!epoch) return false;
   const key = `${fleetServerId}:${slug}:${epoch}`;
-  if (dropped.has(key)) return false;
+  if (sent.has(key)) return false;
   if ((await activeProposal(slug))?.status === 'moving') return false;
   const reason = await orphanReason(slug, fleetServerId);
   if (!reason) return false;
-  dropped.add(key);
-  if (dropped.size > 10_000) dropped.clear();
+  if (!claimUnassign(key)) return false;
+  claimedHere.add(key);
 
   const command = `match.unassign ${slug} (${reason})`;
   const auditId = ulid();
@@ -69,17 +98,35 @@ export async function dropOrphanAssignment(
   log.info(
     `[FLEET] ${fleetServerId} holds ${slug} epoch ${epoch}, which the platform no longer runs (${reason})`
   );
-  const messageId = await unassignEpoch(fleetServerId, slug, epoch, reason);
-  const answer = await awaitCommandResult(messageId, ANSWER_TIMEOUT_MS);
-  await db.runAsync(
-    `UPDATE cs2_fleet_audit SET message_id = ?, status = ?, error_code = ?, answered_at = ? WHERE id = ?`,
-    [
+  let messageId: string | null = null;
+  try {
+    messageId = await deps.unassign(fleetServerId, slug, epoch, reason);
+    const answer = await awaitCommandResult(messageId, ANSWER_TIMEOUT_MS);
+    await closeAudit(
+      auditId,
       messageId,
       answer?.status ?? 'timeout',
       answer?.errorCode ?? null,
-      answer ? nowS() : null,
-      auditId,
-    ]
-  );
+      !!answer
+    );
+  } catch (error) {
+    sent.delete(key);
+    claimedHere.delete(key);
+    await closeAudit(auditId, messageId, 'error', (error as Error).message.slice(0, 120), false);
+    throw error;
+  }
   return true;
+}
+
+async function closeAudit(
+  auditId: string,
+  messageId: string | null,
+  status: string,
+  errorCode: string | null,
+  answered: boolean
+): Promise<void> {
+  await db.runAsync(
+    `UPDATE cs2_fleet_audit SET message_id = ?, status = ?, error_code = ?, answered_at = ? WHERE id = ?`,
+    [messageId, status, errorCode, answered ? nowS() : null, auditId]
+  );
 }
