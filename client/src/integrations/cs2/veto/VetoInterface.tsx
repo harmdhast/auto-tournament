@@ -17,7 +17,6 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowsLeftRightIcon, CheckCircleIcon, ProhibitIcon } from '@phosphor-icons/react';
 import { VetoMapCard } from './VetoMapCard';
 import { getMapData, getMapDisplayName } from '../maps/mapData';
-import { getVetoOrder } from './vetoOrders';
 import type { MapSide, VetoMapInfo, VetoState, VetoStateResponse } from '../cs2.types';
 import { FadeInImage } from '../common/FadeInImage';
 import { onSocketReconnect, useSocket, tokens, mono, withAlpha, useModuleTranslation } from '../../../module-sdk';
@@ -355,7 +354,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     );
   }
 
-  const vetoOrder = getVetoOrder(vetoState.format);
+  const vetoOrder = vetoState.vetoOrder ?? [];
   const currentStepConfig = vetoOrder[vetoState.currentStep - 1];
   const currentAction = vetoState.currentAction ?? currentStepConfig?.action;
   const currentTurn =
