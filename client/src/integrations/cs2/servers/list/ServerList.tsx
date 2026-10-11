@@ -110,7 +110,7 @@ const rowGrid = {
   cursor: 'pointer',
   gridTemplateColumns: {
     xs: '12px minmax(0, 1fr) auto auto',
-    md: '12px minmax(0, 1.3fr) 136px minmax(0, 1.6fr) minmax(0, 1fr) 64px 96px',
+    md: '12px minmax(0, 1.3fr) 168px minmax(0, 1.6fr) minmax(0, 1fr) 64px 96px',
   },
   gridTemplateAreas: {
     xs: '"dot name state actions" ". sub sub sub"',
