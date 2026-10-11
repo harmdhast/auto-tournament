@@ -677,6 +677,8 @@
     "enabledHelper": "Les serveurs désactivés ne seront pas utilisés pour les matchs",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
+    "failoverUseLabel": "Utiliser pour le failover",
+    "failoverUseHelper": "Désactivé : le failover automatique ne déplace jamais un match ici et ne le garde jamais en réserve.",
     "overridesTitle": "Surcharges MatchZy Enhanced (optionnel)",
     "overridesDescription": "Ces paramètres surchargent les valeurs globales MatchZy Enhanced uniquement pour ce serveur. Laissez vide pour utiliser les valeurs globales dans Paramètres.",
     "chatPrefixLabel": "Surcharge du préfixe de chat",
@@ -1615,6 +1617,7 @@
     "reserveAuto": "Automatic (1 once 2 servers are online)",
     "reserveStatus": "{{effective}} of {{pool}} online server(s) kept free for failover",
     "reserveHelp": "Spare servers stay idle: matches are not put on them, so one is ready when a server goes down. At least one server always takes matches. Spare servers count toward your license like any other server.",
+    "noTarget": "Aucun serveur n’est libre pour prendre un failover.",
     "summaryOn": "Automatic moves on",
     "summaryOff": "Automatic moves off",
     "empty": "La bascule nécessite au moins un serveur Ready Up."

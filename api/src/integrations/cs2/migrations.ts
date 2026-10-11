@@ -121,6 +121,7 @@ export const CS2_RECORDER_FAULTS_MIGRATION_ID = '036-recorder-faults';
 export const CS2_CLIP_REVIEW_MIGRATION_ID = '037-clip-review';
 export const CS2_REEL_FAILOVER_MIGRATION_ID = '038-reel-failover';
 export const CS2_FLEET_AVAILABILITY_REASON_MIGRATION_ID = '037-fleet-availability-reason';
+export const CS2_SERVER_FAILOVER_USE_MIGRATION_ID = '040-server-failover-use';
 
 export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
   {
@@ -1425,6 +1426,14 @@ export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
     up: `
     ALTER TABLE cs2_fleet_servers ADD COLUMN IF NOT EXISTS availability_reason TEXT;
     ALTER TABLE cs2_fleet_servers ADD COLUMN IF NOT EXISTS availability_detail TEXT;
+`,
+  },
+  {
+    // 0 = automatic failover never moves a match to this server or keeps it
+    // as a spare; an admin can still move one there.
+    id: CS2_SERVER_FAILOVER_USE_MIGRATION_ID,
+    up: `
+    ALTER TABLE cs2_servers ADD COLUMN IF NOT EXISTS failover_use INTEGER NOT NULL DEFAULT 1;
 `,
   },
 ];

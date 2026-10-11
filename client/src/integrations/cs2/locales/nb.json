@@ -677,6 +677,8 @@
     "enabledHelper": "Deaktiverte servere brukes ikke til kamper",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
+    "failoverUseLabel": "Bruk til failover",
+    "failoverUseHelper": "Av: automatisk failover flytter aldri en kamp hit og holder den heller ikke som reserve.",
     "overridesTitle": "MatchZy Enhanced-overstyringer (valgfritt)",
     "overridesDescription": "Disse innstillingene overstyrer globale MatchZy Enhanced-standarder kun for denne serveren. La stå tomt for å bruke globale verdier fra Innstillinger.",
     "chatPrefixLabel": "Overstyr chat-prefiks",
@@ -1615,6 +1617,7 @@
     "reserveAuto": "Automatic (1 once 2 servers are online)",
     "reserveStatus": "{{effective}} of {{pool}} online server(s) kept free for failover",
     "reserveHelp": "Spare servers stay idle: matches are not put on them, so one is ready when a server goes down. At least one server always takes matches. Spare servers count toward your license like any other server.",
+    "noTarget": "Ingen server er ledig til å ta over ved failover.",
     "summaryOn": "Automatisk flytting på",
     "summaryOff": "Automatisk flytting av",
     "empty": "Failover trenger minst én Ready Up-server."

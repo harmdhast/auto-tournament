@@ -720,8 +720,8 @@ export class Cs2ServerPool {
    * `available` (fleet/driver.ts), not being handed a match, not busy in our
    * own records, and past their turnover (a demo upload still running holds
    * the server). No webhook check: events come over the same socket. The
-   * failover reserve (idle servers kept for FLEET.md §11) is held back unless
-   * `includeReserve`.
+   * failover reserve (idle servers kept for FLEET.md §11, never ones opted
+   * out of failover) is held back unless `includeReserve`.
    */
   /**
    * The Ready Up servers that can take a match now (getAvailableServers' fleet
@@ -780,7 +780,10 @@ export class Cs2ServerPool {
     }
     if (includeReserve || available.length === 0) return available;
     const { effective } = await reserveCount();
-    const held = pickReserved(available, effective);
+    const held = pickReserved(
+      available.filter((s) => s.failoverUse !== false),
+      effective
+    );
     if (held.size > 0)
       log.debug(`Fleet servers held in reserve for failover: ${[...held].join(', ')}`);
     return available.filter((server) => !held.has(server.id));

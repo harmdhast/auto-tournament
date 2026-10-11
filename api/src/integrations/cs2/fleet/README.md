@@ -265,6 +265,9 @@ server, { resume })`: new epoch and password, `resume` = the latest round
   leaves alone (`getAvailableServers()` without `includeFleetReserve`):
   the admin's number, else 1 once two linked servers are online; never the
   whole pool. Reserve servers count toward the license like any server.
+- **Opt-out** (`cs2_servers.failover_use = 0`): automatic failover never picks
+  the server (`failoverTargets`) and the reserve never holds it; an admin can
+  still move a match there, and a `restarted` failover still resumes on it.
 - Routes (`../routes/failover.ts`): `GET /api/game/cs2/matches/:slug/failover`,
   `POST …/failover/:id/accept`, `…/:id/dismiss`, `…/failover/move` (move a
   fleet match now: another pick, or back), `GET|PUT /api/fleet/failover/settings`.

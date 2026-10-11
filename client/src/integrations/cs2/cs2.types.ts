@@ -33,6 +33,8 @@ export interface Server {
   transport?: 'rcon' | 'fleet';
   /** False: a practice/community server that tournament matches never go to. */
   tournamentUse?: boolean;
+  /** Ready Up servers: false keeps automatic failover from using it as a target or spare. */
+  failoverUse?: boolean;
   /** The platform's virtual skins go to this server. */
   skins?: boolean;
   /** Fleet servers: it runs with a Valve game server token (skins stay off). */

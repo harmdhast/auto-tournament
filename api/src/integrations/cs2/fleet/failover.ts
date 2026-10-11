@@ -62,6 +62,7 @@ import {
   buildResume,
   detectFailure,
   failoverGraceFromEnv,
+  failoverTargets,
   pickBackup,
   pickReserved,
   pickTarget,
@@ -279,7 +280,8 @@ function parseBuild(text: string | null): number | null {
 /** The fleet servers that could take a match right now, the failover reserve included. */
 /** The free servers held back for failover right now (the reserve, FLEET.md §11). */
 export async function heldFleetSpares(): Promise<FailoverCandidate[]> {
-  const [reserve, free] = await Promise.all([reserveCount(), freeFleetServers()]);
+  const [reserve, all] = await Promise.all([reserveCount(), freeFleetServers()]);
+  const free = failoverTargets(all);
   const held = pickReserved(
     free.map((c) => ({ id: c.cs2ServerId, name: c.name })),
     reserve.effective
@@ -297,8 +299,9 @@ export async function freeFleetServers(): Promise<FailoverCandidate[]> {
     fleet_id: string;
     versions: string | null;
     capabilities: string | null;
+    failover_use: number | null;
   }>(
-    `SELECT s.id, s.name, f.id AS fleet_id, f.versions, f.capabilities
+    `SELECT s.id, s.name, s.failover_use, f.id AS fleet_id, f.versions, f.capabilities
        FROM cs2_servers s JOIN cs2_fleet_servers f ON f.id = s.fleet_server_id
       WHERE s.id IN (${free.map(() => '?').join(', ')})`,
     free.map((s) => s.id)
@@ -311,6 +314,7 @@ export async function freeFleetServers(): Promise<FailoverCandidate[]> {
       name: r.name,
       cs2Build: parseBuild(r.versions),
       capabilities: parseCaps(r.capabilities),
+      failoverUse: r.failover_use !== 0,
     }));
 }
 
@@ -494,7 +498,7 @@ async function runScan(options: ScanOptions): Promise<ScanResult> {
       continue;
     }
     if (p.reason === 'restarted') continue;
-    free ??= await freeFleetServers();
+    free ??= failoverTargets(await freeFleetServers());
     if (!p.targetCs2ServerId || !free.some((c) => c.cs2ServerId === p.targetCs2ServerId)) {
       const target = pickTarget(free, {
         cs2ServerId: p.fromCs2ServerId,
@@ -556,7 +560,7 @@ async function createProposal(input: {
   const target =
     input.targetCs2ServerId !== undefined
       ? input.targetCs2ServerId
-      : (pickTarget(await freeFleetServers(), {
+      : (pickTarget(failoverTargets(await freeFleetServers()), {
           cs2ServerId: input.cs2ServerId,
           fleetServerId: input.fleetServerId,
           ...(await serverTraits(input.fleetServerId)),
@@ -708,12 +712,14 @@ export async function acceptFailover(id: string, req: AcceptRequest): Promise<Ac
             fleetServerId: proposal.fromServerId as string,
             name: proposal.fromCs2ServerId,
             ...(await serverTraits(proposal.fromServerId)),
+            failoverUse: true,
           }
         : null;
     if (!target) return refuse(409, 'target_unavailable', 'The server is not connected', proposal);
   } else {
+    const free = await freeFleetServers();
     target = pickTarget(
-      await freeFleetServers(),
+      req.auto ? failoverTargets(free) : free,
       {
         cs2ServerId: proposal.fromCs2ServerId,
         fleetServerId: proposal.fromServerId,
