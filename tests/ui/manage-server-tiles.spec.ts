@@ -106,3 +106,42 @@ test('a server in a match shows its phase, map and score and opens the match', a
   await live.click();
   await expect(page.getByRole('dialog')).toBeVisible();
 });
+
+test('server tiles sort by status, matches first', async ({ page }) => {
+  await ensureSignedIn(page);
+  await mockFleet(
+    page,
+    [
+      entry('a-offline', { online: false, updatedAt: 1 }),
+      entry('b-free', { allocatable: true, notAllocatableReason: null }),
+      entry('c-spare', { busyReason: 'reserved', notAllocatableReason: 'reserved' }),
+      entry('d-warm', { matchSlug: 'm-warm', notAllocatableReason: null }),
+      entry('e-live', { matchSlug: 'm-live', notAllocatableReason: null }),
+      entry('f-busy', { busyReason: 'draining' }),
+    ],
+    {
+      'm-warm': match('m-warm', { matchPhase: 'warmup' }),
+      'm-live': match('m-live'),
+    }
+  );
+  await page.route('**/api/servers', (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        servers: [{ id: 'u1', name: 'z-new', enabled: true, lastSeen: null }],
+      },
+    })
+  );
+  await page.goto('/manage');
+  const grid = page.getByTestId('manage-servers');
+  await expect(grid.getByText('e-live')).toBeVisible({ timeout: 15000 });
+  await expect(grid.locator('b')).toHaveText([
+    'e-live',
+    'd-warm',
+    'b-free',
+    'c-spare',
+    'f-busy',
+    'a-offline',
+    'z-new',
+  ]);
+});

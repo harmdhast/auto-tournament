@@ -50,6 +50,33 @@ function bracketLabel(server: ServerAllocationInfo): string | null {
   });
 }
 
+const PHASE_RANK: Record<string, number> = { live: 0, knife: 1, warmup: 2, veto: 3 };
+const OTHER_PHASE_RANK = 4;
+const FREE_RANK = 10;
+const RESTING_RANK = 11;
+const BUSY_RANK = 12;
+const CHECKING_RANK = 13;
+const OFFLINE_RANK = 14;
+
+/**
+ * Where a tile goes on the dashboard, lowest first: servers in a match (live,
+ * knife, warmup, veto, then the rest), free ones, resting or spare ones, busy
+ * ones, ones still being checked, offline ones. Not configured servers follow.
+ */
+export function serverRank(
+  server: ServerAllocationInfo,
+  match: ServerMatch | undefined,
+  checking: boolean
+): number {
+  if (!server.online) return checking && !server.updatedAt ? CHECKING_RANK : OFFLINE_RANK;
+  if (match) return PHASE_RANK[match.phase ?? ''] ?? OTHER_PHASE_RANK;
+  if (server.matchSlug) return OTHER_PHASE_RANK;
+  if (server.allocatable) return FREE_RANK;
+  if (server.notAllocatableReason === 'grace-window' || server.busyReason === 'reserved')
+    return RESTING_RANK;
+  return BUSY_RANK;
+}
+
 function timeAgo(
   unixSeconds: number,
   t: (key: string, opts?: Record<string, unknown>) => string
@@ -196,6 +223,10 @@ const ServerGridView: React.FC<{
   const matchLine = useMatchLine();
   const tileMatchLine = useTileMatchLine();
   const checking = answers < 2;
+  const ordered = servers
+    .map((server) => ({ server, rank: serverRank(server, matches[server.id], checking) }))
+    .sort((a, b) => a.rank - b.rank || a.server.name.localeCompare(b.server.name))
+    .map(({ server }) => server);
 
   const body = () => {
     if (answers === 0) {
@@ -233,7 +264,7 @@ const ServerGridView: React.FC<{
     }
     return (
       <Box sx={gridSx}>
-        {servers.map((server) => {
+        {ordered.map((server) => {
           const match = matches[server.id];
 
           if (!server.online) {
