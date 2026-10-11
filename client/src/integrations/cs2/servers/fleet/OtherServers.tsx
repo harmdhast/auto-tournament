@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Box, ButtonBase, Typography } from '@mui/material';
-import { api, fontDisplay, mono, radii, textSize, tokens, useModuleTranslation } from '../../../../module-sdk';
+import {
+  api,
+  fontDisplay,
+  mono,
+  radii,
+  textSize,
+  tokens,
+  useModuleTranslation,
+} from '../../../../module-sdk';
 import type { FleetHost, Server } from '../../cs2.types';
 import ServerModal from '../ServerModal';
 
@@ -33,8 +41,11 @@ export function OtherServers({ hosts }: { hosts: FleetHost[] }) {
     return () => clearTimeout(id);
   }, [load]);
 
-  const onMachines = new Set(hosts.flatMap((h) => h.servers.map((s) => s.fleetServer?.id).filter((id): id is string => !!id)));
-  const others = (servers ?? []).filter((s) => !onMachines.has(s.id));
+  const onMachines = new Set(
+    hosts.flatMap((h) => h.servers.map((s) => s.fleetServer?.id).filter((id): id is string => !!id))
+  );
+  // Ready Up servers have their own section (readyup/ReadyUpFleetSection.tsx).
+  const others = (servers ?? []).filter((s) => !onMachines.has(s.id) && s.transport !== 'fleet');
   if (others.length === 0) return null;
 
   // Up when it reported in the last two minutes (the list carries no live status).
@@ -50,18 +61,34 @@ export function OtherServers({ hosts }: { hosts: FleetHost[] }) {
         : t('serversBoard.state.offline', { defaultValue: 'Down' });
 
   return (
-    <Box component="section" aria-labelledby="other-servers" data-testid="servers-other" sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+    <Box
+      component="section"
+      aria-labelledby="other-servers"
+      data-testid="servers-other"
+      sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}
+    >
       <Box>
-        <Typography id="other-servers" component="h2" sx={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: textSize.lg }}>
+        <Typography
+          id="other-servers"
+          component="h2"
+          sx={{ fontFamily: fontDisplay, fontWeight: 600, fontSize: textSize.lg }}
+        >
           {t('serversBoard.other.title', { defaultValue: 'Servers not on a machine' })}
         </Typography>
         <Typography variant="body2" color="text.secondary">
           {t('serversBoard.other.about', {
-            defaultValue: 'Added by address, or enrolled on their own. They keep working; new servers are made on a machine.',
+            defaultValue:
+              'Added by address, or enrolled on their own. They keep working; new servers are made on a machine.',
           })}
         </Typography>
       </Box>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 14rem), 1fr))', gap: 1.25 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 14rem), 1fr))',
+          gap: 1.25,
+        }}
+      >
         {others.map((s) => (
           <ButtonBase
             key={s.id}
@@ -82,15 +109,43 @@ export function OtherServers({ hosts }: { hosts: FleetHost[] }) {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-              <Box component="span" sx={{ fontWeight: 600, fontSize: textSize.sm, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <Box
+                component="span"
+                sx={{
+                  fontWeight: 600,
+                  fontSize: textSize.sm,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {s.name}
               </Box>
-              <Box component="span" sx={{ ml: 'auto', display: 'inline-flex', alignItems: 'center', gap: 0.75, fontSize: '0.75rem', color: color.ink2, whiteSpace: 'nowrap' }}>
-                <Box aria-hidden sx={{ width: 8, height: 8, borderRadius: radii.pill, bgcolor: tone(s) }} />
+              <Box
+                component="span"
+                sx={{
+                  ml: 'auto',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  fontSize: '0.75rem',
+                  color: color.ink2,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Box
+                  aria-hidden
+                  sx={{ width: 8, height: 8, borderRadius: radii.pill, bgcolor: tone(s) }}
+                />
                 {word(s)}
               </Box>
             </Box>
-            <Box component="span" data-testid="server-host" sx={{ ...mono, fontSize: '0.75rem', color: color.muted }}>
+            <Box
+              component="span"
+              data-testid="server-host"
+              sx={{ ...mono, fontSize: '0.75rem', color: color.muted }}
+            >
               {s.host}:{s.port}
             </Box>
           </ButtonBase>

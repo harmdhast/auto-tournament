@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Box, Button, Menu, MenuItem, Typography } from '@mui/material';
-import { GearSixIcon, PlusIcon } from '@phosphor-icons/react';
+import { PlusIcon } from '@phosphor-icons/react';
 import {
   api,
   apiErrorMessage,
@@ -26,11 +26,6 @@ import {
   useSnackbar,
 } from '../../../module-sdk';
 import type { FleetHost } from '../cs2.types';
-import AutoScalePanel from '../servers/AutoScalePanel';
-import FleetPanel from '../servers/FleetPanel';
-import FleetPushPanel from '../servers/FleetPushPanel';
-import FailoverSettingsPanel from '../servers/FailoverSettingsPanel';
-import { OPEN_EVENT } from '../servers/openServerSection';
 import { countServers } from '../servers/machineState';
 import { insecureFlag } from '../servers/insecureLink';
 import { serverLimitText, useServerLimit } from '../servers/serverLimit';
@@ -39,9 +34,9 @@ import { useServerMatches } from '../servers/fleet/useServerMatches';
 import { MachineCard } from '../servers/fleet/MachineCard';
 import { ServerSheet } from '../servers/fleet/ServerSheet';
 import { MachineSheet } from '../servers/fleet/MachineSheet';
-import { SideSheet } from '../servers/fleet/SideSheet';
 import { FirstMachine } from '../servers/fleet/FirstMachine';
 import { OtherServers } from '../servers/fleet/OtherServers';
+import { ReadyUpFleetSection } from '../servers/fleet/readyup/ReadyUpFleetSection';
 import {
   AddMachineDialog,
   AddServersDialog,
@@ -52,8 +47,6 @@ import {
 } from '../servers/fleet/FleetDialogs';
 
 const { color } = tokens;
-
-const SETTINGS_SECTIONS = ['autoscale', 'fleet', 'fleet-settings', 'failover'];
 
 /** Online machines first; then the ones waiting to be linked, the offline ones, the revoked. */
 function hostRank(host: FleetHost): number {
@@ -80,25 +73,6 @@ export default function Servers() {
       return next;
     });
   const [serverOpen, setServerOpen] = useState<{ hostId: string; name: string } | null>(null);
-
-  // Fleet settings: the button, `#autoscale` and friends, or openServerSection().
-  const [settingsOpen, setSettingsOpen] = useState(() =>
-    SETTINGS_SECTIONS.includes(window.location.hash.slice(1))
-  );
-  useEffect(() => {
-    const onOpen = (e: Event) => {
-      if (SETTINGS_SECTIONS.includes((e as CustomEvent<string>).detail)) setSettingsOpen(true);
-    };
-    const onHash = () => {
-      if (SETTINGS_SECTIONS.includes(window.location.hash.slice(1))) setSettingsOpen(true);
-    };
-    window.addEventListener(OPEN_EVENT, onOpen);
-    window.addEventListener('hashchange', onHash);
-    return () => {
-      window.removeEventListener(OPEN_EVENT, onOpen);
-      window.removeEventListener('hashchange', onHash);
-    };
-  }, []);
 
   const [menu, setMenu] = useState<{ host: FleetHost; anchor: HTMLElement } | null>(null);
   const [addServersFor, setAddServersFor] = useState<FleetHost | null>(null);
@@ -294,14 +268,6 @@ export default function Servers() {
         actions={
           <>
             <Button
-              variant="outlined"
-              startIcon={<GearSixIcon />}
-              onClick={() => setSettingsOpen(true)}
-              data-testid="servers-settings-toggle"
-            >
-              {t('serversBoard.fleetSettings', { defaultValue: 'Fleet settings' })}
-            </Button>
-            <Button
               variant="contained"
               startIcon={<PlusIcon />}
               onClick={() => setAddMachineOpen(true)}
@@ -390,6 +356,7 @@ export default function Servers() {
       )}
 
       <OtherServers hosts={hosts} />
+      <ReadyUpFleetSection />
 
       <Menu anchorEl={menu?.anchor ?? null} open={menu !== null} onClose={() => setMenu(null)}>
         <MenuItem
@@ -464,30 +431,6 @@ export default function Servers() {
         onAddServers={(h) => setAddServersFor(h)}
         onUpdateReadyUp={(h) => setReadyUpFor(h)}
       />
-      <SideSheet
-        open={settingsOpen}
-        onClose={() => {
-          setSettingsOpen(false);
-          if (SETTINGS_SECTIONS.includes(window.location.hash.slice(1)))
-            window.history.replaceState(
-              null,
-              '',
-              window.location.pathname + window.location.search
-            );
-        }}
-        wide
-        testId="servers-settings"
-        title={t('serversBoard.fleetSettings', { defaultValue: 'Fleet settings' })}
-        subtitle={t('serversBoard.fleetSettingsAbout', {
-          defaultValue:
-            'Starting and stopping servers on their own, the fleet link, what goes out to every server, and failover.',
-        })}
-      >
-        <AutoScalePanel />
-        <FleetPanel />
-        <FleetPushPanel />
-        <FailoverSettingsPanel />
-      </SideSheet>
 
       <AddServersDialog fleet={fleet} host={addServersFor} onClose={() => setAddServersFor(null)} />
       <ReadyUpDialog fleet={fleet} host={readyUpFor} onClose={() => setReadyUpFor(null)} />

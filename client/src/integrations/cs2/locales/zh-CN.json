@@ -2107,8 +2107,6 @@
       "state": "State",
       "usage": "CPU · memory"
     },
-    "fleetSettings": "Fleet settings",
-    "fleetSettingsAbout": "Starting and stopping servers on their own, the fleet link, what goes out to every server, and failover.",
     "health": "Server health",
     "linkNone": "Not enrolled yet",
     "linkOffline": "Not connected",
@@ -2149,7 +2147,34 @@
     "createN_other": "Create {{count}} servers",
     "restarts_one": "{{count}} restart in 24 h",
     "restarts_other": "{{count}} restarts in 24 h",
-    "offlineFor": "Offline for {{time}}"
+    "offlineFor": "Offline for {{time}}",
+    "readyUp": {
+      "title": "Ready Up 服务器群",
+      "about": "通过 Ready Up 连接平台的服务器",
+      "tabs": {
+        "servers": "服务器",
+        "keys": "密钥与注册",
+        "push": "推送",
+        "autoscale": "自动扩缩",
+        "failover": "故障转移"
+      },
+      "availability": {
+        "free": "空闲",
+        "busy": "忙碌",
+        "spare": "备用",
+        "draining": "正在排空",
+        "offline": "离线"
+      },
+      "sheet": {
+        "offline": "离线：操作将在重新连接后执行",
+        "gone": "此服务器已不存在",
+        "state": "状态",
+        "connect": "连接",
+        "version": "Ready Up",
+        "cs2": "CS2 版本",
+        "lastSeen": "最后在线"
+      }
+    }
   },
   "matchPage": {
     "reelLead": "Their plays in the order they happened. Pick a song in the player, then share or download it.",

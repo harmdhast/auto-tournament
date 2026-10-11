@@ -2107,8 +2107,6 @@
       "state": "State",
       "usage": "CPU · memory"
     },
-    "fleetSettings": "Fleet settings",
-    "fleetSettingsAbout": "Starting and stopping servers on their own, the fleet link, what goes out to every server, and failover.",
     "health": "Server health",
     "linkNone": "Not enrolled yet",
     "linkOffline": "Not connected",
@@ -2149,7 +2147,34 @@
     "createN_other": "Create {{count}} servers",
     "restarts_one": "{{count}} restart in 24 h",
     "restarts_other": "{{count}} restarts in 24 h",
-    "offlineFor": "Offline for {{time}}"
+    "offlineFor": "Offline for {{time}}",
+    "readyUp": {
+      "title": "Ready Up-vloot",
+      "about": "Servers die met Ready Up verbinden met het platform",
+      "tabs": {
+        "servers": "Servers",
+        "keys": "Sleutels en aanmelding",
+        "push": "Push",
+        "autoscale": "Automatisch schalen",
+        "failover": "Failover"
+      },
+      "availability": {
+        "free": "Vrij",
+        "busy": "Bezet",
+        "spare": "Reserve",
+        "draining": "Wordt geleegd",
+        "offline": "Offline"
+      },
+      "sheet": {
+        "offline": "Offline: acties wachten tot hij weer verbindt",
+        "gone": "Deze server is weg",
+        "state": "Status",
+        "connect": "Verbinden",
+        "version": "Ready Up",
+        "cs2": "CS2-build",
+        "lastSeen": "Laatst gezien"
+      }
+    }
   },
   "matchPage": {
     "reelLead": "Their plays in the order they happened. Pick a song in the player, then share or download it.",

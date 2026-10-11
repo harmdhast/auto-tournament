@@ -29,6 +29,8 @@ export interface Server {
   port: number;
   password: string;
   enabled: boolean;
+  /** How the platform drives it: RCON, or a Ready Up server over its fleet link. */
+  transport?: 'rcon' | 'fleet';
   /** False: a practice/community server that tournament matches never go to. */
   tournamentUse?: boolean;
   /** The platform's virtual skins go to this server. */
@@ -456,6 +458,9 @@ export interface FleetServer {
   enrollmentKeyId: string | null;
   online: boolean;
   availability: string | null;
+  /** Why it takes no match (api fleet/busyReason.ts), and what that refers to. */
+  availabilityReason?: BusyReason | null;
+  availabilityDetail?: string | null;
   versions: {
     core: string;
     plugin_api: string;

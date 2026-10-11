@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Box,
+  ButtonBase,
   Button,
   Checkbox,
   Chip,
@@ -57,6 +58,7 @@ import {
 import type { FleetKey, FleetKeysResponse, FleetServer, FleetServersResponse } from '../cs2.types';
 import { insecureFlag, platformIsPlainHttp } from './insecureLink';
 import { ServerSection } from './ServerSection';
+import { AvailabilityChip, AvailabilityReason } from './fleet/readyup/AvailabilityChip';
 
 const POLL_MS = 10_000;
 
@@ -79,7 +81,13 @@ function statusDot(server: FleetServer): 'live' | 'free' | 'loading' | 'error' {
   return server.online ? 'live' : 'free';
 }
 
-export default function FleetPanel() {
+/** `servers` / `keys`: one half, for the Ready Up fleet section's tabs; `all`: both. */
+export type FleetPanelPart = 'all' | 'servers' | 'keys';
+
+export default function FleetPanel({
+  part = 'all',
+  onOpenServer,
+}: { part?: FleetPanelPart; onOpenServer?: (id: string) => void } = {}) {
   const { t, i18n } = useModuleTranslation('cs2');
   const { showSnackbar, showError } = useSnackbar();
   const [servers, setServers] = useState<FleetServer[]>([]);
@@ -329,7 +337,7 @@ export default function FleetPanel() {
 
   return (
     <ServerSection
-      id="fleet"
+      id={part === 'keys' ? 'fleet-keys' : 'fleet'}
       data-testid="fleet-panel"
       title={t('fleetPanel.title')}
       summary={t('fleetPanel.summary', {
@@ -340,328 +348,361 @@ export default function FleetPanel() {
       })}
       about={t('fleetPanel.description')}
       action={
-        <Stack direction="row" gap={1}>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<KeyIcon />}
-            onClick={() => setKeyOpen(true)}
-          >
-            {t('fleetPanel.createKey')}
-          </Button>
-          <Button
-            size="small"
-            variant="contained"
-            startIcon={<PlusIcon />}
-            onClick={() => setAddOpen(true)}
-            data-testid="fleet-add-server"
-          >
-            {t('fleetPanel.addServer')}
-          </Button>
-        </Stack>
+        part !== 'servers' && (
+          <Stack direction="row" gap={1}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<KeyIcon />}
+              onClick={() => setKeyOpen(true)}
+            >
+              {t('fleetPanel.createKey')}
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<PlusIcon />}
+              onClick={() => setAddOpen(true)}
+              data-testid="fleet-add-server"
+            >
+              {t('fleetPanel.addServer')}
+            </Button>
+          </Stack>
+        )
       }
     >
-      {loaded && servers.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" data-testid="fleet-empty">
-          {t('fleetPanel.empty')}
-        </Typography>
-      ) : (
-        <RowList data-testid="fleet-servers">
-          {servers.map((server) => (
-            <Row
-              key={server.id}
-              columns={{
-                xs: 'auto minmax(0, 1fr)',
-                md: 'auto minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto',
-              }}
-              data-testid={`fleet-server-${server.id}`}
-            >
-              <StatusDot state={statusDot(server)} />
-              <Box minWidth={0}>
-                <Typography fontWeight={600} noWrap>
-                  {server.name}
-                </Typography>
-                {server.connect ? (
-                  <Tooltip title={sourceLabel(server.connect)}>
+      {part !== 'keys' &&
+        (loaded && servers.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" data-testid="fleet-empty">
+            {t('fleetPanel.empty')}
+          </Typography>
+        ) : (
+          <RowList data-testid="fleet-servers">
+            {servers.map((server) => (
+              <Row
+                key={server.id}
+                columns={{
+                  xs: 'auto minmax(0, 1fr)',
+                  md: 'auto minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto',
+                }}
+                data-testid={`fleet-server-${server.id}`}
+              >
+                <StatusDot state={statusDot(server)} />
+                <Box minWidth={0}>
+                  <Stack direction="row" alignItems="center" gap={1} minWidth={0}>
+                    {onOpenServer ? (
+                      <ButtonBase
+                        onClick={() => onOpenServer(server.id)}
+                        data-testid={`fleet-open-${server.id}`}
+                        sx={{
+                          minWidth: 0,
+                          borderRadius: 1,
+                          textDecoration: 'underline',
+                          textUnderlineOffset: 3,
+                        }}
+                      >
+                        <Typography fontWeight={600} noWrap>
+                          {server.name}
+                        </Typography>
+                      </ButtonBase>
+                    ) : (
+                      <Typography fontWeight={600} noWrap>
+                        {server.name}
+                      </Typography>
+                    )}
+                    {server.status === 'enrolled' && <AvailabilityChip server={server} />}
+                  </Stack>
+                  <AvailabilityReason server={server} />
+                  {server.connect ? (
+                    <Tooltip title={sourceLabel(server.connect)}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={mono}
+                        noWrap
+                        display="block"
+                        data-testid={`fleet-connect-${server.id}`}
+                      >
+                        {`connect ${server.connect.address}`}
+                        {server.connect.source === 'override' ? ' *' : ''}
+                      </Typography>
+                    </Tooltip>
+                  ) : (
                     <Typography
                       variant="caption"
                       color="text.secondary"
                       sx={mono}
                       noWrap
                       display="block"
-                      data-testid={`fleet-connect-${server.id}`}
                     >
-                      {`connect ${server.connect.address}`}
-                      {server.connect.source === 'override' ? ' *' : ''}
+                      {server.host ? `${server.host.hostname}:${server.host.game_port}` : server.id}
                     </Typography>
-                  </Tooltip>
-                ) : (
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={mono}
-                    noWrap
-                    display="block"
-                  >
-                    {server.host ? `${server.host.hostname}:${server.host.game_port}` : server.id}
-                  </Typography>
-                )}
-                {server.connect?.source === 'peer' && (
-                  <Typography
-                    variant="caption"
-                    color="warning.main"
-                    display="block"
-                    data-testid={`fleet-connect-guessed-${server.id}`}
-                  >
-                    {t('fleetPanel.connectGuessed', {
-                      defaultValue:
-                        'Guessed from where the server connects from. Check it, or set the address players use.',
-                    })}
-                  </Typography>
-                )}
-              </Box>
-              <Box minWidth={0} display={{ xs: 'none', md: 'block' }}>
-                <Chip
-                  size="small"
-                  label={t(
-                    `fleetPanel.status.${server.status === 'enrolled' ? (server.online ? 'online' : 'offline') : server.status}`
                   )}
-                  color={
-                    server.status === 'revoked' ? 'error' : server.online ? 'success' : 'default'
-                  }
-                  variant={server.online ? 'filled' : 'outlined'}
-                />
-                {server.status === 'pending' && server.codeExpiresAt && (
-                  <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-                    {t('fleetPanel.codeExpires', { time: when(server.codeExpiresAt, locale) })}
-                  </Typography>
-                )}
-                {server.status === 'enrolled' && !server.online && server.lastSeen !== null && (
-                  <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-                    {t('fleetPanel.lastSeen', { time: when(server.lastSeen, locale) })}
-                  </Typography>
-                )}
-              </Box>
-              <Box minWidth={0} display={{ xs: 'none', md: 'block' }}>
-                {server.versions ? (
-                  <>
-                    <Typography variant="body2" sx={mono} noWrap>
-                      {t('fleetPanel.readyUpVersion', { version: server.versions.core })}
+                  {server.connect?.source === 'peer' && (
+                    <Typography
+                      variant="caption"
+                      color="warning.main"
+                      display="block"
+                      data-testid={`fleet-connect-guessed-${server.id}`}
+                    >
+                      {t('fleetPanel.connectGuessed', {
+                        defaultValue:
+                          'Guessed from where the server connects from. Check it, or set the address players use.',
+                      })}
                     </Typography>
-                    {server.readyUpUpdate?.state === 'outdated' ? (
-                      <Typography variant="caption" color="warning.main" display="block">
-                        {t('fleetPanel.updateAvailable', {
-                          version: server.readyUpUpdate.latest,
-                          defaultValue: 'Update available: {{version}}',
-                        })}
-                      </Typography>
-                    ) : server.readyUpUpdate?.state === 'current' ? (
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        {t('fleetPanel.upToDate', { defaultValue: 'Up to date' })}
-                      </Typography>
-                    ) : (
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        {t('fleetPanel.noUpdateCheck', { defaultValue: 'No update check yet' })}
-                      </Typography>
+                  )}
+                </Box>
+                <Box minWidth={0} display={{ xs: 'none', md: 'block' }}>
+                  <Chip
+                    size="small"
+                    label={t(
+                      `fleetPanel.status.${server.status === 'enrolled' ? (server.online ? 'online' : 'offline') : server.status}`
                     )}
-                    {server.versions.cs2_build !== undefined && (
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={mono}
-                        display="block"
-                      >
-                        {t('fleetPanel.cs2Build', { build: server.versions.cs2_build })}
+                    color={
+                      server.status === 'revoked' ? 'error' : server.online ? 'success' : 'default'
+                    }
+                    variant={server.online ? 'filled' : 'outlined'}
+                  />
+                  {server.status === 'pending' && server.codeExpiresAt && (
+                    <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                      {t('fleetPanel.codeExpires', { time: when(server.codeExpiresAt, locale) })}
+                    </Typography>
+                  )}
+                  {server.status === 'enrolled' && !server.online && server.lastSeen !== null && (
+                    <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                      {t('fleetPanel.lastSeen', { time: when(server.lastSeen, locale) })}
+                    </Typography>
+                  )}
+                </Box>
+                <Box minWidth={0} display={{ xs: 'none', md: 'block' }}>
+                  {server.versions ? (
+                    <>
+                      <Typography variant="body2" sx={mono} noWrap>
+                        {t('fleetPanel.readyUpVersion', { version: server.versions.core })}
                       </Typography>
-                    )}
-                  </>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    —
-                  </Typography>
-                )}
-              </Box>
-              <Stack
-                direction="row"
-                gap={0.5}
-                justifyContent="flex-end"
-                gridColumn={{ xs: '1 / -1', md: 'auto' }}
-              >
-                {server.status === 'pending' && (
-                  <Tooltip title={t('fleetPanel.newCode')}>
-                    <IconButton
-                      size="small"
-                      onClick={() => void newCode(server)}
-                      aria-label={t('fleetPanel.newCode')}
-                    >
-                      <PasswordIcon size={20} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                {server.status === 'enrolled' && (
-                  <>
-                    <Tooltip
-                      title={
-                        server.linkedServerId
-                          ? t('fleetPanel.unlink', { defaultValue: 'Stop using for matches' })
-                          : t('fleetPanel.link', { defaultValue: 'Use for matches' })
-                      }
-                    >
+                      {server.readyUpUpdate?.state === 'outdated' ? (
+                        <Typography variant="caption" color="warning.main" display="block">
+                          {t('fleetPanel.updateAvailable', {
+                            version: server.readyUpUpdate.latest,
+                            defaultValue: 'Update available: {{version}}',
+                          })}
+                        </Typography>
+                      ) : server.readyUpUpdate?.state === 'current' ? (
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {t('fleetPanel.upToDate', { defaultValue: 'Up to date' })}
+                        </Typography>
+                      ) : (
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {t('fleetPanel.noUpdateCheck', { defaultValue: 'No update check yet' })}
+                        </Typography>
+                      )}
+                      {server.versions.cs2_build !== undefined && (
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={mono}
+                          display="block"
+                        >
+                          {t('fleetPanel.cs2Build', { build: server.versions.cs2_build })}
+                        </Typography>
+                      )}
+                    </>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      —
+                    </Typography>
+                  )}
+                </Box>
+                <Stack
+                  direction="row"
+                  gap={0.5}
+                  justifyContent="flex-end"
+                  gridColumn={{ xs: '1 / -1', md: 'auto' }}
+                >
+                  {server.status === 'pending' && (
+                    <Tooltip title={t('fleetPanel.newCode')}>
                       <IconButton
                         size="small"
-                        color={server.linkedServerId ? 'primary' : 'default'}
-                        onClick={() => void toggleLink(server)}
-                        aria-label={
+                        onClick={() => void newCode(server)}
+                        aria-label={t('fleetPanel.newCode')}
+                      >
+                        <PasswordIcon size={20} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {server.status === 'enrolled' && (
+                    <>
+                      <Tooltip
+                        title={
                           server.linkedServerId
                             ? t('fleetPanel.unlink', { defaultValue: 'Stop using for matches' })
                             : t('fleetPanel.link', { defaultValue: 'Use for matches' })
                         }
-                        data-testid={`fleet-link-${server.id}`}
-                      >
-                        {server.linkedServerId ? (
-                          <LinkIcon size={20} />
-                        ) : (
-                          <LinkBreakIcon size={20} />
-                        )}
-                      </IconButton>
-                    </Tooltip>
-                    {server.linkedServerId && (
-                      <Tooltip
-                        title={t('fleetPanel.connectAddress', { defaultValue: 'Connect address' })}
                       >
                         <IconButton
                           size="small"
-                          onClick={() => editAddress(server)}
-                          aria-label={t('fleetPanel.connectAddress', {
-                            defaultValue: 'Connect address',
-                          })}
-                          data-testid={`fleet-address-${server.id}`}
+                          color={server.linkedServerId ? 'primary' : 'default'}
+                          onClick={() => void toggleLink(server)}
+                          aria-label={
+                            server.linkedServerId
+                              ? t('fleetPanel.unlink', { defaultValue: 'Stop using for matches' })
+                              : t('fleetPanel.link', { defaultValue: 'Use for matches' })
+                          }
+                          data-testid={`fleet-link-${server.id}`}
                         >
-                          <GlobeIcon size={20} />
+                          {server.linkedServerId ? (
+                            <LinkIcon size={20} />
+                          ) : (
+                            <LinkBreakIcon size={20} />
+                          )}
                         </IconButton>
                       </Tooltip>
-                    )}
-                    <Tooltip
-                      title={
-                        server.token
-                          ? t('fleetPanel.rotateTooltip', {
-                              time: when(server.token.rotationDueAt, locale),
-                            })
-                          : t('fleetPanel.rotate')
-                      }
-                    >
-                      <IconButton
-                        size="small"
-                        onClick={() => void rotate(server)}
-                        aria-label={t('fleetPanel.rotate')}
+                      {server.linkedServerId && (
+                        <Tooltip
+                          title={t('fleetPanel.connectAddress', {
+                            defaultValue: 'Connect address',
+                          })}
+                        >
+                          <IconButton
+                            size="small"
+                            onClick={() => editAddress(server)}
+                            aria-label={t('fleetPanel.connectAddress', {
+                              defaultValue: 'Connect address',
+                            })}
+                            data-testid={`fleet-address-${server.id}`}
+                          >
+                            <GlobeIcon size={20} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip
+                        title={
+                          server.token
+                            ? t('fleetPanel.rotateTooltip', {
+                                time: when(server.token.rotationDueAt, locale),
+                              })
+                            : t('fleetPanel.rotate')
+                        }
                       >
-                        <ArrowsClockwiseIcon size={20} />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title={t('fleetPanel.revoke')}>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => setPending({ action: 'revoke', server })}
-                        aria-label={t('fleetPanel.revoke')}
-                        data-testid={`fleet-revoke-${server.id}`}
-                      >
-                        <ProhibitIcon size={20} />
-                      </IconButton>
-                    </Tooltip>
-                  </>
-                )}
-                <Tooltip title={t('fleetPanel.rename')}>
-                  <IconButton
-                    size="small"
-                    onClick={() => setRenameDialog({ server, name: server.name })}
-                    aria-label={t('fleetPanel.rename')}
-                    data-testid={`fleet-rename-${server.id}`}
-                  >
-                    <PencilSimpleIcon size={20} />
-                  </IconButton>
-                </Tooltip>
-                {server.status !== 'enrolled' && (
-                  <Tooltip title={t('fleetPanel.remove')}>
+                        <IconButton
+                          size="small"
+                          onClick={() => void rotate(server)}
+                          aria-label={t('fleetPanel.rotate')}
+                        >
+                          <ArrowsClockwiseIcon size={20} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={t('fleetPanel.revoke')}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => setPending({ action: 'revoke', server })}
+                          aria-label={t('fleetPanel.revoke')}
+                          data-testid={`fleet-revoke-${server.id}`}
+                        >
+                          <ProhibitIcon size={20} />
+                        </IconButton>
+                      </Tooltip>
+                    </>
+                  )}
+                  <Tooltip title={t('fleetPanel.rename')}>
                     <IconButton
                       size="small"
-                      onClick={() => setPending({ action: 'remove', server })}
-                      aria-label={t('fleetPanel.remove')}
+                      onClick={() => setRenameDialog({ server, name: server.name })}
+                      aria-label={t('fleetPanel.rename')}
+                      data-testid={`fleet-rename-${server.id}`}
                     >
-                      <TrashIcon size={20} />
+                      <PencilSimpleIcon size={20} />
                     </IconButton>
                   </Tooltip>
-                )}
-              </Stack>
-            </Row>
-          ))}
-        </RowList>
-      )}
+                  {server.status !== 'enrolled' && (
+                    <Tooltip title={t('fleetPanel.remove')}>
+                      <IconButton
+                        size="small"
+                        onClick={() => setPending({ action: 'remove', server })}
+                        aria-label={t('fleetPanel.remove')}
+                      >
+                        <TrashIcon size={20} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Stack>
+              </Row>
+            ))}
+          </RowList>
+        ))}
 
-      <Typography variant="subtitle2" fontWeight={600} mt={3} mb={1}>
-        {t('fleetPanel.keysTitle')}
-      </Typography>
-      {liveKeys.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
-          {t('fleetPanel.keysEmpty')}
-        </Typography>
-      ) : (
-        <RowList data-testid="fleet-keys">
-          {liveKeys.map((key) => (
-            <Row
-              key={key.id}
-              columns={{ xs: 'minmax(0, 1fr) auto', md: 'minmax(0, 1fr) minmax(0, 1fr) auto' }}
-            >
-              <Box minWidth={0}>
-                <Typography fontWeight={600} noWrap>
-                  {key.name}
-                  {key.locked && (
-                    <Chip
-                      size="small"
-                      color="warning"
-                      label={t('fleetPanel.keyLocked')}
-                      sx={{ ml: 1 }}
-                    />
-                  )}
-                  {key.autoLink && (
-                    <Chip size="small" label={t('fleetPanel.keyAutoLink')} sx={{ ml: 1 }} />
-                  )}
-                  {key.skins && (
-                    <Chip size="small" label={t('fleetPanel.keySkinsChip')} sx={{ ml: 1 }} />
-                  )}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={mono}>
-                  rfk_{key.id}_…
-                </Typography>
-              </Box>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                display={{ xs: 'none', md: 'block' }}
-              >
-                {key.maxServers
-                  ? t('fleetPanel.keyUsageLimited', { n: key.enrolledServers, max: key.maxServers })
-                  : t('fleetPanel.keyUsage', { count: key.enrolledServers })}
-                {key.namePrefix
-                  ? ` · ${t('fleetPanel.keyPrefix', { prefix: key.namePrefix })}`
-                  : ''}
-                {key.expiresAt
-                  ? ` · ${t('fleetPanel.keyExpires', { time: when(key.expiresAt, locale) })}`
-                  : ''}
-              </Typography>
-              <Tooltip title={t('fleetPanel.revokeKey')}>
-                <IconButton
-                  size="small"
-                  color="error"
-                  onClick={() => setPending({ action: 'revokeKey', key })}
-                  aria-label={t('fleetPanel.revokeKey')}
+      {part !== 'servers' && (
+        <>
+          <Typography variant="subtitle2" fontWeight={600} mt={part === 'keys' ? 0 : 3} mb={1}>
+            {t('fleetPanel.keysTitle')}
+          </Typography>
+          {liveKeys.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {t('fleetPanel.keysEmpty')}
+            </Typography>
+          ) : (
+            <RowList data-testid="fleet-keys">
+              {liveKeys.map((key) => (
+                <Row
+                  key={key.id}
+                  columns={{ xs: 'minmax(0, 1fr) auto', md: 'minmax(0, 1fr) minmax(0, 1fr) auto' }}
                 >
-                  <ProhibitIcon size={20} />
-                </IconButton>
-              </Tooltip>
-            </Row>
-          ))}
-        </RowList>
+                  <Box minWidth={0}>
+                    <Typography fontWeight={600} noWrap>
+                      {key.name}
+                      {key.locked && (
+                        <Chip
+                          size="small"
+                          color="warning"
+                          label={t('fleetPanel.keyLocked')}
+                          sx={{ ml: 1 }}
+                        />
+                      )}
+                      {key.autoLink && (
+                        <Chip size="small" label={t('fleetPanel.keyAutoLink')} sx={{ ml: 1 }} />
+                      )}
+                      {key.skins && (
+                        <Chip size="small" label={t('fleetPanel.keySkinsChip')} sx={{ ml: 1 }} />
+                      )}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={mono}>
+                      rfk_{key.id}_…
+                    </Typography>
+                  </Box>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    display={{ xs: 'none', md: 'block' }}
+                  >
+                    {key.maxServers
+                      ? t('fleetPanel.keyUsageLimited', {
+                          n: key.enrolledServers,
+                          max: key.maxServers,
+                        })
+                      : t('fleetPanel.keyUsage', { count: key.enrolledServers })}
+                    {key.namePrefix
+                      ? ` · ${t('fleetPanel.keyPrefix', { prefix: key.namePrefix })}`
+                      : ''}
+                    {key.expiresAt
+                      ? ` · ${t('fleetPanel.keyExpires', { time: when(key.expiresAt, locale) })}`
+                      : ''}
+                  </Typography>
+                  <Tooltip title={t('fleetPanel.revokeKey')}>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => setPending({ action: 'revokeKey', key })}
+                      aria-label={t('fleetPanel.revokeKey')}
+                    >
+                      <ProhibitIcon size={20} />
+                    </IconButton>
+                  </Tooltip>
+                </Row>
+              ))}
+            </RowList>
+          )}
+        </>
       )}
 
       {/* Add server: a pending record and its one-time code */}
