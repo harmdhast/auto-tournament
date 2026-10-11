@@ -4,7 +4,7 @@
 
 ## Versions
 
-Tags are `vX.Y.Z-custom.N`, where `X.Y.Z` is the upstream version `custom` is based on. Pushing a tag builds `ghcr.io/harmdhast/auto-tournament:<tag>` (and `:custom`) for linux/amd64 (`.github/workflows/custom-image.yml`). The tag is the version baked into the image.
+Tags are `vX.Y.Z-custom.N`, where `X.Y.Z` is the upstream release tag `custom` is based on (e.g. `v3.0.0-beta.82-custom.1`). Pushing a tag builds `ghcr.io/harmdhast/auto-tournament:<tag>` (and `:custom`) for linux/amd64 (`.github/workflows/custom-image.yml`). The tag is the version baked into the image.
 
 CS2 ships as a signed module in the image's offline snapshot. The workflow signs it with the repository secret `MODULE_SIGNING_KEY` (Ed25519 private key, PEM) when set, and instances need `MODULE_TRUSTED_KEYS=<the public key>`. Without the secret a throwaway key is used and the job summary prints the key to trust.
 
@@ -30,7 +30,7 @@ Their numbers overlap upstream's `037-*` and `040-*` ids; ids are unique strings
 
 ## Branches
 
-Conflicts are relative to upstream `main` at 98d57326 (2.4.15) and the branches merged before.
+Conflicts are relative to upstream `main` at 98d57326 (v3.0.0-beta.82) and the branches merged before.
 
 | Branch | Summary | Status | Conflicts vs upstream | Conflicts with other branches | Resolved in custom |
 |---|---|---|---|---|---|
