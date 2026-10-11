@@ -33,6 +33,10 @@ export function useStateLabel() {
       return t('serversBoard.state.veto', { defaultValue: 'Veto' });
     if (state === 'match' && match?.phase === 'warmup')
       return t('serversBoard.state.warmup', { defaultValue: 'Warmup' });
+    if (state === 'match' && match?.phase === 'knife')
+      return t('serversBoard.state.knife', { defaultValue: 'Knife' });
+    if (state === 'match' && match?.phase === 'live')
+      return t('serversBoard.state.live', { defaultValue: 'Live' });
     return t(`serversBoard.state.${state}`, {
       defaultValue: {
         free: 'Free',
@@ -46,6 +50,30 @@ export function useStateLabel() {
         offline: 'Down',
       }[state],
     });
+  };
+}
+
+/** One line on a match: the teams, the map with its score, how far the series is. */
+export function useMatchLine() {
+  const { t } = useModuleTranslation('cs2');
+  return (m: ServerMatch): string => {
+    const parts: string[] = [];
+    if (m.team1 || m.team2) parts.push(`${m.team1} vs ${m.team2}`);
+    if (m.phase !== 'veto') {
+      const score = m.score ? `${m.score[0]} – ${m.score[1]}` : null;
+      const showScore = score && m.phase !== 'warmup';
+      if (m.map) parts.push(showScore ? `${m.map} ${score}` : m.map);
+      else if (showScore) parts.push(score);
+    }
+    if (m.maps > 1 && m.mapNumber !== null) {
+      const of = t('serversBoard.mapOf', {
+        defaultValue: 'Map {{n}} of {{count}}',
+        n: m.mapNumber + 1,
+        count: m.maps,
+      });
+      parts.push(m.series ? `${of} (${m.series[0]} – ${m.series[1]})` : of);
+    }
+    return parts.join(' · ');
   };
 }
 

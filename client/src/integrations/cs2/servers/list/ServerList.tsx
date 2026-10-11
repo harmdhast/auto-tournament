@@ -17,11 +17,23 @@ import {
   Typography,
 } from '@mui/material';
 import { DotsThreeIcon, WarningIcon } from '@phosphor-icons/react';
-import { mono, radii, tokens, useModuleTranslation } from '../../../../module-sdk';
+import {
+  mono,
+  openMatchDetails,
+  radii,
+  tokens,
+  useModuleTranslation,
+} from '../../../../module-sdk';
 import type { FleetHost, FleetHostCommand, FleetServer, Server } from '../../cs2.types';
 import { serverState } from '../machineState';
 import { MachineCard, runningOf } from '../fleet/MachineCard';
-import { MOVING, StateMark, stateTone, useStateLabel } from '../fleet/serverStateMark';
+import {
+  MOVING,
+  StateMark,
+  stateTone,
+  useMatchLine,
+  useStateLabel,
+} from '../fleet/serverStateMark';
 import type { Fleet } from '../fleet/useFleet';
 import type { ServerMatch } from '../fleet/useServerMatches';
 import {
@@ -214,6 +226,7 @@ function ServerListRow({
 }) {
   const { t, i18n } = useModuleTranslation('cs2');
   const stateLabel = useStateLabel();
+  const matchLine = useMatchLine();
   const rconState = useRconState();
   const locale = i18n.language;
   const fleetServer: FleetServer | null = row.kind === 'rcon' ? null : row.fleet;
@@ -225,20 +238,26 @@ function ServerListRow({
   let address: string | null = null;
   let version: string | null = null;
   let tag: string | null = null;
+  let match: ServerMatch | null = null;
 
   if (row.kind === 'rcon') {
     const s = row.server;
-    const { tone, word } = rconState(s, props.readAt);
+    const rcon = rconState(s, props.readAt);
+    match = props.matches[s.id] ?? null;
+    const inMatch = match !== null && (rcon.tone === color.accent || rcon.tone === color.live);
+    const tone = inMatch ? stateTone.match : rcon.tone;
     name = s.name;
     mark = <Box aria-hidden sx={{ ...DOT, bgcolor: tone }} />;
-    state = <StateChip label={word} tone={tone} />;
+    state = <StateChip label={inMatch ? stateLabel('match', match) : rcon.word} tone={tone} />;
+    if (inMatch && match) reason = <Line area="sub">{matchLine(match)}</Line>;
     address = `${s.host}:${s.port}`;
     version = s.pluginVersion ?? null;
     tag = t('serversList.transport.rcon', { defaultValue: 'RCON' });
   } else if (row.kind === 'machine') {
     const { host, server } = row;
     const machineState = serverState(host, server, props.fleet.isDeleting(host, server.name));
-    const match = server.fleetServer ? (props.matches[server.fleetServer.id] ?? null) : null;
+    const matchKey = row.fleet?.linkedServerId ?? server.fleetServer?.id;
+    match = matchKey ? (props.matches[matchKey] ?? null) : null;
     name = row.fleet?.name ?? server.fleetServer?.name ?? server.name;
     // The machine's word while csm moves it, stopped or down; Ready Up's once it runs.
     const readyUpSays =
@@ -246,31 +265,23 @@ function ServerListRow({
       !MOVING.includes(machineState) &&
       machineState !== 'stopped' &&
       machineState !== 'offline';
-    if (readyUpSays && row.fleet) {
+    const inMatch =
+      match !== null &&
+      !MOVING.includes(machineState) &&
+      machineState !== 'stopped' &&
+      machineState !== 'offline';
+    if (inMatch) {
+      mark = <StateMark state="match" />;
+      state = <StateChip label={stateLabel('match', match)} tone={stateTone.match} />;
+    } else if (readyUpSays && row.fleet) {
       mark = <Box aria-hidden sx={{ ...DOT, bgcolor: availabilityTone(row.fleet) }} />;
       state = <AvailabilityChip server={row.fleet} />;
     } else {
       mark = <StateMark state={machineState} />;
       state = <StateChip label={stateLabel(machineState, match)} tone={stateTone[machineState]} />;
     }
-    if (machineState === 'match' && match && (match.team1 || match.team2)) {
-      reason = (
-        <Line area="sub">
-          {[
-            `${match.team1} vs ${match.team2}`,
-            match.score && match.phase !== 'veto' ? `${match.score[0]} – ${match.score[1]}` : null,
-            match.maps > 1 && match.mapNumber !== null
-              ? t('serversBoard.mapOf', {
-                  defaultValue: 'Map {{n}} of {{count}}',
-                  n: match.mapNumber + 1,
-                  count: match.maps,
-                })
-              : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </Line>
-      );
+    if (inMatch && match) {
+      reason = <Line area="sub">{matchLine(match)}</Line>;
     } else if (MOVING.includes(machineState)) {
       // Its own command, else the machine update it is part of.
       const own =
@@ -321,15 +332,22 @@ function ServerListRow({
     tag = row.fleet ? t('serversList.transport.readyUp', { defaultValue: 'Ready Up' }) : null;
   } else {
     const f = row.fleet;
+    match = props.matches[f.linkedServerId ?? f.id] ?? null;
+    const inMatch = match !== null && f.status === 'enrolled';
     name = f.name;
-    mark = <Box aria-hidden sx={{ ...DOT, bgcolor: availabilityTone(f) }} />;
-    state =
-      f.status === 'enrolled' ? (
-        <AvailabilityChip server={f} />
-      ) : (
-        <StateChip label={t(`fleetPanel.status.${f.status}`)} tone={color.muted} />
-      );
-    if (f.status === 'enrolled' && !f.online && f.lastSeen) {
+    mark = (
+      <Box aria-hidden sx={{ ...DOT, bgcolor: inMatch ? stateTone.match : availabilityTone(f) }} />
+    );
+    state = inMatch ? (
+      <StateChip label={stateLabel('match', match)} tone={stateTone.match} />
+    ) : f.status === 'enrolled' ? (
+      <AvailabilityChip server={f} />
+    ) : (
+      <StateChip label={t(`fleetPanel.status.${f.status}`)} tone={color.muted} />
+    );
+    if (inMatch && match) {
+      reason = <Line area="sub">{matchLine(match)}</Line>;
+    } else if (f.status === 'enrolled' && !f.online && f.lastSeen) {
       reason = (
         <Line area="sub">
           {t('serversList.seen', { defaultValue: 'Seen {{time}}', time: when(f.lastSeen, locale) })}

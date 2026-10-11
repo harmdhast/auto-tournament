@@ -98,6 +98,58 @@ async function stubAll(page: Page, fleetOver: Record<string, Record<string, unkn
   );
 }
 
+interface StubMatch {
+  slug: string;
+  matchPhase: string | null;
+  team1MapScore?: number;
+  team2MapScore?: number;
+  team1SeriesScore?: number;
+  team2SeriesScore?: number;
+  currentMap?: string;
+  mapNumber?: number;
+  maps?: string[];
+}
+
+/** Which match each cs2_servers id plays, and what GET /api/matches/:slug says of it. */
+async function stubMatches(page: Page, byServer: Record<string, StubMatch>) {
+  await page.route(
+    (url) => url.pathname === '/api/tournament/server-availability',
+    (route) =>
+      route.fulfill({
+        json: {
+          success: true,
+          servers: Object.entries(byServer).map(([id, m]) => ({ id, matchSlug: m.slug })),
+        },
+      })
+  );
+  await page.route(
+    (url) => /^\/api\/matches\/[^/]+$/.test(url.pathname),
+    (route) => {
+      const slug = decodeURIComponent(new URL(route.request().url()).pathname.split('/')[3]);
+      const m = Object.values(byServer).find((x) => x.slug === slug);
+      if (!m) return route.fulfill({ status: 404, json: { success: false } });
+      return route.fulfill({
+        json: {
+          success: true,
+          match: {
+            id: 7,
+            matchNumber: 7,
+            round: 1,
+            status: 'live',
+            vetoCompleted: true,
+            vetoing: false,
+            team1: { id: 't1', name: 'Team A' },
+            team2: { id: 't2', name: 'Team B' },
+            team1MapScore: 0,
+            team2MapScore: 0,
+            ...m,
+          },
+        },
+      });
+    }
+  );
+}
+
 test.describe('Server list', () => {
   test.beforeEach(async ({ page, request }) => {
     await setupTestContext(page, request);
@@ -464,5 +516,99 @@ test.describe('Server list', () => {
     ).toHaveCount(1);
     await page.getByTestId('server-row-menu-r:b').click();
     await expect(page.getByTestId('fleet-rename-b')).toBeVisible();
+  });
+
+  test('a linked machine row in a live match shows its phase, map and score', async ({ page }) => {
+    await stubAll(page, { a: { availability: 'busy', availabilityReason: null } });
+    await stubMatches(page, {
+      'cs2-a': {
+        slug: 'm-live',
+        matchPhase: 'live',
+        team1MapScore: 7,
+        team2MapScore: 5,
+        currentMap: 'de_inferno',
+        mapNumber: 0,
+        maps: ['de_inferno'],
+      },
+    });
+    await page.goto('/manage/servers');
+    const row = page.getByTestId(MACHINE_ROW);
+    await expect(row.getByTestId('server-row-state-m:m1:server-1')).toContainText('Live');
+    await expect(row).toContainText('Team A vs Team B · de_inferno 7 – 5');
+  });
+
+  test('a warmup row shows the map without a score', async ({ page }) => {
+    await stubAll(page, { a: { availability: 'busy', availabilityReason: null } });
+    await stubMatches(page, {
+      'cs2-a': {
+        slug: 'm-warm',
+        matchPhase: 'warmup',
+        currentMap: 'de_mirage',
+        mapNumber: 0,
+        maps: ['de_mirage'],
+      },
+    });
+    await page.goto('/manage/servers');
+    const row = page.getByTestId(MACHINE_ROW);
+    await expect(row.getByTestId('server-row-state-m:m1:server-1')).toContainText('Warmup');
+    await expect(row).toContainText('Team A vs Team B · de_mirage');
+    await expect(row).not.toContainText('0 – 0');
+  });
+
+  test('a best-of-three row says which map and the series score', async ({ page }) => {
+    await stubAll(page, { a: { availability: 'busy', availabilityReason: null } });
+    await stubMatches(page, {
+      'cs2-a': {
+        slug: 'm-bo3',
+        matchPhase: 'live',
+        team1MapScore: 3,
+        team2MapScore: 1,
+        team1SeriesScore: 1,
+        team2SeriesScore: 0,
+        currentMap: 'de_nuke',
+        mapNumber: 1,
+        maps: ['de_inferno', 'de_nuke', 'de_ancient'],
+      },
+    });
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId(MACHINE_ROW)).toContainText(
+      'Team A vs Team B · de_nuke 3 – 1 · Map 2 of 3 (1 – 0)'
+    );
+  });
+
+  test('a Ready Up row on no machine finds its match by the linked server', async ({ page }) => {
+    await stubAll(page);
+    await stubMatches(page, {
+      'cs2-b': {
+        slug: 'm-b',
+        matchPhase: 'knife',
+        currentMap: 'de_dust2',
+        mapNumber: 0,
+        maps: ['de_dust2'],
+      },
+    });
+    await page.goto('/manage/servers');
+    const row = page.getByTestId('server-row-r:b');
+    await expect(row.getByTestId('server-row-state-r:b')).toContainText('Knife');
+    await expect(row).toContainText('Team A vs Team B · de_dust2');
+  });
+
+  test('an RCON row in a match shows the line', async ({ page }) => {
+    await stubAll(page);
+    await stubMatches(page, {
+      rc1: {
+        slug: 'm-rc',
+        matchPhase: 'live',
+        team1MapScore: 2,
+        team2MapScore: 0,
+        currentMap: 'de_anubis',
+        mapNumber: 0,
+        maps: ['de_anubis'],
+      },
+    });
+    await page.goto('/manage/servers');
+    const row = page.getByTestId('server-row-x:rc1');
+    await expect(row.getByTestId('server-row-state-x:rc1')).toContainText('Live');
+    await expect(row).toContainText('Team A vs Team B · de_anubis 2 – 0');
   });
 });
