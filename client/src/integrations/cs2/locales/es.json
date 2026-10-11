@@ -2206,7 +2206,10 @@
         "placeholder": "Comando",
         "rootOnly": "Solo para administradores root",
         "noOutput": "Sin salida",
-        "notLinked": "Solo para servidores usados en partidas"
+        "live": "En vivo",
+        "offline": "Servidor sin conexión",
+        "unsupported": "Actualiza Ready Up para ver la consola en vivo",
+        "dropped": "{{count}} líneas omitidas"
       }
     }
   },

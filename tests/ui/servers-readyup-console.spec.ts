@@ -3,9 +3,9 @@ import { setupTestContext } from '../helpers/setup';
 import { fleetServer, stubFleet, stubFleetDetail } from '../helpers/fleetUi';
 
 /**
- * The console in a Ready Up server's panel runs one line (fleet `exec`, root
- * only, FLEET.md D10). Other admins see that it is for root admins, never a
- * raw refusal.
+ * The console in a Ready Up server's panel is one terminal view. Root admins
+ * get an input (fleet `exec`, FLEET.md D10) on linked and unlinked servers;
+ * other admins see the pane without it. Streaming is covered by the API spec.
  *
  * @tag ui
  * @tag fleet
@@ -23,33 +23,43 @@ async function asRoot(page: Page, root: boolean) {
 }
 
 test.describe('Ready Up fleet: console', () => {
+  const exec = (page: Page, json: unknown, status = 200) =>
+    page.route(
+      (url) => url.pathname === '/api/fleet/servers/a/exec',
+      (route) => route.fulfill({ status, json })
+    );
+
   test.beforeEach(async ({ page, request }) => {
     await setupTestContext(page, request);
-    const servers = [fleetServer('a')];
+    const servers = [fleetServer('a', { linkedServerId: null })];
     await stubFleet(page, servers);
     await stubFleetDetail(page, servers);
   });
 
-  test('a root admin runs a line and sees its output', async ({ page }) => {
+  test('a root admin sees the input on an unlinked server', async ({ page }) => {
+    await asRoot(page, true);
+    await page.goto('/manage/servers?fleetServer=a#fleet');
+    await expect(page.getByTestId('fleet-console-input')).toBeVisible();
+    await expect(page.getByTestId('fleet-console-output')).toBeVisible();
+  });
+
+  test('other admins see the pane without an input', async ({ page }) => {
+    await asRoot(page, false);
+    await page.goto('/manage/servers?fleetServer=a#fleet');
+    await expect(page.getByTestId('fleet-console-output')).toBeVisible();
+    await expect(page.getByTestId('server-panel')).toContainText('Root admins only');
+    await expect(page.getByTestId('fleet-console-input')).toHaveCount(0);
+  });
+
+  test('the command echo and its output appear in the pane', async ({ page }) => {
     await asRoot(page, true);
     let sent: unknown = null;
     await page.route(
-      (url) => url.pathname === '/api/rcon/command',
+      (url) => url.pathname === '/api/fleet/servers/a/exec',
       async (route) => {
         sent = route.request().postDataJSON();
         await route.fulfill({
-          json: {
-            success: true,
-            results: [
-              {
-                serverId: 'cs2-a',
-                success: true,
-                transport: 'fleet',
-                status: 'ok',
-                response: 'hostname: lan-1\nplayers: 2',
-              },
-            ],
-          },
+          json: { success: true, transport: 'fleet', status: 'ok', response: 'hostname: lan-1' },
         });
       }
     );
@@ -57,40 +67,31 @@ test.describe('Ready Up fleet: console', () => {
     const input = page.getByTestId('fleet-console-input');
     await input.fill('status');
     await input.press('Enter');
-    await expect(page.getByTestId('fleet-console-output')).toContainText('hostname: lan-1');
-    expect(sent).toEqual({ serverIds: ['cs2-a'], command: 'custom', value: 'status' });
+    const out = page.getByTestId('fleet-console-output');
+    await expect(out).toContainText('> status');
+    await expect(out).toContainText('hostname: lan-1');
+    expect(sent).toEqual({ command: 'status' });
   });
 
-  test('other admins see that the console is for root admins', async ({ page }) => {
-    await asRoot(page, false);
-    await page.goto('/manage/servers?fleetServer=a#fleet');
-    await expect(page.getByTestId('server-panel')).toContainText('Root admins only');
-    await expect(page.getByTestId('fleet-console-input')).toHaveCount(0);
-  });
-
-  test('a refusal from the server reads as root only, not the raw error', async ({ page }) => {
+  test('a secret in the echo is masked', async ({ page }) => {
     await asRoot(page, true);
-    await page.route(
-      (url) => url.pathname === '/api/rcon/command',
-      (route) =>
-        route.fulfill({
-          status: 207,
-          json: {
-            success: false,
-            results: [
-              {
-                serverId: 'cs2-a',
-                success: false,
-                error: 'Raw console commands on Ready Up servers are for root admins only',
-              },
-            ],
-          },
-        })
-    );
+    await exec(page, { success: true, transport: 'fleet', status: 'ok', response: '' });
     await page.goto('/manage/servers?fleetServer=a#fleet');
-    await page.getByTestId('fleet-console-input').fill('status');
-    await page.getByTestId('fleet-console-input').press('Enter');
-    await expect(page.getByTestId('server-panel')).toContainText('Root admins only');
-    await expect(page.getByText(/Raw console commands/)).toHaveCount(0);
+    const input = page.getByTestId('fleet-console-input');
+    await input.fill('rcon_password hunter2');
+    await input.press('Enter');
+    const out = page.getByTestId('fleet-console-output');
+    await expect(out).toContainText('> rcon_password ***');
+    await expect(out).not.toContainText('hunter2');
+  });
+
+  test('a refused line shows its error in the pane', async ({ page }) => {
+    await asRoot(page, true);
+    await exec(page, { success: false, error: 'The Ready Up server is offline' }, 409);
+    await page.goto('/manage/servers?fleetServer=a#fleet');
+    const input = page.getByTestId('fleet-console-input');
+    await input.fill('status');
+    await input.press('Enter');
+    await expect(page.getByTestId('fleet-console-output')).toContainText('offline');
   });
 });

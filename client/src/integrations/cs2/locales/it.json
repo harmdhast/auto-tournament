@@ -2206,7 +2206,10 @@
         "placeholder": "Comando",
         "rootOnly": "Solo per gli amministratori root",
         "noOutput": "Nessun output",
-        "notLinked": "Solo per i server usati per le partite"
+        "live": "Live",
+        "offline": "Server offline",
+        "unsupported": "Aggiorna Ready Up per vedere la console live",
+        "dropped": "{{count}} righe saltate"
       }
     }
   },

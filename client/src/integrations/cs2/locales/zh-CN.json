@@ -2206,7 +2206,10 @@
         "placeholder": "命令",
         "rootOnly": "仅限根管理员",
         "noOutput": "无输出",
-        "notLinked": "仅适用于用于比赛的服务器"
+        "live": "实时",
+        "offline": "服务器离线",
+        "unsupported": "更新 Ready Up 以查看实时控制台",
+        "dropped": "已跳过 {{count}} 行"
       }
     }
   },

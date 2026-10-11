@@ -2206,7 +2206,10 @@
         "placeholder": "Commande",
         "rootOnly": "Réservé aux admins root",
         "noOutput": "Aucune sortie",
-        "notLinked": "Seulement pour les serveurs utilisés pour les matchs"
+        "live": "En direct",
+        "offline": "Serveur hors ligne",
+        "unsupported": "Mettez à jour Ready Up pour voir la console en direct",
+        "dropped": "{{count}} lignes ignorées"
       }
     }
   },
