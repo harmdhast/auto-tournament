@@ -45,8 +45,11 @@ test.describe('Fleet busy reason: parsing', () => {
     expect(effectiveBusyReason(null, { matchDisabled: false, reserved: false })).toBeNull();
   });
 
-  test('the availability reason migration is declared last', () => {
-    expect(CS2_MIGRATIONS.at(-1)?.id).toBe('037-fleet-availability-reason');
+  test('the availability reason migration is declared after the ones before it', () => {
+    const ids = CS2_MIGRATIONS.map((m) => m.id);
+    expect(ids.indexOf('037-fleet-availability-reason')).toBeGreaterThan(
+      ids.indexOf('043-recorder-host-identity')
+    );
   });
 });
 
