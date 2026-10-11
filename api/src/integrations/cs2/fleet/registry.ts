@@ -23,6 +23,8 @@ import {
   verifySecret,
 } from './credentials';
 import type { EnrollRequest, Envelope, HostInfo, Versions } from './protocol/v1';
+import { parseBusyDetail, parseBusyReason } from './busyReason';
+import type { BusyReason } from './protocol/v1/types';
 
 export const FLEET_TENANT = 'default';
 /** One-time code lifetime (FLEET.md §4.1). */
@@ -47,6 +49,8 @@ export interface FleetServerRow {
   enrolled_via: 'code' | 'key' | null;
   enrollment_key_id: string | null;
   availability: string | null;
+  availability_reason?: string | null;
+  availability_detail?: string | null;
   versions: string | null;
   capabilities: string | null;
   host: string | null;
@@ -145,6 +149,9 @@ export interface FleetServerView {
   enrollmentKeyId: string | null;
   online: boolean;
   availability: string | null;
+  /** Why the server takes no match (busyReason.ts); null when it can or when not reported. */
+  availabilityReason: BusyReason | null;
+  availabilityDetail: string | null;
   versions: Versions | null;
   capabilities: string[];
   host: HostInfo | null;
@@ -220,6 +227,8 @@ function toView(
     enrollmentKeyId: s.enrollment_key_id,
     online: s.online === 1,
     availability: s.availability,
+    availabilityReason: parseBusyReason(s.availability_reason),
+    availabilityDetail: s.availability_detail ?? null,
     versions: parseJson<Versions>(s.versions),
     capabilities: parseJson<string[]>(s.capabilities) ?? [],
     host: parseJson<HostInfo>(s.host),
@@ -781,6 +790,9 @@ export async function markConnected(
   sessionId: string,
   hello: {
     availability: string;
+    /** hello.reason / detail: why it is busy (busyReason.ts parses them). */
+    reason?: unknown;
+    detail?: unknown;
     versions: Versions;
     capabilities: string[];
     host: HostInfo;
@@ -796,7 +808,8 @@ export async function markConnected(
   const now = nowS();
   await db.runAsync(
     `UPDATE cs2_fleet_servers
-        SET online = 1, session_id = ?, connected_at = ?, last_seen = ?, availability = ?, versions = ?,
+        SET online = 1, session_id = ?, connected_at = ?, last_seen = ?, availability = ?,
+            availability_reason = ?, availability_detail = ?, versions = ?,
             capabilities = ?, host = ?, selftest = ?, plugins_state = ?, protocol = ?, boot_id = ?, updated_at = ?,
             peer_addr = COALESCE(?, peer_addr)
       WHERE id = ?`,
@@ -805,6 +818,8 @@ export async function markConnected(
       now,
       now,
       hello.availability,
+      hello.availability === 'available' ? null : parseBusyReason(hello.reason),
+      hello.availability === 'available' ? null : parseBusyDetail(hello.detail),
       JSON.stringify(hello.versions),
       JSON.stringify(hello.capabilities),
       JSON.stringify(hello.host),

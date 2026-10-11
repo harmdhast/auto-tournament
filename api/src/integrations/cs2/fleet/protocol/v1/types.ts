@@ -79,6 +79,10 @@ export interface HelloPayload {
   /** MatchState (§9); null or absent when idle. */
   state?: Record<string, unknown> | null;
   availability: Availability;
+  /** Busy reason (local_match, awaiting_reset, assigned, match_disabled, draining); null when available. */
+  reason?: string | null;
+  /** What the busy reason refers to: match id, local slug, drain reason. */
+  detail?: string | null;
   selftest?: SelftestSummary;
   /** Rev of the admins.set list the server has cached (D13); absent = none. */
   admins_rev?: number;
@@ -560,6 +564,9 @@ export interface StateSnapshotPayload {
   /** null = idle server. */
   state: MatchState | null;
   availability: Availability;
+  /** Busy reason, as hello.reason. */
+  availability_reason?: string | null;
+  availability_detail?: string | null;
   config_rev: number;
   admins_rev: number;
   map_stats?: MapStats;
@@ -573,8 +580,14 @@ export interface StatePatchPayload {
 
 export interface ServerAvailabilityPayload {
   availability: Availability;
+  /** Busy reason when busy (local_match, awaiting_reset, assigned, match_disabled, draining); older Ready Up sends free text. */
   reason: string;
+  detail?: string | null;
 }
+
+/** Why a fleet server takes no match. `match_disabled` and `reserved` may also come from the platform. */
+export type BusyReason =
+  'local_match' | 'awaiting_reset' | 'match_disabled' | 'draining' | 'reserved';
 
 /** The core's selftest outcome (hello.selftest, server.selftest). */
 export interface SelftestSummary {

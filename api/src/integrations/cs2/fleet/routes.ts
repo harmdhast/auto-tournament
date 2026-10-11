@@ -56,6 +56,9 @@ import { formatConnectAddress, unmapV4, type ConnectSource } from './address';
 import { getAssignment, syncMatch } from './driver';
 import { listCommands } from './reliable';
 import { liveStateStore } from './state';
+import { effectiveBusyReason } from './busyReason';
+import { heldFleetSpares } from './failover';
+import { matchDisabledServerIds } from './push/pluginSets';
 import { enrollHostHandler } from './hosts/routes';
 
 // ---------------------------------------------------------------------------
@@ -252,7 +255,19 @@ function optionalPositiveInt(value: unknown): number | null | undefined {
 
 fleetAdminRouter.get('/servers', async (_req: Request, res: Response) => {
   try {
-    const live = await withLinks(withLiveState(await registry.listFleetServers()));
+    const [listed, matchOff, spares] = await Promise.all([
+      registry.listFleetServers(),
+      matchDisabledServerIds(),
+      heldFleetSpares(),
+    ]);
+    const spareIds = new Set(spares.map((c) => c.fleetServerId));
+    const live = (await withLinks(withLiveState(listed))).map((s) => ({
+      ...s,
+      availabilityReason: effectiveBusyReason(s.availabilityReason, {
+        matchDisabled: matchOff.has(s.id),
+        reserved: spareIds.has(s.id),
+      }),
+    }));
     // Pre-release servers compare against the newest release incl. betas,
     // stable ones against stable releases only (both lookups are cached).
     const servers = await Promise.all(

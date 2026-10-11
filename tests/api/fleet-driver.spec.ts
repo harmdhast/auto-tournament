@@ -1,19 +1,19 @@
-import fs from 'fs';
-import path from 'path';
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createTestServer, deleteServer } from '../helpers/servers';
 import { configureWebhook } from '../helpers/setup';
+import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
+import { validateMessage, type Envelope } from '../../api/src/integrations/cs2/fleet/protocol/v1';
 import {
-  FleetTestClient,
-  createFleetKey,
-  enroll,
-  envelope,
-  newInstallId,
-  resetEnrollRateLimit,
-} from '../helpers/fleet';
-import { ulid } from '../../api/src/integrations/cs2/fleet/credentials';
-import { validateMessage, type Envelope, type HelloPayload } from '../../api/src/integrations/cs2/fleet/protocol/v1';
+  FakeReadyUp,
+  STEAM,
+  acceptAssign,
+  createMatch,
+  example,
+  link,
+  matchRow,
+  unlink,
+} from '../helpers/fleetFake';
 
 /**
  * The fleet driver (api/src/integrations/cs2/driver.ts, fleet/driver.ts):
@@ -36,206 +36,12 @@ import { validateMessage, type Envelope, type HelloPayload } from '../../api/src
  * @tag fleet
  */
 
-const EXAMPLES = path.resolve(__dirname, '../fixtures/fleet/v1');
-const example = (file: string): Envelope =>
-  JSON.parse(fs.readFileSync(path.join(EXAMPLES, file), 'utf8')) as Envelope;
 const ADMIN_TOKEN = (process.env.API_TOKENS || 'ci-admin:ci-admin-token-0123456789abcdef')
   .split(',')[0]
   .split(':')
   .slice(1)
   .join(':');
-const STEAM = (n: number) => `765611980001${String(n).padStart(5, '0')}`;
-
 let key: { id: string; value: string };
-
-/** A fake Ready Up server: its own seq counter, answers, keepalive. */
-class FakeReadyUp {
-  seq = 0;
-  private keepalive: NodeJS.Timeout | null = null;
-
-  private constructor(
-    readonly serverId: string,
-    readonly installId: string,
-    readonly token: string,
-    public client: FleetTestClient
-  ) {}
-
-  static async enroll(request: APIRequestContext): Promise<FakeReadyUp> {
-    const installId = newInstallId();
-    const res = await enroll(request, { key: key.value }, installId);
-    expect(res.status, JSON.stringify(res.body)).toBe(201);
-    const client = await FleetTestClient.connect(res.body.token);
-    const fake = new FakeReadyUp(res.body.server_id, installId, res.body.token, client);
-    return fake;
-  }
-
-  async hello(over: Partial<HelloPayload> = {}): Promise<Envelope> {
-    const welcome = await this.client.handshake(this.serverId, this.installId, {
-      stream: { id: `stream-${this.serverId}`, last_tx_seq: this.seq, last_rx_seq: 0 },
-      ...over,
-    });
-    this.startKeepalive();
-    return welcome;
-  }
-
-  /** Drop the socket and connect again (a reconnect). */
-  async reconnect(over: Partial<HelloPayload> = {}): Promise<Envelope> {
-    this.stopKeepalive();
-    this.client.ws.terminate();
-    this.client = await FleetTestClient.connect(this.token);
-    return this.hello(over);
-  }
-
-  private startKeepalive(): void {
-    this.stopKeepalive();
-    // Frames keep the platform's dead-link timer (30 s) from firing while a test waits.
-    this.keepalive = setInterval(() => this.client.send(envelope('ping', { t: Date.now() })), 5000);
-  }
-
-  private stopKeepalive(): void {
-    if (this.keepalive) clearInterval(this.keepalive);
-    this.keepalive = null;
-  }
-
-  send(env: Omit<Envelope, 'seq'>): Envelope {
-    const out = { ...env, seq: ++this.seq } as Envelope;
-    expect(validateMessage(out), JSON.stringify(validateMessage(out).errors)).toEqual({ ok: true, errors: [] });
-    this.client.send(out);
-    return out;
-  }
-
-  /** The one cmd.result for a platform message (ref = its id, epoch = its epoch). */
-  answer(msg: Envelope, status: 'ok' | 'rejected' | 'failed' = 'ok', extra: Record<string, unknown> = {}): Envelope {
-    return this.send({
-      v: 1,
-      type: 'cmd.result',
-      id: ulid(),
-      ts: Date.now(),
-      ack: msg.seq,
-      ref: msg.id,
-      ...(msg.epoch !== undefined ? { epoch: msg.epoch } : {}),
-      payload: { status, ...extra },
-    });
-  }
-
-  availability(availability: 'available' | 'busy', reason = 'test'): Envelope {
-    return this.send({
-      v: 1,
-      type: 'server.availability',
-      id: ulid(),
-      ts: Date.now(),
-      payload: { availability, reason },
-    });
-  }
-
-  /** A reliable event frame from the examples, re-keyed. */
-  event(file: string, opts: { slug: string; epoch: number; rev: number; data?: Record<string, unknown> }): Envelope {
-    const frame = example(file);
-    const payload = JSON.parse(JSON.stringify(frame.payload)) as Record<string, unknown> & {
-      patch?: Record<string, unknown>;
-    };
-    payload.match_id = opts.slug;
-    payload.rev = opts.rev;
-    payload.patch = { ...(payload.patch ?? {}), live_rev: opts.rev };
-    if (opts.data) payload.data = opts.data;
-    const { seq: _seq, ack: _ack, ...rest } = frame;
-    return this.send({ ...rest, id: ulid(), ts: Date.now(), epoch: opts.epoch, payload });
-  }
-
-  /** The assign snapshot (ephemeral), the state store's baseline. */
-  snapshot(slug: string, epoch: number): void {
-    const frame = example('live.state.snapshot.json');
-    const payload = JSON.parse(JSON.stringify(frame.payload)) as { state: Record<string, unknown> };
-    payload.state.match_id = slug;
-    payload.state.epoch = epoch;
-    payload.state.live_rev = 0;
-    const { seq: _seq, ack: _ack, ...rest } = frame;
-    this.client.send({ ...rest, id: ulid(), ts: Date.now(), epoch, payload });
-  }
-
-  next(type: string, timeoutMs = 20_000): Promise<Envelope> {
-    return this.client.nextOfType(type, timeoutMs);
-  }
-
-  close(): void {
-    this.stopKeepalive();
-    this.client.close();
-  }
-}
-
-async function link(request: APIRequestContext, fleetServerId: string, serverId?: string): Promise<string> {
-  const res = await request.post(`/api/fleet/servers/${fleetServerId}/link`, {
-    headers: getAuthHeader(),
-    data: serverId ? { serverId } : {},
-  });
-  expect([200, 201], await res.text()).toContain(res.status());
-  return (await res.json()).cs2ServerId as string;
-}
-
-async function unlink(request: APIRequestContext, fleetServerId: string): Promise<void> {
-  await request.delete(`/api/fleet/servers/${fleetServerId}/link`, { headers: getAuthHeader() });
-}
-
-/** A standalone match with no server: the allocator picks one. */
-async function createMatch(request: APIRequestContext, slug: string): Promise<void> {
-  await request.delete(`/api/matches/${slug}`, { headers: getAuthHeader() });
-  const res = await request.post('/api/matches', {
-    headers: getAuthHeader(),
-    data: {
-      slug,
-      config: {
-        vetoDisabled: true,
-        maplist: ['de_mirage'],
-        num_maps: 1,
-        players_per_team: 2,
-        map_sides: ['team1_ct'],
-        team1: {
-          name: 'Fleet Alpha',
-          players: [
-            { steamid: STEAM(1), name: 'alice' },
-            { steamid: STEAM(2), name: 'bob' },
-          ],
-        },
-        team2: {
-          name: 'Fleet Bravo',
-          players: [
-            { steamid: STEAM(3), name: 'carol' },
-            { steamid: STEAM(4), name: 'dave' },
-          ],
-        },
-        cvars: { mp_maxrounds: 24 },
-      },
-    },
-  });
-  expect(res.status(), await res.text()).toBe(201);
-}
-
-async function matchRow(request: APIRequestContext, slug: string): Promise<{ status?: string; serverId?: string } | null> {
-  const res = await request.get(`/api/matches/${slug}`, { headers: getAuthHeader() });
-  if (!res.ok()) return null;
-  const body = await res.json();
-  const match = body.match ?? body;
-  return { status: match?.status, serverId: match?.serverId ?? match?.server_id };
-}
-
-/**
- * Wait for the server's match.assign for `slug`, answer it `ok`, and return
- * it. A match another spec left `ready` may be handed out first: that one is
- * refused (invalid_config), which is not retried on another server here.
- */
-async function acceptAssign(fake: FakeReadyUp, slug: string): Promise<Envelope> {
-  for (let i = 0; i < 10; i++) {
-    const assign = await fake.next('match.assign', 30_000);
-    expect(validateMessage(assign)).toEqual({ ok: true, errors: [] });
-    if ((assign.payload as { match_id: string }).match_id !== slug) {
-      fake.answer(assign, 'rejected', { error: { code: 'invalid_config', message: 'not this test' } });
-      continue;
-    }
-    fake.answer(assign, 'ok');
-    return assign;
-  }
-  throw new Error(`no match.assign for ${slug}`);
-}
 
 const assignFor = (slug: string) => (m: Envelope) =>
   m.type === 'match.assign' && (m.payload as { match_id: string }).match_id === slug;
@@ -258,9 +64,11 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     while (cleanup.length) await cleanup.pop()?.();
   });
 
-  test('allocation → assign → live → admin cmds → end → unassign → turnover', async ({ request }) => {
+  test('allocation → assign → live → admin cmds → end → unassign → turnover', async ({
+    request,
+  }) => {
     test.setTimeout(180_000);
-    const fake = await FakeReadyUp.enroll(request);
+    const fake = await FakeReadyUp.enroll(request, key.value);
     cleanup.push(() => fake.close());
     await fake.hello();
     const cs2ServerId = await link(request, fake.serverId);
@@ -268,9 +76,15 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     expect(cs2ServerId).toBe(fake.serverId);
 
     // The linked server is in the pool as a fleet server.
-    const server = await (await request.get(`/api/servers/${cs2ServerId}`, { headers: getAuthHeader() })).json();
+    const server = await (
+      await request.get(`/api/servers/${cs2ServerId}`, { headers: getAuthHeader() })
+    ).json();
     // Its status comes from the fleet link: connected is online (#210: it showed Down).
-    expect(server.server ?? server).toMatchObject({ transport: 'fleet', fleetServerId: fake.serverId, status: 'online' });
+    expect(server.server ?? server).toMatchObject({
+      transport: 'fleet',
+      fleetServerId: fake.serverId,
+      status: 'online',
+    });
 
     // bob has a player record; the other rostered ids are test accounts with
     // none (M1 play-test: their stats rows failed the player FOREIGN KEY, and
@@ -293,7 +107,12 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     const payload = assign.payload as {
       epoch: number;
       config_rev: number;
-      config: { password: string; maps: unknown[]; team1: { name: string; players: unknown[] }; rules: Record<string, unknown> };
+      config: {
+        password: string;
+        maps: unknown[];
+        team1: { name: string; players: unknown[] };
+        rules: Record<string, unknown>;
+      };
     };
     expect(assign.epoch).toBe(payload.epoch);
     expect(payload.config_rev).toBe(1);
@@ -302,10 +121,15 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     expect(payload.config.team1.players).toHaveLength(2);
     // No join password by default (at_join_password off): the roster whitelist keeps others out.
     expect(payload.config.password).toBe('');
-    expect(payload.config.rules).toMatchObject({ max_rounds: 24, demo: { record: true, upload: false } });
+    expect(payload.config.rules).toMatchObject({
+      max_rounds: 24,
+      demo: { record: true, upload: false },
+    });
     const epoch = payload.epoch;
 
-    await expect.poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 }).toBe('loaded');
+    await expect
+      .poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 })
+      .toBe('loaded');
     expect((await matchRow(request, slug))?.serverId).toBe(cs2ServerId);
 
     // The connect password: admins see it (and the roster; nobody else).
@@ -315,13 +139,28 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     // Live on map 1.
     fake.availability('busy', 'assigned');
     fake.snapshot(slug, epoch);
-    fake.event('live.event.phase.json', { slug, epoch, rev: 1, data: { from: 'warmup', to: 'live', reason: 'flow' } });
-    await expect.poll(async () => (await matchRow(request, slug))?.status, { timeout: 15_000 }).toBe('live');
+    fake.event('live.event.phase.json', {
+      slug,
+      epoch,
+      rev: 1,
+      data: { from: 'warmup', to: 'live', reason: 'flow' },
+    });
+    await expect
+      .poll(async () => (await matchRow(request, slug))?.status, { timeout: 15_000 })
+      .toBe('live');
 
     // Admin buttons: cmd with the assignment's match_id + epoch, answered by cmd.result.
-    const pausing = request.post('/api/rcon/pause-match', { headers: getAuthHeader(), data: { serverId: cs2ServerId } });
+    const pausing = request.post('/api/rcon/pause-match', {
+      headers: getAuthHeader(),
+      data: { serverId: cs2ServerId },
+    });
     const pause = await fake.next('cmd');
-    expect(pause.payload).toMatchObject({ name: 'pause', args: { type: 'technical' }, match_id: slug, epoch });
+    expect(pause.payload).toMatchObject({
+      name: 'pause',
+      args: { type: 'technical' },
+      match_id: slug,
+      epoch,
+    });
     expect(pause.epoch).toBe(epoch);
     expect((pause.payload as { expires_at: number }).expires_at).toBeGreaterThan(Date.now());
     fake.answer(pause, 'ok');
@@ -329,7 +168,10 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     expect(paused.status()).toBe(200);
     expect(await paused.json()).toMatchObject({ success: true, transport: 'fleet', status: 'ok' });
 
-    const unpausing = request.post('/api/rcon/force-unpause', { headers: getAuthHeader(), data: { serverId: cs2ServerId } });
+    const unpausing = request.post('/api/rcon/force-unpause', {
+      headers: getAuthHeader(),
+      data: { serverId: cs2ServerId },
+    });
     const unpause = await fake.next('cmd');
     expect(unpause.payload).toMatchObject({ name: 'unpause' });
     fake.answer(unpause, 'rejected', { error: { code: 'not_paused', message: 'not paused' } });
@@ -338,7 +180,10 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     expect(await refused.json()).toMatchObject({ success: false, errorCode: 'not_paused' });
 
     // say: not match-scoped.
-    const saying = request.post('/api/rcon/say', { headers: getAuthHeader(), data: { serverId: cs2ServerId, message: 'hello "all"' } });
+    const saying = request.post('/api/rcon/say', {
+      headers: getAuthHeader(),
+      data: { serverId: cs2ServerId, message: 'hello "all"' },
+    });
     const say = await fake.next('cmd');
     expect(say.payload).toMatchObject({ name: 'say', args: { text: 'hello all' } });
     expect((say.payload as { match_id?: string }).match_id).toBeUndefined();
@@ -350,19 +195,36 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
       headers: getAuthHeader(),
       data: { serverIds: [cs2ServerId], command: 'custom', value: 'status' },
     });
-    expect((await denied.json()).results[0]).toMatchObject({ success: false, error: expect.stringContaining('root') });
+    expect((await denied.json()).results[0]).toMatchObject({
+      success: false,
+      error: expect.stringContaining('root'),
+    });
     // ...and sent, audited, for an admin API token.
     const execing = request.post('/api/rcon/command', {
       headers: { Authorization: `Bearer ${ADMIN_TOKEN}` },
       data: { serverIds: [cs2ServerId], command: 'custom', value: 'status' },
     });
     const exec = await fake.next('cmd');
-    const execPayload = exec.payload as { name: string; args: { command: string }; issued_by: { root: boolean }; audit_id: string };
-    expect(execPayload).toMatchObject({ name: 'exec', args: { command: 'status' }, issued_by: { root: true } });
+    const execPayload = exec.payload as {
+      name: string;
+      args: { command: string };
+      issued_by: { root: boolean };
+      audit_id: string;
+    };
+    expect(execPayload).toMatchObject({
+      name: 'exec',
+      args: { command: 'status' },
+      issued_by: { root: true },
+    });
     expect(execPayload.audit_id).toMatch(/^[0-9A-Z]{26}$/);
     fake.answer(exec, 'ok', { output: 'hostname: readyup', audit_id: execPayload.audit_id });
     const execResult = (await (await execing).json()).results[0];
-    expect(execResult).toMatchObject({ success: true, transport: 'fleet', response: 'hostname: readyup', auditId: execPayload.audit_id });
+    expect(execResult).toMatchObject({
+      success: true,
+      transport: 'fleet',
+      response: 'hostname: readyup',
+      auditId: execPayload.audit_id,
+    });
 
     // A player calls an admin: it lands in the core's admin calls.
     const callId = `fleet-call-${Date.now()}`;
@@ -379,19 +241,29 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     });
     await expect
       .poll(async () => {
-        const calls = await (await request.get('/api/admin-calls', { headers: getAuthHeader() })).json();
-        const list = (calls.open ?? []) as Array<{ callId: string; matchSlug: string; serverId: string }>;
+        const calls = await (
+          await request.get('/api/admin-calls', { headers: getAuthHeader() })
+        ).json();
+        const list = (calls.open ?? []) as Array<{
+          callId: string;
+          matchSlug: string;
+          serverId: string;
+        }>;
         return list.find((c) => c.callId === callId) ?? null;
       })
       .toMatchObject({ matchSlug: slug, serverId: cs2ServerId });
     // Resolve it: an open call is a toast over every admin page of later UI specs.
-    const open = (await (await request.get('/api/admin-calls', { headers: getAuthHeader() })).json()).open as Array<{
+    const open = (
+      await (await request.get('/api/admin-calls', { headers: getAuthHeader() })).json()
+    ).open as Array<{
       id: number;
       callId: string;
     }>;
     const call = open.find((c) => c.callId === callId);
     expect(call).toBeTruthy();
-    const resolved = await request.post(`/api/admin-calls/${call!.id}/resolve`, { headers: getAuthHeader() });
+    const resolved = await request.post(`/api/admin-calls/${call!.id}/resolve`, {
+      headers: getAuthHeader(),
+    });
     expect(resolved.ok(), await resolved.text()).toBe(true);
 
     // Map result + series end: completed, and the platform unassigns (ended).
@@ -424,16 +296,24 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
         team2_series_score: 0,
       },
     });
-    await expect.poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 }).toBe('completed');
+    await expect
+      .poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 })
+      .toBe('completed');
     // Stats: bob's row is written; the accounts without a player record are skipped.
     await expect
-      .poll(async () => {
-        const res = await request.get(`/api/players/${STEAM(2)}/summary`);
-        if (!res.ok()) return null;
-        const body = await res.json();
-        const rows = (body.matches ?? body.data?.matches ?? []) as Array<{ match_slug?: string; slug?: string }>;
-        return rows.some((m) => (m.match_slug ?? m.slug) === slug);
-      }, { timeout: 20_000 })
+      .poll(
+        async () => {
+          const res = await request.get(`/api/players/${STEAM(2)}/summary`);
+          if (!res.ok()) return null;
+          const body = await res.json();
+          const rows = (body.matches ?? body.data?.matches ?? []) as Array<{
+            match_slug?: string;
+            slug?: string;
+          }>;
+          return rows.some((m) => (m.match_slug ?? m.slug) === slug);
+        },
+        { timeout: 20_000 }
+      )
       .toBe(true);
     const unassign = await fake.next('match.unassign');
     expect(unassign.payload).toMatchObject({ match_id: slug, epoch, reason: 'ended' });
@@ -447,8 +327,12 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     fake.availability('available', 'series_end');
     await expect
       .poll(async () => {
-        const res = await request.get('/api/tournament/server-availability', { headers: getAuthHeader() });
-        const body = (await res.json()) as { servers?: Array<{ id: string; allocatable: boolean }> };
+        const res = await request.get('/api/tournament/server-availability', {
+          headers: getAuthHeader(),
+        });
+        const body = (await res.json()) as {
+          servers?: Array<{ id: string; allocatable: boolean }>;
+        };
         return body.servers?.find((s) => s.id === cs2ServerId)?.allocatable ?? null;
       })
       .toBe(true);
@@ -456,10 +340,14 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     await createMatch(request, next);
     const assign2 = await acceptAssign(fake, next);
     expect(assign2.epoch).toBe(1);
-    await expect.poll(async () => (await matchRow(request, next))?.status, { timeout: 20_000 }).toBe('loaded');
+    await expect
+      .poll(async () => (await matchRow(request, next))?.status, { timeout: 20_000 })
+      .toBe('loaded');
 
     // Force-cancel: unassign (cancelled), players kicked at once.
-    const cancelled = await request.post(`/api/matches/${next}/force-cancel`, { headers: getAuthHeader() });
+    const cancelled = await request.post(`/api/matches/${next}/force-cancel`, {
+      headers: getAuthHeader(),
+    });
     expect(cancelled.ok(), await cancelled.text()).toBe(true);
     const unassign2 = await fake.next('match.unassign');
     expect(unassign2.payload).toMatchObject({
@@ -474,19 +362,31 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     test.setTimeout(120_000);
     // Both servers take matches: no failover reserve (with two online, one is
     // kept free by default; fleet-failover.spec.ts covers that).
-    const reserve = await request.put('/api/fleet/failover/settings', { headers: getAuthHeader(), data: { reserve: 0 } });
+    const reserve = await request.put('/api/fleet/failover/settings', {
+      headers: getAuthHeader(),
+      data: { reserve: 0 },
+    });
     expect(reserve.ok(), await reserve.text()).toBe(true);
     cleanup.push(async () => {
-      await request.put('/api/fleet/failover/settings', { headers: getAuthHeader(), data: { reserve: null } });
+      await request.put('/api/fleet/failover/settings', {
+        headers: getAuthHeader(),
+        data: { reserve: null },
+      });
     });
-    const a = await FakeReadyUp.enroll(request);
-    const b = await FakeReadyUp.enroll(request);
-    cleanup.push(() => a.close(), () => b.close());
+    const a = await FakeReadyUp.enroll(request, key.value);
+    const b = await FakeReadyUp.enroll(request, key.value);
+    cleanup.push(
+      () => a.close(),
+      () => b.close()
+    );
     await a.hello();
     await b.hello();
     await link(request, a.serverId);
     await link(request, b.serverId);
-    cleanup.push(() => unlink(request, a.serverId), () => unlink(request, b.serverId));
+    cleanup.push(
+      () => unlink(request, a.serverId),
+      () => unlink(request, b.serverId)
+    );
 
     const slug = `fleet-busy-${Date.now()}`;
     await createMatch(request, slug);
@@ -495,7 +395,7 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     // swallow the retry.)
     const ours = assignFor(slug);
     let first: { fake: FakeReadyUp; other: FakeReadyUp; m: Envelope } | null = null;
-    for (const deadline = Date.now() + 30_000; !first && Date.now() < deadline; ) {
+    for (const deadline = Date.now() + 30_000; !first && Date.now() < deadline;) {
       for (const [fake, other] of [
         [a, b],
         [b, a],
@@ -515,16 +415,20 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     // A new epoch for the new assignment.
     expect(second.epoch).toBe((first.m.epoch as number) + 1);
     first.other.answer(second, 'ok');
-    await expect.poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 }).toBe('loaded');
+    await expect
+      .poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 })
+      .toBe('loaded');
     expect((await matchRow(request, slug))?.serverId).toBe(first.other.serverId);
     await request.post(`/api/matches/${slug}/force-cancel`, { headers: getAuthHeader() });
   });
 
-  test('a manual match with no free server waits, and takes the server once it is available', async ({ request }) => {
+  test('a manual match with no free server waits, and takes the server once it is available', async ({
+    request,
+  }) => {
     // M1 play-test: the manual match tried allocation once at creation; the
     // only server was still in turnover, and the match stayed `ready` forever.
     test.setTimeout(120_000);
-    const fake = await FakeReadyUp.enroll(request);
+    const fake = await FakeReadyUp.enroll(request, key.value);
     cleanup.push(() => fake.close());
     await fake.hello();
     fake.availability('busy', 'series_end');
@@ -532,8 +436,12 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     cleanup.push(() => unlink(request, fake.serverId));
     await expect
       .poll(async () => {
-        const res = await request.get('/api/tournament/server-availability', { headers: getAuthHeader() });
-        const body = (await res.json()) as { servers?: Array<{ id: string; allocatable: boolean }> };
+        const res = await request.get('/api/tournament/server-availability', {
+          headers: getAuthHeader(),
+        });
+        const body = (await res.json()) as {
+          servers?: Array<{ id: string; allocatable: boolean }>;
+        };
         return body.servers?.find((s) => s.id === cs2ServerId)?.allocatable ?? null;
       })
       .toBe(false);
@@ -551,13 +459,17 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     // Turnover done: the server says available, and the waiting match goes to it.
     fake.availability('available', 'series_end');
     await acceptAssign(fake, slug);
-    await expect.poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 }).toBe('loaded');
+    await expect
+      .poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 })
+      .toBe('loaded');
     expect((await matchRow(request, slug))?.serverId).toBe(cs2ServerId);
   });
 
-  test('reconnect mid-match resumes; an old epoch is superseded (hello and events)', async ({ request }) => {
+  test('reconnect mid-match resumes; an old epoch is superseded (hello and events)', async ({
+    request,
+  }) => {
     test.setTimeout(120_000);
-    const fake = await FakeReadyUp.enroll(request);
+    const fake = await FakeReadyUp.enroll(request, key.value);
     cleanup.push(() => fake.close());
     await fake.hello();
     await link(request, fake.serverId);
@@ -567,10 +479,13 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     await createMatch(request, slug);
     const assign = await acceptAssign(fake, slug);
     const epoch = assign.epoch as number;
-    await expect.poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 }).toBe('loaded');
+    await expect
+      .poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 })
+      .toBe('loaded');
 
     // The link drops and comes back: welcome carries the assignment.
-    const state = JSON.parse(JSON.stringify(example('live.state.snapshot.json').payload)).state as Record<string, unknown>;
+    const state = JSON.parse(JSON.stringify(example('live.state.snapshot.json').payload))
+      .state as Record<string, unknown>;
     state.match_id = slug;
     state.epoch = epoch;
     const welcome = await fake.reconnect({ state, availability: 'busy' });
@@ -594,7 +509,7 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     fake.answer(zombie);
 
     // Another server sending events for the old epoch gets the same.
-    const other = await FakeReadyUp.enroll(request);
+    const other = await FakeReadyUp.enroll(request, key.value);
     cleanup.push(() => other.close());
     await other.hello();
     other.event('live.event.pause.json', { slug, epoch, rev: 5 });
@@ -603,7 +518,9 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     await request.post(`/api/matches/${slug}/force-cancel`, { headers: getAuthHeader() });
   });
 
-  test('link to an existing server row, unlink restores RCON; RCON servers keep the RCON path', async ({ request }) => {
+  test('link to an existing server row, unlink restores RCON; RCON servers keep the RCON path', async ({
+    request,
+  }) => {
     const rcon = await createTestServer(request, 'fleet-rcon');
     expect(rcon).toBeTruthy();
     cleanup.push(async () => {
@@ -612,22 +529,34 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
 
     // An RCON server: the buttons still speak RCON (the fake host is answered
     // by rconService itself), never the fleet.
-    const res = await request.post('/api/rcon/pause-match', { headers: getAuthHeader(), data: { serverId: rcon!.id } });
+    const res = await request.post('/api/rcon/pause-match', {
+      headers: getAuthHeader(),
+      data: { serverId: rcon!.id },
+    });
     const body = await res.json();
     expect(body.transport).toBeUndefined();
     expect(body.commandId).toBeUndefined();
     expect(typeof body.success).toBe('boolean');
-    const row = await (await request.get(`/api/servers/${rcon!.id}`, { headers: getAuthHeader() })).json();
+    const row = await (
+      await request.get(`/api/servers/${rcon!.id}`, { headers: getAuthHeader() })
+    ).json();
     expect(row.server ?? row).toMatchObject({ transport: 'rcon', fleetServerId: null });
 
     // A fleet server takes over that row, then gives it back.
-    const fake = await FakeReadyUp.enroll(request);
+    const fake = await FakeReadyUp.enroll(request, key.value);
     cleanup.push(() => fake.close());
     expect(await link(request, fake.serverId, rcon!.id)).toBe(rcon!.id);
-    const listed = await (await request.get('/api/fleet/servers', { headers: getAuthHeader() })).json();
-    expect(listed.servers.find((s: { id: string }) => s.id === fake.serverId)).toMatchObject({ linkedServerId: rcon!.id });
+    const listed = await (
+      await request.get('/api/fleet/servers', { headers: getAuthHeader() })
+    ).json();
+    expect(listed.servers.find((s: { id: string }) => s.id === fake.serverId)).toMatchObject({
+      linkedServerId: rcon!.id,
+    });
     // Linking again is a no-op; linking it to another row is refused.
-    const twice = await request.post(`/api/fleet/servers/${fake.serverId}/link`, { headers: getAuthHeader(), data: {} });
+    const twice = await request.post(`/api/fleet/servers/${fake.serverId}/link`, {
+      headers: getAuthHeader(),
+      data: {},
+    });
     expect(twice.status()).toBe(200);
     expect((await twice.json()).cs2ServerId).toBe(rcon!.id);
     const elsewhere = await request.post(`/api/fleet/servers/${fake.serverId}/link`, {
@@ -636,7 +565,13 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     });
     expect(elsewhere.status()).toBe(409);
     await unlink(request, fake.serverId);
-    const back = await (await request.get(`/api/servers/${rcon!.id}`, { headers: getAuthHeader() })).json();
-    expect(back.server ?? back).toMatchObject({ transport: 'rcon', fleetServerId: null, enabled: true });
+    const back = await (
+      await request.get(`/api/servers/${rcon!.id}`, { headers: getAuthHeader() })
+    ).json();
+    expect(back.server ?? back).toMatchObject({
+      transport: 'rcon',
+      fleetServerId: null,
+      enabled: true,
+    });
   });
 });
