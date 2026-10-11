@@ -330,6 +330,8 @@ export interface VetoState {
   turnDeadline?: string;
   /** Seconds per turn (Match rules), with `turnDeadline`. */
   turnSeconds?: number;
+  /** The steps this veto runs, which depend on the map pool and the match's custom order. */
+  vetoOrder?: Omit<VetoStep, 'description'>[];
 }
 
 export interface VetoStep {

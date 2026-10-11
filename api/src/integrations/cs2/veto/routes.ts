@@ -242,12 +242,12 @@ router.get('/:matchSlug', async (req: Request, res: Response) => {
       });
     }
     const { format, tournamentMaps, customVetoOrder } = vetoContext;
+    const vetoOrder = getVetoOrder(format, customVetoOrder, tournamentMaps.length);
 
     // Parse existing veto state or create new one
     let vetoState = match.veto_state ? JSON.parse(match.veto_state) : null;
 
     if (!vetoState) {
-      const vetoOrder = getVetoOrder(format, customVetoOrder, tournamentMaps.length);
       vetoState = {
         matchSlug,
         format,
@@ -310,6 +310,7 @@ router.get('/:matchSlug', async (req: Request, res: Response) => {
         currentTurn: vetoState.status === 'completed' ? undefined : vetoState.currentTurn,
         turnDeadline: vetoState.turnDeadline,
         turnSeconds: vetoState.turnSeconds,
+        vetoOrder,
         pickedMaps: Array.isArray(vetoState.pickedMaps)
           ? vetoState.pickedMaps.map((p: { mapNumber?: number; mapName: string }) => ({
               mapNumber: p.mapNumber,
@@ -333,7 +334,7 @@ router.get('/:matchSlug', async (req: Request, res: Response) => {
 
     return res.json({
       success: true,
-      veto: vetoState,
+      veto: { ...vetoState, vetoOrder },
       maps: await vetoMapInfo(vetoState.allMaps ?? tournamentMaps),
     });
   } catch (error) {
@@ -734,7 +735,7 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
     ]);
 
     // Emit update via Socket.io
-    emitVetoUpdate(matchSlug, vetoState);
+    emitVetoUpdate(matchSlug, { ...vetoState, vetoOrder });
     void postVetoProgress(matchSlug, vetoState);
 
     log.debug(`Veto action processed for ${matchSlug}`, {
@@ -746,7 +747,7 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
 
     return res.json({
       success: true,
-      veto: vetoState,
+      veto: { ...vetoState, vetoOrder },
     });
   } catch (error) {
     log.error('Error processing veto action', error as Error);

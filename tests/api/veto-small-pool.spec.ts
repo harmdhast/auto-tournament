@@ -69,6 +69,7 @@ test.describe.serial('Veto with a small map pool', () => {
     const before = await stateOf(slug);
     expect(before.totalSteps).toBe(1);
     expect(before.currentAction).toBe('side_pick');
+    expect(before.vetoOrder).toEqual([{ step: 1, team: 'team2', action: 'side_pick' }]);
 
     expect(await executeVetoActions(request_, slug, [{ side: 'CT', ...as(team2) }])).toBeTruthy();
     const state = await stateOf(slug);
@@ -104,7 +105,9 @@ test.describe.serial('Veto with a small map pool', () => {
 
   test('bo3 with 3 maps picks twice and the decider is the last map', { tag: ['@api', '@veto', '@bo3'] }, async () => {
     const slug = await startVeto('bo3', ALL_MAPS.slice(0, 3));
-    expect((await stateOf(slug)).totalSteps).toBe(5);
+    const before = await stateOf(slug);
+    expect(before.totalSteps).toBe(5);
+    expect(before.vetoOrder.map((s: any) => s.action)).toEqual(['pick', 'side_pick', 'pick', 'side_pick', 'side_pick']);
 
     const actions: VetoAction[] = [
       { mapName: 'de_mirage', ...as(team1) },

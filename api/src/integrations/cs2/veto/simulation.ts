@@ -408,7 +408,7 @@ async function runAutoVeto(
     await db.updateAsync('matches', { veto_state: JSON.stringify(vetoState) }, 'slug = ?', [
       matchSlug,
     ]);
-    emitVetoUpdate(matchSlug, vetoState);
+    emitVetoUpdate(matchSlug, { ...vetoState, vetoOrder });
     if (vetoState.currentStep <= vetoState.totalSteps) void postVetoProgress(matchSlug, vetoState);
 
     // Check for completion
@@ -434,7 +434,7 @@ async function runAutoVeto(
         'slug = ?',
         [matchSlug]
       );
-      emitVetoUpdate(matchSlug, vetoState);
+      emitVetoUpdate(matchSlug, { ...vetoState, vetoOrder });
 
       void postVetoProgress(matchSlug, vetoState);
       log.success(`[VETO-SIM] Automated veto completed for match ${matchSlug}`, {
@@ -516,7 +516,7 @@ async function runAutoVeto(
         await db.updateAsync('matches', { veto_state: JSON.stringify(vetoState) }, 'slug = ?', [
           matchSlug,
         ]);
-        emitVetoUpdate(matchSlug, vetoState as unknown as Parameters<typeof emitVetoUpdate>[1]);
+        emitVetoUpdate(matchSlug, { ...vetoState, vetoOrder } as unknown as Parameters<typeof emitVetoUpdate>[1]);
         break;
       }
 
