@@ -2161,7 +2161,7 @@
     "matchHint": "A match is on this server: stopping or restarting it asks for a reason, and failover can move the match first.",
     "newServer": "New server {{n}}",
     "notAnswering": "Not answering",
-    "openMatch": "Open the match",
+    "openMatch": "Otwórz mecz",
     "other": {
       "disabled": "Disabled"
     },
@@ -2177,7 +2177,7 @@
       "updating": "Updating…",
       "veto": "Veto",
       "warmup": "Warmup",
-      "knife": "Nóż",
+      "knife": "Runda knife",
       "live": "Na żywo"
     },
     "stoppedLine": "Starts when a match needs it",
@@ -2390,7 +2390,6 @@
     "pushProblem": "Wysyłka do tego serwera nie powiodła się lub pozostała bez odpowiedzi",
     "menu": "Więcej dla {{name}}",
     "open": "Otwórz",
-    "openMatch": "Otwórz mecz",
     "edit": "Edytuj",
     "section": {
       "machine": "Maszyna"

@@ -387,7 +387,7 @@ function ServerListRow({
       ? [
           {
             id: 'match' as const,
-            label: t('serversList.openMatch', { defaultValue: 'Open the match' }),
+            label: t('serversBoard.openMatch', { defaultValue: 'Open the match' }),
             testId: `server-row-open-match-${row.key}`,
             run: () => void openMatchDetails(match.slug).catch(() => undefined),
           },

@@ -2121,7 +2121,7 @@
     "matchHint": "A match is on this server: stopping or restarting it asks for a reason, and failover can move the match first.",
     "newServer": "New server {{n}}",
     "notAnswering": "Not answering",
-    "openMatch": "Open the match",
+    "openMatch": "Match openen",
     "other": {
       "disabled": "Disabled"
     },
@@ -2137,7 +2137,7 @@
       "updating": "Updating…",
       "veto": "Veto",
       "warmup": "Warmup",
-      "knife": "Mes",
+      "knife": "Knife-round",
       "live": "Live"
     },
     "stoppedLine": "Starts when a match needs it",
@@ -2350,7 +2350,6 @@
     "pushProblem": "Een verzending naar deze server is mislukt of kreeg geen antwoord",
     "menu": "Meer voor {{name}}",
     "open": "Openen",
-    "openMatch": "Match openen",
     "edit": "Bewerken",
     "section": {
       "machine": "Machine"

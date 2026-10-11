@@ -2147,7 +2147,7 @@
       "offline": "Nede",
       "veto": "Veto",
       "warmup": "Oppvarming",
-      "knife": "Kniv",
+      "knife": "Knivrunde",
       "live": "Live"
     },
     "offlineFor": "Frakoblet i {{time}}",
@@ -2350,7 +2350,6 @@
     "pushProblem": "En sending til denne serveren feilet eller fikk ikke svar",
     "menu": "Mer for {{name}}",
     "open": "Åpne",
-    "openMatch": "Åpne kampen",
     "edit": "Rediger",
     "section": {
       "machine": "Maskin"
