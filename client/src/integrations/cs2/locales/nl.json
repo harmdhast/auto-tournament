@@ -1457,7 +1457,6 @@
     "hostStatus": {
       "online": "Online",
       "offline": "Offline",
-      "pending": "Waiting for csm",
       "revoked": "Revoked"
     },
     "status": {
@@ -1551,7 +1550,15 @@
     },
     "noCsm": "No csm on the machine yet?",
     "noCsmHelp": "Install CS2 Server Manager first, then come back for step 2.",
-    "installGuide": "Install guide"
+    "installGuide": "Install guide",
+    "codeExpired": "Code verlopen: maak een nieuwe",
+    "statusLabel": "Status",
+    "added": "Toegevoegd",
+    "lastSeenLabel": "Laatst gezien",
+    "noReportYet": "Gekoppeld, wacht op het eerste rapport van csm",
+    "pendingHelp": "Voer op de machine, als de gebruiker die csm draait, csm link uit met een nieuwe code. CPU, schijf, CS2-build en servers verschijnen hier zodra csm verbinding maakt.",
+    "revokedHelp": "Het token werkt niet meer. Verwijder hem of voeg de machine opnieuw toe.",
+    "noReportHelp": "csm stuurt binnen een minuut na het verbinden wat de machine heeft en draait."
   },
   "failover": {
     "title": "Failover",

@@ -1457,7 +1457,6 @@
     "hostStatus": {
       "online": "Online",
       "offline": "Offline",
-      "pending": "Waiting for csm",
       "revoked": "Revoked"
     },
     "status": {
@@ -1551,7 +1550,15 @@
     },
     "noCsm": "No csm on the machine yet?",
     "noCsmHelp": "Install CS2 Server Manager first, then come back for step 2.",
-    "installGuide": "Install guide"
+    "installGuide": "Install guide",
+    "codeExpired": "代码已过期：请生成新代码",
+    "statusLabel": "状态",
+    "added": "添加于",
+    "lastSeenLabel": "最后在线",
+    "noReportYet": "已关联，等待 csm 的首次报告",
+    "pendingHelp": "在该机器上，以运行 csm 的用户执行带新代码的 csm link。csm 连接后，这里会显示其 CPU、磁盘、CS2 版本和服务器。",
+    "revokedHelp": "其令牌已失效。请移除它，或重新添加该机器。",
+    "noReportHelp": "csm 连接后一分钟内会发送机器的资源和运行情况。"
   },
   "failover": {
     "title": "Failover",

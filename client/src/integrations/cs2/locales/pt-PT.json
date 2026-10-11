@@ -1457,7 +1457,6 @@
     "hostStatus": {
       "online": "Online",
       "offline": "Offline",
-      "pending": "Waiting for csm",
       "revoked": "Revoked"
     },
     "status": {
@@ -1551,7 +1550,15 @@
     },
     "noCsm": "No csm on the machine yet?",
     "noCsmHelp": "Install CS2 Server Manager first, then come back for step 2.",
-    "installGuide": "Install guide"
+    "installGuide": "Install guide",
+    "codeExpired": "Código expirado: gere um novo",
+    "statusLabel": "Estado",
+    "added": "Adicionada",
+    "lastSeenLabel": "Visto pela última vez",
+    "noReportYet": "Ligada, à espera do primeiro relatório do csm",
+    "pendingHelp": "Na máquina, com o utilizador que executa o csm, execute csm link com um código novo. O CPU, disco, versão do CS2 e servidores aparecem aqui quando o csm se ligar.",
+    "revokedHelp": "O token já não funciona. Remova-a ou adicione a máquina novamente.",
+    "noReportHelp": "O csm envia o que a máquina tem e executa no minuto seguinte à ligação."
   },
   "failover": {
     "title": "Failover",

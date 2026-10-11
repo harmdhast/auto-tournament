@@ -235,7 +235,8 @@ export function MachineCard({
             defaultValue: 'Code valid until {{time}}',
             time: when(host.codeExpiresAt),
           })
-        : t('machinesPanel.hostStatus.pending', { defaultValue: 'Waiting to be linked' })
+        : // A pending machine always gets a code; none left means it expired.
+          t('machinesPanel.codeExpired', { defaultValue: 'Code expired: get a new one' })
       : host.status === 'revoked'
         ? t('machinesPanel.hostStatus.revoked', { defaultValue: 'Revoked' })
         : online

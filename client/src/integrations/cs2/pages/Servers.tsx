@@ -498,6 +498,8 @@ export default function Servers() {
         onClose={() => openMachine(null)}
         onAddServers={(h) => setAddServersFor(h)}
         onUpdateReadyUp={(h) => setReadyUpFor(h)}
+        onNewCode={(h) => void newCode(h)}
+        onRemove={(h) => setPending({ action: 'remove', host: h })}
       />
 
       <AddServersDialog fleet={fleet} host={addServersFor} onClose={() => setAddServersFor(null)} />

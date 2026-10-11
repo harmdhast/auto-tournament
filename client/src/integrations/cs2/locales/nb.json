@@ -1457,7 +1457,6 @@
     "hostStatus": {
       "online": "Online",
       "offline": "Offline",
-      "pending": "Waiting for csm",
       "revoked": "Revoked"
     },
     "status": {
@@ -1551,7 +1550,15 @@
     },
     "noCsm": "Ingen csm på maskinen ennå?",
     "noCsmHelp": "Installer CS2 Server Manager først, og kom tilbake til steg 2.",
-    "installGuide": "Installasjonsguide"
+    "installGuide": "Installasjonsguide",
+    "codeExpired": "Koden er utløpt: lag en ny",
+    "statusLabel": "Status",
+    "added": "Lagt til",
+    "lastSeenLabel": "Sist sett",
+    "noReportYet": "Koblet, venter på første rapport fra csm",
+    "pendingHelp": "På maskinen, som brukeren som kjører csm, kjør csm link med en ny kode. CPU, disk, CS2-versjon og servere vises her når csm kobler til.",
+    "revokedHelp": "Tokenet virker ikke lenger. Fjern den, eller legg til maskinen på nytt.",
+    "noReportHelp": "csm sender hva maskinen har og kjører innen ett minutt etter tilkobling."
   },
   "failover": {
     "title": "Failover",
