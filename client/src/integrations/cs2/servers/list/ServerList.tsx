@@ -337,7 +337,7 @@ function ServerListRow({
     const f = row.fleet;
     match = props.matches[f.linkedServerId ?? f.id] ?? null;
     line = match ? matchLine(match) : '';
-    const inMatch = match !== null && f.status === 'enrolled';
+    const inMatch = match !== null && f.status === 'enrolled' && f.online;
     name = f.name;
     mark = (
       <Box aria-hidden sx={{ ...DOT, bgcolor: inMatch ? stateTone.match : availabilityTone(f) }} />
