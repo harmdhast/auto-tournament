@@ -110,9 +110,20 @@ function StateChip({ label, tone }: { label: string; tone: string }) {
 
 const DOT = { width: 8, height: 8, borderRadius: radii.pill, flex: 'none' } as const;
 
-/** The columns: one line from `md`, two below (name and state, then the reason or the address). */
+/** The list is the grid, so the state column fits the widest chip. Rows are subgrids: one line from `md`, two below (name and state, then the reason or the address). */
+const listGrid = {
+  display: 'grid',
+  columnGap: 1.5,
+  gridTemplateColumns: {
+    xs: '12px minmax(0, 1fr) auto auto',
+    md: '12px minmax(0, 1.3fr) fit-content(168px) minmax(0, 1.6fr) minmax(0, 1fr) 64px 96px',
+  },
+} as const;
+
 const rowGrid = {
   display: 'grid',
+  gridColumn: '1 / -1',
+  gridTemplateColumns: 'subgrid',
   alignItems: 'center',
   columnGap: 1.5,
   rowGap: 0.25,
@@ -120,10 +131,6 @@ const rowGrid = {
   py: { xs: 1, md: 0.75 },
   minHeight: 44,
   cursor: 'pointer',
-  gridTemplateColumns: {
-    xs: '12px minmax(0, 1fr) auto auto',
-    md: '12px minmax(0, 1.3fr) 168px minmax(0, 1.6fr) minmax(0, 1fr) 64px 96px',
-  },
   gridTemplateAreas: {
     xs: '"dot name state actions" ". sub sub sub"',
     md: '"dot name state sub addr ver actions"',
@@ -548,7 +555,7 @@ export function ServerList(props: ServerListProps) {
     g.rows.some((r) => r.kind !== 'rcon' && r.fleet && isGuessedAddress(r.fleet))
   );
   const rows = (group: ServerGroup) => (
-    <Box role="list">
+    <Box role="list" sx={listGrid}>
       {group.rows.map((row) => (
         <ServerListRow key={row.key} row={row} props={props} pushProblems={pushProblems} />
       ))}

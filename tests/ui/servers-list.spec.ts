@@ -361,6 +361,20 @@ test.describe('Server list', () => {
     expect(await chip.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
   });
 
+  test('the state column fits the longest state on the list', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await stubAll(page);
+    await stubFleet(page, [fleetServer('p', { status: 'pending', online: false })]);
+    await page.goto('/manage/servers');
+    const width = async (key: string) =>
+      (await page.getByTestId(`server-row-state-${key}`).boundingBox())!.width;
+    expect(await width('r:p')).toBeGreaterThan(120);
+    await stubAll(page);
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('server-row-r:b')).toBeVisible();
+    expect(await width('r:b')).toBeLessThan(120);
+  });
+
   test('cut text shows in full on hover', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await stubAll(page, {
