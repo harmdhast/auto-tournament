@@ -325,7 +325,8 @@ test.describe('Server list', () => {
         );
     const keys = ['m:m1:server-1', 'r:b', 'r:d', 'r:e', 'r:o'];
     const dots = await Promise.all(keys.map((k) => color(k, 'dot')));
-    expect(new Set(dots).size).toBe(5);
+    expect(new Set(dots).size).toBe(4);
+    expect(dots[0]).toBe(dots[3]);
     // Not free: the chip text takes the dot's colour.
     for (const k of ['m:m1:server-1', 'r:d', 'r:e', 'r:o'])
       expect(await color(k, 'state')).toBe(dots[keys.indexOf(k)]);

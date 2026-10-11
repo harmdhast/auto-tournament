@@ -53,7 +53,8 @@
       "none": "No servers connected yet.",
       "notConfigured": "Not configured",
       "busy": "Occupé",
-      "spare": "En réserve"
+      "spare": "En réserve",
+      "draining": "En vidange"
     },
     "setup": {
       "serversDone": "{{count}} server added",
@@ -101,7 +102,8 @@
         "matchDisabled": "Plugin match désactivé",
         "draining": "En vidange",
         "reserved": "Réserve pour le failover"
-      }
+      },
+      "draining": "En vidange"
     },
     "needsYou": {
       "stale": {

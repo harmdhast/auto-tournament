@@ -22,6 +22,7 @@ function countFleet(availability: ServerAvailability, servers: Server[]): Server
     online: 0,
     inMatch: 0,
     busy: 0,
+    draining: 0,
     spare: 0,
     free: 0,
     offline: 0,
@@ -38,8 +39,8 @@ function countFleet(availability: ServerAvailability, servers: Server[]): Server
     if (server.allocatable) counts.free += 1;
     else if (server.busyReason === 'reserved' || server.notAllocatableReason === 'reserved')
       counts.spare += 1;
-    else if (server.matchSlug || !server.busyReason || server.busyReason === 'local_match')
-      counts.inMatch += 1;
+    else if (server.busyReason === 'draining') counts.draining += 1;
+    else if (server.matchSlug || !server.busyReason) counts.inMatch += 1;
     else counts.busy += 1;
   }
   return counts;
@@ -93,12 +94,13 @@ function useFleetSummary(): {
 const TONE = {
   inMatch: tokens.color.accent,
   busy: 'warning.main',
+  draining: tokens.color.info,
   spare: tokens.color.info,
   free: tokens.color.live,
   offline: tokens.color.ban,
 } as const;
 
-/** A thin stacked bar: in a match / busy / spare / free / offline, in that order. */
+/** A thin stacked bar: in a match / busy / draining / spare / free / offline, in that order. */
 function FleetBar({ fleet }: { fleet: ServerFleetCounts }) {
   const total = fleet.total || 1;
   const pct = (n: number) => `${(n / total) * 100}%`;
@@ -115,6 +117,7 @@ function FleetBar({ fleet }: { fleet: ServerFleetCounts }) {
     >
       <Box sx={{ width: pct(fleet.inMatch), bgcolor: TONE.inMatch }} />
       <Box sx={{ width: pct(fleet.busy), bgcolor: TONE.busy }} />
+      <Box sx={{ width: pct(fleet.draining), bgcolor: TONE.draining }} />
       <Box sx={{ width: pct(fleet.spare), bgcolor: TONE.spare }} />
       <Box sx={{ width: pct(fleet.free), bgcolor: TONE.free }} />
       <Box sx={{ width: pct(fleet.offline), bgcolor: TONE.offline }} />
@@ -174,7 +177,7 @@ export function ServersOverviewCard() {
               </Typography>
             </Box>
             <FleetBar fleet={fleet} />
-            {(['inMatch', 'busy', 'spare', 'free', 'offline'] as const)
+            {(['inMatch', 'busy', 'draining', 'spare', 'free', 'offline'] as const)
               .filter((k) => fleet[k] > 0 || k === 'inMatch' || k === 'free' || k === 'offline')
               .map((k) => (
                 <Box key={k} display="flex" justifyContent="space-between" alignItems="center">

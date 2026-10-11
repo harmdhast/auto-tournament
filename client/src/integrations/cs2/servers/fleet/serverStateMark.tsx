@@ -20,7 +20,7 @@ export const stateTone: Record<ServerTileState, string> = {
 
 /** A busy server's colour: the accent for a match or no reason, amber for any other reason. */
 export function busyTone(reason: string | null | undefined): string {
-  return !reason || reason === 'local_match' ? color.accent : 'warning.main';
+  return !reason ? color.accent : 'warning.main';
 }
 
 export const MOVING: ServerTileState[] = [

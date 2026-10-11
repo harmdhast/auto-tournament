@@ -45,6 +45,7 @@ test('spare and busy servers are not counted as in a match', async ({ page, requ
             entry('match', { matchSlug: 'r1m1' }),
             entry('local', { busyReason: 'local_match' }),
             entry('spare', { busyReason: 'reserved', notAllocatableReason: 'reserved' }),
+            entry('drain', { busyReason: 'draining' }),
             entry('stuck', { busyReason: 'awaiting_reset' }),
             entry('down', { online: false, notAllocatableReason: 'offline' }),
           ],
@@ -58,8 +59,9 @@ test('spare and busy servers are not counted as in a match', async ({ page, requ
   await page.goto('/');
   const card = page.getByTestId('admin-home-servers-card');
   const count = (k: string) => card.getByTestId(`admin-home-servers-${k}`);
-  await expect(count('inMatch')).toHaveText('2');
-  await expect(count('busy')).toHaveText('1');
+  await expect(count('inMatch')).toHaveText('1');
+  await expect(count('busy')).toHaveText('2');
+  await expect(count('draining')).toHaveText('1');
   await expect(count('spare')).toHaveText('1');
   await expect(count('free')).toHaveText('1');
   await expect(count('offline')).toHaveText('1');

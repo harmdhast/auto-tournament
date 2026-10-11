@@ -53,7 +53,8 @@
       "none": "No servers connected yet.",
       "notConfigured": "Not configured",
       "busy": "Belegt",
-      "spare": "Reserve"
+      "spare": "Reserve",
+      "draining": "Wird geleert"
     },
     "setup": {
       "serversDone": "{{count}} server added",
@@ -101,7 +102,8 @@
         "matchDisabled": "Match-Plugin aus",
         "draining": "Wird geleert",
         "reserved": "Reserve für Failover"
-      }
+      },
+      "draining": "Wird geleert"
     },
     "needsYou": {
       "stale": {

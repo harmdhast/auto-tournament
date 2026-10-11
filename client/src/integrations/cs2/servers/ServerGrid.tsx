@@ -77,7 +77,10 @@ export function serverRank(
   if (!server.online) return checking && !server.updatedAt ? CHECKING_RANK : OFFLINE_RANK;
   if (match) return PHASE_RANK[match.phase ?? ''] ?? OTHER_PHASE_RANK;
   if (server.allocatable) return FREE_RANK;
-  if (server.notAllocatableReason === 'grace-window' || server.busyReason === 'reserved')
+  if (
+    server.notAllocatableReason === 'grace-window' || server.busyReason === 'reserved' ||
+    server.busyReason === 'draining'
+  )
     return RESTING_RANK;
   return BUSY_RANK;
 }
@@ -338,6 +341,18 @@ const ServerGridView: React.FC<{
                   <StateChip label={t('managePage.servers.resting')} tone={tokens.color.info} />
                 }
                 line={t('managePage.servers.readyIn', { count: server.secondsUntilReady ?? 0 })}
+              />
+            );
+          }
+          if (server.busyReason === 'draining') {
+            return (
+              <Tile
+                key={server.id}
+                name={server.name}
+                chip={
+                  <StateChip label={t('managePage.servers.draining')} tone={tokens.color.info} />
+                }
+                line={null}
               />
             );
           }
