@@ -1,4 +1,5 @@
 import { pageTitle } from '../utils/pageTitle';
+import { VETO_MIN_MAPS } from '../utils/tournamentVerification';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../components/common/ui';
@@ -151,6 +152,8 @@ export default function Templates() {
 
   const allMapIds = sortedMaps.map((m) => m.id);
   const isVetoFormat = ['bo1', 'bo3', 'bo5'].includes(editFormat);
+  const vetoMin = VETO_MIN_MAPS[editFormat] ?? 1;
+  const vetoMapCountInvalid = editMaps.length < vetoMin || editMaps.length > 7;
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -218,7 +221,7 @@ export default function Templates() {
 
     // Validate maps for veto formats
     const isVetoFormat = ['bo1', 'bo3', 'bo5'].includes(editFormat);
-    if (isVetoFormat && editMaps.length !== 7) {
+    if (isVetoFormat && vetoMapCountInvalid) {
       return;
     }
     if (!isVetoFormat && editMaps.length === 0) {
@@ -534,9 +537,10 @@ export default function Templates() {
                 </Box>
               )}
 
-              {isVetoFormat && editMaps.length !== 7 && (
+              {isVetoFormat && vetoMapCountInvalid && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
                   {t('templatesPage.edit.mapPool.vetoWarning', {
+                    min: vetoMin,
                     count: editMaps.length,
                   })}
                 </Alert>
@@ -590,7 +594,7 @@ export default function Templates() {
             variant="contained"
             disabled={
               !editName.trim() ||
-              (isVetoFormat && editMaps.length !== 7) ||
+              (isVetoFormat && vetoMapCountInvalid) ||
               (!isVetoFormat && editMaps.length === 0)
             }
           >
