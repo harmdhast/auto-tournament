@@ -2,6 +2,7 @@
 import { Chip, Typography } from '@mui/material';
 import { tokens, useModuleTranslation } from '../../../../../module-sdk';
 import type { FleetServer } from '../../../cs2.types';
+import { busyTone } from '../serverStateMark';
 
 const REASON_KEY: Record<string, string> = {
   local_match: 'managePage.servers.busyReason.localMatch',
@@ -38,9 +39,7 @@ export function availabilityTone(server: FleetServer): string {
     case 'offline':
       return color.ban;
     default:
-      return !server.availabilityReason || server.availabilityReason === 'local_match'
-        ? color.accent
-        : 'warning.main';
+      return busyTone(server.availabilityReason);
   }
 }
 

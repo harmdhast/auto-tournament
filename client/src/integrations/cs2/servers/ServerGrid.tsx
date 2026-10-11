@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, ButtonBase, Chip, Skeleton } from '@mui/material';
+import { Box, ButtonBase, Skeleton } from '@mui/material';
 import type { ManageResourcesProps } from '../../types';
 import {
   getBracketMatchLabel,
@@ -15,7 +15,14 @@ import {
 import type { ServerAllocationInfo } from '../cs2.types';
 import type { ServerMatch } from './fleet/useServerMatches';
 import { useServerMatches } from './fleet/useServerMatches';
-import { stateTone, useStateLabel, useTileMatchLine, useMatchLine } from './fleet/serverStateMark';
+import {
+  busyTone,
+  StateChip,
+  stateTone,
+  useMatchLine,
+  useStateLabel,
+  useTileMatchLine,
+} from './fleet/serverStateMark';
 import { useServerAvailability } from './useServerAvailability';
 import { useUnconfiguredServers } from './useUnconfiguredServers';
 
@@ -274,7 +281,9 @@ const ServerGridView: React.FC<{
                 <Tile
                   key={server.id}
                   name={server.name}
-                  chip={<Chip size="small" label={t('managePage.servers.checking')} />}
+                  chip={
+                    <StateChip label={t('managePage.servers.checking')} tone={tokens.color.muted} />
+                  }
                   line={<Skeleton width="70%" />}
                 />
               );
@@ -284,13 +293,7 @@ const ServerGridView: React.FC<{
                 key={server.id}
                 bad
                 name={server.name}
-                chip={
-                  <Chip
-                    size="small"
-                    label={t('managePage.servers.offline')}
-                    sx={{ color: tokens.color.ban }}
-                  />
-                }
+                chip={<StateChip label={t('managePage.servers.offline')} tone={tokens.color.ban} />}
                 line={
                   server.updatedAt
                     ? t('managePage.servers.lastHeartbeat', { time: timeAgo(server.updatedAt, t) })
@@ -302,21 +305,17 @@ const ServerGridView: React.FC<{
 
           if (match && server.matchSlug) {
             const slug = server.matchSlug;
+            const chipLabel = stateLabel('match', match);
+            const line = tileMatchLine(match, bracketLabel(server));
             return (
               <Tile
                 key={server.id}
                 name={server.name}
-                chip={
-                  <Chip
-                    size="small"
-                    label={stateLabel('match', match)}
-                    sx={{ color: stateTone.match }}
-                  />
-                }
-                line={tileMatchLine(match, bracketLabel(server))}
+                chip={<StateChip label={chipLabel} tone={stateTone.match} />}
+                line={line}
                 lineTitle={matchLine(match)}
                 onOpen={() => void openMatchDetails(slug).catch(() => undefined)}
-                openLabel={`${t('serversBoard.openMatch', { defaultValue: 'Open the match' })}: ${server.name}`}
+                openLabel={`${t('serversBoard.openMatch', { defaultValue: 'Open the match' })} ${server.name}: ${chipLabel}, ${line}`}
               />
             );
           }
@@ -338,7 +337,7 @@ const ServerGridView: React.FC<{
               <Tile
                 key={server.id}
                 name={server.name}
-                chip={<Chip size="small" label={t('managePage.servers.free')} />}
+                chip={<StateChip label={t('managePage.servers.free')} tone={stateTone.free} />}
                 line={t('managePage.servers.ready')}
               />
             );
@@ -348,7 +347,9 @@ const ServerGridView: React.FC<{
               <Tile
                 key={server.id}
                 name={server.name}
-                chip={<Chip size="small" label={t('managePage.servers.resting')} />}
+                chip={
+                  <StateChip label={t('managePage.servers.resting')} tone={tokens.color.info} />
+                }
                 line={t('managePage.servers.readyIn', { count: server.secondsUntilReady ?? 0 })}
               />
             );
@@ -359,9 +360,9 @@ const ServerGridView: React.FC<{
               key={server.id}
               name={server.name}
               chip={
-                <Chip
-                  size="small"
+                <StateChip
                   label={t(spare ? 'managePage.servers.spare' : 'managePage.servers.busy')}
+                  tone={spare ? tokens.color.info : busyTone(server.busyReason)}
                 />
               }
               line={busyLine(server, t)}
@@ -374,7 +375,7 @@ const ServerGridView: React.FC<{
             data-testid="manage-server-not-configured"
             name={server.name}
             chip={
-              <Chip size="small" variant="outlined" label={t('managePage.servers.notConfigured')} />
+              <StateChip label={t('managePage.servers.notConfigured')} tone={tokens.color.muted} />
             }
             line={t('managePage.servers.notConfiguredHint')}
           />
