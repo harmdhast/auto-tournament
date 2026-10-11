@@ -563,6 +563,22 @@ test.describe('Server list', () => {
     await expect(row).not.toContainText('0 – 0');
   });
 
+  test('a warmup row falls back to the loaded map before currentMap is set', async ({ page }) => {
+    await stubAll(page, { a: { availability: 'busy', availabilityReason: null } });
+    await stubMatches(page, {
+      'cs2-a': {
+        slug: 'm-warm-nomap',
+        matchPhase: 'warmup',
+        mapNumber: 0,
+        maps: ['de_vertigo'],
+      },
+    });
+    await page.goto('/manage/servers');
+    const row = page.getByTestId(MACHINE_ROW);
+    await expect(row.getByTestId('server-row-state-m:m1:server-1')).toContainText('Warmup');
+    await expect(row).toContainText('Team A vs Team B · de_vertigo');
+  });
+
   test('a best-of-three row says which map and the series score', async ({ page }) => {
     await stubAll(page, { a: { availability: 'busy', availabilityReason: null } });
     await stubMatches(page, {

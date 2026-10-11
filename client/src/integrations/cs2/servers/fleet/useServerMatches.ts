@@ -67,7 +67,8 @@ function toServerMatch(m: NonNullable<MatchResponse['match']>): ServerMatch {
     team2: m.team2?.name ?? '',
     score: typeof s1 === 'number' && typeof s2 === 'number' ? [s1, s2] : null,
     series: typeof w1 === 'number' && typeof w2 === 'number' ? [w1, w2] : null,
-    map: m.currentMap ?? null,
+    map:
+      m.currentMap ?? (typeof m.mapNumber === 'number' ? m.maps?.[m.mapNumber] : undefined) ?? null,
     mapNumber: typeof m.mapNumber === 'number' ? m.mapNumber : null,
     maps: m.maps?.length ?? 0,
     phase,
