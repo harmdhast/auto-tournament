@@ -2182,6 +2182,29 @@
         "done": "{{name}} reset",
         "doneMatch": "{{name}} reset. Match {{slug}} settled.",
         "failed": "Could not reset the server"
+      },
+      "players": {
+        "title": "Players",
+        "empty": "Nobody on the server",
+        "kick": "Kick",
+        "kickTitle": "Kick {{name}}?",
+        "kickMessage": "Leaves the server and can join again.",
+        "kickReason": "Message shown on kick (optional)",
+        "kicked": "{{name}} kicked",
+        "kickFailed": "Could not kick the player",
+        "team": {
+          "ct": "CT",
+          "t": "T",
+          "spectator": "Spectator",
+          "none": "No team"
+        }
+      },
+      "console": {
+        "title": "Console",
+        "placeholder": "Command",
+        "rootOnly": "Root admins only",
+        "noOutput": "No output",
+        "notLinked": "Only for servers used for matches"
       }
     }
   },

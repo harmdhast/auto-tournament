@@ -67,6 +67,8 @@ export { useIsDevelopment } from '../hooks/useIsDevelopment';
 export type ModuleAuth = {
   /** An admin session is active. */
   isAuthenticated: boolean;
+  /** A root admin (/api/auth/me `root`): may run raw console lines on a Ready Up server. */
+  isRoot: boolean;
   /** The platform is still finding out who the viewer is. */
   isLoading: boolean;
   /** Someone is signed in as a player (admins who linked Steam included). */
@@ -119,7 +121,12 @@ export type {
 export { PlayerAvatar } from '../components/player/PlayerAvatar';
 // Highlights are videos any game can have (client API 0.2.14): the player,
 // the cards, and the placeholders while one is being made.
-export { HighlightPlayer, MUSIC_GAIN, PLAYER_VOLUME_DEFAULT, PLAYER_VOLUME_KEY } from '../components/highlights/HighlightPlayer';
+export {
+  HighlightPlayer,
+  MUSIC_GAIN,
+  PLAYER_VOLUME_DEFAULT,
+  PLAYER_VOLUME_KEY,
+} from '../components/highlights/HighlightPlayer';
 export type {
   ChapterInfo,
   HighlightPlayerHandle,

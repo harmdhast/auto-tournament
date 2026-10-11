@@ -11,7 +11,7 @@
 
 # API reference
 
-Every endpoint this API serves — 658 of them, 395 behind auth —
+Every endpoint this API serves — 661 of them, 398 behind auth —
 read directly from the routers rather than written down, so it cannot drift.
 
 For *how* to authenticate a bot or script, and a task-oriented tour of the
@@ -123,6 +123,7 @@ Direct server control — pause, say, end match, raw commands.
 | Method | Path | Auth |
 | --- | --- | --- |
 | `GET` | `/api/rcon/test/:serverId` | admin |
+| `GET` | `/api/rcon/capabilities/:serverId` | admin |
 | `GET` | `/api/rcon/test` | admin |
 | `POST` | `/api/rcon/test-connection` | admin |
 | `POST` | `/api/rcon/practice-mode` | admin |
@@ -383,6 +384,7 @@ Ready Up servers on the fleet link: registry, one-time codes, fleet keys, revoke
 | Method | Path | Auth |
 | --- | --- | --- |
 | `GET` | `/api/fleet/servers` | admin |
+| `GET` | `/api/fleet/servers/:id` | admin |
 | `POST` | `/api/fleet/servers` | admin |
 | `PATCH` | `/api/fleet/servers/:id` | admin |
 | `DELETE` | `/api/fleet/servers/:id` | admin |
@@ -390,6 +392,7 @@ Ready Up servers on the fleet link: registry, one-time codes, fleet keys, revoke
 | `POST` | `/api/fleet/servers/:id/revoke` | admin |
 | `POST` | `/api/fleet/servers/:id/rotate` | admin |
 | `POST` | `/api/fleet/servers/:id/reset` | admin |
+| `POST` | `/api/fleet/servers/:id/kick` | admin |
 | `POST` | `/api/fleet/servers/:id/link` | admin |
 | `PUT` | `/api/fleet/servers/:id/address` | admin |
 | `DELETE` | `/api/fleet/servers/:id/link` | admin |

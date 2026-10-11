@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { setupTestContext } from '../helpers/setup';
-import { fleetServer, stubFleet } from '../helpers/fleetUi';
+import { fleetServer, stubFleet, stubFleetDetail } from '../helpers/fleetUi';
 
 /**
  * The Ready Up fleet section's Servers tab: each server says whether it takes
@@ -16,7 +16,7 @@ test.describe('Ready Up fleet: servers tab', () => {
   });
 
   test('each Ready Up server shows whether it takes matches, and why not', async ({ page }) => {
-    await stubFleet(page, [
+    const servers = [
       fleetServer('a', {
         availability: 'busy',
         availabilityReason: 'awaiting_reset',
@@ -25,7 +25,9 @@ test.describe('Ready Up fleet: servers tab', () => {
       fleetServer('b', { availabilityReason: 'reserved' }),
       fleetServer('c'),
       fleetServer('d', { availability: 'busy' }),
-    ]);
+    ];
+    await stubFleet(page, servers);
+    await stubFleetDetail(page, servers);
     await page.goto('/manage/servers#fleet');
     const row = (id: string) => page.getByTestId(`fleet-server-${id}`);
     await expect(row('a')).toContainText('Waiting for reset after the series');
@@ -70,14 +72,16 @@ test.describe('Ready Up fleet: servers tab', () => {
   test('a Ready Up server opens in its own panel; offline and gone servers say so', async ({
     page,
   }) => {
-    await stubFleet(page, [
+    const servers = [
       fleetServer('a', {
         availability: 'busy',
         availabilityReason: 'local_match',
         availabilityDetail: 'cup-final',
       }),
       fleetServer('off', { online: false }),
-    ]);
+    ];
+    await stubFleet(page, servers);
+    await stubFleetDetail(page, servers);
     await page.goto('/manage/servers#fleet');
     await page.getByTestId('fleet-open-a').click();
     const sheet = page.getByTestId('fleet-server-sheet');

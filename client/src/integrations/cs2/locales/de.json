@@ -2182,6 +2182,29 @@
         "done": "{{name}} zurückgesetzt",
         "doneMatch": "{{name}} zurückgesetzt. Match {{slug}} abgeschlossen.",
         "failed": "Server konnte nicht zurückgesetzt werden"
+      },
+      "players": {
+        "title": "Spieler",
+        "empty": "Niemand auf dem Server",
+        "kick": "Kicken",
+        "kickTitle": "{{name}} kicken?",
+        "kickMessage": "Verlässt den Server und kann wieder beitreten.",
+        "kickReason": "Nachricht beim Kick (optional)",
+        "kicked": "{{name}} gekickt",
+        "kickFailed": "Spieler konnte nicht gekickt werden",
+        "team": {
+          "ct": "CT",
+          "t": "T",
+          "spectator": "Zuschauer",
+          "none": "Kein Team"
+        }
+      },
+      "console": {
+        "title": "Konsole",
+        "placeholder": "Befehl",
+        "rootOnly": "Nur für Root-Admins",
+        "noOutput": "Keine Ausgabe",
+        "notLinked": "Nur für Server, die für Matches genutzt werden"
       }
     }
   },

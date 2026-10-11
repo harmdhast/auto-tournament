@@ -40,3 +40,23 @@ export async function stubFleet(page: Page, servers: unknown[]) {
     (route) => route.fulfill({ json: { success: true, keys: [] } })
   );
 }
+
+/** GET /api/fleet/servers/:id for each stubbed server (404 for others), with its players. */
+export async function stubFleetDetail(
+  page: Page,
+  servers: Array<Record<string, unknown> & { id: string }>
+) {
+  await page.route(
+    (url) => /^\/api\/fleet\/servers\/[^/]+$/.test(url.pathname),
+    (route) => {
+      const id = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop() ?? '');
+      const server = servers.find((s) => s.id === id);
+      if (!server)
+        return route.fulfill({
+          status: 404,
+          json: { success: false, error: 'Fleet server not found' },
+        });
+      return route.fulfill({ json: { success: true, server: { players: [], ...server } } });
+    }
+  );
+}

@@ -13,7 +13,9 @@
  *   POST   /api/fleet/servers/:id/code       a fresh code for a pending server
  *   POST   /api/fleet/servers/:id/revoke     revoke its tokens, close its socket (4403)
  *   POST   /api/fleet/servers/:id/rotate     rotate its token now (or on its next connect)
+ *   GET    /api/fleet/servers/:id            one server with the players its last snapshot reported
  *   POST   /api/fleet/servers/:id/reset      cmd reset; settles the platform's match there (./reset.ts)
+ *   POST   /api/fleet/servers/:id/kick       cmd kick {steamid64, message?}
  *   POST   /api/fleet/servers/:id/link       take matches: link it to a cs2_servers row (./link.ts)
  *   DELETE /api/fleet/servers/:id/link       stop taking matches
  *   GET    /api/fleet/matches/:slug          a match on the fleet: assignment, live state, commands
@@ -54,10 +56,13 @@ import {
   unlinkFleetServer,
 } from './link';
 import { formatConnectAddress, unmapV4, type ConnectSource } from './address';
-import { getAssignment, syncMatch } from './driver';
+import { getAssignment, runFleetCommandOn, syncMatch } from './driver';
 import { listCommands } from './reliable';
 import { liveStateStore } from './state';
 import { resetFleetServer } from './reset';
+import { fleetPlayersOf } from './players';
+import { isSteam64 } from './push/admins';
+import { hasControlChars } from './push/settings';
 import { issuedBy } from '../routes/fleetCommands';
 import { effectiveBusyReason } from './busyReason';
 import { heldFleetSpares } from './failover';
@@ -290,6 +295,30 @@ fleetAdminRouter.get('/servers', async (_req: Request, res: Response) => {
   }
 });
 
+/** One server, as the list shows it, with the players its last snapshot reported (its panel). */
+fleetAdminRouter.get('/servers/:id', async (req: Request, res: Response) => {
+  try {
+    const found = await registry.getFleetServerView(req.params.id);
+    if (!found) return res.status(404).json({ success: false, error: 'Fleet server not found' });
+    const [matchOff, spares] = await Promise.all([matchDisabledServerIds(), heldFleetSpares()]);
+    const [view] = await withLinks(withLiveState([found]));
+    return res.json({
+      success: true,
+      server: {
+        ...view,
+        availabilityReason: effectiveBusyReason(view.availabilityReason, {
+          matchDisabled: matchOff.has(view.id),
+          reserved: spares.some((c) => c.fleetServerId === view.id),
+        }),
+        players: fleetPlayersOf(view.id),
+      },
+    });
+  } catch (error) {
+    log.error(`[FLEET] reading server ${req.params.id} failed: ${(error as Error).message}`);
+    return res.status(500).json({ success: false, error: 'Failed to read the fleet server' });
+  }
+});
+
 fleetAdminRouter.post('/servers', async (req: Request, res: Response) => {
   const name = trimmedString(req.body?.name, 100);
   if (name === null)
@@ -396,6 +425,43 @@ fleetAdminRouter.post('/servers/:id/reset', async (req: Request, res: Response) 
   } catch (error) {
     log.error(`[FLEET] ${req.params.id}: reset failed: ${(error as Error).message}`);
     return res.status(500).json({ ok: false, error: 'Reset failed', errorCode: null });
+  }
+});
+
+/** Kick a player (cmd kick, no match needed). Any admin. */
+fleetAdminRouter.post('/servers/:id/kick', async (req: Request, res: Response) => {
+  const { steamid64, message } = (req.body ?? {}) as { steamid64?: unknown; message?: unknown };
+  if (!isSteam64(steamid64))
+    return res.status(400).json({ ok: false, error: 'steamid64 must be a SteamID64' });
+  if (
+    message !== undefined &&
+    (typeof message !== 'string' || message.length > 128 || hasControlChars(message))
+  ) {
+    return res.status(400).json({ ok: false, error: 'message: one line, at most 128 characters' });
+  }
+  const server = await registry.getFleetServer(req.params.id);
+  if (!server) return res.status(404).json({ ok: false, error: 'Fleet server not found' });
+  if (!fleetBus().isConnected(server.id)) {
+    return res
+      .status(409)
+      .json({ ok: false, errorCode: 'offline', error: 'The Ready Up server is offline' });
+  }
+  try {
+    const outcome = await runFleetCommandOn(
+      server.id,
+      'kick',
+      { steamid64, ...(message ? { message } : {}) },
+      issuedBy(req)
+    );
+    if (!outcome.ok) {
+      return res
+        .status(outcome.httpStatus)
+        .json({ ok: false, errorCode: outcome.errorCode, error: outcome.error ?? 'Kick failed' });
+    }
+    return res.json({ ok: true });
+  } catch (error) {
+    log.error(`[FLEET] ${server.id}: kick failed: ${(error as Error).message}`);
+    return res.status(500).json({ ok: false, error: 'Kick failed' });
   }
 });
 

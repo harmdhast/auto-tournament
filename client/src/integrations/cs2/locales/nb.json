@@ -2182,6 +2182,29 @@
         "done": "{{name}} tilbakestilt",
         "doneMatch": "{{name}} tilbakestilt. Kamp {{slug}} avsluttet.",
         "failed": "Kunne ikke tilbakestille serveren"
+      },
+      "players": {
+        "title": "Spillere",
+        "empty": "Ingen på serveren",
+        "kick": "Kast ut",
+        "kickTitle": "Kaste ut {{name}}?",
+        "kickMessage": "Forlater serveren og kan bli med igjen.",
+        "kickReason": "Melding ved utkasting (valgfritt)",
+        "kicked": "{{name}} kastet ut",
+        "kickFailed": "Kunne ikke kaste ut spilleren",
+        "team": {
+          "ct": "CT",
+          "t": "T",
+          "spectator": "Tilskuer",
+          "none": "Uten lag"
+        }
+      },
+      "console": {
+        "title": "Konsoll",
+        "placeholder": "Kommando",
+        "rootOnly": "Bare for root-administratorer",
+        "noOutput": "Ingen utdata",
+        "notLinked": "Bare for servere som brukes til kamper"
       }
     }
   },

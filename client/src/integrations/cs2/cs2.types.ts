@@ -461,6 +461,8 @@ export interface FleetServer {
   /** Why it takes no match (api fleet/busyReason.ts), and what that refers to. */
   availabilityReason?: BusyReason | null;
   availabilityDetail?: string | null;
+  /** From GET /api/fleet/servers/:id: who is on it (its latest snapshot). */
+  players?: FleetPlayer[];
   versions: {
     core: string;
     plugin_api: string;
@@ -503,6 +505,12 @@ export interface FleetServer {
    * server the one linking would store now. null = nothing known yet.
    */
   connect?: FleetConnect | null;
+}
+
+export interface FleetPlayer {
+  steamid64: string;
+  name: string;
+  team: 'none' | 'spectator' | 't' | 'ct';
 }
 
 export interface FleetConnect {

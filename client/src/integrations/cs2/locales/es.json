@@ -2182,6 +2182,29 @@
         "done": "{{name}} reiniciado",
         "doneMatch": "{{name}} reiniciado. Partida {{slug}} cerrada.",
         "failed": "No se pudo reiniciar el servidor"
+      },
+      "players": {
+        "title": "Jugadores",
+        "empty": "Nadie en el servidor",
+        "kick": "Expulsar",
+        "kickTitle": "¿Expulsar a {{name}}?",
+        "kickMessage": "Sale del servidor y puede volver a entrar.",
+        "kickReason": "Mensaje al expulsar (opcional)",
+        "kicked": "{{name}} expulsado",
+        "kickFailed": "No se pudo expulsar al jugador",
+        "team": {
+          "ct": "CT",
+          "t": "T",
+          "spectator": "Espectador",
+          "none": "Sin equipo"
+        }
+      },
+      "console": {
+        "title": "Consola",
+        "placeholder": "Comando",
+        "rootOnly": "Solo para administradores root",
+        "noOutput": "Sin salida",
+        "notLinked": "Solo para servidores usados en partidas"
       }
     }
   },

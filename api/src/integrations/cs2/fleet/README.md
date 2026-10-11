@@ -200,6 +200,20 @@ back for failover (`heldFleetSpares`). `GET /api/fleet/servers` shows them as
 `availabilityReason` / `availabilityDetail`, the pool status as `busyReason` /
 `busyDetail`, with `notAllocatableReason: 'reserved'` for the spare.
 
+### Admin controls on a Ready Up server
+
+`GET /api/rcon/capabilities/:serverId` says which server commands (`custom`,
+plus `kick` and `reset` on Ready Up) and match controls a server's transport
+supports; Ready Up has no in-game veto, so no skip veto. Add round time is
+`cmd add_time {seconds}` on the assigned match. `POST
+/api/fleet/servers/:id/kick` sends `cmd kick` (no match needed).
+`GET /api/fleet/servers/:id` adds `players` from the server's latest
+`state.snapshot` (`players.ts`; empty while offline). Fleet answers carry the
+server's `serverName`; `GET /api/rcon/test/:serverId` on a Ready Up server
+reads its link instead of trying RCON. `/api/auth/me` answers `root` (the
+`exec` rule, `utils/rootAccess.ts`) so the client shows the console to root
+admins only.
+
 ### Reset (`reset.ts`)
 
 `POST /api/fleet/servers/:id/reset` (any admin) sends `cmd reset` (no

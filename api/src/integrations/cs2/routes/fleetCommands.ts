@@ -8,9 +8,9 @@
  * `status` / `errorCode` and the command id.
  */
 
-import { isSavedAdminSteamId } from '../../../utils/adminSteamIds';
 import type { Request, Response } from 'express';
-import { requestActorId, type AuthedRequest } from '../../../middleware/auth';
+import { requestActorId } from '../../../middleware/auth';
+import { isRootRequest } from '../../../utils/rootAccess';
 import { transportOf } from '../driver';
 import {
   execOnFleetServer,
@@ -19,20 +19,56 @@ import {
   type IssuedBy,
 } from '../fleet/driver';
 import type { CmdName } from '../fleet/protocol/v1';
+import type { ServerTransport } from '../../../types/server.types';
+
+export type MatchControlId =
+  | 'pause'
+  | 'unpause'
+  | 'swap'
+  | 'restartRound'
+  | 'skipVeto'
+  | 'endWarmup'
+  | 'endMatch'
+  | 'startMatch'
+  | 'restoreBackup'
+  | 'addTime'
+  | 'broadcast';
+
+const ALL_MATCH_CONTROLS: MatchControlId[] = [
+  'pause',
+  'unpause',
+  'swap',
+  'restartRound',
+  'skipVeto',
+  'endWarmup',
+  'endMatch',
+  'startMatch',
+  'restoreBackup',
+  'addTime',
+  'broadcast',
+];
 
 /**
- * Root (FLEET.md D10: `exec`): an admin-scope API token, the local admin
- * account (created on /setup by whoever runs the instance), or a signed-in
- * admin whose Steam ID is in Settings -> Sign-in -> Admin Steam IDs (the
- * instance's operators). Other admins drive matches but cannot run raw
- * console commands on a Ready Up server.
+ * The admin controls a server transport supports, so the UI shows only the
+ * buttons that work. Ready Up has no in-game veto (skip veto), and adds kick
+ * and reset as server commands.
  */
-export function isRootRequest(req: Request): boolean {
-  const token = (req as AuthedRequest).serviceToken;
-  if (token) return token.scope === 'admin';
-  const actor = requestActorId(req);
-  return !!actor && (actor.startsWith('local-') || isSavedAdminSteamId(actor));
+export function adminCapabilitiesFor(transport: ServerTransport): {
+  transport: ServerTransport;
+  commands: string[];
+  matchControls: MatchControlId[];
+} {
+  if (transport === 'fleet') {
+    return {
+      transport,
+      commands: ['custom', 'kick', 'reset'],
+      matchControls: ALL_MATCH_CONTROLS.filter((id) => id !== 'skipVeto'),
+    };
+  }
+  return { transport, commands: ['custom'], matchControls: [...ALL_MATCH_CONTROLS] };
 }
+
+export { isRootRequest } from '../../../utils/rootAccess';
 
 export function issuedBy(req: Request): IssuedBy & { actor: string | null } {
   const actor = requestActorId(req);
@@ -50,6 +86,7 @@ export function fleetResponseBody(outcome: FleetCommandOutcome & { auditId?: str
     ...(outcome.commandId ? { commandId: outcome.commandId } : {}),
     ...(outcome.matchSlug ? { matchSlug: outcome.matchSlug } : {}),
     ...(outcome.auditId ? { auditId: outcome.auditId } : {}),
+    ...(outcome.serverName ? { serverName: outcome.serverName } : {}),
   };
 }
 

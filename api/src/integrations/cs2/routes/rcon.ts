@@ -9,6 +9,7 @@ import { checkServerReachesApi } from '../utils/connectionTest';
 import { getLastServerTestEvent } from '../services/serverConnectivityService';
 import { settleActiveMatchOn } from '../../../services/matchTerminationService';
 import {
+  adminCapabilitiesFor,
   answerUnsupportedOnFleet,
   answerWithFleetCommand,
   fleetCommandFor,
@@ -17,7 +18,9 @@ import {
   isFleetServer,
   issuedBy,
 } from './fleetCommands';
-import { addPlayer, currentPosition, runFleetCommand } from '../fleet/driver';
+import { addPlayer, currentPosition, fleetServerStatus, runFleetCommand } from '../fleet/driver';
+import { serverService } from '../services/serverService';
+import { transportOf } from '../driver';
 
 const router = Router();
 
@@ -31,6 +34,19 @@ router.use(requireAuth);
 router.get('/test/:serverId', async (req: Request, res: Response) => {
   try {
     const { serverId } = req.params;
+    if (await isFleetServer(serverId)) {
+      // A Ready Up server has no RCON: its link is the connection.
+      const [status, server] = await Promise.all([
+        fleetServerStatus(serverId),
+        serverService.getServerById(serverId),
+      ]);
+      return res.status(status.online ? 200 : 400).json({
+        success: status.online,
+        transport: 'fleet',
+        serverName: server?.name ?? null,
+        ...status,
+      });
+    }
     const result = await rconService.testConnection(serverId);
     const statusCode = result.success ? 200 : 400;
 
@@ -41,6 +57,23 @@ router.get('/test/:serverId', async (req: Request, res: Response) => {
       success: false,
       error: 'Failed to test connection',
     });
+  }
+});
+
+/**
+ * GET /api/rcon/capabilities/:serverId
+ * The admin controls the server's transport supports
+ */
+router.get('/capabilities/:serverId', async (req: Request, res: Response) => {
+  try {
+    const { serverId } = req.params;
+    if (!(await serverService.getServerById(serverId))) {
+      return res.status(404).json({ success: false, error: 'Server not found' });
+    }
+    return res.json({ success: true, ...adminCapabilitiesFor(await transportOf(serverId)) });
+  } catch (error) {
+    console.error('Error reading server capabilities:', error);
+    return res.status(500).json({ success: false, error: 'Failed to read server capabilities' });
   }
 });
 
@@ -712,14 +745,15 @@ router.post('/add-time', async (req: Request, res: Response) => {
   try {
     const { serverId, seconds } = req.body;
 
-    if (!serverId || !seconds) {
+    if (!serverId || !Number.isInteger(seconds) || seconds < 1 || seconds > 600) {
       return res.status(400).json({
         success: false,
-        error: 'serverId and seconds are required',
+        error: 'serverId and seconds (1 to 600) are required',
       });
     }
 
-    if (await answerUnsupportedOnFleet(res, serverId, 'Adding round time')) return res;
+    // Ready Up: cmd add_time on the assigned match (the current round runs longer).
+    if (await answerWithFleetCommand(req, res, serverId, 'add_time', { seconds })) return res;
     const result = await rconService.sendCommand(serverId, `mp_roundtime_defuse ${seconds / 60}`);
     const statusCode = result.success ? 200 : 400;
 

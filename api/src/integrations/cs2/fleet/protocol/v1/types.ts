@@ -500,7 +500,8 @@ export type CmdName =
   | 'whitelist.set'
   | 'practice.set'
   | 'settings.set'
-  | 'reset';
+  | 'reset'
+  | 'add_time';
 
 export interface CmdPayload {
   match_id?: string;
@@ -570,6 +571,8 @@ export interface StateSnapshotPayload {
   /** Busy reason, as hello.reason. */
   availability_reason?: string | null;
   availability_detail?: string | null;
+  /** The humans connected now (assigned or not); absent on older Ready Up. */
+  players?: { steamid64: string; name: string; team: 'none' | 'spectator' | 't' | 'ct' }[];
   config_rev: number;
   admins_rev: number;
   map_stats?: MapStats;
