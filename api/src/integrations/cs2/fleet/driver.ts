@@ -65,7 +65,7 @@ import { liveStateStore } from './state';
 import { roundBackupStore } from './backups';
 import { DEMO_STREAM_CAPABILITY } from './limits';
 import { matchPluginDisabled } from './push/pluginSets';
-import { effectiveBusyReason, parseBusyReason } from './busyReason';
+import { effectiveBusyReason, parseBusyDetail, parseBusyReason } from './busyReason';
 import type { BusyReason } from './protocol/v1/types';
 import { fleetBus, onFleetServerReady, setFleetAssignmentResolver } from './service';
 import type {
@@ -166,6 +166,29 @@ export async function getAssignment(matchSlug: string): Promise<FleetAssignment 
 export async function openAssignmentOn(fleetServerId: string): Promise<FleetAssignment | null> {
   const [assignment] = await openAssignmentsOf(fleetServerId);
   return assignment ?? null;
+}
+
+/** Put back an assignment a failed move replaced (one row per match: the move overwrote it). */
+export async function restoreAssignment(prev: FleetAssignment): Promise<void> {
+  if (!prev.serverId || !prev.cs2ServerId) return;
+  const now = nowS();
+  await db.runAsync(
+    `INSERT INTO cs2_fleet_assignments (match_slug, epoch, server_id, cs2_server_id, password, config, created_at, updated_at, ended_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
+     ON CONFLICT (match_slug) DO UPDATE SET epoch = EXCLUDED.epoch, server_id = EXCLUDED.server_id,
+       cs2_server_id = EXCLUDED.cs2_server_id, password = EXCLUDED.password, config = EXCLUDED.config,
+       updated_at = EXCLUDED.updated_at, ended_at = NULL`,
+    [
+      prev.matchSlug,
+      prev.epoch,
+      prev.serverId,
+      prev.cs2ServerId,
+      prev.password,
+      prev.config ? JSON.stringify(prev.config) : null,
+      now,
+      now,
+    ]
+  );
 }
 
 /** The assignment a fleet server holds now (not unassigned), newest first. */
@@ -1004,6 +1027,19 @@ async function supersede(
 ): Promise<void> {
   const key = `${fleetServerId}:${matchSlug}:${epoch}`;
   if (supersededSent.has(key)) return;
+  // A failover is moving the match off this server right now: its epoch is
+  // not dead until the target accepts (the move fences it then, failover.ts);
+  // if the target refuses, this server keeps the match.
+  const moving = await db.queryOneAsync<{ id: string }>(
+    `SELECT id FROM cs2_fleet_failovers WHERE match_slug = ? AND from_server_id = ? AND status = 'moving' LIMIT 1`,
+    [matchSlug, fleetServerId]
+  );
+  if (moving) {
+    log.info(
+      `[FLEET] ${fleetServerId}: ${matchSlug} epoch ${epoch} is being moved; not superseding it yet (${why})`
+    );
+    return;
+  }
   supersededSent.add(key);
   if (supersededSent.size > 10_000) supersededSent.clear();
   log.warn(
@@ -1052,8 +1088,59 @@ export async function resolveWelcomeAssignment(
 }
 
 /** After a welcome: a server holding a match the platform has moved on from gets `superseded` (§6.1, §11.4). */
+/** Matches each server was told to drop since its last hello (supersedeStaleLocalCopy). */
+const toldToDrop = new Map<string, Set<string>>();
+
+/**
+ * A server busy with a platform match as its own (`local_match` /
+ * `awaiting_reset`, detail = the slug) that the platform has moved away or
+ * ended: Ready Up recovered it from state.json after losing the unassign the
+ * fence sent (FLEET.md §11.4). It is told again, once per connection. A slug
+ * the platform does not know is the server's own match. True when sent.
+ */
+export async function supersedeStaleLocalCopy(
+  fleetServerId: string,
+  reason: string | null,
+  detail: string | null
+): Promise<boolean> {
+  if (!detail || (reason !== 'local_match' && reason !== 'awaiting_reset')) return false;
+  const told = toldToDrop.get(fleetServerId) ?? new Set<string>();
+  if (told.has(detail)) return false;
+  const known = await db.queryOneAsync<{ slug: string }>(
+    'SELECT slug FROM matches WHERE slug = ?',
+    [detail]
+  );
+  if (!known) return false;
+  const assignment = await getAssignment(detail);
+  if (assignment && assignment.endedAt === null && assignment.serverId === fleetServerId)
+    return false;
+  const moved = await db.queryOneAsync<{ from_epoch: number }>(
+    `SELECT from_epoch FROM cs2_fleet_failovers WHERE match_slug = ? AND from_server_id = ? ORDER BY created_at DESC LIMIT 1`,
+    [detail, fleetServerId]
+  );
+  const epoch = Number(moved?.from_epoch ?? assignment?.epoch ?? 1);
+  told.add(detail);
+  toldToDrop.set(fleetServerId, told);
+  log.warn(
+    `[FLEET] ${fleetServerId} is busy with ${detail}, which is not its match any more; unassigning it (superseded)`
+  );
+  await sendReliable(fleetServerId, {
+    type: 'match.unassign',
+    payload: { match_id: detail, epoch, reason: 'superseded', kick_message: MOVED_KICK_MESSAGE },
+  });
+  return true;
+}
+
 async function checkHello(fleetServerId: string, hello: HelloPayload): Promise<void> {
+  toldToDrop.delete(fleetServerId);
   const state = hello.state as { match_id?: unknown; epoch?: unknown } | null | undefined;
+  if (!state && hello.availability !== 'available') {
+    await supersedeStaleLocalCopy(
+      fleetServerId,
+      parseBusyReason(hello.reason),
+      parseBusyDetail(hello.detail)
+    );
+  }
   if (state && typeof state.match_id === 'string' && typeof state.epoch === 'number') {
     // A match the platform never assigned (a local `ru match load`) has no
     // record: not ours to end.
@@ -1219,7 +1306,12 @@ export function startFleetDriver(): void {
       );
     });
   });
-  fleetInbound.onAvailability(({ serverId, availability }) => {
+  fleetInbound.onAvailability(({ serverId, availability, busyReason, busyDetail }) => {
+    if (busyReason) {
+      void supersedeStaleLocalCopy(serverId, busyReason, busyDetail).catch((error) =>
+        log.warn(`[FLEET] ${serverId}: re-sending an unassign failed: ${(error as Error).message}`)
+      );
+    }
     if (availability === 'available') {
       availableSince.set(serverId, nowS());
       void cs2ServerIdOf(serverId)
