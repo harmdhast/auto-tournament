@@ -4,7 +4,6 @@ import type { ManageResourcesProps } from '../../types';
 import {
   getBracketMatchLabel,
   links,
-  LiveChip,
   openMatchDetails,
   radii,
   SectionHead,
@@ -77,7 +76,6 @@ export function serverRank(
 ): number {
   if (!server.online) return checking && !server.updatedAt ? CHECKING_RANK : OFFLINE_RANK;
   if (match) return PHASE_RANK[match.phase ?? ''] ?? OTHER_PHASE_RANK;
-  if (server.matchSlug) return OTHER_PHASE_RANK;
   if (server.allocatable) return FREE_RANK;
   if (server.notAllocatableReason === 'grace-window' || server.busyReason === 'reserved')
     return RESTING_RANK;
@@ -319,17 +317,6 @@ const ServerGridView: React.FC<{
               />
             );
           }
-          if (server.matchSlug) {
-            return (
-              <Tile
-                key={server.id}
-                name={server.name}
-                chip={<LiveChip label={t('managePage.servers.inMatch')} />}
-                line={bracketLabel(server) || server.matchSlug}
-              />
-            );
-          }
-
           // Online and running nothing: free, resting after a match, or
           // held back for a reason of its own.
           if (server.allocatable) {
