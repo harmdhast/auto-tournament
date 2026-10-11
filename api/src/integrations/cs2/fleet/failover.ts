@@ -63,6 +63,7 @@ import {
   detectFailure,
   failoverGraceFromEnv,
   failoverTargets,
+  maxBackupRound,
   pickBackup,
   pickReserved,
   pickTarget,
@@ -567,7 +568,7 @@ async function createProposal(input: {
   targetCs2ServerId?: string | null;
 }): Promise<FailoverProposal | null> {
   const mapNumber = input.state?.series?.current_map ?? 1;
-  const backup = pickBackup(await roundBackupStore.list(input.slug), mapNumber);
+  const backup = pickBackup(await roundBackupStore.list(input.slug), mapNumber, maxBackupRound(input.state?.rules));
   const target =
     input.targetCs2ServerId !== undefined
       ? input.targetCs2ServerId
