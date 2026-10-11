@@ -72,7 +72,9 @@ export interface RestoreAuditPersistence {
   insert(record: RestoreRecord): Promise<void>;
   update(
     id: string,
-    patch: Partial<Pick<RestoreRecord, 'commandId' | 'status' | 'errorCode' | 'errorMessage' | 'answeredAt'>>
+    patch: Partial<
+      Pick<RestoreRecord, 'commandId' | 'status' | 'errorCode' | 'errorMessage' | 'answeredAt'>
+    >
   ): Promise<void>;
   list(matchSlug: string, limit: number): Promise<RestoreRecord[]>;
 }
@@ -135,7 +137,10 @@ function commandStatus(record: FleetCommandRecord | null): RestoreStatus {
   return record.status;
 }
 
-export async function restoreRoundBackup(deps: RestoreDeps, req: RestoreRequest): Promise<RestoreResult> {
+export async function restoreRoundBackup(
+  deps: RestoreDeps,
+  req: RestoreRequest
+): Promise<RestoreResult> {
   if (!Number.isInteger(req.mapNumber) || req.mapNumber < 1 || req.mapNumber > 9) {
     throw new RestoreError('bad_args', 'mapNumber must be 1-9', 400);
   }
@@ -186,7 +191,11 @@ export async function restoreRoundBackup(deps: RestoreDeps, req: RestoreRequest)
 
   const backup = await deps.backups.get(req.matchSlug, req.mapNumber, req.round);
   if (!backup) {
-    throw new RestoreError('no_backup', `No stored backup for map ${req.mapNumber} round ${req.round}`, 404);
+    throw new RestoreError(
+      'no_backup',
+      `No stored backup for map ${req.mapNumber} round ${req.round}`,
+      404
+    );
   }
   const inline = fitsInline(backup);
   if (!inline && backup.serverId !== target.serverId) {
@@ -213,7 +222,11 @@ export async function restoreRoundBackup(deps: RestoreDeps, req: RestoreRequest)
       round: req.round,
       ...(inline ? { backup: toInlineBackup(backup) } : {}),
     },
-    issued_by: { user_id: (req.actor.id ?? 'unknown').slice(0, 64), name: req.actor.name.slice(0, 128), root: false },
+    issued_by: {
+      user_id: (req.actor.id ?? 'unknown').slice(0, 64),
+      name: req.actor.name.slice(0, 128),
+      root: false,
+    },
     expires_at: deps.now() + COMMAND_TTL_MS,
     audit_id: record.id,
   };
@@ -407,7 +420,10 @@ export function createDbRestoreAudit(): RestoreAuditPersistence {
         }
       }
       if (!sets.length) return;
-      await db.runAsync(`UPDATE cs2_match_round_restores SET ${sets.join(', ')} WHERE id = ?`, [...params, id]);
+      await db.runAsync(`UPDATE cs2_match_round_restores SET ${sets.join(', ')} WHERE id = ?`, [
+        ...params,
+        id,
+      ]);
     },
     async list(slug, limit) {
       const rows = await db.queryAsync<RestoreRow>(
@@ -470,4 +486,39 @@ export function startRestoreAudit(): void {
 export function stopRestoreAudit(): void {
   unsubscribeResults?.();
   unsubscribeResults = null;
+}
+
+/** Raw bytes per backup.part (as event.backup, FLEET.md §12.3). */
+const PART_RAW = 384 * 1024;
+
+/**
+ * Send a stored backup to a server in `backup.part` frames (reliable, in
+ * order), for a failover assign that then names it by `backup_ref`: the file
+ * is too large to go inline. Only for servers with match.backup_parts.v1.
+ * Returns the number of parts.
+ */
+export async function sendBackupParts(
+  fleetServerId: string,
+  matchSlug: string,
+  row: StoredRoundBackup
+): Promise<number> {
+  const { sendReliable } = await import('./reliable');
+  const raw = Buffer.from(row.data, 'base64');
+  const parts = Math.max(1, Math.ceil(raw.length / PART_RAW));
+  const base = toInlineBackup(row);
+  for (let i = 0; i < parts; i++) {
+    await sendReliable(fleetServerId, {
+      type: 'backup.part',
+      payload: {
+        match_id: matchSlug,
+        backup: {
+          ...base,
+          data: raw.subarray(i * PART_RAW, (i + 1) * PART_RAW).toString('base64'),
+          part: i + 1,
+          parts,
+        },
+      },
+    });
+  }
+  return parts;
 }

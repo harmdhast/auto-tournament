@@ -50,7 +50,7 @@ import { emitBracketUpdate, emitMatchUpdate, getIO } from '../../../services/soc
 import type { DbMatchRow } from '../../../types/database.types';
 import { ulid } from './credentials';
 import { roundBackupStore, type RoundBackupMeta } from './backups';
-import { inlineBackupFor } from './restore';
+import { inlineBackupFor, sendBackupParts } from './restore';
 import { assignMatch, fenceEpoch, getAssignment, restoreAssignment } from './driver';
 import { fleetBus, onFleetServerReady } from './service';
 import { liveStateStore } from './state';
@@ -278,14 +278,19 @@ function parseBuild(text: string | null): number | null {
 }
 
 /** The fleet servers that could take a match right now, the failover reserve included. */
-/** The free servers held back for failover right now (the reserve, FLEET.md §11). */
-export async function heldFleetSpares(): Promise<FailoverCandidate[]> {
-  const [reserve, all] = await Promise.all([reserveCount(), freeFleetServers()]);
-  const free = failoverTargets(all);
-  const held = pickReserved(
-    free.map((c) => ({ id: c.cs2ServerId, name: c.name })),
+/** Which of these free servers are the ones held back for failover (cs2 ids). Servers opted out of failover are never held. */
+async function heldIn(free: readonly FailoverCandidate[]): Promise<Set<string>> {
+  const reserve = await reserveCount();
+  return pickReserved(
+    failoverTargets(free).map((c) => ({ id: c.cs2ServerId, name: c.name })),
     reserve.effective
   );
+}
+
+/** The free servers held back for failover right now (the reserve, FLEET.md §11). */
+export async function heldFleetSpares(): Promise<FailoverCandidate[]> {
+  const free = failoverTargets(await freeFleetServers());
+  const held = await heldIn(free);
   return free.filter((c) => held.has(c.cs2ServerId));
 }
 
@@ -500,11 +505,17 @@ async function runScan(options: ScanOptions): Promise<ScanResult> {
     if (p.reason === 'restarted') continue;
     free ??= failoverTargets(await freeFleetServers());
     if (!p.targetCs2ServerId || !free.some((c) => c.cs2ServerId === p.targetCs2ServerId)) {
-      const target = pickTarget(free, {
-        cs2ServerId: p.fromCs2ServerId,
-        fleetServerId: p.fromServerId,
-        ...(await serverTraits(p.fromServerId)),
-      });
+      const target = pickTarget(
+        free,
+        {
+          cs2ServerId: p.fromCs2ServerId,
+          fleetServerId: p.fromServerId,
+          ...(await serverTraits(p.fromServerId)),
+        },
+        null,
+        [],
+        await heldIn(free)
+      );
       if ((target?.cs2ServerId ?? null) !== p.targetCs2ServerId) {
         await db.runAsync(
           'UPDATE cs2_fleet_failovers SET target_cs2_server_id = ?, updated_at = ? WHERE id = ?',
@@ -560,11 +571,22 @@ async function createProposal(input: {
   const target =
     input.targetCs2ServerId !== undefined
       ? input.targetCs2ServerId
-      : (pickTarget(failoverTargets(await freeFleetServers()), {
-          cs2ServerId: input.cs2ServerId,
-          fleetServerId: input.fleetServerId,
-          ...(await serverTraits(input.fleetServerId)),
-        })?.cs2ServerId ?? null);
+      : await (async () => {
+          const free = await freeFleetServers();
+          return (
+            pickTarget(
+              failoverTargets(free),
+              {
+                cs2ServerId: input.cs2ServerId,
+                fleetServerId: input.fleetServerId,
+                ...(await serverTraits(input.fleetServerId)),
+              },
+              null,
+              [],
+              await heldIn(free)
+            )?.cs2ServerId ?? null
+          );
+        })();
   const id = ulid();
   const now = nowS();
   const inserted = await db.runAsync(
@@ -726,7 +748,8 @@ export async function acceptFailover(id: string, req: AcceptRequest): Promise<Ac
         ...(await serverTraits(proposal.fromServerId)),
       },
       req.targetServerId ?? proposal.targetCs2ServerId,
-      req.exclude ?? []
+      req.exclude ?? [],
+      await heldIn(free)
     );
     if (req.targetServerId && target?.cs2ServerId !== req.targetServerId) {
       return refuse(409, 'target_unavailable', 'That server is not free for a match now', proposal);
@@ -753,6 +776,18 @@ export async function acceptFailover(id: string, req: AcceptRequest): Promise<Ac
       );
   }
   const inline = round >= 1 ? await inlineBackupFor(slug, proposal.mapNumber, round) : null;
+  // Too large to go inline: the server that wrote it uses its own file (backup_ref);
+  // another server gets it in parts first (backup.part), or cannot take this round.
+  const sendParts =
+    !!backupMeta && !inline && !inPlace && backupMeta.serverId !== target.fleetServerId;
+  if (sendParts && !target.capabilities.includes('match.backup_parts.v1')) {
+    return refuse(
+      409,
+      'backup_too_large',
+      'This backup is too large to send to that server: pick an earlier round or a server with a newer Ready Up',
+      proposal
+    );
+  }
 
   // Claim it: one move wins.
   const claimed = await db.runAsync(
@@ -808,6 +843,10 @@ export async function acceptFailover(id: string, req: AcceptRequest): Promise<Ac
   serverAllocationTracker.markAllocated(target.cs2ServerId, slug);
   await db.updateAsync('matches', { server_id: target.cs2ServerId }, 'slug = ?', [slug]);
 
+  if (sendParts && backupMeta) {
+    const row = await roundBackupStore.get(slug, proposal.mapNumber, round);
+    if (row) await sendBackupParts(target.fleetServerId, slug, row);
+  }
   const load = await assignMatch(slug, target.cs2ServerId, { resume });
   if (!load.success) {
     const error = load.error ?? 'The server did not take the match';

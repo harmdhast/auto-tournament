@@ -21,6 +21,7 @@ import authRotated from './messages/auth.rotated.json';
 import matchAssign from './messages/match.assign.json';
 import matchUpdate from './messages/match.update.json';
 import matchUnassign from './messages/match.unassign.json';
+import backupPart from './messages/backup.part.json';
 import cmd from './messages/cmd.json';
 import cmdResult from './messages/cmd.result.json';
 import stateRequest from './messages/state.request.json';
@@ -84,7 +85,8 @@ export const FLEET_MESSAGE_SCHEMAS: Record<FleetMessageType, Record<string, unkn
   'match.assign': matchAssign,
   'match.update': matchUpdate,
   'match.unassign': matchUnassign,
-  'cmd': cmd,
+  'backup.part': backupPart,
+  cmd: cmd,
   'cmd.result': cmdResult,
   'state.request': stateRequest,
   'state.snapshot': stateSnapshot,
@@ -159,7 +161,12 @@ let compiled: {
 function validators() {
   if (compiled) return compiled;
   // allowUnionTypes: match.defs.json's `cvars` values are `["string", "number", "boolean"]`.
-  const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, allowUnionTypes: true });
+  const ajv = new Ajv2020({
+    allErrors: true,
+    strict: true,
+    strictRequired: false,
+    allowUnionTypes: true,
+  });
   ajv.addSchema(defs);
   ajv.addSchema(matchDefs);
   const messages = new Map<string, ValidateFunction>();
