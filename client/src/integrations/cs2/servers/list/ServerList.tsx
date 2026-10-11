@@ -239,17 +239,19 @@ function ServerListRow({
   let version: string | null = null;
   let tag: string | null = null;
   let match: ServerMatch | null = null;
+  let line = '';
 
   if (row.kind === 'rcon') {
     const s = row.server;
     const rcon = rconState(s, props.readAt);
     match = props.matches[s.id] ?? null;
+    line = match ? matchLine(match) : '';
     const inMatch = match !== null && (rcon.tone === color.accent || rcon.tone === color.live);
     const tone = inMatch ? stateTone.match : rcon.tone;
     name = s.name;
     mark = <Box aria-hidden sx={{ ...DOT, bgcolor: tone }} />;
     state = <StateChip label={inMatch ? stateLabel('match', match) : rcon.word} tone={tone} />;
-    if (inMatch && match) reason = <Line area="sub">{matchLine(match)}</Line>;
+    if (inMatch && line) reason = <Line area="sub">{line}</Line>;
     address = `${s.host}:${s.port}`;
     version = s.pluginVersion ?? null;
     tag = t('serversList.transport.rcon', { defaultValue: 'RCON' });
@@ -258,6 +260,7 @@ function ServerListRow({
     const machineState = serverState(host, server, props.fleet.isDeleting(host, server.name));
     const matchKey = row.fleet?.linkedServerId ?? server.fleetServer?.id;
     match = matchKey ? (props.matches[matchKey] ?? null) : null;
+    line = match ? matchLine(match) : '';
     name = row.fleet?.name ?? server.fleetServer?.name ?? server.name;
     // The machine's word while csm moves it, stopped or down; Ready Up's once it runs.
     const readyUpSays =
@@ -280,8 +283,8 @@ function ServerListRow({
       mark = <StateMark state={machineState} />;
       state = <StateChip label={stateLabel(machineState, match)} tone={stateTone[machineState]} />;
     }
-    if (inMatch && match) {
-      reason = <Line area="sub">{matchLine(match)}</Line>;
+    if (inMatch && line) {
+      reason = <Line area="sub">{line}</Line>;
     } else if (MOVING.includes(machineState)) {
       // Its own command, else the machine update it is part of.
       const own =
@@ -333,6 +336,7 @@ function ServerListRow({
   } else {
     const f = row.fleet;
     match = props.matches[f.linkedServerId ?? f.id] ?? null;
+    line = match ? matchLine(match) : '';
     const inMatch = match !== null && f.status === 'enrolled';
     name = f.name;
     mark = (
@@ -345,8 +349,8 @@ function ServerListRow({
     ) : (
       <StateChip label={t(`fleetPanel.status.${f.status}`)} tone={color.muted} />
     );
-    if (inMatch && match) {
-      reason = <Line area="sub">{matchLine(match)}</Line>;
+    if (inMatch && line) {
+      reason = <Line area="sub">{line}</Line>;
     } else if (f.status === 'enrolled' && !f.online && f.lastSeen) {
       reason = (
         <Line area="sub">
