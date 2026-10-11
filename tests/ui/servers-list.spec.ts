@@ -100,6 +100,10 @@ async function stubAll(page: Page, fleetOver: Record<string, Record<string, unkn
 
 interface StubMatch {
   slug: string;
+  status?: string;
+  allocatable?: boolean;
+  vetoing?: boolean;
+  vetoCompleted?: boolean;
   matchPhase: string | null;
   team1MapScore?: number;
   team2MapScore?: number;
@@ -118,7 +122,11 @@ async function stubMatches(page: Page, byServer: Record<string, StubMatch>) {
       route.fulfill({
         json: {
           success: true,
-          servers: Object.entries(byServer).map(([id, m]) => ({ id, matchSlug: m.slug })),
+          servers: Object.entries(byServer).map(([id, m]) => ({
+            id,
+            matchSlug: m.slug,
+            allocatable: m.allocatable ?? false,
+          })),
         },
       })
   );
@@ -634,5 +642,91 @@ test.describe('Server list', () => {
     await page.getByTestId('server-row-menu-r:c').click();
     await expect(page.getByRole('menuitem', { name: 'Open', exact: true })).toBeVisible();
     await expect(page.getByTestId('server-row-open-match-r:c')).toHaveCount(0);
+  });
+
+  test('a veto row says Veto and shows the teams only', async ({ page }) => {
+    await stubAll(page, { a: { availability: 'busy', availabilityReason: null } });
+    await stubMatches(page, {
+      'cs2-a': {
+        slug: 'm-veto',
+        matchPhase: null,
+        vetoing: true,
+        vetoCompleted: false,
+        currentMap: 'de_inferno',
+        maps: ['de_inferno'],
+      },
+    });
+    await page.goto('/manage/servers');
+    const row = page.getByTestId(MACHINE_ROW);
+    await expect(row.getByTestId('server-row-state-m:m1:server-1')).toContainText('Veto');
+    await expect(row.getByText('Team A vs Team B', { exact: true })).toBeVisible();
+    await expect(row).not.toContainText('de_inferno');
+  });
+
+  test('a stopped machine keeps its own state while availability lists a match', async ({
+    page,
+  }) => {
+    await stubAll(page, { a: { availability: 'busy', availabilityReason: null } });
+    await stubMachines(page, [
+      machineHost('m1', [{ name: 'server-1', fleetId: 'a', process: { running: false } }]),
+    ]);
+    await stubMatches(page, { 'cs2-a': { slug: 'm-live', matchPhase: 'live' } });
+    await page.goto('/manage/servers');
+    const row = page.getByTestId(MACHINE_ROW);
+    await expect(row.getByTestId('server-row-state-m:m1:server-1')).toContainText('Stopped');
+    await expect(row).toContainText('Starts when a match needs it');
+    await expect(row).not.toContainText('Team A vs Team B');
+  });
+
+  test('a slug on a free server does not make it a match row', async ({ page }) => {
+    await stubAll(page, { a: { availability: 'available', availabilityReason: null } });
+    await stubMatches(page, { 'cs2-a': { slug: 'm-old', matchPhase: 'live', allocatable: true } });
+    await page.goto('/manage/servers');
+    const row = page.getByTestId(MACHINE_ROW);
+    await expect(row).toContainText('Free');
+    await expect(row).not.toContainText('Team A vs Team B');
+    await page.getByTestId('server-row-menu-m:m1:server-1').click();
+    await expect(page.getByTestId('server-row-open-match-m:m1:server-1')).toHaveCount(0);
+  });
+
+  test('a completed match does not keep its server busy', async ({ page }) => {
+    await stubAll(page, { a: { availability: 'available', availabilityReason: null } });
+    await stubMatches(page, {
+      'cs2-a': { slug: 'm-done', status: 'completed', matchPhase: 'live' },
+    });
+    await page.goto('/manage/servers');
+    const row = page.getByTestId(MACHINE_ROW);
+    await expect(row).toContainText('Free');
+    await expect(row).not.toContainText('Team A vs Team B');
+    await page.getByTestId('server-row-menu-m:m1:server-1').click();
+    await expect(page.getByTestId('server-row-open-match-m:m1:server-1')).toHaveCount(0);
+  });
+
+  test('an offline Ready Up row shows its state, not its match', async ({ page }) => {
+    await stubAll(page, { b: { online: false, lastSeen: Math.floor(Date.now() / 1000) - 600 } });
+    await stubMatches(page, {
+      'cs2-b': { slug: 'm-b', matchPhase: 'live', currentMap: 'de_dust2' },
+    });
+    await page.goto('/manage/servers');
+    const row = page.getByTestId('server-row-r:b');
+    await expect(row.getByTestId('server-row-state-r:b')).toContainText('Offline');
+    await expect(row).toContainText('Seen');
+    await expect(row).not.toContainText('Live');
+  });
+
+  test('a match still loading keeps the row reason', async ({ page }) => {
+    await stubAll(page, { a: { availability: 'busy', availabilityReason: null } });
+    await stubMachines(page, [
+      machineHost('m1', [{ name: 'server-1', fleetId: 'a', process: { restarts_24h: 2 } }]),
+    ]);
+    await stubMatches(page, { 'cs2-a': { slug: 'm-live', matchPhase: 'live' } });
+    await page.route(
+      (url) => /^\/api\/matches\/[^/]+$/.test(url.pathname),
+      (route) => route.fulfill({ status: 500, json: { success: false } })
+    );
+    await page.goto('/manage/servers');
+    const row = page.getByTestId(MACHINE_ROW);
+    await expect(row.getByTestId('server-row-state-m:m1:server-1')).toContainText('Match');
+    await expect(row).toContainText('2 restarts in 24 h');
   });
 });
