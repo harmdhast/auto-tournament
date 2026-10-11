@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Chip, Skeleton } from '@mui/material';
+import React from 'react';
+import { Box, ButtonBase, Chip, Skeleton } from '@mui/material';
 import type { ManageResourcesProps } from '../../types';
 import {
-  api,
   getBracketMatchLabel,
   links,
   LiveChip,
+  openMatchDetails,
   radii,
   SectionHead,
   textSize,
@@ -13,70 +13,27 @@ import {
   useModuleTranslation,
 } from '../../../module-sdk';
 import type { ServerAllocationInfo } from '../cs2.types';
+import type { ServerMatch } from './fleet/useServerMatches';
+import { useServerMatches } from './fleet/useServerMatches';
+import { stateTone, useStateLabel, useTileMatchLine, useMatchLine } from './fleet/serverStateMark';
 import { useServerAvailability } from './useServerAvailability';
 import { useUnconfiguredServers } from './useUnconfiguredServers';
 
-/** The two team names of a match, for a server running one with no bracket label. */
-type TeamNames = { team1?: string; team2?: string };
-
-/**
- * The team names of the matches the servers are running, asked per match the
- * first time a server shows one. A match keeps its teams while it runs, so an
- * answer is kept for as long as the grid is open.
- */
-function useTeamNames(slugs: string[]): Map<string, TeamNames> {
-  const [names, setNames] = useState<Map<string, TeamNames>>(() => new Map());
-  const missing = slugs.filter((slug) => !names.has(slug));
-  const missingKey = missing.join(',');
-
-  useEffect(() => {
-    if (!missingKey) return;
-    let cancelled = false;
-    void Promise.all(
-      missingKey.split(',').map(async (slug): Promise<[string, TeamNames]> => {
-        try {
-          const res = await api.get<{
-            match?: { team1?: { name?: string } | null; team2?: { name?: string } | null };
-          }>(`/api/matches/${encodeURIComponent(slug)}`);
-          return [slug, { team1: res.match?.team1?.name, team2: res.match?.team2?.name }];
-        } catch {
-          return [slug, {}];
-        }
-      })
-    ).then((entries) => {
-      if (cancelled) return;
-      setNames((prev) => {
-        const next = new Map(prev);
-        for (const [slug, teams] of entries) next.set(slug, teams);
-        return next;
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [missingKey]);
-
-  return names;
-}
-
 /**
  * The Manage console's server grid (`dashboardWidgets.manageResources`). It
- * asks the fleet itself on the console's 5-second cadence, and the team names
- * of what runs on it (client API 0.2.0): the console hands it only the
- * tournament.
+ * asks the fleet itself on the console's 5-second cadence, and what runs on
+ * it (client API 0.2.0): the console hands it only the tournament.
  */
 export const ServerGrid: React.FC<ManageResourcesProps> = () => {
   const { availability, answers } = useServerAvailability(5000);
   const servers = availability?.servers ?? [];
   const unconfigured = useUnconfiguredServers(30_000);
-  const teamNames = useTeamNames(
-    servers.filter((s) => !bracketLabel(s)).flatMap((s) => (s.matchSlug ? [s.matchSlug] : []))
-  );
+  const matches = useServerMatches();
   return (
     <ServerGridView
       servers={servers}
       unconfigured={unconfigured}
-      teamNames={teamNames}
+      matches={matches}
       answers={answers}
     />
   );
@@ -150,17 +107,31 @@ const Tile: React.FC<{
   chip: React.ReactNode;
   line: React.ReactNode;
   bad?: boolean;
+  lineTitle?: string;
+  /** Makes the tile a button that does this. */
+  onOpen?: () => void;
+  openLabel?: string;
   'data-testid'?: string;
-}> = ({ name, chip, line, bad, ...rest }) => (
+}> = ({ name, chip, line, bad, lineTitle, onOpen, openLabel, ...rest }) => (
   <Box
+    component={onOpen ? ButtonBase : 'div'}
+    onClick={onOpen}
+    aria-label={onOpen ? openLabel : undefined}
     data-testid={rest['data-testid']}
     sx={{
+      textAlign: 'left',
+      color: 'inherit',
+      font: 'inherit',
+      fontSize: textSize.sm,
+      ...(onOpen && {
+        '&:hover': { borderColor: tokens.color.accent },
+        '&.Mui-focusVisible': { outline: `2px solid ${tokens.color.focus}` },
+      }),
       p: 2,
       display: 'grid',
       gap: 0.5,
       alignContent: 'start',
       minWidth: 0,
-      fontSize: textSize.sm,
       border: `1px solid ${bad ? tokens.color.ban : tokens.color.rule}`,
       borderRadius: radii.md,
     }}
@@ -193,7 +164,11 @@ const Tile: React.FC<{
       </Box>
       {chip}
     </Box>
-    <Box component="span" sx={{ color: tokens.color.muted, overflowWrap: 'anywhere' }}>
+    <Box
+      component="span"
+      title={lineTitle}
+      sx={{ color: tokens.color.muted, overflowWrap: 'anywhere' }}
+    >
       {line}
     </Box>
   </Box>
@@ -211,11 +186,16 @@ const ServerGridView: React.FC<{
   servers: ServerAllocationInfo[];
   /** Added but never set up: listed so the grid matches the Servers page. */
   unconfigured: { id: string; name: string }[];
-  teamNames: Map<string, TeamNames>;
+  /** Fleet server id → the match on it. */
+  matches: Record<string, ServerMatch>;
   /** How many availability answers have arrived; 0 while the first is on its way. */
   answers: number;
-}> = ({ servers, unconfigured, teamNames, answers }) => {
+}> = ({ servers, unconfigured, matches, answers }) => {
   const { t } = useModuleTranslation('cs2');
+  const stateLabel = useStateLabel();
+  const matchLine = useMatchLine();
+  const tileMatchLine = useTileMatchLine();
+  const checking = answers < 2;
 
   const body = () => {
     if (answers === 0) {
@@ -254,20 +234,11 @@ const ServerGridView: React.FC<{
     return (
       <Box sx={gridSx}>
         {servers.map((server) => {
-          const match = server.matchSlug ? teamNames.get(server.matchSlug) : undefined;
-          const matchLabel =
-            server.matchSlug &&
-            (bracketLabel(server) ||
-              (match?.team1 && match?.team2
-                ? t('managePage.needsYou.vsLabel', {
-                    team1: match.team1,
-                    team2: match.team2,
-                  })
-                : server.matchSlug));
+          const match = matches[server.id];
 
           if (!server.online) {
             const neverHeard = !server.updatedAt;
-            if (neverHeard && answers < 2) {
+            if (neverHeard && checking) {
               return (
                 <Tile
                   key={server.id}
@@ -298,13 +269,33 @@ const ServerGridView: React.FC<{
             );
           }
 
-          if (matchLabel) {
+          if (match && server.matchSlug) {
+            const slug = server.matchSlug;
+            return (
+              <Tile
+                key={server.id}
+                name={server.name}
+                chip={
+                  <Chip
+                    size="small"
+                    label={stateLabel('match', match)}
+                    sx={{ color: stateTone.match }}
+                  />
+                }
+                line={tileMatchLine(match, bracketLabel(server))}
+                lineTitle={matchLine(match)}
+                onOpen={() => void openMatchDetails(slug).catch(() => undefined)}
+                openLabel={`${t('serversBoard.openMatch', { defaultValue: 'Open the match' })}: ${server.name}`}
+              />
+            );
+          }
+          if (server.matchSlug) {
             return (
               <Tile
                 key={server.id}
                 name={server.name}
                 chip={<LiveChip label={t('managePage.servers.inMatch')} />}
-                line={matchLabel}
+                line={bracketLabel(server) || server.matchSlug}
               />
             );
           }

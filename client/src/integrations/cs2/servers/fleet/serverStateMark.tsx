@@ -53,26 +53,46 @@ export function useStateLabel() {
   };
 }
 
+const dash = (pair: [number, number]) => `${pair[0]} – ${pair[1]}`;
+
+/** The map with its score; the score waits for the match to be played, the map for the veto. */
+function mapPart(m: ServerMatch): string | null {
+  if (m.phase === 'veto') return null;
+  const score = m.score && m.phase !== 'warmup' ? dash(m.score) : null;
+  if (m.map) return score ? `${m.map} ${score}` : m.map;
+  return score;
+}
+
+const teamsPart = (m: ServerMatch) => (m.team1 || m.team2 ? `${m.team1} vs ${m.team2}` : null);
+
 /** One line on a match: the teams, the map with its score, how far the series is. */
 export function useMatchLine() {
   const { t } = useModuleTranslation('cs2');
   return (m: ServerMatch): string => {
     const parts: string[] = [];
-    if (m.team1 || m.team2) parts.push(`${m.team1} vs ${m.team2}`);
-    if (m.phase !== 'veto') {
-      const score = m.score ? `${m.score[0]} – ${m.score[1]}` : null;
-      const showScore = score && m.phase !== 'warmup';
-      if (m.map) parts.push(showScore ? `${m.map} ${score}` : m.map);
-      else if (showScore) parts.push(score);
-    }
+    const teams = teamsPart(m);
+    if (teams) parts.push(teams);
+    const map = mapPart(m);
+    if (map) parts.push(map);
     if (m.maps > 1 && m.mapNumber !== null) {
       const of = t('serversBoard.mapOf', {
         defaultValue: 'Map {{n}} of {{count}}',
         n: m.mapNumber + 1,
         count: m.maps,
       });
-      parts.push(m.series ? `${of} (${m.series[0]} – ${m.series[1]})` : of);
+      parts.push(m.series ? `${of} (${dash(m.series)})` : of);
     }
+    return parts.join(' · ');
+  };
+}
+
+/** A tile's line on a match: its bracket label (else the teams, else the slug), the map with its score, the series. */
+export function useTileMatchLine() {
+  return (m: ServerMatch, bracketLabel: string | null): string => {
+    const parts = [bracketLabel || teamsPart(m) || m.slug];
+    const map = mapPart(m);
+    if (map) parts.push(map);
+    if (m.maps > 1 && m.series) parts.push(dash(m.series));
     return parts.join(' · ');
   };
 }
