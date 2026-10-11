@@ -258,6 +258,10 @@ export function asServerAvailability(
 export interface ServerFleetCounts {
   online: number;
   inMatch: number;
+  /** Not taking matches for another reason (a Ready Up server waiting for reset, draining, ...). */
+  busy: number;
+  /** Held back for failover. */
+  spare: number;
   free: number;
   offline: number;
   /** Added and enabled, but never sent an event: the allocator cannot use them yet. */

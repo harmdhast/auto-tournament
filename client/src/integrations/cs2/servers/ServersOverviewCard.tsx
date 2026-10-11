@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Box, Card, CardContent, Skeleton, Stack, Typography } from '@mui/material';
-import { api, links, useModuleTranslation, radii } from '../../../module-sdk';
+import { api, links, radii, tokens, useModuleTranslation } from '../../../module-sdk';
 import {
   SERVER_AVAILABILITY_ENDPOINT,
   type PluginVersionSummary,
@@ -21,6 +21,8 @@ function countFleet(availability: ServerAvailability, servers: Server[]): Server
   const counts: ServerFleetCounts = {
     online: 0,
     inMatch: 0,
+    busy: 0,
+    spare: 0,
     free: 0,
     offline: 0,
     notConfigured,
@@ -34,7 +36,11 @@ function countFleet(availability: ServerAvailability, servers: Server[]): Server
     }
     counts.online += 1;
     if (server.allocatable) counts.free += 1;
-    else counts.inMatch += 1;
+    else if (server.busyReason === 'reserved' || server.notAllocatableReason === 'reserved')
+      counts.spare += 1;
+    else if (server.matchSlug || !server.busyReason || server.busyReason === 'local_match')
+      counts.inMatch += 1;
+    else counts.busy += 1;
   }
   return counts;
 }
@@ -83,7 +89,16 @@ function useFleetSummary(): {
   return { loaded, fleet, pluginVersions };
 }
 
-/** A thin stacked bar: in-match / free / offline, in that order (matches the Manage server grid's chip colours). */
+/** The server list's availability colours (fleet/readyup/AvailabilityChip.tsx availabilityTone). */
+const TONE = {
+  inMatch: tokens.color.accent,
+  busy: 'warning.main',
+  spare: tokens.color.info,
+  free: tokens.color.live,
+  offline: tokens.color.ban,
+} as const;
+
+/** A thin stacked bar: in a match / busy / spare / free / offline, in that order. */
 function FleetBar({ fleet }: { fleet: ServerFleetCounts }) {
   const total = fleet.total || 1;
   const pct = (n: number) => `${(n / total) * 100}%`;
@@ -98,9 +113,11 @@ function FleetBar({ fleet }: { fleet: ServerFleetCounts }) {
         display: 'flex',
       }}
     >
-      <Box sx={{ width: pct(fleet.inMatch), bgcolor: 'info.main' }} />
-      <Box sx={{ width: pct(fleet.free), bgcolor: 'success.main' }} />
-      <Box sx={{ width: pct(fleet.offline), bgcolor: 'error.main' }} />
+      <Box sx={{ width: pct(fleet.inMatch), bgcolor: TONE.inMatch }} />
+      <Box sx={{ width: pct(fleet.busy), bgcolor: TONE.busy }} />
+      <Box sx={{ width: pct(fleet.spare), bgcolor: TONE.spare }} />
+      <Box sx={{ width: pct(fleet.free), bgcolor: TONE.free }} />
+      <Box sx={{ width: pct(fleet.offline), bgcolor: TONE.offline }} />
       <Box sx={{ width: pct(fleet.notConfigured), bgcolor: 'action.disabled' }} />
     </Box>
   );
@@ -157,32 +174,34 @@ export function ServersOverviewCard() {
               </Typography>
             </Box>
             <FleetBar fleet={fleet} />
-            <Box display="flex" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">
-                {t('dashboard.servers.inMatch')}
-              </Typography>
-              <Typography variant="body2" fontWeight={600}>
-                {fleet.inMatch}
-              </Typography>
-            </Box>
-            <Box display="flex" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">
-                {t('dashboard.servers.free')}
-              </Typography>
-              <Typography variant="body2" fontWeight={600}>
-                {fleet.free}
-              </Typography>
-            </Box>
-            <Box display="flex" justifyContent="space-between">
-              <Typography variant="body2" color="error.main">
-                {t('dashboard.servers.offline')}
-              </Typography>
-              <Typography variant="body2" fontWeight={600} color="error.main">
-                {fleet.offline}
-              </Typography>
-            </Box>
+            {(['inMatch', 'busy', 'spare', 'free', 'offline'] as const)
+              .filter((k) => fleet[k] > 0 || k === 'inMatch' || k === 'free' || k === 'offline')
+              .map((k) => (
+                <Box key={k} display="flex" justifyContent="space-between" alignItems="center">
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Box
+                      aria-hidden
+                      sx={{ width: 8, height: 8, borderRadius: radii.pill, bgcolor: TONE[k] }}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      {t(`dashboard.servers.${k}`)}
+                    </Typography>
+                  </Box>
+                  <Typography
+                    variant="body2"
+                    fontWeight={600}
+                    data-testid={`admin-home-servers-${k}`}
+                  >
+                    {fleet[k]}
+                  </Typography>
+                </Box>
+              ))}
             {fleet.notConfigured > 0 && (
-              <Box display="flex" justifyContent="space-between" data-testid="admin-home-servers-not-configured">
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                data-testid="admin-home-servers-not-configured"
+              >
                 <Typography variant="body2" color="text.secondary">
                   {t('dashboard.servers.notConfigured')}
                 </Typography>
