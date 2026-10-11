@@ -239,7 +239,7 @@ export interface BracketMatch {
   team1MapScore?: number | null;
   team2MapScore?: number | null;
   /** Live phase from the plugin; null once completed or without live stats. */
-  matchPhase?: LiveStatus | null;
+  liveStatus?: LiveStatus | null;
   mapResults?: Array<{
     mapNumber: number;
     mapName?: string | null;

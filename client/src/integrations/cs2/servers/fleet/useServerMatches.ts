@@ -33,7 +33,7 @@ interface MatchResponse {
     currentMap?: string | null;
     mapNumber?: number | null;
     maps?: string[];
-    matchPhase?: string | null;
+    liveStatus?: string | null;
     vetoing?: boolean;
     vetoCompleted?: boolean;
   };
@@ -50,11 +50,11 @@ function toServerMatch(m: NonNullable<MatchResponse['match']>): ServerMatch {
   const phase =
     m.vetoing || m.vetoCompleted === false
       ? 'veto'
-      : m.matchPhase === 'warmup' || m.matchPhase === 'knife' || m.matchPhase === 'live'
-        ? m.matchPhase
-        : m.matchPhase === 'halftime'
+      : m.liveStatus === 'warmup' || m.liveStatus === 'knife' || m.liveStatus === 'live'
+        ? m.liveStatus
+        : m.liveStatus === 'halftime'
           ? 'live'
-          : m.matchPhase === 'postgame' || m.matchPhase === 'post_match'
+          : m.liveStatus === 'postgame'
             ? 'post'
             : null;
   const s1 = m.team1MapScore;

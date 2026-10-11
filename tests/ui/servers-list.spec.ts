@@ -104,7 +104,7 @@ interface StubMatch {
   allocatable?: boolean;
   vetoing?: boolean;
   vetoCompleted?: boolean;
-  matchPhase: string | null;
+  liveStatus: string | null;
   team1MapScore?: number;
   team2MapScore?: number;
   team1SeriesScore?: number;
@@ -545,7 +545,7 @@ test.describe('Server list', () => {
     await stubMatches(page, {
       'cs2-a': {
         slug: 'm-live',
-        matchPhase: 'live',
+        liveStatus: 'live',
         team1MapScore: 7,
         team2MapScore: 5,
         currentMap: 'de_inferno',
@@ -564,7 +564,7 @@ test.describe('Server list', () => {
     await stubMatches(page, {
       'cs2-a': {
         slug: 'm-warm',
-        matchPhase: 'warmup',
+        liveStatus: 'warmup',
         currentMap: 'de_mirage',
         mapNumber: 0,
         maps: ['de_mirage'],
@@ -582,7 +582,7 @@ test.describe('Server list', () => {
     await stubMatches(page, {
       'cs2-a': {
         slug: 'm-warm-nomap',
-        matchPhase: 'warmup',
+        liveStatus: 'warmup',
         mapNumber: 0,
         maps: ['de_vertigo'],
       },
@@ -598,7 +598,7 @@ test.describe('Server list', () => {
     await stubMatches(page, {
       'cs2-a': {
         slug: 'm-bo3',
-        matchPhase: 'live',
+        liveStatus: 'live',
         team1MapScore: 3,
         team2MapScore: 1,
         team1SeriesScore: 1,
@@ -619,7 +619,7 @@ test.describe('Server list', () => {
     await stubMatches(page, {
       'cs2-b': {
         slug: 'm-b',
-        matchPhase: 'knife',
+        liveStatus: 'knife',
         currentMap: 'de_dust2',
         mapNumber: 0,
         maps: ['de_dust2'],
@@ -636,7 +636,7 @@ test.describe('Server list', () => {
     await stubMatches(page, {
       rc1: {
         slug: 'm-rc',
-        matchPhase: 'live',
+        liveStatus: 'live',
         team1MapScore: 2,
         team2MapScore: 0,
         currentMap: 'de_anubis',
@@ -653,19 +653,20 @@ test.describe('Server list', () => {
   test('the row menu opens the match', async ({ page }) => {
     await stubAll(page);
     await stubMatches(page, {
-      'cs2-b': { slug: 'm-b', matchPhase: 'live', currentMap: 'de_dust2', maps: ['de_dust2'] },
+      'cs2-b': { slug: 'm-b', liveStatus: 'live', currentMap: 'de_dust2', maps: ['de_dust2'] },
     });
     await page.goto('/manage/servers');
     await expect(page.getByTestId('server-row-r:b')).toContainText('Team A vs Team B');
     await page.getByTestId('server-row-menu-r:b').click();
     await page.getByTestId('server-row-open-match-r:b').click();
     await expect(page.getByRole('dialog')).toContainText('Team A');
+    await expect(page.getByRole('dialog').getByText(/^live$/i)).toHaveCount(1);
   });
 
   test('a row without a match has no open-match item', async ({ page }) => {
     await stubAll(page);
     await stubMatches(page, {
-      'cs2-b': { slug: 'm-b', matchPhase: 'live', currentMap: 'de_dust2', maps: ['de_dust2'] },
+      'cs2-b': { slug: 'm-b', liveStatus: 'live', currentMap: 'de_dust2', maps: ['de_dust2'] },
     });
     await page.goto('/manage/servers');
     await expect(page.getByTestId('server-row-r:b')).toContainText('Team A vs Team B');
@@ -679,7 +680,7 @@ test.describe('Server list', () => {
     await stubMatches(page, {
       'cs2-a': {
         slug: 'm-veto',
-        matchPhase: null,
+        liveStatus: null,
         vetoing: true,
         vetoCompleted: false,
         currentMap: 'de_inferno',
@@ -700,7 +701,7 @@ test.describe('Server list', () => {
     await stubMachines(page, [
       machineHost('m1', [{ name: 'server-1', fleetId: 'a', process: { running: false } }]),
     ]);
-    await stubMatches(page, { 'cs2-a': { slug: 'm-live', matchPhase: 'live' } });
+    await stubMatches(page, { 'cs2-a': { slug: 'm-live', liveStatus: 'live' } });
     await page.goto('/manage/servers');
     const row = page.getByTestId(MACHINE_ROW);
     await expect(row.getByTestId('server-row-state-m:m1:server-1')).toContainText('Stopped');
@@ -710,7 +711,7 @@ test.describe('Server list', () => {
 
   test('a slug on a free server does not make it a match row', async ({ page }) => {
     await stubAll(page, { a: { availability: 'available', availabilityReason: null } });
-    await stubMatches(page, { 'cs2-a': { slug: 'm-old', matchPhase: 'live', allocatable: true } });
+    await stubMatches(page, { 'cs2-a': { slug: 'm-old', liveStatus: 'live', allocatable: true } });
     await page.goto('/manage/servers');
     const row = page.getByTestId(MACHINE_ROW);
     await expect(row).toContainText('Free');
@@ -722,7 +723,7 @@ test.describe('Server list', () => {
   test('a completed match does not keep its server busy', async ({ page }) => {
     await stubAll(page, { a: { availability: 'available', availabilityReason: null } });
     await stubMatches(page, {
-      'cs2-a': { slug: 'm-done', status: 'completed', matchPhase: 'live' },
+      'cs2-a': { slug: 'm-done', status: 'completed', liveStatus: 'live' },
     });
     await page.goto('/manage/servers');
     const row = page.getByTestId(MACHINE_ROW);
@@ -735,7 +736,7 @@ test.describe('Server list', () => {
   test('an offline Ready Up row shows its state, not its match', async ({ page }) => {
     await stubAll(page, { b: { online: false, lastSeen: Math.floor(Date.now() / 1000) - 600 } });
     await stubMatches(page, {
-      'cs2-b': { slug: 'm-b', matchPhase: 'live', currentMap: 'de_dust2' },
+      'cs2-b': { slug: 'm-b', liveStatus: 'live', currentMap: 'de_dust2' },
     });
     await page.goto('/manage/servers');
     const row = page.getByTestId('server-row-r:b');
@@ -749,7 +750,7 @@ test.describe('Server list', () => {
     await stubMachines(page, [
       machineHost('m1', [{ name: 'server-1', fleetId: 'a', process: { restarts_24h: 2 } }]),
     ]);
-    await stubMatches(page, { 'cs2-a': { slug: 'm-live', matchPhase: 'live' } });
+    await stubMatches(page, { 'cs2-a': { slug: 'm-live', liveStatus: 'live' } });
     await page.route(
       (url) => /^\/api\/matches\/[^/]+$/.test(url.pathname),
       (route) => route.fulfill({ status: 500, json: { success: false } })

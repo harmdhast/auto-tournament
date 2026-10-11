@@ -46,13 +46,15 @@ async function liveStatus(request: APIRequestContext, teamId: string): Promise<s
   return body.match?.liveStats?.status;
 }
 
-async function matchPhase(
+async function matchLiveStatus(
   request: APIRequestContext,
   slug: string
 ): Promise<string | null | undefined> {
   const res = await request.get(`/api/matches/${slug}`);
   expect(res.ok()).toBe(true);
-  return ((await res.json()) as { match: { matchPhase?: string | null } }).match.matchPhase;
+  const { match } = (await res.json()) as { match: { liveStatus?: string | null } };
+  expect(match).not.toHaveProperty('matchPhase');
+  return match.liveStatus;
 }
 
 test.describe.serial('Plugin phase to match status', () => {
@@ -153,13 +155,13 @@ test.describe.serial('Plugin phase to match status', () => {
     'the match response carries the live phase',
     { tag: ['@api', '@cs2-plugin'] },
     async ({ request }) => {
-      expect(await matchPhase(request, slug)).toBeNull();
+      expect(await matchLiveStatus(request, slug)).toBeNull();
 
       await applyPhase(request, slug, 'warmup');
-      expect(await matchPhase(request, slug)).toBe('warmup');
+      expect(await matchLiveStatus(request, slug)).toBe('warmup');
 
       await applyPhase(request, slug, 'live');
-      expect(await matchPhase(request, slug)).toBe('live');
+      expect(await matchLiveStatus(request, slug)).toBe('live');
     }
   );
 });

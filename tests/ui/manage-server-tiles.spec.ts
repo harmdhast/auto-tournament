@@ -38,7 +38,6 @@ const match = (slug: string, over: Record<string, unknown> = {}) => ({
   maps: ['de_inferno'],
   mapNumber: 0,
   currentMap: 'de_inferno',
-  matchPhase: 'live',
   liveStatus: 'live',
   vetoCompleted: true,
   team1MapScore: 7,
@@ -85,7 +84,6 @@ test('a server in a match shows its phase, map and score and opens the match', a
     {
       'ub-r1-m1': match('ub-r1-m1'),
       friendly: match('friendly', {
-        matchPhase: 'warmup',
         liveStatus: 'warmup',
         team1MapScore: 0,
         team2MapScore: 0,
@@ -122,7 +120,7 @@ test('server tiles sort by status, matches first', async ({ page }) => {
       entry('f-busy', { busyReason: 'draining' }),
     ],
     {
-      'm-warm': match('m-warm', { matchPhase: 'warmup', liveStatus: 'warmup' }),
+      'm-warm': match('m-warm', { liveStatus: 'warmup' }),
       'm-live': match('m-live'),
     }
   );

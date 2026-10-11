@@ -279,7 +279,7 @@ async function getMatchDetailsBySlug(slug: string): Promise<MatchListItem | null
     mapResults,
     liveStats,
   });
-  match.matchPhase = liveStats?.status ?? null;
+  match.liveStatus = liveStats?.status ?? null;
 
   // For shuffle tournaments, enrich players with ELO
   if (
@@ -825,7 +825,7 @@ router.get('/', async (req: Request, res: Response) => {
           mapResults,
           liveStats,
         });
-        match.matchPhase = liveStats?.status ?? null;
+        match.liveStatus = liveStats?.status ?? null;
 
         // For COMPLETED matches, if we still don't have any non‑zero score, fall
         // back to the final map result so the admin never sees "0‑0" after a
