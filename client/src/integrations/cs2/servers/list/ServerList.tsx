@@ -8,7 +8,6 @@ import { useState, type MouseEvent, type ReactNode } from 'react';
 import {
   Box,
   ButtonBase,
-  Chip,
   IconButton,
   ListItemIcon,
   Menu,
@@ -29,6 +28,7 @@ import { serverState } from '../machineState';
 import { MachineCard, runningOf } from '../fleet/MachineCard';
 import {
   MOVING,
+  StateChip,
   StateMark,
   stateTone,
   useMatchLine,
@@ -93,19 +93,6 @@ export interface ServerListProps {
   onOpen: (row: ServerRow) => void;
   onChanged: () => void;
   machine: MachineHandlers;
-}
-
-/** A state word as a chip in its state's colour; its full text on hover when the column cuts it. */
-function StateChip({ label, tone }: { label: string; tone: string }) {
-  return (
-    <Chip
-      size="small"
-      variant="outlined"
-      label={label}
-      title={label}
-      sx={{ color: tone, borderColor: tone, maxWidth: '100%' }}
-    />
-  );
 }
 
 const DOT = { width: 8, height: 8, borderRadius: radii.pill, flex: 'none' } as const;

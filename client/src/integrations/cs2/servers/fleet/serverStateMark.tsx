@@ -1,4 +1,4 @@
-import { Box, CircularProgress } from '@mui/material';
+import { Box, Chip, CircularProgress } from '@mui/material';
 import { radii, tokens, useModuleTranslation } from '../../../../module-sdk';
 import type { ServerTileState } from '../machineState';
 import type { ServerMatch } from './useServerMatches';
@@ -119,6 +119,19 @@ export function StateMark({ state, size = 8 }: { state: ServerTileState; size?: 
         bgcolor: stateTone[state],
         flex: 'none',
       }}
+    />
+  );
+}
+
+/** A state word as a chip in its state's colour; its full text on hover when the column cuts it. */
+export function StateChip({ label, tone }: { label: string; tone: string }) {
+  return (
+    <Chip
+      size="small"
+      variant="outlined"
+      label={label}
+      title={label}
+      sx={{ color: tone, borderColor: tone, maxWidth: '100%' }}
     />
   );
 }
