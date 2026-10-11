@@ -663,6 +663,8 @@
     "enabledHelper": "Servidores desativados não serão usados em jogos",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
+    "failoverUseLabel": "Usar para failover",
+    "failoverUseHelper": "Desligado: o failover automático nunca move aqui uma partida nem a mantém como reserva.",
     "overridesTitle": "Substituições MatchZy Enhanced (opcional)",
     "overridesDescription": "Estas definições substituem as predefinições globais do MatchZy Enhanced apenas para este servidor. Deixe em branco para usar os valores globais das Definições.",
     "chatPrefixLabel": "Substituição do prefixo do chat",
@@ -1605,6 +1607,7 @@
     "reserveAuto": "Automatic (1 once 2 servers are online)",
     "reserveStatus": "{{effective}} of {{pool}} online server(s) kept free for failover",
     "reserveHelp": "Spare servers stay idle: matches are not put on them, so one is ready when a server goes down. At least one server always takes matches. Spare servers count toward your license like any other server.",
+    "noTarget": "Nenhum servidor está livre para assumir um failover.",
     "summaryOn": "Automatic moves on",
     "summaryOff": "Automatic moves off"
   },

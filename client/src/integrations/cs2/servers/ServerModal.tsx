@@ -54,6 +54,7 @@ export default function ServerModal({ open, server, servers, onClose, onSave }: 
   const [password, setPassword] = useState('');
   const [enabled, setEnabled] = useState(true);
   const [tournamentUse, setTournamentUse] = useState(true);
+  const [failoverUse, setFailoverUse] = useState(true);
   const [skins, setSkins] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -72,6 +73,7 @@ export default function ServerModal({ open, server, servers, onClose, onSave }: 
       setPassword(server.password);
       setEnabled(server.enabled);
       setTournamentUse(server.tournamentUse !== false);
+      setFailoverUse(server.failoverUse !== false);
       setSkins(server.skins === true);
     } else {
       resetForm();
@@ -170,6 +172,7 @@ export default function ServerModal({ open, server, servers, onClose, onSave }: 
         password: password.trim(),
         enabled,
         tournamentUse,
+        failoverUse,
         skins,
         atConfig: null,
       };
@@ -181,6 +184,7 @@ export default function ServerModal({ open, server, servers, onClose, onSave }: 
           ...(isFleet ? {} : { host: payload.host, port: payload.port, password: payload.password }),
           enabled: payload.enabled,
           tournamentUse: payload.tournamentUse,
+          ...(isFleet ? { failoverUse: payload.failoverUse } : {}),
           skins: payload.skins,
           atConfig: payload.atConfig,
         });
@@ -439,6 +443,32 @@ export default function ServerModal({ open, server, servers, onClose, onSave }: 
                 </Box>
               }
             />
+
+            {isFleet && (
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={failoverUse && tournamentUse}
+                    disabled={!tournamentUse}
+                    onChange={(e) => setFailoverUse(e.target.checked)}
+                    inputProps={{ 'aria-label': t('serverModal.failoverUseLabel', { defaultValue: 'Use for failover' }) }}
+                    data-testid="server-failover-use"
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2" fontWeight={500}>
+                      {t('serverModal.failoverUseLabel', { defaultValue: 'Use for failover' })}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('serverModal.failoverUseHelper', {
+                        defaultValue: 'Off: automatic failover never moves a match here or keeps it as a spare.',
+                      })}
+                    </Typography>
+                  </Box>
+                }
+              />
+            )}
 
             <FormControlLabel
               control={

@@ -23,7 +23,8 @@
  *        Auto-failover (on by default) and the reserve: idle Ready Up servers
  *        normal allocation leaves for failover (null = automatic: 1 once two
  *        servers are online). Reserve servers count toward the license like
- *        any other server. The answer says which servers are held now.
+ *        any other server. The answer says which servers are held now and how
+ *        many free ones automatic failover may use (`failoverFree`).
  */
 
 import { Router, type Request, type Response } from 'express';
@@ -42,7 +43,7 @@ import {
   type FailoverProposal,
 } from '../fleet/failover';
 import { getFailoverSettings, MAX_RESERVE, reserveCount, setFailoverSettings } from '../fleet/failoverSettings';
-import { pickReserved } from '../fleet/failoverPlan';
+import { failoverTargets, pickReserved } from '../fleet/failoverPlan';
 import { liveStateStore } from '../fleet/state';
 import { getAssignment } from '../fleet/driver';
 import { db } from '../../../config/database';
@@ -187,8 +188,9 @@ failoverMatchRouter.post('/matches/:slug/failover/:id/dismiss', requireAuth, asy
 
 async function settingsView() {
   const [settings, reserve, free] = await Promise.all([getFailoverSettings(), reserveCount(), freeFleetServers()]);
+  const eligible = failoverTargets(free);
   const held = pickReserved(
-    free.map((c) => ({ id: c.cs2ServerId, name: c.name })),
+    eligible.map((c) => ({ id: c.cs2ServerId, name: c.name })),
     reserve.effective
   );
   return {
@@ -197,7 +199,8 @@ async function settingsView() {
       configured: reserve.configured,
       effective: reserve.effective,
       poolSize: reserve.poolSize,
-      held: free.filter((c) => held.has(c.cs2ServerId)).map((c) => ({ id: c.cs2ServerId, name: c.name })),
+      failoverFree: eligible.length,
+      held: eligible.filter((c) => held.has(c.cs2ServerId)).map((c) => ({ id: c.cs2ServerId, name: c.name })),
     },
   };
 }

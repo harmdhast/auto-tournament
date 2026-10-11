@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   Box,
   Chip,
   FormControlLabel,
@@ -31,6 +32,7 @@ interface FailoverSettingsResponse {
     configured: number | null;
     effective: number;
     poolSize: number;
+    failoverFree: number;
     held: Array<{ id: string; name: string }>;
   };
 }
@@ -95,6 +97,11 @@ export default function FailoverSettingsPanel() {
     >
       <Panel sx={{ p: 3 }}>
         <Stack spacing={2}>
+          {data.settings.auto && !data.settings.csm && data.reserve.failoverFree === 0 && (
+            <Alert severity="warning" data-testid="failover-no-target">
+              {t('failoverSettings.noTarget', { defaultValue: 'No server is free to take a failover.' })}
+            </Alert>
+          )}
           <Box>
             <FormControlLabel
               control={
