@@ -145,3 +145,73 @@ test('server tiles sort by status, matches first', async ({ page }) => {
     'z-new',
   ]);
 });
+
+test('a stale slug on an allocatable server reads Free and sorts with the free ones', async ({
+  page,
+}) => {
+  await ensureSignedIn(page);
+  await mockFleet(
+    page,
+    [
+      entry('a-stale', { matchSlug: 'gone', allocatable: true, notAllocatableReason: null }),
+      entry('b-live', { matchSlug: 'm-live', notAllocatableReason: null }),
+      entry('c-free', { allocatable: true, notAllocatableReason: null }),
+    ],
+    { 'm-live': match('m-live') }
+  );
+  await page.route('**/api/servers', (route) =>
+    route.fulfill({ json: { success: true, servers: [] } })
+  );
+  await page.goto('/manage');
+  const grid = page.getByTestId('manage-servers');
+  await expect(grid.getByText('b-live')).toBeVisible({ timeout: 15000 });
+  await expect(grid.locator('b')).toHaveText(['b-live', 'a-stale', 'c-free']);
+  await expect(grid.getByRole('button', { name: /a-stale/ })).toHaveCount(0);
+  await expect(grid.getByText('Free', { exact: true })).toHaveCount(2);
+});
+
+test('a finished match leaves the tile on its availability state, not a button', async ({
+  page,
+}) => {
+  await ensureSignedIn(page);
+  await mockFleet(page, [entry('s-done', { matchSlug: 'm-done', busyReason: 'awaiting_reset' })], {
+    'm-done': match('m-done', { status: 'completed' }),
+  });
+  await page.goto('/manage');
+  const grid = page.getByTestId('manage-servers');
+  await expect(grid.getByText('s-done')).toBeVisible({ timeout: 15000 });
+  await expect(grid.getByText('Busy', { exact: true })).toBeVisible();
+  await expect(grid.getByRole('button', { name: /s-done/ })).toHaveCount(0);
+});
+
+test('the tile chips use the Servers page colours', async ({ page }) => {
+  await ensureSignedIn(page);
+  await mockFleet(
+    page,
+    [
+      entry('s-live', { matchSlug: 'm-live', notAllocatableReason: null }),
+      entry('s-free', { allocatable: true, notAllocatableReason: null }),
+      entry('s-spare', { busyReason: 'reserved', notAllocatableReason: 'reserved' }),
+      entry('s-busy', { busyReason: 'draining' }),
+    ],
+    { 'm-live': match('m-live') }
+  );
+  await page.goto('/manage');
+  const grid = page.getByTestId('manage-servers');
+  await expect(grid.getByText('s-live')).toBeVisible({ timeout: 15000 });
+  const chip = (text: string) =>
+    grid
+      .locator('.MuiChip-root')
+      .filter({ hasText: new RegExp(`^${text}$`) })
+      .evaluate((e) => {
+        const style = window.getComputedStyle(e);
+        return { color: style.color, border: style.borderTopColor, outlined: e.className };
+      });
+  const live = await chip('Live');
+  expect(live.outlined).toContain('MuiChip-outlined');
+  expect(live.color).toBe(live.border);
+  expect(live.color).toBe('rgb(255, 106, 61)');
+  expect((await chip('Free')).color).toBe('rgb(63, 193, 104)');
+  expect((await chip('Spare')).color).toBe('rgb(127, 176, 232)');
+  expect((await chip('Busy')).color).toBe('rgb(242, 184, 75)');
+});
