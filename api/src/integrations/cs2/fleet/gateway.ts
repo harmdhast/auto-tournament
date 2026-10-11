@@ -437,11 +437,21 @@ class FleetSession {
     this.rxStreamId = hello.stream.id;
     this.bytesPerMinute = socketBytesPerMinute(hello.capabilities);
     if (result === 'reset') await registry.setRxState(serverId, hello.stream.id, 0);
-    if (hello.stream.last_rx_seq > 0) {
-      await registry.ensureTxSeqAtLeast(serverId, hello.stream.last_rx_seq);
-      await registry.ackOutbox(serverId, hello.stream.last_rx_seq);
+    if (hello.stream.last_rx_seq < stream.txAcked) {
+      // The server's spool was reset: our next seq must follow what it has, or
+      // its receiver drops everything as out of order.
+      await registry.rebaseOutbox(serverId, hello.stream.last_rx_seq);
+      log.warn(
+        `[FLEET] ${serverId} has our stream up to ${hello.stream.last_rx_seq} (acked ${stream.txAcked} before); pending messages renumbered`
+      );
+      this.txAcked = hello.stream.last_rx_seq;
+    } else {
+      if (hello.stream.last_rx_seq > 0) {
+        await registry.ensureTxSeqAtLeast(serverId, hello.stream.last_rx_seq);
+        await registry.ackOutbox(serverId, hello.stream.last_rx_seq);
+      }
+      this.txAcked = Math.max(stream.txAcked, hello.stream.last_rx_seq);
     }
-    this.txAcked = Math.max(stream.txAcked, hello.stream.last_rx_seq);
 
     if (this.closed) return;
     this.sessionId = ulid();
