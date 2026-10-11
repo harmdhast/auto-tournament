@@ -239,6 +239,38 @@ test.describe('Server list', () => {
     expect(pendingReads).toBe(0);
   });
 
+  test('dots follow the availability colours', async ({ page }) => {
+    await stubAll(page);
+    const fleet = [
+      fleetServer('a', { availability: 'busy', availabilityReason: 'local_match' }),
+      fleetServer('b'),
+      fleetServer('d', { availabilityReason: 'reserved' }),
+      fleetServer('e', { availability: 'busy', availabilityReason: 'awaiting_reset' }),
+      fleetServer('o', { online: false }),
+    ];
+    await stubFleet(page, fleet);
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('server-row-r:o')).toBeVisible();
+    const color = (key: string, part: 'dot' | 'state') =>
+      page
+        .getByTestId(`server-row-${part}-${key}`)
+        .locator(part === 'dot' ? ':scope > *' : '.MuiChip-root')
+        .first()
+        .evaluate(
+          (e, p) =>
+            p === 'dot'
+              ? window.getComputedStyle(e).backgroundColor
+              : window.getComputedStyle(e).color,
+          part
+        );
+    const keys = ['m:m1:server-1', 'r:b', 'r:d', 'r:e', 'r:o'];
+    const dots = await Promise.all(keys.map((k) => color(k, 'dot')));
+    expect(new Set(dots).size).toBe(5);
+    // Not free: the chip text takes the dot's colour.
+    for (const k of ['m:m1:server-1', 'r:d', 'r:e', 'r:o'])
+      expect(await color(k, 'state')).toBe(dots[keys.indexOf(k)]);
+  });
+
   test('clicking an address copies the connect command', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await stubAll(page);
@@ -258,6 +290,30 @@ test.describe('Server list', () => {
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
       'connect 203.0.113.5:27015'
     );
+  });
+
+  test('a pending server state is not cut', async ({ page }) => {
+    await stubAll(page);
+    await stubFleet(page, [fleetServer('p', { status: 'pending', online: false })]);
+    await page.goto('/manage/servers');
+    const chip = page.getByTestId('server-row-state-r:p').locator('.MuiChip-label');
+    await expect(chip).toHaveText('Waiting to enroll');
+    expect(await chip.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  });
+
+  test('cut text shows in full on hover', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await stubAll(page, {
+      b: { name: 'a-ready-up-server-with-a-name-far-too-long-for-its-column' },
+    });
+    await page.goto('/manage/servers');
+    const row = page.getByTestId('server-row-r:b');
+    await expect(
+      row.locator('[title="a-ready-up-server-with-a-name-far-too-long-for-its-column"]')
+    ).toHaveCount(1);
+    const machine = page.getByTestId('server-row-m:m1:server-1');
+    await expect(machine.locator('[title="Local match cup-final still loaded"]')).toHaveCount(1);
+    await expect(machine.locator('[title="Busy"]')).toHaveCount(1);
   });
 
   test('reset shows inline only on a busy Ready Up server', async ({ page }) => {

@@ -21,20 +21,21 @@ import { mono, radii, tokens, useModuleTranslation } from '../../../../module-sd
 import type { FleetHost, FleetHostCommand, FleetServer, Server } from '../../cs2.types';
 import { serverState } from '../machineState';
 import { MachineCard, runningOf } from '../fleet/MachineCard';
-import { MOVING, StateMark, useStateLabel } from '../fleet/serverStateMark';
+import { MOVING, StateMark, stateTone, useStateLabel } from '../fleet/serverStateMark';
 import type { Fleet } from '../fleet/useFleet';
 import type { ServerMatch } from '../fleet/useServerMatches';
 import {
   AvailabilityChip,
   AvailabilityReason,
   availabilityOf,
+  availabilityTone,
   hasAvailabilityReason,
 } from '../fleet/readyup/AvailabilityChip';
 import { ResetServerButton } from '../fleet/readyup/ResetServerButton';
 import { isGuessedAddress, type ServerGroup, type ServerRow } from './serverGroups';
 import { useFleetPushProblems } from './useFleetPushProblems';
-import type { ServerAction } from './useFleetServerActions';
 import { CopyConnect } from './CopyConnect';
+import type { ServerAction } from './useFleetServerActions';
 
 const { color } = tokens;
 
@@ -52,7 +53,7 @@ export function useRconState() {
     if (!up)
       return { tone: color.ban, word: t('serversBoard.state.offline', { defaultValue: 'Down' }) };
     return {
-      tone: color.live,
+      tone: s.currentMatch ? color.accent : color.live,
       word: s.currentMatch
         ? t('serversBoard.state.match', { defaultValue: 'Match' })
         : t('serversBoard.state.free', { defaultValue: 'Free' }),
@@ -82,6 +83,19 @@ export interface ServerListProps {
   machine: MachineHandlers;
 }
 
+/** A state word as a chip in its state's colour; its full text on hover when the column cuts it. */
+function StateChip({ label, tone }: { label: string; tone: string }) {
+  return (
+    <Chip
+      size="small"
+      variant="outlined"
+      label={label}
+      title={label}
+      sx={{ color: tone, borderColor: tone, maxWidth: '100%' }}
+    />
+  );
+}
+
 const DOT = { width: 8, height: 8, borderRadius: radii.pill, flex: 'none' } as const;
 
 /** The columns: one line from `md`, two below (name and state, then the reason or the address). */
@@ -96,7 +110,7 @@ const rowGrid = {
   cursor: 'pointer',
   gridTemplateColumns: {
     xs: '12px minmax(0, 1fr) auto auto',
-    md: '12px minmax(0, 1.3fr) 104px minmax(0, 1.6fr) minmax(0, 1fr) 64px 96px',
+    md: '12px minmax(0, 1.3fr) 136px minmax(0, 1.6fr) minmax(0, 1fr) 64px 96px',
   },
   gridTemplateAreas: {
     xs: '"dot name state actions" ". sub sub sub"',
@@ -138,6 +152,7 @@ function Line({
       color="text.secondary"
       noWrap
       data-testid={testId}
+      title={typeof children === 'string' ? children : undefined}
       sx={{
         gridArea: area,
         minWidth: 0,
@@ -216,7 +231,7 @@ function ServerListRow({
     const { tone, word } = rconState(s, props.readAt);
     name = s.name;
     mark = <Box aria-hidden sx={{ ...DOT, bgcolor: tone }} />;
-    state = <Chip size="small" variant="outlined" label={word} />;
+    state = <StateChip label={word} tone={tone} />;
     address = `${s.host}:${s.port}`;
     version = s.pluginVersion ?? null;
     tag = t('serversList.transport.rcon', { defaultValue: 'RCON' });
@@ -225,19 +240,19 @@ function ServerListRow({
     const machineState = serverState(host, server, props.fleet.isDeleting(host, server.name));
     const match = server.fleetServer ? (props.matches[server.fleetServer.id] ?? null) : null;
     name = row.fleet?.name ?? server.fleetServer?.name ?? server.name;
-    mark = <StateMark state={machineState} />;
     // The machine's word while csm moves it, stopped or down; Ready Up's once it runs.
     const readyUpSays =
       row.fleet &&
       !MOVING.includes(machineState) &&
       machineState !== 'stopped' &&
       machineState !== 'offline';
-    state =
-      readyUpSays && row.fleet ? (
-        <AvailabilityChip server={row.fleet} />
-      ) : (
-        <Chip size="small" variant="outlined" label={stateLabel(machineState, match)} />
-      );
+    if (readyUpSays && row.fleet) {
+      mark = <Box aria-hidden sx={{ ...DOT, bgcolor: availabilityTone(row.fleet) }} />;
+      state = <AvailabilityChip server={row.fleet} />;
+    } else {
+      mark = <StateMark state={machineState} />;
+      state = <StateChip label={stateLabel(machineState, match)} tone={stateTone[machineState]} />;
+    }
     if (machineState === 'match' && match && (match.team1 || match.team2)) {
       reason = (
         <Line area="sub">
@@ -307,20 +322,12 @@ function ServerListRow({
   } else {
     const f = row.fleet;
     name = f.name;
-    const tone =
-      f.status === 'revoked'
-        ? color.ban
-        : f.status === 'pending'
-          ? color.info
-          : f.online
-            ? color.live
-            : color.muted;
-    mark = <Box aria-hidden sx={{ ...DOT, bgcolor: tone }} />;
+    mark = <Box aria-hidden sx={{ ...DOT, bgcolor: availabilityTone(f) }} />;
     state =
       f.status === 'enrolled' ? (
         <AvailabilityChip server={f} />
       ) : (
-        <Chip size="small" variant="outlined" label={t(`fleetPanel.status.${f.status}`)} />
+        <StateChip label={t(`fleetPanel.status.${f.status}`)} tone={color.muted} />
       );
     if (f.status === 'enrolled' && !f.online && f.lastSeen) {
       reason = (
@@ -388,7 +395,12 @@ function ServerListRow({
       onClick={() => props.onOpen(row)}
       sx={rowGrid}
     >
-      <Box sx={{ gridArea: 'dot', display: 'flex', justifyContent: 'center' }}>{mark}</Box>
+      <Box
+        data-testid={`server-row-dot-${row.key}`}
+        sx={{ gridArea: 'dot', display: 'flex', justifyContent: 'center' }}
+      >
+        {mark}
+      </Box>
       <Box sx={{ gridArea: 'name', minWidth: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
         <ButtonBase
           onClick={(e: MouseEvent) => {
