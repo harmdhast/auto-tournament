@@ -2388,6 +2388,8 @@
     "facts": {
       "address": "Adres",
       "plugin": "Wtyczka"
-    }
+    },
+    "copyConnect": "Kopiuj polecenie connect",
+    "connectCopied": "Skopiowano polecenie connect"
   }
 }

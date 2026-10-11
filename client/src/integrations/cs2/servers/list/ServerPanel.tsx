@@ -5,12 +5,13 @@
  */
 import { useState, type ReactNode } from 'react';
 import { Box, Button, Typography } from '@mui/material';
-import { mono, useModuleTranslation } from '../../../../module-sdk';
+import { useModuleTranslation } from '../../../../module-sdk';
 import type { FleetHost, Server } from '../../cs2.types';
 import ServerModal from '../ServerModal';
 import { Facts, SideSheet } from '../fleet/SideSheet';
 import type { Fleet } from '../fleet/useFleet';
 import type { ServerMatch } from '../fleet/useServerMatches';
+import { CopyConnect } from './CopyConnect';
 import { MachineServerSection } from './MachineServerSection';
 import { ReadyUpServerSection } from './ReadyUpServerSection';
 import { useRconState } from './ServerList';
@@ -98,8 +99,8 @@ export function ServerPanel({
               [t('serversBoard.facts.state', { defaultValue: 'State' }), rconState(s, readAt).word],
               [
                 t('serversList.facts.address', { defaultValue: 'Address' }),
-                <Box key="addr" component="span" sx={mono} data-testid="server-host">
-                  {s.host}:{s.port}
+                <Box key="addr" component="span" data-testid="server-host">
+                  <CopyConnect address={`${s.host}:${s.port}`} />
                 </Box>,
               ],
               !!s.currentMatch && [

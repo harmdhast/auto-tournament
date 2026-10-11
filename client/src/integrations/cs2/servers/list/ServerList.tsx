@@ -34,6 +34,7 @@ import { ResetServerButton } from '../fleet/readyup/ResetServerButton';
 import { isGuessedAddress, type ServerGroup, type ServerRow } from './serverGroups';
 import { useFleetPushProblems } from './useFleetPushProblems';
 import type { ServerAction } from './useFleetServerActions';
+import { CopyConnect } from './CopyConnect';
 
 const { color } = tokens;
 
@@ -298,7 +299,9 @@ function ServerListRow({
         </Line>
       );
     }
-    address = row.fleet?.connect?.address ?? `${host.hostname ?? host.name}:${server.game_port}`;
+    address =
+      row.fleet?.connect?.address ??
+      (host.hostname ? `${host.hostname}:${server.game_port}` : null);
     version = row.fleet?.versions?.core ?? server.readyup.installed;
     tag = row.fleet ? t('serversList.transport.readyUp', { defaultValue: 'Ready Up' }) : null;
   } else {
@@ -355,7 +358,7 @@ function ServerListRow({
   ];
   const addressLine = address && (
     <>
-      {address}
+      <CopyConnect address={address} />
       {guessed && (
         <Tooltip
           title={t('fleetPanel.connectGuessed', {

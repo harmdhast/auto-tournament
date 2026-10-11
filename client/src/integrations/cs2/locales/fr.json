@@ -2348,6 +2348,8 @@
     "facts": {
       "address": "Adresse",
       "plugin": "Plugin"
-    }
+    },
+    "copyConnect": "Copier la commande connect",
+    "connectCopied": "Commande connect copiée"
   }
 }

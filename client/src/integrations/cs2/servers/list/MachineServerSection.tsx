@@ -5,6 +5,7 @@ import type { FleetHost } from '../../cs2.types';
 import { getMapDisplayName } from '../../maps/mapData';
 import { serverState } from '../machineState';
 import { Facts } from '../fleet/SideSheet';
+import { CopyConnect } from './CopyConnect';
 import { StateMark, useStateLabel } from '../fleet/serverStateMark';
 import type { Fleet } from '../fleet/useFleet';
 import type { ServerMatch } from '../fleet/useServerMatches';
@@ -68,6 +69,17 @@ export function MachineServerSection({
                   {match.map ? ` · ${getMapDisplayName(match.map)}` : ''}
                 </Box>,
               ],
+              // A Ready Up server shows where to connect in its own section.
+              !!host.hostname &&
+                !s.fleetServer && [
+                  t('serversBoard.readyUp.sheet.connect'),
+                  <CopyConnect key="connect" address={`${host.hostname}:${s.game_port}`} />,
+                ],
+              !!host.hostname &&
+                !!s.tv_port && [
+                  'GOTV',
+                  <CopyConnect key="gotv" address={`${host.hostname}:${s.tv_port}`} />,
+                ],
               [
                 t('serversBoard.facts.ports', { defaultValue: 'Ports' }),
                 <Box key="ports" component="span" sx={mono}>

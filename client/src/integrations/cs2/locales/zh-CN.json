@@ -2348,6 +2348,8 @@
     "facts": {
       "address": "地址",
       "plugin": "插件"
-    }
+    },
+    "copyConnect": "复制 connect 命令",
+    "connectCopied": "已复制 connect 命令"
   }
 }

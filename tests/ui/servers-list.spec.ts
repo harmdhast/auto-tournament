@@ -239,6 +239,27 @@ test.describe('Server list', () => {
     expect(pendingReads).toBe(0);
   });
 
+  test('clicking an address copies the connect command', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await stubAll(page);
+    await page.goto('/manage/servers');
+    await page.getByTestId('server-row-address-r:b').getByRole('button').click();
+    await expect(page.getByText('Connect command copied')).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      'connect 203.0.113.5:27015'
+    );
+    await expect(page).not.toHaveURL(/server=/);
+    await page.evaluate(() => navigator.clipboard.writeText(''));
+    await page.getByTestId('server-row-r:b').click();
+    await page
+      .getByTestId('server-panel')
+      .getByRole('button', { name: /203\.0\.113\.5:27015/ })
+      .click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      'connect 203.0.113.5:27015'
+    );
+  });
+
   test('reset shows inline only on a busy Ready Up server', async ({ page }) => {
     await stubAll(page);
     await page.goto('/manage/servers');

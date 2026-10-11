@@ -1,12 +1,13 @@
 /** A Ready Up server in its panel: whether it takes matches, and what can be done on it. */
 import { Box, Typography } from '@mui/material';
-import { mono, useModuleTranslation } from '../../../../module-sdk';
+import { useModuleTranslation } from '../../../../module-sdk';
 import { Facts } from '../fleet/SideSheet';
 import { AvailabilityChip, AvailabilityReason } from '../fleet/readyup/AvailabilityChip';
 import { ResetServerButton } from '../fleet/readyup/ResetServerButton';
 import { FleetPlayers } from '../fleet/readyup/FleetPlayers';
 import { FleetConsole } from '../fleet/readyup/FleetConsole';
 import { useFleetServer } from '../fleet/readyup/useFleetServer';
+import { CopyConnect } from './CopyConnect';
 import { FleetServerPushSection } from './FleetServerPushSection';
 
 export function ReadyUpServerSection({
@@ -53,10 +54,13 @@ export function ReadyUpServerSection({
           ],
           !!server.connect && [
             t('serversBoard.readyUp.sheet.connect'),
-            <Box key="connect" component="span" sx={mono}>
-              {server.connect.address}
-            </Box>,
+            <CopyConnect key="connect" address={server.connect.address} />,
           ],
+          !!server.connect &&
+            !!server.host?.tv_port && [
+              'GOTV',
+              <CopyConnect key="gotv" address={`${server.connect.host}:${server.host.tv_port}`} />,
+            ],
           !!server.versions && [t('serversBoard.readyUp.sheet.version'), server.versions.core],
           !!server.versions && [
             t('serversBoard.readyUp.sheet.update', { defaultValue: 'Update' }),

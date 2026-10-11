@@ -2348,6 +2348,8 @@
     "facts": {
       "address": "Adres",
       "plugin": "Plugin"
-    }
+    },
+    "copyConnect": "Connect-opdracht kopiëren",
+    "connectCopied": "Connect-opdracht gekopieerd"
   }
 }
