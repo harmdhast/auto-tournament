@@ -2136,7 +2136,9 @@
       "stopping": "Stopping…",
       "updating": "Updating…",
       "veto": "Veto",
-      "warmup": "Warmup"
+      "warmup": "Warmup",
+      "knife": "Knife",
+      "live": "Live"
     },
     "stoppedLine": "Starts when a match needs it",
     "update": "Update",
@@ -2348,6 +2350,7 @@
     "pushProblem": "A push to this server failed or got no answer",
     "menu": "More for {{name}}",
     "open": "Open",
+    "openMatch": "Open the match",
     "edit": "Edit",
     "section": {
       "machine": "Machine"

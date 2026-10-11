@@ -2176,7 +2176,9 @@
       "stopping": "Stopping…",
       "updating": "Updating…",
       "veto": "Veto",
-      "warmup": "Warmup"
+      "warmup": "Warmup",
+      "knife": "Nóż",
+      "live": "Na żywo"
     },
     "stoppedLine": "Starts when a match needs it",
     "update": "Update",
@@ -2388,6 +2390,7 @@
     "pushProblem": "Wysyłka do tego serwera nie powiodła się lub pozostała bez odpowiedzi",
     "menu": "Więcej dla {{name}}",
     "open": "Otwórz",
+    "openMatch": "Otwórz mecz",
     "edit": "Edytuj",
     "section": {
       "machine": "Maszyna"

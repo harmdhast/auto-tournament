@@ -2136,7 +2136,9 @@
       "stopping": "Stopping…",
       "updating": "Updating…",
       "veto": "Veto",
-      "warmup": "Warmup"
+      "warmup": "Warmup",
+      "knife": "Cuchillo",
+      "live": "En vivo"
     },
     "stoppedLine": "Starts when a match needs it",
     "update": "Update",
@@ -2348,6 +2350,7 @@
     "pushProblem": "Un envío a este servidor falló o no tuvo respuesta",
     "menu": "Más para {{name}}",
     "open": "Abrir",
+    "openMatch": "Abrir partida",
     "edit": "Editar",
     "section": {
       "machine": "Máquina"

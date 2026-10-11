@@ -2136,7 +2136,9 @@
       "stopping": "Stopping…",
       "updating": "Updating…",
       "veto": "Veto",
-      "warmup": "Warmup"
+      "warmup": "Warmup",
+      "knife": "刀战",
+      "live": "进行中"
     },
     "stoppedLine": "Starts when a match needs it",
     "update": "Update",
@@ -2348,6 +2350,7 @@
     "pushProblem": "向此服务器的推送失败或无响应",
     "menu": "{{name}} 的更多操作",
     "open": "打开",
+    "openMatch": "打开比赛",
     "edit": "编辑",
     "section": {
       "machine": "机器"
