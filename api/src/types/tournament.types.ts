@@ -1,3 +1,5 @@
+import type { LiveStatus } from '../services/matchLiveStatsService';
+
 /**
  * Tournament Types
  */
@@ -236,6 +238,8 @@ export interface BracketMatch {
   /** Rounds on the map being played (0-0 during warmup; last map once completed; null before any map). */
   team1MapScore?: number | null;
   team2MapScore?: number | null;
+  /** Live phase from the plugin; null once completed or without live stats. */
+  matchPhase?: LiveStatus | null;
   mapResults?: Array<{
     mapNumber: number;
     mapName?: string | null;

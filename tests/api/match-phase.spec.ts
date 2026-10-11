@@ -39,14 +39,20 @@ async function applyPhase(request: APIRequestContext, slug: string, phase: strin
   expect(res.ok(), `injecting phase ${phase} failed: ${await res.text()}`).toBe(true);
 }
 
-async function liveStatus(
-  request: APIRequestContext,
-  teamId: string
-): Promise<string | undefined> {
+async function liveStatus(request: APIRequestContext, teamId: string): Promise<string | undefined> {
   const res = await request.get(`/api/team/${teamId}/match`);
   expect(res.ok()).toBe(true);
   const body = (await res.json()) as { match?: { liveStats?: { status?: string } } };
   return body.match?.liveStats?.status;
+}
+
+async function matchPhase(
+  request: APIRequestContext,
+  slug: string
+): Promise<string | null | undefined> {
+  const res = await request.get(`/api/matches/${slug}`);
+  expect(res.ok()).toBe(true);
+  return ((await res.json()) as { match: { matchPhase?: string | null } }).match.matchPhase;
 }
 
 test.describe.serial('Plugin phase to match status', () => {
@@ -60,7 +66,15 @@ test.describe.serial('Plugin phase to match status', () => {
     const setup = await setupTournament(request, {
       type: 'single_elimination',
       format: 'bo1',
-      maps: ['de_mirage', 'de_inferno', 'de_ancient', 'de_anubis', 'de_dust2', 'de_vertigo', 'de_nuke'],
+      maps: [
+        'de_mirage',
+        'de_inferno',
+        'de_ancient',
+        'de_anubis',
+        'de_dust2',
+        'de_vertigo',
+        'de_nuke',
+      ],
       teamCount: 2,
       serverCount: 1,
       prefix: 'phase',
@@ -132,6 +146,20 @@ test.describe.serial('Plugin phase to match status', () => {
 
       const match = await findMatchByTeams(request, team1.id, team2.id);
       expect(match?.status).toBe('loaded');
+    }
+  );
+
+  test(
+    'the match response carries the live phase',
+    { tag: ['@api', '@cs2-plugin'] },
+    async ({ request }) => {
+      expect(await matchPhase(request, slug)).toBeNull();
+
+      await applyPhase(request, slug, 'warmup');
+      expect(await matchPhase(request, slug)).toBe('warmup');
+
+      await applyPhase(request, slug, 'live');
+      expect(await matchPhase(request, slug)).toBe('live');
     }
   );
 });
