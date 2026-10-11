@@ -51,7 +51,9 @@
       "pluginSame": "{{version}}, all servers match",
       "pluginMixed": "{{count}} plugin versions in use",
       "none": "No servers connected yet.",
-      "notConfigured": "Not configured"
+      "notConfigured": "Not configured",
+      "busy": "Ocupado",
+      "spare": "De reserva"
     },
     "setup": {
       "serversDone": "{{count}} server added",
@@ -74,7 +76,6 @@
       "heading": "Servers",
       "viewAll": "All servers",
       "none": "No servers configured yet.",
-      "inMatch": "In match",
       "free": "Free",
       "offline": "Offline",
       "lastHeartbeat": "Last heartbeat {{time}} ago",
@@ -652,6 +653,11 @@
       "summary_one": "{{count}} server not on a machine",
       "summary_other": "{{count}} servers not on a machine",
       "about": "Servers added by address, not run by csm on a linked machine."
+    },
+    "add": {
+      "button": "Añadir",
+      "machine": "Máquina",
+      "readyUp": "Servidor Ready Up"
     }
   },
   "serverModal": {
@@ -1227,11 +1233,8 @@
     "offType": "{{maps}}: no es un mapa de {{mode}}. Quítalo o cambia el tipo de mapa."
   },
   "fleetPanel": {
-    "title": "Flota Ready Up",
-    "description": "Los servidores Ready Up se registran solos con un código de un solo uso o una clave de flota y se mantienen conectados a la plataforma. No hace falta contraseña RCON.",
     "addServer": "Añadir servidor",
     "createKey": "Crear clave de flota",
-    "empty": "Aún no hay servidores Ready Up. Añade uno con un código de un solo uso o dale a csm una clave de flota.",
     "status": {
       "online": "En línea",
       "offline": "Desconectado",
@@ -1239,12 +1242,8 @@
       "revoked": "Revocado"
     },
     "codeExpires": "Código válido hasta {{time}}",
-    "lastSeen": "Visto por última vez {{time}}",
-    "readyUpVersion": "Ready Up {{version}}",
-    "cs2Build": "Build de CS2 {{build}}",
     "newCode": "Nuevo código",
     "rotate": "Renovar token",
-    "rotateTooltip": "Renovar token (previsto para el {{time}})",
     "revoke": "Revocar",
     "remove": "Quitar",
     "keysTitle": "Claves de flota",
@@ -1314,8 +1313,10 @@
     "rename": "Rename",
     "renamed": "Renamed",
     "renameSave": "Save",
-    "summary": "{{servers}} Ready Up server(s), {{online}} online · {{keys}} fleet key(s)",
-    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use."
+    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
+    "updateAvailable": "Actualización disponible: {{version}}",
+    "upToDate": "Actualizado",
+    "noUpdateCheck": "Aún sin comprobar actualizaciones"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -1455,7 +1456,6 @@
     "hostStatus": {
       "online": "Online",
       "offline": "Offline",
-      "pending": "Waiting for csm",
       "revoked": "Revoked"
     },
     "status": {
@@ -1540,12 +1540,6 @@
     "cpu": "CPU load",
     "ram": "RAM",
     "diskLabel": "Disk {{mount}}",
-    "counts": {
-      "free": "Free",
-      "match": "In a match",
-      "busy": "Updating or restarting",
-      "down": "Stopped or offline"
-    },
     "step": {
       "name": "Name the machine",
       "run": "Run this on it",
@@ -1555,7 +1549,15 @@
     },
     "noCsm": "No csm on the machine yet?",
     "noCsmHelp": "Install CS2 Server Manager first, then come back for step 2.",
-    "installGuide": "Install guide"
+    "installGuide": "Install guide",
+    "codeExpired": "Código caducado: genera uno nuevo",
+    "statusLabel": "Estado",
+    "added": "Añadida",
+    "lastSeenLabel": "Visto por última vez",
+    "noReportYet": "Vinculada, esperando su primer informe de csm",
+    "pendingHelp": "En la máquina, con el usuario que ejecuta csm, ejecuta csm link con un código nuevo. Su CPU, disco, versión de CS2 y servidores aparecen aquí cuando csm se conecta.",
+    "revokedHelp": "Su token ya no funciona. Elimínala o añade la máquina de nuevo.",
+    "noReportHelp": "csm envía lo que tiene y ejecuta la máquina en el minuto siguiente a conectarse."
   },
   "failover": {
     "title": "Failover",
@@ -1614,7 +1616,8 @@
     "reserveStatus": "{{effective}} of {{pool}} online server(s) kept free for failover",
     "reserveHelp": "Spare servers stay idle: matches are not put on them, so one is ready when a server goes down. At least one server always takes matches. Spare servers count toward your license like any other server.",
     "summaryOn": "Automatic moves on",
-    "summaryOff": "Automatic moves off"
+    "summaryOff": "Automatic moves off",
+    "empty": "La conmutación por error necesita al menos un servidor Ready Up."
   },
   "pluginSets": {
     "presetLabel": "Preajuste de plugins",
@@ -1664,7 +1667,8 @@
   },
   "autoscale": {
     "summaryOn": "On",
-    "summaryOff": "Off"
+    "summaryOff": "Off",
+    "empty": "El escalado automático necesita una máquina vinculada con csm."
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers"
@@ -2116,14 +2120,11 @@
     "matchHint": "A match is on this server: stopping or restarting it asks for a reason, and failover can move the match first.",
     "newServer": "New server {{n}}",
     "notAnswering": "Not answering",
-    "openMatch": "Open the match",
+    "openMatch": "Abrir partida",
     "other": {
-      "about": "Added by address, or enrolled on their own. They keep working; new servers are made on a machine.",
-      "disabled": "Disabled",
-      "title": "Servers not on a machine"
+      "disabled": "Disabled"
     },
     "state": {
-      "creating": "Creating…",
       "deleting": "Deleting…",
       "free": "Free",
       "match": "Match",
@@ -2134,10 +2135,11 @@
       "stopping": "Stopping…",
       "updating": "Updating…",
       "veto": "Veto",
-      "warmup": "Warmup"
+      "warmup": "Warmup",
+      "knife": "Ronda de knife",
+      "live": "En vivo"
     },
     "stoppedLine": "Starts when a match needs it",
-    "summary": "All servers",
     "update": "Update",
     "updateEllipsis": "Update…",
     "updatingWhat": "Updating {{what}}",
@@ -2149,8 +2151,6 @@
     "restarts_other": "{{count}} restarts in 24 h",
     "offlineFor": "Offline for {{time}}",
     "readyUp": {
-      "title": "Flota Ready Up",
-      "about": "Servidores que se conectan a la plataforma con Ready Up",
       "tabs": {
         "servers": "Servidores",
         "keys": "Claves y registro",
@@ -2172,7 +2172,9 @@
         "connect": "Conectar",
         "version": "Ready Up",
         "cs2": "Build de CS2",
-        "lastSeen": "Visto por última vez"
+        "lastSeen": "Visto por última vez",
+        "update": "Actualización",
+        "token": "Renovación del token"
       },
       "reset": {
         "action": "Reiniciar",
@@ -2395,5 +2397,28 @@
       "label": "Fill teams with bots",
       "help": "Bots fill empty slots up to the tournament team size and make room for joining players. Ready up and play normally. Requires a Ready Up server with bot-fill support."
     }
+  },
+  "serversList": {
+    "noMachine": "Sin máquina",
+    "noMachineAbout": "Servidores Ready Up inscritos por su cuenta y servidores añadidos por dirección.",
+    "guessedBanner": "Algunas direcciones se dedujeron de dónde se conecta el servidor. Revísalas o define la dirección que usan los jugadores.",
+    "transport": {
+      "readyUp": "Ready Up",
+      "rcon": "RCON"
+    },
+    "seen": "Visto {{time}}",
+    "pushProblem": "Un envío a este servidor falló o no tuvo respuesta",
+    "menu": "Más para {{name}}",
+    "open": "Abrir",
+    "edit": "Editar",
+    "section": {
+      "machine": "Máquina"
+    },
+    "facts": {
+      "address": "Dirección",
+      "plugin": "Plugin"
+    },
+    "copyConnect": "Copiar el comando connect",
+    "connectCopied": "Comando connect copiado"
   }
 }

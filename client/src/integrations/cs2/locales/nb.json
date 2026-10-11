@@ -51,7 +51,9 @@
       "pluginSame": "{{version}}, alle servere matcher",
       "pluginMixed": "{{count}} plugin-versjoner i bruk",
       "none": "Ingen servere tilkoblet enda.",
-      "notConfigured": "Ikke satt opp"
+      "notConfigured": "Ikke satt opp",
+      "busy": "Opptatt",
+      "spare": "Reserve"
     },
     "setup": {
       "serversDone": "{{count}} server lagt til",
@@ -74,7 +76,6 @@
       "heading": "Servere",
       "viewAll": "Alle servere",
       "none": "Ingen servere er satt opp enda.",
-      "inMatch": "I kamp",
       "free": "Ledig",
       "offline": "Offline",
       "lastHeartbeat": "Siste puls {{time}} siden",
@@ -652,6 +653,11 @@
       "summary_one": "{{count}} server som ikke er på en maskin",
       "summary_other": "{{count}} servere som ikke er på en maskin",
       "about": "Servere lagt til med adresse, ikke drevet av csm på en koblet maskin."
+    },
+    "add": {
+      "button": "Legg til",
+      "machine": "Maskin",
+      "readyUp": "Ready Up-server"
     }
   },
   "serverModal": {
@@ -1227,11 +1233,8 @@
     "offType": "{{maps}}: ikke et {{mode}}-kart. Fjern det, eller endre karttypen."
   },
   "fleetPanel": {
-    "title": "Ready Up-flåte",
-    "description": "Ready Up-servere melder seg inn selv med en engangskode eller en flåtenøkkel, og holder seg koblet til plattformen. Ingen RCON-passord trengs.",
     "addServer": "Legg til server",
     "createKey": "Opprett flåtenøkkel",
-    "empty": "Ingen Ready Up-servere ennå. Legg til en med en engangskode, eller gi csm en flåtenøkkel.",
     "status": {
       "online": "Tilkoblet",
       "offline": "Frakoblet",
@@ -1239,12 +1242,8 @@
       "revoked": "Tilbakekalt"
     },
     "codeExpires": "Koden gjelder til {{time}}",
-    "lastSeen": "Sist sett {{time}}",
-    "readyUpVersion": "Ready Up {{version}}",
-    "cs2Build": "CS2-bygg {{build}}",
     "newCode": "Ny kode",
     "rotate": "Forny token",
-    "rotateTooltip": "Forny token (forfaller {{time}})",
     "revoke": "Tilbakekall",
     "remove": "Fjern",
     "keysTitle": "Flåtenøkler",
@@ -1314,8 +1313,10 @@
     "rename": "Gi nytt navn",
     "renamed": "Navnet er endret",
     "renameSave": "Lagre",
-    "summary": "{{servers}} Ready Up-server(e), {{online}} tilkoblet · {{keys}} flåtenøkkel(er)",
-    "connectGuessed": "Gjettet ut fra hvor serveren kobler seg til fra. Sjekk den, eller sett adressen spillerne bruker."
+    "connectGuessed": "Gjettet ut fra hvor serveren kobler seg til fra. Sjekk den, eller sett adressen spillerne bruker.",
+    "updateAvailable": "Oppdatering tilgjengelig: {{version}}",
+    "upToDate": "Oppdatert",
+    "noUpdateCheck": "Ingen oppdateringssjekk ennå"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -1455,7 +1456,6 @@
     "hostStatus": {
       "online": "Online",
       "offline": "Offline",
-      "pending": "Waiting for csm",
       "revoked": "Revoked"
     },
     "status": {
@@ -1540,12 +1540,6 @@
     "cpu": "CPU-last",
     "ram": "RAM",
     "diskLabel": "Disk {{mount}}",
-    "counts": {
-      "free": "Ledige",
-      "match": "I en kamp",
-      "busy": "Oppdateres eller starter på nytt",
-      "down": "Stoppet eller frakoblet"
-    },
     "step": {
       "name": "Gi maskinen et navn",
       "run": "Kjør dette på den",
@@ -1555,7 +1549,15 @@
     },
     "noCsm": "Ingen csm på maskinen ennå?",
     "noCsmHelp": "Installer CS2 Server Manager først, og kom tilbake til steg 2.",
-    "installGuide": "Installasjonsguide"
+    "installGuide": "Installasjonsguide",
+    "codeExpired": "Koden er utløpt: lag en ny",
+    "statusLabel": "Status",
+    "added": "Lagt til",
+    "lastSeenLabel": "Sist sett",
+    "noReportYet": "Koblet, venter på første rapport fra csm",
+    "pendingHelp": "På maskinen, som brukeren som kjører csm, kjør csm link med en ny kode. CPU, disk, CS2-versjon og servere vises her når csm kobler til.",
+    "revokedHelp": "Tokenet virker ikke lenger. Fjern den, eller legg til maskinen på nytt.",
+    "noReportHelp": "csm sender hva maskinen har og kjører innen ett minutt etter tilkobling."
   },
   "failover": {
     "title": "Failover",
@@ -1614,7 +1616,8 @@
     "reserveStatus": "{{effective}} of {{pool}} online server(s) kept free for failover",
     "reserveHelp": "Spare servers stay idle: matches are not put on them, so one is ready when a server goes down. At least one server always takes matches. Spare servers count toward your license like any other server.",
     "summaryOn": "Automatisk flytting på",
-    "summaryOff": "Automatisk flytting av"
+    "summaryOff": "Automatisk flytting av",
+    "empty": "Failover trenger minst én Ready Up-server."
   },
   "pluginSets": {
     "presetLabel": "Utvidelsesoppsett",
@@ -1664,7 +1667,8 @@
   },
   "autoscale": {
     "summaryOn": "På",
-    "summaryOff": "Av"
+    "summaryOff": "Av",
+    "empty": "Automatisk skalering trenger en maskin koblet med csm."
   },
   "fleetPush": {
     "summary": "Administratorer, innstillinger og programtillegg sendt til Ready Up-servere"
@@ -2120,14 +2124,11 @@
     "notAnswering": "Svarer ikke",
     "openMatch": "Åpne kampen",
     "other": {
-      "about": "Lagt til med adresse, eller registrert på egen hånd. De fungerer fortsatt; nye servere lages på en maskin.",
-      "disabled": "Deaktivert",
-      "title": "Servere som ikke er på en maskin"
+      "disabled": "Deaktivert"
     },
     "restarts_one": "{{count}} omstart på 24 t",
     "restarts_other": "{{count}} omstarter på 24 t",
     "stoppedLine": "Starter når en kamp trenger den",
-    "summary": "Alle servere",
     "update": "Oppdater",
     "updateEllipsis": "Oppdater…",
     "updatingWhat": "Oppdaterer {{what}}",
@@ -2145,12 +2146,11 @@
       "offline": "Nede",
       "veto": "Veto",
       "warmup": "Oppvarming",
-      "creating": "Lager…"
+      "knife": "Knivrunde",
+      "live": "Live"
     },
     "offlineFor": "Frakoblet i {{time}}",
     "readyUp": {
-      "title": "Ready Up-flåte",
-      "about": "Servere som kobler til plattformen med Ready Up",
       "tabs": {
         "servers": "Servere",
         "keys": "Nøkler og innrullering",
@@ -2172,7 +2172,9 @@
         "connect": "Koble til",
         "version": "Ready Up",
         "cs2": "CS2-bygg",
-        "lastSeen": "Sist sett"
+        "lastSeen": "Sist sett",
+        "update": "Oppdatering",
+        "token": "Fornyelse av token"
       },
       "reset": {
         "action": "Tilbakestill",
@@ -2390,5 +2392,28 @@
       "label": "Fyll lagene med boter",
       "help": "Boter fyller ledige plasser opp til lagstørrelsen og gir plass til spillere som kobler til. Du gjør klar og spiller som normalt. Krever Ready Up med støtte for botfyll."
     }
+  },
+  "serversList": {
+    "noMachine": "Uten maskin",
+    "noMachineAbout": "Ready Up-servere som meldte seg på selv, og servere lagt til med adresse.",
+    "guessedBanner": "Noen adresser ble gjettet ut fra hvor serveren kobler til fra. Sjekk dem, eller angi adressen spillerne bruker.",
+    "transport": {
+      "readyUp": "Ready Up",
+      "rcon": "RCON"
+    },
+    "seen": "Sist sett {{time}}",
+    "pushProblem": "En sending til denne serveren feilet eller fikk ikke svar",
+    "menu": "Mer for {{name}}",
+    "open": "Åpne",
+    "edit": "Rediger",
+    "section": {
+      "machine": "Maskin"
+    },
+    "facts": {
+      "address": "Adresse",
+      "plugin": "Plugin"
+    },
+    "copyConnect": "Kopier connect-kommandoen",
+    "connectCopied": "Connect-kommando kopiert"
   }
 }

@@ -59,8 +59,10 @@ test.describe('Ready Up fleet: reset', () => {
         error: 'This Ready Up does not know reset yet: update it',
       },
     };
-    await page.getByTestId('fleet-open-b').click();
-    await page.getByTestId('fleet-server-sheet').getByTestId('fleet-reset-b').click();
+    // A free server has no Reset on its row; its panel has one.
+    await expect(page.getByTestId('servers-list').getByTestId('fleet-reset-b')).toHaveCount(0);
+    await page.getByTestId('server-row-r:b').click();
+    await page.getByTestId('server-panel').getByTestId('fleet-reset-b').click();
     await page.getByRole('dialog').last().getByRole('button', { name: 'Reset' }).click();
     await expect(page.getByText('This Ready Up does not know reset yet: update it')).toBeVisible();
   });
@@ -69,7 +71,7 @@ test.describe('Ready Up fleet: reset', () => {
     const servers = [fleetServer('off', { online: false })];
     await stubFleet(page, servers);
     await stubFleetDetail(page, servers);
-    await page.goto('/manage/servers#fleet');
-    await expect(page.getByTestId('fleet-reset-off')).toBeDisabled();
+    await page.goto('/manage/servers?server=r:off');
+    await expect(page.getByTestId('server-panel').getByTestId('fleet-reset-off')).toBeDisabled();
   });
 });

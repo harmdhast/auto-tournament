@@ -1,5 +1,5 @@
 import { Box, Button, Chip, LinearProgress, MenuItem, Stack, TextField, Tooltip, Typography } from '@mui/material';
-import { CheckIcon, DownloadSimpleIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
+import { CheckIcon, DownloadSimpleIcon, KeyIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { fontDisplay, mono, radii, tokens, useModuleTranslation, withAlpha } from '../../../../module-sdk';
 import type { FleetHost, FleetHostCommand } from '../../cs2.types';
 import { readyUpVersion, useCommandLabel, useProblemText } from './MachineCard';
@@ -43,12 +43,16 @@ export function MachineSheet({
   onClose,
   onAddServers,
   onUpdateReadyUp,
+  onNewCode,
+  onRemove,
 }: {
   fleet: Fleet;
   host: FleetHost | null;
   onClose: () => void;
   onAddServers: (host: FleetHost) => void;
   onUpdateReadyUp: (host: FleetHost) => void;
+  onNewCode: (host: FleetHost) => void;
+  onRemove: (host: FleetHost) => void;
 }) {
   const { t, i18n } = useModuleTranslation('cs2');
   const commandLabel = useCommandLabel();
@@ -109,6 +113,54 @@ export function MachineSheet({
     >
       {host && (
         <>
+          {/* Nothing reported yet (waiting to be linked, revoked, or linked before its first report): say where it stands and what to do. */}
+          {!inv && (
+            <Stack gap={1.5} data-testid="machine-sheet-status">
+              <Facts
+                items={[
+                  [
+                    t('machinesPanel.statusLabel', { defaultValue: 'Status' }),
+                    host.status === 'pending'
+                      ? host.codeExpiresAt
+                        ? t('machinesPanel.codeExpires', { defaultValue: 'Code valid until {{time}}', time: when(host.codeExpiresAt) })
+                        : t('machinesPanel.codeExpired', { defaultValue: 'Code expired: get a new one' })
+                      : host.status === 'revoked'
+                        ? t('machinesPanel.hostStatus.revoked', { defaultValue: 'Revoked' })
+                        : t('machinesPanel.noReportYet', { defaultValue: 'Linked, waiting for its first report from csm' }),
+                  ],
+                  [t('machinesPanel.added', { defaultValue: 'Added' }), when(host.createdAt)],
+                  !!host.lastSeen && [t('machinesPanel.lastSeenLabel', { defaultValue: 'Last seen' }), when(host.lastSeen)],
+                ]}
+              />
+              <Typography variant="body2" color="text.secondary">
+                {host.status === 'pending'
+                  ? t('machinesPanel.pendingHelp', {
+                      defaultValue:
+                        'On the machine, as the user that runs csm, run csm link with a new code. Its CPU, disk, CS2 build and servers show here once csm connects.',
+                    })
+                  : host.status === 'revoked'
+                    ? t('machinesPanel.revokedHelp', {
+                        defaultValue: 'Its token no longer works. Remove it, or add the machine again.',
+                      })
+                    : t('machinesPanel.noReportHelp', {
+                        defaultValue: 'csm sends what the machine has and runs within a minute of connecting.',
+                      })}
+              </Typography>
+              {host.status !== 'enrolled' && (
+                <Stack direction="row" gap={1} flexWrap="wrap">
+                  {host.status === 'pending' && (
+                    <Button variant="contained" size="small" startIcon={<KeyIcon />} onClick={() => onNewCode(host)} data-testid="machine-sheet-new-code">
+                      {t('machinesPanel.newCode', { defaultValue: 'New code' })}
+                    </Button>
+                  )}
+                  <Button variant="outlined" color="error" size="small" startIcon={<TrashIcon />} onClick={() => onRemove(host)} data-testid="machine-sheet-remove">
+                    {t('machinesPanel.remove', { defaultValue: 'Remove' })}
+                  </Button>
+                </Stack>
+              )}
+            </Stack>
+          )}
+
           {host.status === 'enrolled' && (
             <Stack direction="row" gap={1} flexWrap="wrap">
               <Button variant="contained" size="small" startIcon={<PlusIcon />} disabled={!online} onClick={() => onAddServers(host)} data-testid={`machine-create-several-${host.id}`}>

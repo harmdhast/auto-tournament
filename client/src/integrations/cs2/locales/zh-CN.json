@@ -51,7 +51,9 @@
       "pluginSame": "{{version}}, all servers match",
       "pluginMixed": "{{count}} plugin versions in use",
       "none": "No servers connected yet.",
-      "notConfigured": "Not configured"
+      "notConfigured": "Not configured",
+      "busy": "忙碌",
+      "spare": "备用"
     },
     "setup": {
       "serversDone": "{{count}} server added",
@@ -74,7 +76,6 @@
       "heading": "Servers",
       "viewAll": "All servers",
       "none": "No servers configured yet.",
-      "inMatch": "In match",
       "free": "Free",
       "offline": "Offline",
       "lastHeartbeat": "Last heartbeat {{time}} ago",
@@ -652,6 +653,11 @@
       "summary_one": "{{count}} server not on a machine",
       "summary_other": "{{count}} servers not on a machine",
       "about": "Servers added by address, not run by csm on a linked machine."
+    },
+    "add": {
+      "button": "添加",
+      "machine": "机器",
+      "readyUp": "Ready Up 服务器"
     }
   },
   "serverModal": {
@@ -1227,11 +1233,8 @@
     "offType": "{{maps}}：不是{{mode}}地图。请移除，或更改地图类型。"
   },
   "fleetPanel": {
-    "title": "Ready Up 服务器组",
-    "description": "Ready Up 服务器通过一次性代码或服务器组密钥自行注册，并与平台保持连接。无需 RCON 密码。",
     "addServer": "添加服务器",
     "createKey": "创建服务器组密钥",
-    "empty": "还没有 Ready Up 服务器。使用一次性代码添加一台，或给 csm 一个服务器组密钥。",
     "status": {
       "online": "在线",
       "offline": "离线",
@@ -1239,12 +1242,8 @@
       "revoked": "已吊销"
     },
     "codeExpires": "代码有效期至 {{time}}",
-    "lastSeen": "最后在线：{{time}}",
-    "readyUpVersion": "Ready Up {{version}}",
-    "cs2Build": "CS2 版本 {{build}}",
     "newCode": "新代码",
     "rotate": "轮换令牌",
-    "rotateTooltip": "轮换令牌（到期：{{time}}）",
     "revoke": "吊销",
     "remove": "移除",
     "keysTitle": "服务器组密钥",
@@ -1314,8 +1313,10 @@
     "rename": "Rename",
     "renamed": "Renamed",
     "renameSave": "Save",
-    "summary": "{{servers}} Ready Up server(s), {{online}} online · {{keys}} fleet key(s)",
-    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use."
+    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
+    "updateAvailable": "有可用更新：{{version}}",
+    "upToDate": "已是最新",
+    "noUpdateCheck": "尚未检查更新"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -1455,7 +1456,6 @@
     "hostStatus": {
       "online": "Online",
       "offline": "Offline",
-      "pending": "Waiting for csm",
       "revoked": "Revoked"
     },
     "status": {
@@ -1540,12 +1540,6 @@
     "cpu": "CPU load",
     "ram": "RAM",
     "diskLabel": "Disk {{mount}}",
-    "counts": {
-      "free": "Free",
-      "match": "In a match",
-      "busy": "Updating or restarting",
-      "down": "Stopped or offline"
-    },
     "step": {
       "name": "Name the machine",
       "run": "Run this on it",
@@ -1555,7 +1549,15 @@
     },
     "noCsm": "No csm on the machine yet?",
     "noCsmHelp": "Install CS2 Server Manager first, then come back for step 2.",
-    "installGuide": "Install guide"
+    "installGuide": "Install guide",
+    "codeExpired": "代码已过期：请生成新代码",
+    "statusLabel": "状态",
+    "added": "添加于",
+    "lastSeenLabel": "最后在线",
+    "noReportYet": "已关联，等待 csm 的首次报告",
+    "pendingHelp": "在该机器上，以运行 csm 的用户执行带新代码的 csm link。csm 连接后，这里会显示其 CPU、磁盘、CS2 版本和服务器。",
+    "revokedHelp": "其令牌已失效。请移除它，或重新添加该机器。",
+    "noReportHelp": "csm 连接后一分钟内会发送机器的资源和运行情况。"
   },
   "failover": {
     "title": "Failover",
@@ -1614,7 +1616,8 @@
     "reserveStatus": "{{effective}} of {{pool}} online server(s) kept free for failover",
     "reserveHelp": "Spare servers stay idle: matches are not put on them, so one is ready when a server goes down. At least one server always takes matches. Spare servers count toward your license like any other server.",
     "summaryOn": "Automatic moves on",
-    "summaryOff": "Automatic moves off"
+    "summaryOff": "Automatic moves off",
+    "empty": "故障转移至少需要一台 Ready Up 服务器。"
   },
   "pluginSets": {
     "presetLabel": "插件预设",
@@ -1664,7 +1667,8 @@
   },
   "autoscale": {
     "summaryOn": "On",
-    "summaryOff": "Off"
+    "summaryOff": "Off",
+    "empty": "自动扩缩需要一台通过 csm 关联的机器。"
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers"
@@ -2116,14 +2120,11 @@
     "matchHint": "A match is on this server: stopping or restarting it asks for a reason, and failover can move the match first.",
     "newServer": "New server {{n}}",
     "notAnswering": "Not answering",
-    "openMatch": "Open the match",
+    "openMatch": "打开比赛",
     "other": {
-      "about": "Added by address, or enrolled on their own. They keep working; new servers are made on a machine.",
-      "disabled": "Disabled",
-      "title": "Servers not on a machine"
+      "disabled": "Disabled"
     },
     "state": {
-      "creating": "Creating…",
       "deleting": "Deleting…",
       "free": "Free",
       "match": "Match",
@@ -2134,10 +2135,11 @@
       "stopping": "Stopping…",
       "updating": "Updating…",
       "veto": "Veto",
-      "warmup": "Warmup"
+      "warmup": "Warmup",
+      "knife": "刀局",
+      "live": "进行中"
     },
     "stoppedLine": "Starts when a match needs it",
-    "summary": "All servers",
     "update": "Update",
     "updateEllipsis": "Update…",
     "updatingWhat": "Updating {{what}}",
@@ -2149,8 +2151,6 @@
     "restarts_other": "{{count}} restarts in 24 h",
     "offlineFor": "Offline for {{time}}",
     "readyUp": {
-      "title": "Ready Up 服务器群",
-      "about": "通过 Ready Up 连接平台的服务器",
       "tabs": {
         "servers": "服务器",
         "keys": "密钥与注册",
@@ -2172,7 +2172,9 @@
         "connect": "连接",
         "version": "Ready Up",
         "cs2": "CS2 版本",
-        "lastSeen": "最后在线"
+        "lastSeen": "最后在线",
+        "update": "更新",
+        "token": "令牌续期"
       },
       "reset": {
         "action": "重置",
@@ -2395,5 +2397,28 @@
       "label": "Fill teams with bots",
       "help": "Bots fill empty slots up to the tournament team size and make room for joining players. Ready up and play normally. Requires a Ready Up server with bot-fill support."
     }
+  },
+  "serversList": {
+    "noMachine": "无机器",
+    "noMachineAbout": "自行注册的 Ready Up 服务器，以及按地址添加的服务器。",
+    "guessedBanner": "部分地址是根据服务器的连接来源推测的。请检查，或设置玩家使用的地址。",
+    "transport": {
+      "readyUp": "Ready Up",
+      "rcon": "RCON"
+    },
+    "seen": "最后在线 {{time}}",
+    "pushProblem": "向此服务器的推送失败或无响应",
+    "menu": "{{name}} 的更多操作",
+    "open": "打开",
+    "edit": "编辑",
+    "section": {
+      "machine": "机器"
+    },
+    "facts": {
+      "address": "地址",
+      "plugin": "插件"
+    },
+    "copyConnect": "复制 connect 命令",
+    "connectCopied": "已复制 connect 命令"
   }
 }

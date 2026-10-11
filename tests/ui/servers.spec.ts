@@ -30,18 +30,21 @@ test.describe.serial('Server UI', () => {
 
       await page.goto('/manage/servers');
       // Nothing on the page adds a server by address.
-      await expect(page.getByTestId('machines-add')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId('servers-add')).toBeVisible({ timeout: 15000 });
       await expect(page.getByTestId('add-server-button')).toHaveCount(0);
       await expect(page.getByTestId('servers-add-existing')).toHaveCount(0);
 
-      const other = page.getByTestId('servers-other');
-      await expect(other).toBeVisible({ timeout: 15000 });
-      const card = page.getByTestId(`server-card-${server!.name.replace(/\s+/g, '-').toLowerCase()}`);
-      await expect(card).toBeVisible();
-      await expect(card.getByTestId('server-host')).toContainText(`${server!.host}:${server!.port}`);
+      const row = page.getByTestId(`server-row-x:${server!.id}`);
+      await expect(row).toBeVisible({ timeout: 15000 });
+      await expect(row).toContainText(`${server!.host}:${server!.port}`);
 
-      // Its settings open from the card; delete it there.
-      await card.click();
+      // Its panel shows the address; its settings open from there; delete it there.
+      await row.click();
+      const panel = page.getByTestId('server-panel');
+      await expect(panel.getByTestId('server-host')).toContainText(
+        `${server!.host}:${server!.port}`
+      );
+      await panel.getByTestId('server-panel-edit').click();
       const modal = page.getByTestId('server-modal');
       await expect(modal).toBeVisible();
       await page.getByTestId('server-delete-button').click();
@@ -54,7 +57,7 @@ test.describe.serial('Server UI', () => {
         page.getByTestId('confirm-dialog-confirm-button').click(),
       ]);
       expect(deleteResponse.ok(), 'DELETE /api/servers should succeed').toBe(true);
-      await expect(card).toHaveCount(0);
+      await expect(row).toHaveCount(0);
     }
   );
 });

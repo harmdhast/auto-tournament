@@ -12,6 +12,7 @@ export interface ServerMatch {
   team1: string;
   team2: string;
   score: [number, number] | null;
+  series: [number, number] | null;
   map: string | null;
   mapNumber: number | null;
   maps: number;
@@ -22,14 +23,17 @@ interface MatchResponse {
   success: boolean;
   match?: {
     slug: string;
+    status?: string;
     team1?: { name?: string } | null;
     team2?: { name?: string } | null;
     team1MapScore?: number | null;
     team2MapScore?: number | null;
+    team1SeriesScore?: number | null;
+    team2SeriesScore?: number | null;
     currentMap?: string | null;
     mapNumber?: number | null;
     maps?: string[];
-    matchPhase?: string | null;
+    liveStatus?: string | null;
     vetoing?: boolean;
     vetoCompleted?: boolean;
   };
@@ -37,27 +41,34 @@ interface MatchResponse {
 
 interface Availability {
   success: boolean;
-  servers?: Array<{ id: string; matchSlug: string | null }>;
+  servers?: Array<{ id: string; matchSlug: string | null; allocatable?: boolean }>;
 }
 
 const REFRESH_MS = 30_000;
 
 function toServerMatch(m: NonNullable<MatchResponse['match']>): ServerMatch {
-  const phase = m.vetoing || m.vetoCompleted === false
-    ? 'veto'
-    : m.matchPhase === 'warmup' || m.matchPhase === 'knife' || m.matchPhase === 'live'
-      ? m.matchPhase
-      : m.matchPhase === 'post_match'
-        ? 'post'
-        : null;
+  const phase =
+    m.vetoing || m.vetoCompleted === false
+      ? 'veto'
+      : m.liveStatus === 'warmup' || m.liveStatus === 'knife' || m.liveStatus === 'live'
+        ? m.liveStatus
+        : m.liveStatus === 'halftime'
+          ? 'live'
+          : m.liveStatus === 'postgame'
+            ? 'post'
+            : null;
   const s1 = m.team1MapScore;
   const s2 = m.team2MapScore;
+  const w1 = m.team1SeriesScore;
+  const w2 = m.team2SeriesScore;
   return {
     slug: m.slug,
     team1: m.team1?.name ?? '',
     team2: m.team2?.name ?? '',
     score: typeof s1 === 'number' && typeof s2 === 'number' ? [s1, s2] : null,
-    map: m.currentMap ?? null,
+    series: typeof w1 === 'number' && typeof w2 === 'number' ? [w1, w2] : null,
+    map:
+      m.currentMap ?? (typeof m.mapNumber === 'number' ? m.maps?.[m.mapNumber] : undefined) ?? null,
     mapNumber: typeof m.mapNumber === 'number' ? m.mapNumber : null,
     maps: m.maps?.length ?? 0,
     phase,
@@ -68,14 +79,15 @@ function toServerMatch(m: NonNullable<MatchResponse['match']>): ServerMatch {
 export function useServerMatches(): Record<string, ServerMatch> {
   const socket = useSocket();
   const [slugByServer, setSlugByServer] = useState<Record<string, string>>({});
-  const [matches, setMatches] = useState<Record<string, ServerMatch>>({});
+  const [matches, setMatches] = useState<Record<string, ServerMatch | null>>({});
   const wanted = useRef<Set<string>>(new Set());
 
   const loadAvailability = useCallback(async () => {
     try {
       const res = await api.get<Availability>('/api/tournament/server-availability');
       const next: Record<string, string> = {};
-      for (const s of res.servers ?? []) if (s.matchSlug) next[s.id] = s.matchSlug;
+      for (const s of res.servers ?? [])
+        if (s.matchSlug && !s.allocatable) next[s.id] = s.matchSlug;
       setSlugByServer(next);
     } catch {
       // No tournament or no access: no matches to show.
@@ -86,7 +98,7 @@ export function useServerMatches(): Record<string, ServerMatch> {
     try {
       const res = await api.get<MatchResponse>(`/api/matches/${encodeURIComponent(slug)}`);
       if (res.success && res.match) {
-        const m = toServerMatch(res.match);
+        const m = res.match.status === 'completed' ? null : toServerMatch(res.match);
         setMatches((prev) => ({ ...prev, [slug]: m }));
       }
     } catch {
@@ -128,7 +140,18 @@ export function useServerMatches(): Record<string, ServerMatch> {
 
   const out: Record<string, ServerMatch> = {};
   for (const [serverId, slug] of Object.entries(slugByServer)) {
-    out[serverId] = matches[slug] ?? { slug, team1: '', team2: '', score: null, map: null, mapNumber: null, maps: 0, phase: null };
+    if (matches[slug] === null) continue;
+    out[serverId] = matches[slug] ?? {
+      slug,
+      team1: '',
+      team2: '',
+      score: null,
+      series: null,
+      map: null,
+      mapNumber: null,
+      maps: 0,
+      phase: null,
+    };
   }
   return out;
 }

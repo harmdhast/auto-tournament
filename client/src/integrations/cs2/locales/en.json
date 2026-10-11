@@ -51,7 +51,9 @@
       "pluginSame": "{{version}}, all servers match",
       "pluginMixed": "{{count}} plugin versions in use",
       "none": "No servers connected yet.",
-      "notConfigured": "Not configured"
+      "notConfigured": "Not configured",
+      "busy": "Busy",
+      "spare": "Spare"
     },
     "setup": {
       "serversDone": "{{count}} server added",
@@ -74,7 +76,6 @@
       "heading": "Servers",
       "viewAll": "All servers",
       "none": "No servers configured yet.",
-      "inMatch": "In match",
       "free": "Free",
       "offline": "Offline",
       "lastHeartbeat": "Last heartbeat {{time}} ago",
@@ -652,6 +653,11 @@
       "summary_one": "{{count}} server not on a machine",
       "summary_other": "{{count}} servers not on a machine",
       "about": "Servers added by address, not run by csm on a linked machine."
+    },
+    "add": {
+      "button": "Add",
+      "machine": "Machine",
+      "readyUp": "Ready Up server"
     }
   },
   "serverModal": {
@@ -1227,11 +1233,8 @@
     "offType": "{{maps}}: not a {{mode}} map. Remove it, or change the map type."
   },
   "fleetPanel": {
-    "title": "Ready Up fleet",
-    "description": "Ready Up servers enroll themselves with a one-time code or a fleet key, then stay connected to the platform. No RCON password needed.",
     "addServer": "Add server",
     "createKey": "Create fleet key",
-    "empty": "No Ready Up servers yet. Add one with a one-time code, or give csm a fleet key.",
     "status": {
       "online": "Online",
       "offline": "Offline",
@@ -1239,12 +1242,8 @@
       "revoked": "Revoked"
     },
     "codeExpires": "Code valid until {{time}}",
-    "lastSeen": "Last seen {{time}}",
-    "readyUpVersion": "Ready Up {{version}}",
-    "cs2Build": "CS2 build {{build}}",
     "newCode": "New code",
     "rotate": "Rotate token",
-    "rotateTooltip": "Rotate token (due {{time}})",
     "revoke": "Revoke",
     "remove": "Remove",
     "keysTitle": "Fleet keys",
@@ -1314,8 +1313,10 @@
     "rename": "Rename",
     "renamed": "Renamed",
     "renameSave": "Save",
-    "summary": "{{servers}} Ready Up server(s), {{online}} online · {{keys}} fleet key(s)",
-    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use."
+    "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
+    "updateAvailable": "Update available: {{version}}",
+    "upToDate": "Up to date",
+    "noUpdateCheck": "No update check yet"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -1455,7 +1456,6 @@
     "hostStatus": {
       "online": "Online",
       "offline": "Offline",
-      "pending": "Waiting for csm",
       "revoked": "Revoked"
     },
     "status": {
@@ -1540,12 +1540,6 @@
     "cpu": "CPU load",
     "ram": "RAM",
     "diskLabel": "Disk {{mount}}",
-    "counts": {
-      "free": "Free",
-      "match": "In a match",
-      "busy": "Updating or restarting",
-      "down": "Stopped or offline"
-    },
     "step": {
       "name": "Name the machine",
       "run": "Run this on it",
@@ -1555,7 +1549,15 @@
     },
     "noCsm": "No csm on the machine yet?",
     "noCsmHelp": "Install CS2 Server Manager first, then come back for step 2.",
-    "installGuide": "Install guide"
+    "installGuide": "Install guide",
+    "codeExpired": "Code expired: get a new one",
+    "statusLabel": "Status",
+    "added": "Added",
+    "lastSeenLabel": "Last seen",
+    "noReportYet": "Linked, waiting for its first report from csm",
+    "pendingHelp": "On the machine, as the user that runs csm, run csm link with a new code. Its CPU, disk, CS2 build and servers show here once csm connects.",
+    "revokedHelp": "Its token no longer works. Remove it, or add the machine again.",
+    "noReportHelp": "csm sends what the machine has and runs within a minute of connecting."
   },
   "failover": {
     "title": "Failover",
@@ -1614,7 +1616,8 @@
     "reserveStatus": "{{effective}} of {{pool}} online server(s) kept free for failover",
     "reserveHelp": "Spare servers stay idle: matches are not put on them, so one is ready when a server goes down. At least one server always takes matches. Spare servers count toward your license like any other server.",
     "summaryOn": "Automatic moves on",
-    "summaryOff": "Automatic moves off"
+    "summaryOff": "Automatic moves off",
+    "empty": "Failover needs at least one Ready Up server."
   },
   "pluginSets": {
     "presetLabel": "Plugin preset",
@@ -1664,7 +1667,8 @@
   },
   "autoscale": {
     "summaryOn": "On",
-    "summaryOff": "Off"
+    "summaryOff": "Off",
+    "empty": "Automatic scaling needs a machine linked with csm."
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers"
@@ -2118,12 +2122,9 @@
     "notAnswering": "Not answering",
     "openMatch": "Open the match",
     "other": {
-      "about": "Added by address, or enrolled on their own. They keep working; new servers are made on a machine.",
-      "disabled": "Disabled",
-      "title": "Servers not on a machine"
+      "disabled": "Disabled"
     },
     "state": {
-      "creating": "Creating…",
       "deleting": "Deleting…",
       "free": "Free",
       "match": "Match",
@@ -2134,10 +2135,11 @@
       "stopping": "Stopping…",
       "updating": "Updating…",
       "veto": "Veto",
-      "warmup": "Warmup"
+      "warmup": "Warmup",
+      "knife": "Knife round",
+      "live": "Live"
     },
     "stoppedLine": "Starts when a match needs it",
-    "summary": "All servers",
     "update": "Update",
     "updateEllipsis": "Update…",
     "updatingWhat": "Updating {{what}}",
@@ -2149,8 +2151,6 @@
     "restarts_other": "{{count}} restarts in 24 h",
     "offlineFor": "Offline for {{time}}",
     "readyUp": {
-      "title": "Ready Up fleet",
-      "about": "Servers that connect to the platform with Ready Up",
       "tabs": {
         "servers": "Servers",
         "keys": "Keys and enrollment",
@@ -2172,7 +2172,9 @@
         "connect": "Connect",
         "version": "Ready Up",
         "cs2": "CS2 build",
-        "lastSeen": "Last seen"
+        "lastSeen": "Last seen",
+        "update": "Update",
+        "token": "Token renewal"
       },
       "reset": {
         "action": "Reset",
@@ -2390,5 +2392,28 @@
       "label": "Fill teams with bots",
       "help": "Bots fill empty slots up to the tournament team size and make room for joining players. Ready up and play normally. Requires a Ready Up server with bot-fill support."
     }
+  },
+  "serversList": {
+    "noMachine": "No machine",
+    "noMachineAbout": "Ready Up servers that enrolled on their own, and servers added by address.",
+    "guessedBanner": "Some addresses were guessed from where the server connects. Check them, or set the address players use.",
+    "transport": {
+      "readyUp": "Ready Up",
+      "rcon": "RCON"
+    },
+    "seen": "Seen {{time}}",
+    "pushProblem": "A push to this server failed or got no answer",
+    "menu": "More for {{name}}",
+    "open": "Open",
+    "edit": "Edit",
+    "section": {
+      "machine": "Machine"
+    },
+    "facts": {
+      "address": "Address",
+      "plugin": "Plugin"
+    },
+    "copyConnect": "Copy the connect command",
+    "connectCopied": "Connect command copied"
   }
 }

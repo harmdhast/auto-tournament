@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Chip, Skeleton } from '@mui/material';
+import React from 'react';
+import { Box, ButtonBase, Skeleton } from '@mui/material';
 import type { ManageResourcesProps } from '../../types';
 import {
-  api,
   getBracketMatchLabel,
   links,
-  LiveChip,
+  openMatchDetails,
   radii,
   SectionHead,
   textSize,
@@ -13,70 +12,34 @@ import {
   useModuleTranslation,
 } from '../../../module-sdk';
 import type { ServerAllocationInfo } from '../cs2.types';
+import type { ServerMatch } from './fleet/useServerMatches';
+import { useServerMatches } from './fleet/useServerMatches';
+import {
+  busyTone,
+  StateChip,
+  stateTone,
+  useMatchLine,
+  useStateLabel,
+  useTileMatchLine,
+} from './fleet/serverStateMark';
 import { useServerAvailability } from './useServerAvailability';
 import { useUnconfiguredServers } from './useUnconfiguredServers';
 
-/** The two team names of a match, for a server running one with no bracket label. */
-type TeamNames = { team1?: string; team2?: string };
-
-/**
- * The team names of the matches the servers are running, asked per match the
- * first time a server shows one. A match keeps its teams while it runs, so an
- * answer is kept for as long as the grid is open.
- */
-function useTeamNames(slugs: string[]): Map<string, TeamNames> {
-  const [names, setNames] = useState<Map<string, TeamNames>>(() => new Map());
-  const missing = slugs.filter((slug) => !names.has(slug));
-  const missingKey = missing.join(',');
-
-  useEffect(() => {
-    if (!missingKey) return;
-    let cancelled = false;
-    void Promise.all(
-      missingKey.split(',').map(async (slug): Promise<[string, TeamNames]> => {
-        try {
-          const res = await api.get<{
-            match?: { team1?: { name?: string } | null; team2?: { name?: string } | null };
-          }>(`/api/matches/${encodeURIComponent(slug)}`);
-          return [slug, { team1: res.match?.team1?.name, team2: res.match?.team2?.name }];
-        } catch {
-          return [slug, {}];
-        }
-      })
-    ).then((entries) => {
-      if (cancelled) return;
-      setNames((prev) => {
-        const next = new Map(prev);
-        for (const [slug, teams] of entries) next.set(slug, teams);
-        return next;
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [missingKey]);
-
-  return names;
-}
-
 /**
  * The Manage console's server grid (`dashboardWidgets.manageResources`). It
- * asks the fleet itself on the console's 5-second cadence, and the team names
- * of what runs on it (client API 0.2.0): the console hands it only the
- * tournament.
+ * asks the fleet itself on the console's 5-second cadence, and what runs on
+ * it (client API 0.2.0): the console hands it only the tournament.
  */
 export const ServerGrid: React.FC<ManageResourcesProps> = () => {
   const { availability, answers } = useServerAvailability(5000);
   const servers = availability?.servers ?? [];
   const unconfigured = useUnconfiguredServers(30_000);
-  const teamNames = useTeamNames(
-    servers.filter((s) => !bracketLabel(s)).flatMap((s) => (s.matchSlug ? [s.matchSlug] : []))
-  );
+  const matches = useServerMatches();
   return (
     <ServerGridView
       servers={servers}
       unconfigured={unconfigured}
-      teamNames={teamNames}
+      matches={matches}
       answers={answers}
     />
   );
@@ -91,6 +54,32 @@ function bracketLabel(server: ServerAllocationInfo): string | null {
     round: server.matchRound ?? 0,
     matchNumber: server.matchNumber ?? 0,
   });
+}
+
+const PHASE_RANK: Record<string, number> = { live: 0, knife: 1, warmup: 2, veto: 3 };
+const OTHER_PHASE_RANK = 4;
+const FREE_RANK = 10;
+const RESTING_RANK = 11;
+const BUSY_RANK = 12;
+const CHECKING_RANK = 13;
+const OFFLINE_RANK = 14;
+
+/**
+ * Where a tile goes on the dashboard, lowest first: servers in a match (live,
+ * knife, warmup, veto, then the rest), free ones, resting or spare ones, busy
+ * ones, ones still being checked, offline ones. Not configured servers follow.
+ */
+export function serverRank(
+  server: ServerAllocationInfo,
+  match: ServerMatch | undefined,
+  checking: boolean
+): number {
+  if (!server.online) return checking && !server.updatedAt ? CHECKING_RANK : OFFLINE_RANK;
+  if (match) return PHASE_RANK[match.phase ?? ''] ?? OTHER_PHASE_RANK;
+  if (server.allocatable) return FREE_RANK;
+  if (server.notAllocatableReason === 'grace-window' || server.busyReason === 'reserved')
+    return RESTING_RANK;
+  return BUSY_RANK;
 }
 
 function timeAgo(
@@ -150,17 +139,31 @@ const Tile: React.FC<{
   chip: React.ReactNode;
   line: React.ReactNode;
   bad?: boolean;
+  lineTitle?: string;
+  /** Makes the tile a button that does this. */
+  onOpen?: () => void;
+  openLabel?: string;
   'data-testid'?: string;
-}> = ({ name, chip, line, bad, ...rest }) => (
+}> = ({ name, chip, line, bad, lineTitle, onOpen, openLabel, ...rest }) => (
   <Box
+    component={onOpen ? ButtonBase : 'div'}
+    onClick={onOpen}
+    aria-label={onOpen ? openLabel : undefined}
     data-testid={rest['data-testid']}
     sx={{
+      textAlign: 'left',
+      color: 'inherit',
+      font: 'inherit',
+      fontSize: textSize.sm,
+      ...(onOpen && {
+        '&:hover': { borderColor: tokens.color.accent },
+        '&.Mui-focusVisible': { outline: `2px solid ${tokens.color.focus}` },
+      }),
       p: 2,
       display: 'grid',
       gap: 0.5,
       alignContent: 'start',
       minWidth: 0,
-      fontSize: textSize.sm,
       border: `1px solid ${bad ? tokens.color.ban : tokens.color.rule}`,
       borderRadius: radii.md,
     }}
@@ -170,19 +173,34 @@ const Tile: React.FC<{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        gap: 1.5,
+        flexWrap: 'wrap',
+        columnGap: 1.5,
+        rowGap: 0.5,
         minWidth: 0,
       }}
     >
       <Box
         component="b"
-        sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        title={typeof name === 'string' ? name : undefined}
+        sx={{
+          flex: '1 1 auto',
+          minWidth: 0,
+          overflow: 'hidden',
+          overflowWrap: 'anywhere',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+        }}
       >
         {name}
       </Box>
       {chip}
     </Box>
-    <Box component="span" sx={{ color: tokens.color.muted, overflowWrap: 'anywhere' }}>
+    <Box
+      component="span"
+      title={lineTitle}
+      sx={{ color: tokens.color.muted, overflowWrap: 'anywhere' }}
+    >
       {line}
     </Box>
   </Box>
@@ -200,11 +218,20 @@ const ServerGridView: React.FC<{
   servers: ServerAllocationInfo[];
   /** Added but never set up: listed so the grid matches the Servers page. */
   unconfigured: { id: string; name: string }[];
-  teamNames: Map<string, TeamNames>;
+  /** Fleet server id → the match on it. */
+  matches: Record<string, ServerMatch>;
   /** How many availability answers have arrived; 0 while the first is on its way. */
   answers: number;
-}> = ({ servers, unconfigured, teamNames, answers }) => {
+}> = ({ servers, unconfigured, matches, answers }) => {
   const { t } = useModuleTranslation('cs2');
+  const stateLabel = useStateLabel();
+  const matchLine = useMatchLine();
+  const tileMatchLine = useTileMatchLine();
+  const checking = answers < 2;
+  const ordered = servers
+    .map((server) => ({ server, rank: serverRank(server, matches[server.id], checking) }))
+    .sort((a, b) => a.rank - b.rank || a.server.name.localeCompare(b.server.name))
+    .map(({ server }) => server);
 
   const body = () => {
     if (answers === 0) {
@@ -242,26 +269,19 @@ const ServerGridView: React.FC<{
     }
     return (
       <Box sx={gridSx}>
-        {servers.map((server) => {
-          const match = server.matchSlug ? teamNames.get(server.matchSlug) : undefined;
-          const matchLabel =
-            server.matchSlug &&
-            (bracketLabel(server) ||
-              (match?.team1 && match?.team2
-                ? t('managePage.needsYou.vsLabel', {
-                    team1: match.team1,
-                    team2: match.team2,
-                  })
-                : server.matchSlug));
+        {ordered.map((server) => {
+          const match = matches[server.id];
 
           if (!server.online) {
             const neverHeard = !server.updatedAt;
-            if (neverHeard && answers < 2) {
+            if (neverHeard && checking) {
               return (
                 <Tile
                   key={server.id}
                   name={server.name}
-                  chip={<Chip size="small" label={t('managePage.servers.checking')} />}
+                  chip={
+                    <StateChip label={t('managePage.servers.checking')} tone={tokens.color.muted} />
+                  }
                   line={<Skeleton width="70%" />}
                 />
               );
@@ -271,13 +291,7 @@ const ServerGridView: React.FC<{
                 key={server.id}
                 bad
                 name={server.name}
-                chip={
-                  <Chip
-                    size="small"
-                    label={t('managePage.servers.offline')}
-                    sx={{ color: tokens.color.ban }}
-                  />
-                }
+                chip={<StateChip label={t('managePage.servers.offline')} tone={tokens.color.ban} />}
                 line={
                   server.updatedAt
                     ? t('managePage.servers.lastHeartbeat', { time: timeAgo(server.updatedAt, t) })
@@ -287,17 +301,22 @@ const ServerGridView: React.FC<{
             );
           }
 
-          if (matchLabel) {
+          if (match && server.matchSlug) {
+            const slug = server.matchSlug;
+            const chipLabel = stateLabel('match', match);
+            const line = tileMatchLine(match, bracketLabel(server));
             return (
               <Tile
                 key={server.id}
                 name={server.name}
-                chip={<LiveChip label={t('managePage.servers.inMatch')} />}
-                line={matchLabel}
+                chip={<StateChip label={chipLabel} tone={stateTone.match} />}
+                line={line}
+                lineTitle={matchLine(match)}
+                onOpen={() => void openMatchDetails(slug).catch(() => undefined)}
+                openLabel={`${t('serversBoard.openMatch', { defaultValue: 'Open the match' })} ${server.name}: ${chipLabel}, ${line}`}
               />
             );
           }
-
           // Online and running nothing: free, resting after a match, or
           // held back for a reason of its own.
           if (server.allocatable) {
@@ -305,7 +324,7 @@ const ServerGridView: React.FC<{
               <Tile
                 key={server.id}
                 name={server.name}
-                chip={<Chip size="small" label={t('managePage.servers.free')} />}
+                chip={<StateChip label={t('managePage.servers.free')} tone={stateTone.free} />}
                 line={t('managePage.servers.ready')}
               />
             );
@@ -315,7 +334,9 @@ const ServerGridView: React.FC<{
               <Tile
                 key={server.id}
                 name={server.name}
-                chip={<Chip size="small" label={t('managePage.servers.resting')} />}
+                chip={
+                  <StateChip label={t('managePage.servers.resting')} tone={tokens.color.info} />
+                }
                 line={t('managePage.servers.readyIn', { count: server.secondsUntilReady ?? 0 })}
               />
             );
@@ -326,9 +347,9 @@ const ServerGridView: React.FC<{
               key={server.id}
               name={server.name}
               chip={
-                <Chip
-                  size="small"
+                <StateChip
                   label={t(spare ? 'managePage.servers.spare' : 'managePage.servers.busy')}
+                  tone={spare ? tokens.color.info : busyTone(server.busyReason)}
                 />
               }
               line={busyLine(server, t)}
@@ -341,7 +362,7 @@ const ServerGridView: React.FC<{
             data-testid="manage-server-not-configured"
             name={server.name}
             chip={
-              <Chip size="small" variant="outlined" label={t('managePage.servers.notConfigured')} />
+              <StateChip label={t('managePage.servers.notConfigured')} tone={tokens.color.muted} />
             }
             line={t('managePage.servers.notConfiguredHint')}
           />
