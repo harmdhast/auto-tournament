@@ -611,4 +611,28 @@ test.describe('Server list', () => {
     await expect(row.getByTestId('server-row-state-x:rc1')).toContainText('Live');
     await expect(row).toContainText('Team A vs Team B · de_anubis 2 – 0');
   });
+
+  test('the row menu opens the match', async ({ page }) => {
+    await stubAll(page);
+    await stubMatches(page, {
+      'cs2-b': { slug: 'm-b', matchPhase: 'live', currentMap: 'de_dust2', maps: ['de_dust2'] },
+    });
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('server-row-r:b')).toContainText('Team A vs Team B');
+    await page.getByTestId('server-row-menu-r:b').click();
+    await page.getByTestId('server-row-open-match-r:b').click();
+    await expect(page.getByRole('dialog')).toContainText('Team A');
+  });
+
+  test('a row without a match has no open-match item', async ({ page }) => {
+    await stubAll(page);
+    await stubMatches(page, {
+      'cs2-b': { slug: 'm-b', matchPhase: 'live', currentMap: 'de_dust2', maps: ['de_dust2'] },
+    });
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('server-row-r:b')).toContainText('Team A vs Team B');
+    await page.getByTestId('server-row-menu-r:c').click();
+    await expect(page.getByRole('menuitem', { name: 'Open', exact: true })).toBeVisible();
+    await expect(page.getByTestId('server-row-open-match-r:c')).toHaveCount(0);
+  });
 });

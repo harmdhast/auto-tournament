@@ -379,6 +379,16 @@ function ServerListRow({
           : t('serversList.open', { defaultValue: 'Open' }),
       run: () => props.onOpen(row),
     },
+    ...(match
+      ? [
+          {
+            id: 'match' as const,
+            label: t('serversList.openMatch', { defaultValue: 'Open the match' }),
+            testId: `server-row-open-match-${row.key}`,
+            run: () => void openMatchDetails(match.slug).catch(() => undefined),
+          },
+        ]
+      : []),
     ...(fleetServer ? props.actionsFor(fleetServer) : []),
   ];
   const addressLine = address && (
