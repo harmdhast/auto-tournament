@@ -53,13 +53,11 @@ export default function Matches() {
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [matchHistory, setMatchHistory] = useState<Match[]>([]);
-  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   // `?match=<slug>`: the open match, so its link can be shared (paths.ts matchDetailsPath).
   const [searchParams, setSearchParams] = useSearchParams();
   const linkedSlug = searchParams.get('match');
   const selectMatch = useCallback(
     (match: Match | null) => {
-      setSelectedMatch(match);
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -342,14 +340,8 @@ export default function Matches() {
   // Get all matches for numbering context
   const allMatches = [...upcomingMatches, ...liveMatches, ...matchHistory];
 
-  // A shared link opens its match once the lists have it.
-  useEffect(() => {
-    if (!linkedSlug || selectedMatch?.slug === linkedSlug) return;
-    const found = [...upcomingMatches, ...liveMatches, ...matchHistory].find(
-      (m) => m.slug === linkedSlug
-    );
-    if (found) setSelectedMatch(found);
-  }, [linkedSlug, selectedMatch?.slug, upcomingMatches, liveMatches, matchHistory]);
+  // The open match is the one the link names, once the lists have it.
+  const selectedMatch = linkedSlug ? (allMatches.find((m) => m.slug === linkedSlug) ?? null) : null;
 
   const toggleMatchSelected = (match: Match) => {
     if (!isManualMatchFlag(match)) {
