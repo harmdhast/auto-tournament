@@ -1,0 +1,111 @@
+name: Custom image
+
+on:
+  push:
+    tags:
+      - 'v*-custom.*'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: custom-image-${{ github.ref_name }}
+  cancel-in-progress: false
+
+# vX.Y.Z-custom.N: X.Y.Z is the upstream version custom is based on. The tag
+# is the version baked into the image and the CS2 module in its offline
+# snapshot. Pushed to ghcr.io/<owner>/auto-tournament as :<tag> and :custom.
+#
+# The snapshot is signed with the repository secret MODULE_SIGNING_KEY (an
+# Ed25519 private key, PEM text) when set; instances then trust the matching
+# public key with MODULE_TRUSTED_KEYS. Without it a throwaway key is made and
+# its public half is printed in the job summary.
+
+jobs:
+  build:
+    name: Build and push
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - name: Version from the tag
+        id: version
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-custom\.[0-9]+$ ]] || { echo "::error::$TAG is not vX.Y.Z-custom.N"; exit 1; }
+          node -e "
+            const fs = require('fs');
+            for (const f of ['package.json', 'api/package.json', 'client/package.json']) {
+              const p = JSON.parse(fs.readFileSync(f, 'utf8'));
+              p.version = process.argv[1];
+              fs.writeFileSync(f, JSON.stringify(p, null, 2) + '\n');
+            }
+          " "$version"
+          grep -H '"version"' package.json api/package.json client/package.json
+          # The license line date is the day the upstream vX.Y.0 came out,
+          # when that tag is here; otherwise the build day is used.
+          line_tag="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.0"
+          line_date=""
+          if git rev-parse -q --verify "refs/tags/$line_tag" > /dev/null; then
+            line_date=$(TZ=UTC git for-each-ref --format='%(creatordate:format-local:%Y-%m-%d)' "refs/tags/$line_tag")
+          fi
+          echo "line_release_date=${line_date}" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build the module snapshot (CS2)
+        shell: bash
+        env:
+          MODULE_SIGNING_KEY: ${{ secrets.MODULE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "$MODULE_SIGNING_KEY" ]; then
+            bash scripts/build-module-snapshot.sh --unsigned
+            node scripts/sign-module.mjs --snapshot api/bundled-modules
+          else
+            bash scripts/build-module-snapshot.sh --ephemeral | tee "$RUNNER_TEMP/snapshot.log"
+            key=$(sed -n 's/^MODULE_TRUSTED_KEYS=//p' "$RUNNER_TEMP/snapshot.log")
+            echo "No MODULE_SIGNING_KEY secret: signed with a throwaway key. Set MODULE_TRUSTED_KEYS=${key} on instances that run this image." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          build-args: |
+            AT_LINE_RELEASE_DATE=${{ steps.version.outputs.line_release_date }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/auto-tournament:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/auto-tournament:custom
+          cache-from: type=gha,scope=custom-amd64
+          cache-to: type=gha,scope=custom-amd64,mode=max
