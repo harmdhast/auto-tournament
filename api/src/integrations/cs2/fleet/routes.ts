@@ -13,6 +13,7 @@
  *   POST   /api/fleet/servers/:id/code       a fresh code for a pending server
  *   POST   /api/fleet/servers/:id/revoke     revoke its tokens, close its socket (4403)
  *   POST   /api/fleet/servers/:id/rotate     rotate its token now (or on its next connect)
+ *   POST   /api/fleet/servers/:id/reset      cmd reset; settles the platform's match there (./reset.ts)
  *   POST   /api/fleet/servers/:id/link       take matches: link it to a cs2_servers row (./link.ts)
  *   DELETE /api/fleet/servers/:id/link       stop taking matches
  *   GET    /api/fleet/matches/:slug          a match on the fleet: assignment, live state, commands
@@ -56,6 +57,8 @@ import { formatConnectAddress, unmapV4, type ConnectSource } from './address';
 import { getAssignment, syncMatch } from './driver';
 import { listCommands } from './reliable';
 import { liveStateStore } from './state';
+import { resetFleetServer } from './reset';
+import { issuedBy } from '../routes/fleetCommands';
 import { effectiveBusyReason } from './busyReason';
 import { heldFleetSpares } from './failover';
 import { matchDisabledServerIds } from './push/pluginSets';
@@ -374,6 +377,25 @@ fleetAdminRouter.post('/servers/:id/rotate', async (req: Request, res: Response)
   } catch (error) {
     log.error(`[FLEET] ${server.id}: rotation failed: ${(error as Error).message}`);
     return res.status(500).json({ success: false, error: 'Rotation failed' });
+  }
+});
+
+/**
+ * Reset: cmd reset ends whatever the server holds; the platform's match there
+ * is settled like End match (reset.ts). Any admin.
+ */
+fleetAdminRouter.post('/servers/:id/reset', async (req: Request, res: Response) => {
+  try {
+    const outcome = await resetFleetServer(req.params.id, issuedBy(req));
+    if (!outcome.ok) {
+      return res
+        .status(outcome.httpStatus)
+        .json({ ok: false, error: outcome.error, errorCode: outcome.errorCode });
+    }
+    return res.json(outcome);
+  } catch (error) {
+    log.error(`[FLEET] ${req.params.id}: reset failed: ${(error as Error).message}`);
+    return res.status(500).json({ ok: false, error: 'Reset failed', errorCode: null });
   }
 });
 

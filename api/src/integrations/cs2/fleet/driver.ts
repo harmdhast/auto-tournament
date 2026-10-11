@@ -161,6 +161,12 @@ export async function getAssignment(matchSlug: string): Promise<FleetAssignment 
   return row ? fromRow(row) : null;
 }
 
+/** The assignment a fleet server holds now, if any. */
+export async function openAssignmentOn(fleetServerId: string): Promise<FleetAssignment | null> {
+  const [assignment] = await openAssignmentsOf(fleetServerId);
+  return assignment ?? null;
+}
+
 /** The assignment a fleet server holds now (not unassigned), newest first. */
 async function openAssignmentsOf(fleetServerId: string): Promise<FleetAssignment[]> {
   const rows = await db.queryAsync<AssignmentRow>(
@@ -783,6 +789,8 @@ export interface FleetCommandOutcome {
   error?: string;
   /** `cmd.result.output` (exec, settings.set). */
   output?: string;
+  /** `cmd.result.result` (reset: what it ended). */
+  data?: Record<string, unknown>;
   commandId?: string;
   matchSlug?: string | null;
 }
@@ -796,7 +804,7 @@ export async function runFleetCommand(
   name: CmdName,
   args: Record<string, unknown>,
   issuedBy: IssuedBy,
-  options: { auditId?: string } = {}
+  options: { auditId?: string; expiresMs?: number } = {}
 ): Promise<FleetCommandOutcome> {
   const fleetServerId = await fleetServerIdOf(cs2ServerId);
   if (!fleetServerId) {
@@ -808,6 +816,17 @@ export async function runFleetCommand(
       error: 'Not a Ready Up fleet server',
     };
   }
+  return runFleetCommandOn(fleetServerId, name, args, issuedBy, options);
+}
+
+/** runFleetCommand by the fleet server's own id (servers that are not linked for matches too). */
+export async function runFleetCommandOn(
+  fleetServerId: string,
+  name: CmdName,
+  args: Record<string, unknown>,
+  issuedBy: IssuedBy,
+  options: { auditId?: string; expiresMs?: number } = {}
+): Promise<FleetCommandOutcome> {
   let scope: { match_id: string; epoch: number } | null = null;
   if (MATCH_COMMANDS.has(name)) {
     const [assignment] = await openAssignmentsOf(fleetServerId);
@@ -835,7 +854,7 @@ export async function runFleetCommand(
           name: issuedBy.name.slice(0, 128),
           root: issuedBy.root,
         },
-        expires_at: Date.now() + CMD_EXPIRES_MS,
+        expires_at: Date.now() + (options.expiresMs ?? CMD_EXPIRES_MS),
         ...(options.auditId ? { audit_id: options.auditId } : {}),
       },
     });
@@ -873,6 +892,7 @@ export async function runFleetCommand(
       ? {}
       : { error: `${answer.errorCode ?? answer.status}${message ? `: ${message}` : ''}` }),
     ...(answer.result?.output !== undefined ? { output: answer.result.output } : {}),
+    ...(answer.result?.result !== undefined ? { data: answer.result.result } : {}),
     commandId: sent.id,
     matchSlug: scope?.match_id ?? null,
   };
@@ -903,18 +923,41 @@ export async function execOnFleetServer(
   command: string,
   issuedBy: IssuedBy & { actor: string | null }
 ): Promise<FleetCommandOutcome & { auditId: string }> {
-  const auditId = ulid();
   const fleetServerId = await fleetServerIdOf(cs2ServerId);
-  const [assignment] = fleetServerId ? await openAssignmentsOf(fleetServerId) : [];
+  if (!fleetServerId) {
+    const outcome = await runFleetCommand(cs2ServerId, 'exec', { command }, issuedBy);
+    return { ...outcome, auditId: '' };
+  }
+  return auditedFleetCommand(fleetServerId, 'exec', { command }, command, issuedBy);
+}
+
+/**
+ * A command with its audit row (cs2_fleet_audit): written before sending, its id
+ * goes out as `audit_id`, and the answer is stored on it. `commandText` is what
+ * the row shows (`reset`, the exec line).
+ */
+export async function auditedFleetCommand(
+  fleetServerId: string,
+  name: CmdName,
+  args: Record<string, unknown>,
+  commandText: string,
+  issuedBy: IssuedBy & { actor: string | null },
+  options: { expiresMs?: number } = {}
+): Promise<FleetCommandOutcome & { auditId: string }> {
+  const auditId = ulid();
+  const assignment = await openAssignmentOn(fleetServerId);
   await db.runAsync(
     `INSERT INTO cs2_fleet_audit (id, actor, server_id, match_slug, command, status, created_at)
      VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
-    [auditId, issuedBy.actor, fleetServerId, assignment?.matchSlug ?? null, command, nowS()]
+    [auditId, issuedBy.actor, fleetServerId, assignment?.matchSlug ?? null, commandText, nowS()]
   );
   log.warn(
-    `[FLEET] exec on ${cs2ServerId} by ${issuedBy.actor ?? 'unknown'} (audit ${auditId}): ${command}`
+    `[FLEET] ${name} on ${fleetServerId} by ${issuedBy.actor ?? 'unknown'} (audit ${auditId}): ${commandText}`
   );
-  const outcome = await runFleetCommand(cs2ServerId, 'exec', { command }, issuedBy, { auditId });
+  const outcome = await runFleetCommandOn(fleetServerId, name, args, issuedBy, {
+    auditId,
+    ...options,
+  });
   await db.runAsync(
     `UPDATE cs2_fleet_audit SET message_id = ?, status = ?, error_code = ?, output = ?, answered_at = ? WHERE id = ?`,
     [
@@ -927,6 +970,16 @@ export async function execOnFleetServer(
     ]
   );
   return { ...outcome, auditId };
+}
+
+/** An older Ready Up that does not know the command (or has no match plugin). */
+export function isUnsupportedAnswer(o: FleetCommandOutcome): boolean {
+  return (
+    o.status === 'rejected' &&
+    (o.errorCode === 'unknown_command' ||
+      o.errorCode === 'invalid_command' ||
+      o.errorCode === 'unsupported')
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -2173,6 +2173,15 @@
         "version": "Ready Up",
         "cs2": "Build do CS2",
         "lastSeen": "Visto pela última vez"
+      },
+      "reset": {
+        "action": "Reiniciar",
+        "title": "Reiniciar {{name}}?",
+        "message": "Descarrega o que estiver no servidor para que possa receber a próxima partida.",
+        "messageMatch": "A partida {{slug}} é descarregada e fechada. Depois o servidor pode receber a próxima.",
+        "done": "{{name}} reiniciado",
+        "doneMatch": "{{name}} reiniciado. Partida {{slug}} fechada.",
+        "failed": "Não foi possível reiniciar o servidor"
       }
     }
   },

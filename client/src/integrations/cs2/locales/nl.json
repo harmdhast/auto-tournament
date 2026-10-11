@@ -2173,6 +2173,15 @@
         "version": "Ready Up",
         "cs2": "CS2-build",
         "lastSeen": "Laatst gezien"
+      },
+      "reset": {
+        "action": "Resetten",
+        "title": "{{name}} resetten?",
+        "message": "Haalt alles van de server, zodat hij de volgende wedstrijd kan nemen.",
+        "messageMatch": "Wedstrijd {{slug}} wordt verwijderd en afgerond. Daarna kan de server de volgende nemen.",
+        "done": "{{name}} gereset",
+        "doneMatch": "{{name}} gereset. Wedstrijd {{slug}} afgerond.",
+        "failed": "Kon de server niet resetten"
       }
     }
   },

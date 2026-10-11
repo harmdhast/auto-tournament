@@ -2213,6 +2213,15 @@
         "version": "Ready Up",
         "cs2": "Kompilacja CS2",
         "lastSeen": "Ostatnio widziany"
+      },
+      "reset": {
+        "action": "Resetuj",
+        "title": "Zresetować {{name}}?",
+        "message": "Usuwa wszystko z serwera, żeby mógł przyjąć następny mecz.",
+        "messageMatch": "Mecz {{slug}} zostaje usunięty i rozliczony. Potem serwer może przyjąć następny.",
+        "done": "{{name}} zresetowany",
+        "doneMatch": "{{name}} zresetowany. Mecz {{slug}} rozliczony.",
+        "failed": "Nie udało się zresetować serwera"
       }
     }
   },

@@ -499,7 +499,8 @@ export type CmdName =
   | 'plugins.set'
   | 'whitelist.set'
   | 'practice.set'
-  | 'settings.set';
+  | 'settings.set'
+  | 'reset';
 
 export interface CmdPayload {
   match_id?: string;
@@ -554,6 +555,8 @@ export interface CmdResultPayload {
   /** config_rev after a match.update (or the server's on `conflict`). */
   rev?: number;
   output?: string;
+  /** What the command did, when it says more than ok: reset {ended, match_id}. */
+  result?: Record<string, unknown>;
   audit_id?: string;
 }
 

@@ -2173,6 +2173,15 @@
         "version": "Ready Up",
         "cs2": "CS2 build",
         "lastSeen": "Last seen"
+      },
+      "reset": {
+        "action": "Reset",
+        "title": "Reset {{name}}?",
+        "message": "Unloads whatever is on the server so it can take the next match.",
+        "messageMatch": "Match {{slug}} is unloaded and settled. The server can then take the next match.",
+        "done": "{{name}} reset",
+        "doneMatch": "{{name}} reset. Match {{slug}} settled.",
+        "failed": "Could not reset the server"
       }
     }
   },
