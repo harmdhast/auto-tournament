@@ -23,6 +23,7 @@ interface MatchResponse {
   success: boolean;
   match?: {
     slug: string;
+    status?: string;
     team1?: { name?: string } | null;
     team2?: { name?: string } | null;
     team1MapScore?: number | null;
@@ -40,7 +41,7 @@ interface MatchResponse {
 
 interface Availability {
   success: boolean;
-  servers?: Array<{ id: string; matchSlug: string | null }>;
+  servers?: Array<{ id: string; matchSlug: string | null; allocatable?: boolean }>;
 }
 
 const REFRESH_MS = 30_000;
@@ -77,14 +78,15 @@ function toServerMatch(m: NonNullable<MatchResponse['match']>): ServerMatch {
 export function useServerMatches(): Record<string, ServerMatch> {
   const socket = useSocket();
   const [slugByServer, setSlugByServer] = useState<Record<string, string>>({});
-  const [matches, setMatches] = useState<Record<string, ServerMatch>>({});
+  const [matches, setMatches] = useState<Record<string, ServerMatch | null>>({});
   const wanted = useRef<Set<string>>(new Set());
 
   const loadAvailability = useCallback(async () => {
     try {
       const res = await api.get<Availability>('/api/tournament/server-availability');
       const next: Record<string, string> = {};
-      for (const s of res.servers ?? []) if (s.matchSlug) next[s.id] = s.matchSlug;
+      for (const s of res.servers ?? [])
+        if (s.matchSlug && !s.allocatable) next[s.id] = s.matchSlug;
       setSlugByServer(next);
     } catch {
       // No tournament or no access: no matches to show.
@@ -95,7 +97,7 @@ export function useServerMatches(): Record<string, ServerMatch> {
     try {
       const res = await api.get<MatchResponse>(`/api/matches/${encodeURIComponent(slug)}`);
       if (res.success && res.match) {
-        const m = toServerMatch(res.match);
+        const m = res.match.status === 'completed' ? null : toServerMatch(res.match);
         setMatches((prev) => ({ ...prev, [slug]: m }));
       }
     } catch {
@@ -137,6 +139,7 @@ export function useServerMatches(): Record<string, ServerMatch> {
 
   const out: Record<string, ServerMatch> = {};
   for (const [serverId, slug] of Object.entries(slugByServer)) {
+    if (matches[slug] === null) continue;
     out[serverId] = matches[slug] ?? {
       slug,
       team1: '',
