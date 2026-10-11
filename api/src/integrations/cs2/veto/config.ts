@@ -29,6 +29,9 @@ export interface VetoStep {
  * - Team B removes 1 map
  * - Team A removes 1 map
  * - Team B chooses starting side on Map 3
+ *
+ * These are the 7-map orders. Smaller pools use standardVetoOrder, which
+ * drops bans so the last step always has one map left.
  */
 export const BO1_VETO_ORDER: VetoStep[] = [
   { step: 1, team: 'team1', action: 'ban' }, // Team A removes 2 maps (first)
@@ -69,7 +72,7 @@ export const BO5_VETO_ORDER: VetoStep[] = [
  * Validates a custom veto order to ensure it complies with CS Major rules
  * @param vetoOrder The veto order to validate
  * @param format The match format (bo1, bo3, bo5)
- * @param totalMaps Total number of maps in the pool (should be 7 for standard formats)
+ * @param totalMaps Total number of maps in the pool
  * @returns Validation result with error message if invalid
  */
 export function validateVetoOrder(
@@ -114,18 +117,17 @@ export function validateVetoOrder(
 
   // Validate format-specific requirements
   if (format === 'bo1') {
-    // BO1 CS Major format: Team A removes 2, Team B removes 3, Team A removes 1, Team B picks side
-    // Total: 6 bans, leaving 1 map
+    // BO1: bans down to 1 map (6 bans for a 7-map pool), then Team B picks side
     if (vetoOrder[vetoOrder.length - 1].action !== 'side_pick') {
       return {
         valid: false,
         error: 'BO1 veto must end with a side_pick action',
       };
     }
-    if (banCount !== 6) {
+    if (banCount !== totalMaps - 1) {
       return {
         valid: false,
-        error: `BO1 veto must have exactly 6 bans (Team A: 2, Team B: 3, Team A: 1), got ${banCount}`,
+        error: `BO1 veto must have exactly ${totalMaps - 1} bans for a ${totalMaps}-map pool, got ${banCount}`,
       };
     }
     if (pickCount > 0) {
@@ -148,7 +150,7 @@ export function validateVetoOrder(
     // - Team B picks Map 2, Team A picks side on Map 2
     // - Team B removes 1, Team A removes 1
     // - Team B picks side on Map 3
-    // Total: 2 picks, 3 side picks (one per map including decider), 4 bans
+    // Total: 2 picks, 3 side picks (one per map including decider), totalMaps - 3 bans
     if (pickCount !== 2) {
       return {
         valid: false,
@@ -161,10 +163,10 @@ export function validateVetoOrder(
         error: `BO3 veto must have exactly 3 side picks (one per map including decider), got ${sidePickCount}`,
       };
     }
-    if (banCount !== 4) {
+    if (banCount !== totalMaps - 3) {
       return {
         valid: false,
-        error: `BO3 veto must have exactly 4 bans (Team A: 1, Team B: 1, Team B: 1, Team A: 1), got ${banCount}`,
+        error: `BO3 veto must have exactly ${totalMaps - 3} bans for a ${totalMaps}-map pool, got ${banCount}`,
       };
     }
     // Check that each pick has exactly one side pick after it, plus one side pick for the decider
@@ -225,7 +227,7 @@ export function validateVetoOrder(
       };
     }
   } else if (format === 'bo5') {
-    // BO5: Should pick 4 maps, ban 2 maps (leaving 1 decider), with side picks after each pick
+    // BO5: Should pick 4 maps and ban the rest but one (the decider), with side picks after each pick
     if (pickCount !== 4) {
       return {
         valid: false,
@@ -290,6 +292,36 @@ export function validateVetoOrder(
   return { valid: true };
 }
 
+function renumber(steps: VetoStep[]): VetoStep[] {
+  return steps.map((s, i) => ({ ...s, step: i + 1 }));
+}
+
+/**
+ * Standard veto order for a map pool of `totalMaps`
+ * Bans are removed from the 7-map orders (or shortened for BO1) so the veto
+ * always ends with exactly one map left.
+ */
+export function standardVetoOrder(format: string, totalMaps: number = 7): VetoStep[] {
+  const n = Number.isFinite(totalMaps) ? Math.floor(totalMaps) : 7;
+  const missing = Math.max(0, 7 - n);
+
+  if (format === 'bo3' || format === 'bo5') {
+    const base = format === 'bo3' ? BO3_VETO_ORDER : BO5_VETO_ORDER;
+    const removable = format === 'bo3' ? [8, 7, 2, 1] : [2, 1];
+    const dropped = new Set(removable.slice(0, missing));
+    return renumber(base.filter((s) => !dropped.has(s.step)));
+  }
+
+  if (missing === 0) return BO1_VETO_ORDER;
+  const bans = Math.max(0, n - 1);
+  const steps: VetoStep[] = [];
+  for (let i = 0; i < bans; i++) {
+    steps.push({ step: 0, team: i % 2 === 0 ? 'team1' : 'team2', action: 'ban' });
+  }
+  steps.push({ step: 0, team: 'team2', action: 'side_pick' });
+  return renumber(steps);
+}
+
 /**
  * Get veto order for a format, using custom order from settings if available
  * @param format The match format (bo1, bo3, bo5)
@@ -327,10 +359,7 @@ export function getVetoOrder(
   }
 
   // Fall back to standard formats
-  if (format === 'bo1') return BO1_VETO_ORDER;
-  if (format === 'bo3') return BO3_VETO_ORDER;
-  if (format === 'bo5') return BO5_VETO_ORDER;
-  return BO1_VETO_ORDER;
+  return standardVetoOrder(format, totalMaps);
 }
 
 /**
