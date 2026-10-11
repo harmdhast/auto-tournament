@@ -26,8 +26,8 @@ export function parseBusyReason(raw: unknown): BusyReason | null {
 /** The detail Ready Up sent with it: trimmed, control characters dropped, at most 128 characters. */
 export function parseBusyDetail(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
-  // eslint-disable-next-line no-control-regex
   const clean = raw
+    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f]/g, '')
     .trim()
     .slice(0, DETAIL_MAX);
