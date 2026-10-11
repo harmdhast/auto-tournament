@@ -368,16 +368,17 @@ export const cs2Integration: GameIntegration = {
   /**
    * End the match on its server. Force-cancel keeps its own command (see
    * `endMatchOnServer`); a tournament restart, reset or delete restarts the
-   * server (`css_restart`).
+   * server (`css_restart`). The server is then free for the allocator.
    */
   async cancel(ctx, reason) {
     if (!ctx.resourceId) return;
     const { cs2ServerPool } = await import('./allocation');
     if (reason === 'force-cancel') {
       await cs2ServerPool.endMatchOnServer(ctx.resourceId, ctx.slug);
-      return;
+    } else {
+      await cs2ServerPool.restartServerToEndMatch(ctx.resourceId);
     }
-    await cs2ServerPool.restartServerToEndMatch(ctx.resourceId);
+    cs2ServerPool.markIdle(ctx.resourceId);
   },
 
   /** Every enabled server runs an up-to-date CS2 build (RCON BuildID + Steam UpToDateCheck). */
