@@ -62,6 +62,9 @@ import demoBegin from './messages/demo.begin.json';
 import demoChunk from './messages/demo.chunk.json';
 import demoEnd from './messages/demo.end.json';
 import demoAck from './messages/demo.ack.json';
+import logsStart from './messages/logs.start.json';
+import logsStop from './messages/logs.stop.json';
+import logsLines from './messages/logs.lines.json';
 import enrollRequest from './http/enroll.request.json';
 import enrollResponse from './http/enroll.response.json';
 import type { Envelope, FleetMessageType } from './types';
@@ -127,6 +130,10 @@ export const FLEET_MESSAGE_SCHEMAS: Record<FleetMessageType, Record<string, unkn
   'demo.chunk': demoChunk,
   'demo.end': demoEnd,
   'demo.ack': demoAck,
+  // Live console (FLEET.md §7.6): proposed by Ready Up.
+  'logs.start': logsStart,
+  'logs.stop': logsStop,
+  'logs.lines': logsLines,
 };
 
 export const FLEET_SCHEMAS = {
