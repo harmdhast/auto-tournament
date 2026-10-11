@@ -23,6 +23,8 @@ const TICK_MS = 2_000;
 const firstSeen = new Map<string, number>();
 /** Matches the timer is acting on right now. */
 const acting = new Set<string>();
+/** Matches whose automatic step changed nothing, with the veto state they were stuck on. */
+const stuck = new Map<string, string>();
 let timer: ReturnType<typeof setInterval> | null = null;
 
 interface StoredVeto {
@@ -101,13 +103,29 @@ async function tick(): Promise<void> {
   const open = await openVetoMatches();
   const openSlugs = new Set(open.map((m) => m.slug));
   for (const slug of firstSeen.keys()) if (!openSlugs.has(slug)) firstSeen.delete(slug);
+  for (const slug of stuck.keys()) if (!openSlugs.has(slug)) stuck.delete(slug);
 
   for (const match of open) {
+    if (stuck.has(match.slug)) {
+      if (stuck.get(match.slug) === (match.veto_state ?? '')) continue;
+      stuck.delete(match.slug);
+    }
     const started = turnStartedAt(match.slug, match.veto_state, now);
     if (started === null || now < started + seconds * 1000 || acting.has(match.slug)) continue;
     acting.add(match.slug);
     log.info(`[VETO-TIMER] ${match.slug}: the team ran out of time (${seconds}s); taking the step for them`);
+    const before = match.veto_state ?? '';
     autoCompleteVetoForMatch(match.slug, { timedOut: true, maxSteps: 1, stepDelayMs: 0 })
+      .then(async () => {
+        const after = await db.queryOneAsync<Pick<DbMatchRow, 'veto_state'>>(
+          'SELECT veto_state FROM matches WHERE slug = ?',
+          [match.slug]
+        );
+        if (after && (after.veto_state ?? '') === before) {
+          stuck.set(match.slug, before);
+          log.warn(`[VETO-TIMER] ${match.slug}: the step could not be taken; not retrying until the veto changes`);
+        }
+      })
       .catch((error: unknown) => log.warn(`[VETO-TIMER] ${match.slug}: could not take the step`, { error: String(error) }))
       .finally(() => acting.delete(match.slug));
   }
@@ -125,4 +143,5 @@ export function stopVetoTimer(): void {
   if (timer) clearInterval(timer);
   timer = null;
   firstSeen.clear();
+  stuck.clear();
 }
