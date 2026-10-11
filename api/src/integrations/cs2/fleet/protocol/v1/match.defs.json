@@ -16,10 +16,16 @@
       "description": "assignment epoch (§9.3 rule 4)"
     },
     "teamKey": {
-      "enum": ["team1", "team2"]
+      "enum": [
+        "team1",
+        "team2"
+      ]
     },
     "side": {
-      "enum": ["ct", "t"]
+      "enum": [
+        "ct",
+        "t"
+      ]
     },
     "phase": {
       "enum": [
@@ -38,14 +44,25 @@
       ]
     },
     "mapSides": {
-      "enum": ["team1_ct", "team2_ct", "knife"]
+      "enum": [
+        "team1_ct",
+        "team2_ct",
+        "knife"
+      ]
     },
     "role": {
-      "enum": ["player", "sub", "coach"]
+      "enum": [
+        "player",
+        "sub",
+        "coach"
+      ]
     },
     "score": {
       "type": "object",
-      "required": ["team1", "team2"],
+      "required": [
+        "team1",
+        "team2"
+      ],
       "properties": {
         "team1": {
           "type": "integer",
@@ -149,7 +166,10 @@
               "minimum": 0
             },
             "unpause": {
-              "enum": ["both_teams", "caller_team"]
+              "enum": [
+                "both_teams",
+                "caller_team"
+              ]
             },
             "pause_after_restore": {
               "type": "boolean"
@@ -212,7 +232,10 @@
           }
         },
         "ruleset": {
-          "enum": ["default", "valve"],
+          "enum": [
+            "default",
+            "valve"
+          ],
           "description": "docs/ESPORTS-MODE.md. valve: go-live execs ReadyUp/esports_live.cfg (Premier defaults + Valve's exceptions), knife sides refused, skins plugin inert, counted technical pauses. Absent: the server's readyup.cfg ruleset="
         },
         "overrides": {
@@ -327,7 +350,10 @@
               "description": "reset player models to the default agents on spawn (entity SetModel; no inventory / econ change). Off by default"
             },
             "cosmetics": {
-              "enum": ["inventory", "plugin"],
+              "enum": [
+                "inventory",
+                "plugin"
+              ],
               "description": "inventory: players' own items only, skins plugin inert (valve); plugin: skins plugin applies (default)"
             }
           },
@@ -336,7 +362,9 @@
         "bot_fill": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["players_per_team"],
+          "required": [
+            "players_per_team"
+          ],
           "properties": {
             "players_per_team": {
               "type": "integer",
@@ -351,7 +379,10 @@
     },
     "assignPlayer": {
       "type": "object",
-      "required": ["steamid64", "name"],
+      "required": [
+        "steamid64",
+        "name"
+      ],
       "properties": {
         "steamid64": {
           "$ref": "defs.json#/$defs/u64s"
@@ -367,7 +398,10 @@
     },
     "assignTeam": {
       "type": "object",
-      "required": ["name", "players"],
+      "required": [
+        "name",
+        "players"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -400,7 +434,13 @@
     },
     "assignConfig": {
       "type": "object",
-      "required": ["num_maps", "maps", "team1", "team2", "password"],
+      "required": [
+        "num_maps",
+        "maps",
+        "team1",
+        "team2",
+        "password"
+      ],
       "properties": {
         "id": {
           "type": "integer",
@@ -419,7 +459,10 @@
           "maxItems": 9,
           "items": {
             "type": "object",
-            "required": ["name", "sides"],
+            "required": [
+              "name",
+              "sides"
+            ],
             "properties": {
               "number": {
                 "type": "integer",
@@ -467,7 +510,11 @@
           "type": "object",
           "maxProperties": 128,
           "additionalProperties": {
-            "type": ["string", "number", "boolean"]
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
           },
           "description": "engine cvars only (mp_*, sv_*, tv_*, bot_*). Ready Up drops ru_*, sv_password, rcon_password, sv_cheats and anything else (logged)."
         }
@@ -475,7 +522,16 @@
     },
     "inlineBackup": {
       "type": "object",
-      "required": ["map_number", "round", "file", "size", "sha256", "score", "encoding", "data"],
+      "required": [
+        "map_number",
+        "round",
+        "file",
+        "size",
+        "sha256",
+        "score",
+        "encoding",
+        "data"
+      ],
       "properties": {
         "map_number": {
           "type": "integer",
@@ -527,7 +583,9 @@
     },
     "resume": {
       "type": "object",
-      "required": ["map_number"],
+      "required": [
+        "map_number"
+      ],
       "properties": {
         "from_epoch": {
           "type": "integer",
@@ -582,13 +640,20 @@
                 "$ref": "#/$defs/score"
               },
               "winner": {
-                "enum": ["team1", "team2", "none"]
+                "enum": [
+                  "team1",
+                  "team2",
+                  "none"
+                ]
               }
             }
           }
         },
         "sides": {
-          "enum": ["team1_ct", "team2_ct"],
+          "enum": [
+            "team1_ct",
+            "team2_ct"
+          ],
           "description": "the resumed map's starting sides (the knife result). Default: state.series.maps[map_number].sides, else config.maps[].sides; a resume at round >= 1 of a map still on knife is rejected"
         },
         "score": {
@@ -608,7 +673,13 @@
     },
     "playerStats": {
       "type": "object",
-      "required": ["kills", "deaths", "assists", "damage", "rounds_played"],
+      "required": [
+        "kills",
+        "deaths",
+        "assists",
+        "damage",
+        "rounds_played"
+      ],
       "properties": {
         "kills": {
           "type": "integer",
@@ -725,16 +796,31 @@
     },
     "playerRound": {
       "type": "object",
-      "required": ["id", "team", "side", "kills", "damage", "died"],
+      "required": [
+        "id",
+        "team",
+        "side",
+        "kills",
+        "damage",
+        "died"
+      ],
       "properties": {
         "id": {
           "$ref": "defs.json#/$defs/u64s"
         },
         "team": {
-          "enum": [0, 1, 2]
+          "enum": [
+            0,
+            1,
+            2
+          ]
         },
         "side": {
-          "enum": [0, 2, 3]
+          "enum": [
+            0,
+            2,
+            3
+          ]
         },
         "kills": {
           "type": "integer",
@@ -808,10 +894,18 @@
           "minimum": 1
         },
         "winner_side": {
-          "enum": [0, 2, 3]
+          "enum": [
+            0,
+            2,
+            3
+          ]
         },
         "winner_team": {
-          "enum": [0, 1, 2]
+          "enum": [
+            0,
+            1,
+            2
+          ]
         },
         "reason": {
           "type": "integer",
@@ -840,7 +934,11 @@
     },
     "teamLine": {
       "type": "object",
-      "required": ["score", "score_ct", "score_t"],
+      "required": [
+        "score",
+        "score_ct",
+        "score_t"
+      ],
       "properties": {
         "score": {
           "type": "integer",
@@ -858,7 +956,13 @@
     },
     "playerLine": {
       "type": "object",
-      "required": ["id", "name", "team", "bot", "stats"],
+      "required": [
+        "id",
+        "name",
+        "team",
+        "bot",
+        "stats"
+      ],
       "properties": {
         "id": {
           "$ref": "defs.json#/$defs/u64s"
@@ -868,10 +972,18 @@
           "maxLength": 128
         },
         "team": {
-          "enum": [0, 1, 2]
+          "enum": [
+            0,
+            1,
+            2
+          ]
         },
         "last_side": {
-          "enum": [0, 2, 3]
+          "enum": [
+            0,
+            2,
+            3
+          ]
         },
         "bot": {
           "type": "boolean",
@@ -884,7 +996,14 @@
     },
     "mapStats": {
       "type": "object",
-      "required": ["live", "team1_is_ct", "team1", "team2", "players", "rounds"],
+      "required": [
+        "live",
+        "team1_is_ct",
+        "team1",
+        "team2",
+        "players",
+        "rounds"
+      ],
       "properties": {
         "live": {
           "type": "boolean"
@@ -917,7 +1036,11 @@
     },
     "stateTeam": {
       "type": "object",
-      "required": ["name", "score", "players"],
+      "required": [
+        "name",
+        "score",
+        "players"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -954,7 +1077,10 @@
           },
           "additionalProperties": {
             "type": "object",
-            "required": ["connected", "ready"],
+            "required": [
+              "connected",
+              "ready"
+            ],
             "properties": {
               "name": {
                 "type": "string",
@@ -980,7 +1106,15 @@
     },
     "matchState": {
       "type": "object",
-      "required": ["match_id", "epoch", "config_rev", "live_rev", "phase", "series", "teams"],
+      "required": [
+        "match_id",
+        "epoch",
+        "config_rev",
+        "live_rev",
+        "phase",
+        "series",
+        "teams"
+      ],
       "properties": {
         "match_id": {
           "$ref": "#/$defs/matchId"
@@ -1007,7 +1141,12 @@
         },
         "series": {
           "type": "object",
-          "required": ["num_maps", "current_map", "score", "maps"],
+          "required": [
+            "num_maps",
+            "current_map",
+            "score",
+            "maps"
+          ],
           "properties": {
             "num_maps": {
               "type": "integer",
@@ -1027,7 +1166,11 @@
               },
               "additionalProperties": {
                 "type": "object",
-                "required": ["name", "sides", "status"],
+                "required": [
+                  "name",
+                  "sides",
+                  "status"
+                ],
                 "properties": {
                   "name": {
                     "type": "string",
@@ -1040,24 +1183,40 @@
                     "$ref": "#/$defs/mapSides"
                   },
                   "status": {
-                    "enum": ["pending", "live", "done"]
+                    "enum": [
+                      "pending",
+                      "live",
+                      "done"
+                    ]
                   },
                   "score": {
                     "$ref": "#/$defs/score"
                   },
                   "winner": {
-                    "enum": ["team1", "team2", "none"]
+                    "enum": [
+                      "team1",
+                      "team2",
+                      "none"
+                    ]
                   },
                   "demo": {
                     "type": "object",
-                    "required": ["state"],
+                    "required": [
+                      "state"
+                    ],
                     "properties": {
                       "file": {
                         "type": "string",
                         "maxLength": 255
                       },
                       "state": {
-                        "enum": ["recording", "stopped", "uploading", "stored", "failed"]
+                        "enum": [
+                          "recording",
+                          "stopped",
+                          "uploading",
+                          "stored",
+                          "failed"
+                        ]
                       }
                     }
                   }
@@ -1068,7 +1227,10 @@
         },
         "teams": {
           "type": "object",
-          "required": ["team1", "team2"],
+          "required": [
+            "team1",
+            "team2"
+          ],
           "properties": {
             "team1": {
               "$ref": "#/$defs/stateTeam"
@@ -1085,7 +1247,9 @@
           },
           "additionalProperties": {
             "type": "object",
-            "required": ["connected"],
+            "required": [
+              "connected"
+            ],
             "properties": {
               "name": {
                 "type": "string",
@@ -1119,13 +1283,24 @@
         },
         "knife": {
           "type": "object",
-          "required": ["status"],
+          "required": [
+            "status"
+          ],
           "properties": {
             "status": {
-              "enum": ["none", "running", "picking", "done"]
+              "enum": [
+                "none",
+                "running",
+                "picking",
+                "done"
+              ]
             },
             "winner": {
-              "enum": ["team1", "team2", "unknown"]
+              "enum": [
+                "team1",
+                "team2",
+                "unknown"
+              ]
             },
             "pick_deadline": {
               "type": "integer"
@@ -1134,13 +1309,22 @@
         },
         "pause": {
           "type": "object",
-          "required": ["active"],
+          "required": [
+            "active"
+          ],
           "properties": {
             "active": {
               "type": "boolean"
             },
             "type": {
-              "enum": ["tactical", "technical", "admin", "offline", "halftime", "auto_5v5"]
+              "enum": [
+                "tactical",
+                "technical",
+                "admin",
+                "offline",
+                "halftime",
+                "auto_5v5"
+              ]
             },
             "by": {
               "type": "string",
@@ -1195,7 +1379,9 @@
         },
         "round": {
           "type": "object",
-          "required": ["number"],
+          "required": [
+            "number"
+          ],
           "properties": {
             "number": {
               "type": "integer",
@@ -1223,15 +1409,25 @@
           "$ref": "#/$defs/rules"
         },
         "ruleset": {
-          "enum": ["default", "valve"],
+          "enum": [
+            "default",
+            "valve"
+          ],
           "description": "Effective ruleset (match config, else the server's readyup.cfg)"
         },
         "effective_rules": {
           "type": "object",
-          "required": ["ruleset", "rules", "differs"],
+          "required": [
+            "ruleset",
+            "rules",
+            "differs"
+          ],
           "properties": {
             "ruleset": {
-              "enum": ["default", "valve"]
+              "enum": [
+                "default",
+                "valve"
+              ]
             },
             "rules": {
               "type": "object",
@@ -1251,7 +1447,13 @@
             "source": {
               "type": "object",
               "additionalProperties": {
-                "enum": ["preset", "override", "match", "cvars", "cfg"]
+                "enum": [
+                  "preset",
+                  "override",
+                  "match",
+                  "cvars",
+                  "cfg"
+                ]
               },
               "description": "Where each differing value came from: override, match (a per-match rule key), cvars (match config cvars), cfg (readyup.cfg)"
             }

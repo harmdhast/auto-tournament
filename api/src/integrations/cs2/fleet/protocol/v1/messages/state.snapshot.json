@@ -4,10 +4,23 @@
   "title": "state.snapshot (server → platform, ephemeral)",
   "description": "The whole MatchState (§8.2): after connect (`hello`), on assign (`assign`), on state.request / cmd snapshot_now / match.update conflict (`request`), after a reset resume (`reset`), every 60 s while a match runs (`periodic`) and after a failover resume restored its backup (`restored`). Envelope epoch = state.epoch. state = null when idle. Ephemeral: never replayed.",
   "type": "object",
-  "required": ["reason", "state", "availability", "config_rev", "admins_rev"],
+  "required": [
+    "reason",
+    "state",
+    "availability",
+    "config_rev",
+    "admins_rev"
+  ],
   "properties": {
     "reason": {
-      "enum": ["hello", "request", "reset", "periodic", "assign", "restored"]
+      "enum": [
+        "hello",
+        "request",
+        "reset",
+        "periodic",
+        "assign",
+        "restored"
+      ]
     },
     "state": {
       "oneOf": [
@@ -23,12 +36,18 @@
       "$ref": "../defs.json#/$defs/availability"
     },
     "availability_reason": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "maxLength": 64,
       "description": "Busy reason, as in server.availability; null when available or on older Ready Up."
     },
     "availability_detail": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "maxLength": 128,
       "description": "What the busy reason refers to, as server.availability detail."
     },
@@ -50,7 +69,11 @@
       "description": "The humans connected now (assigned or not): what the platform lists for kick. Absent on older Ready Up.",
       "items": {
         "type": "object",
-        "required": ["steamid64", "name", "team"],
+        "required": [
+          "steamid64",
+          "name",
+          "team"
+        ],
         "additionalProperties": false,
         "properties": {
           "steamid64": {
@@ -62,7 +85,12 @@
             "maxLength": 128
           },
           "team": {
-            "enum": ["none", "spectator", "t", "ct"]
+            "enum": [
+              "none",
+              "spectator",
+              "t",
+              "ct"
+            ]
           }
         }
       }
