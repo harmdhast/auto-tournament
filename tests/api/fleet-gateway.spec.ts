@@ -333,6 +333,34 @@ test.describe.serial('Fleet gateway', () => {
     fresh.close();
   });
 
+  test('a server whose spool was reset gets our stream again from seq 1', async ({ request }) => {
+    const server = await enrollNew(request);
+    await request.post('/api/test/fleet/age-token', { data: { serverId: server.server_id, days: 91 } });
+
+    // The server processes and acks a platform message.
+    const first = await FleetTestClient.connect(server.token);
+    await first.handshake(server.server_id, server.installId, {
+      stream: { id: 'before-reset', last_tx_seq: 0, last_rx_seq: 0 },
+    });
+    const rotate = await first.nextOfType('auth.rotate');
+    first.send(envelope('auth.rotated', {}, { seq: 1, ack: rotate.seq, ref: rotate.id }));
+    await first.next((m) => m.type === 'ack' && m.ack === 1, 3000);
+    first.close();
+    await first.waitClosed();
+
+    // A new spool has nothing of ours: the platform's messages start again at seq 1.
+    const res = await request.post(`/api/fleet/servers/${server.server_id}/rotate`);
+    expect(res.status()).toBe(202);
+    const after = await FleetTestClient.connect(rotate.payload.token as string);
+    await after.handshake(server.server_id, server.installId, {
+      stream: { id: 'after-reset', last_tx_seq: 0, last_rx_seq: 0 },
+    });
+    await after.nextOfType('auth.rotate');
+    const seqs = after.received.filter((m) => typeof m.seq === 'number' && m.seq > 0).map((m) => m.seq);
+    expect(seqs).toEqual(seqs.map((_, i) => i + 1));
+    after.close();
+  });
+
   test('admin rotate of an offline server happens on its next connect', async ({ request }) => {
     const server = await enrollNew(request);
     const res = await request.post(`/api/fleet/servers/${server.server_id}/rotate`);

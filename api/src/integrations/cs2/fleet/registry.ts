@@ -917,6 +917,39 @@ export async function appendOutbox(
   });
 }
 
+/**
+ * The server lost what it had of our stream (a reset spool reports a lower
+ * `last_rx_seq` than it acked before): renumber the pending messages to follow
+ * `base`, the highest seq it has, so its receiver takes them in order again.
+ */
+export async function rebaseOutbox(serverId: string, base: number): Promise<void> {
+  await tx(async (c) => {
+    const rows = await c.query<{ seq: number; message: string; expires_at: number | null }>(
+      `DELETE FROM cs2_fleet_outbox WHERE server_id = $1 RETURNING seq, message, expires_at`,
+      [serverId]
+    );
+    const pending = [...rows.rows].sort((a, b) => Number(a.seq) - Number(b.seq));
+    let seq = base;
+    for (const row of pending) {
+      seq += 1;
+      const envelope = { ...(JSON.parse(row.message) as Envelope), seq };
+      await c.query(
+        `INSERT INTO cs2_fleet_outbox (server_id, seq, type, message, expires_at) VALUES ($1, $2, $3, $4, $5)`,
+        [serverId, seq, envelope.type, JSON.stringify(envelope), row.expires_at]
+      );
+      await c.query(`UPDATE cs2_fleet_commands SET seq = $1 WHERE message_id = $2`, [
+        seq,
+        envelope.id,
+      ]);
+    }
+    await c.query(`UPDATE cs2_fleet_servers SET tx_seq = $2, tx_acked = $3 WHERE id = $1`, [
+      serverId,
+      seq,
+      base,
+    ]);
+  });
+}
+
 export async function pendingOutbox(serverId: string, afterSeq: number): Promise<Envelope[]> {
   const rows = await db.queryAsync<{ message: string }>(
     'SELECT message FROM cs2_fleet_outbox WHERE server_id = ? AND seq > ? ORDER BY seq ASC',
