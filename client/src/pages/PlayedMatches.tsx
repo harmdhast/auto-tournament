@@ -1,7 +1,7 @@
 /**
- * All matches (`/played`, Vikunja 1834): every match that was played on this
- * site, from any tournament (deleted ones too), standalone matches and
- * matchmaking, newest first. Each has its demo downloads; the ones in view
+ * All matches (`/played`, Vikunja 1834): every match on this site, from any
+ * tournament (deleted ones too), standalone matches and matchmaking. Current
+ * matches come first, then played ones newest first. Each has its demo downloads; the ones in view
  * (after the filters) download together as one .tar.
  */
 import { useEffect, useMemo, useState } from 'react';
@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { DownloadSimpleIcon, FileArrowUpIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
-import { PageHead, Panel, Row, RowList } from '../components/common/ui';
+import { LiveChip, PageHead, Panel, Row, RowList } from '../components/common/ui';
 import { pageTitle } from '../utils/pageTitle';
 import { api } from '../utils/api';
 import { matchDetailsPath, paths } from '../paths';
@@ -32,6 +32,8 @@ interface PlayedMatch {
   kind: 'tournament' | 'standalone' | 'matchmaking' | 'imported';
   tournamentId: number | null;
   tournamentName: string | null;
+  status: 'loaded' | 'live' | 'completed';
+  loadedAt: number | null;
   completedAt: number | null;
   team1: string;
   team2: string;
@@ -255,9 +257,21 @@ export default function PlayedMatches() {
                       </Box>
                     )}
                   </Box>
-                  <Typography sx={{ fontSize: textSize.sm, color: color.ink2 }}>
-                    {when(m.completedAt)}
-                  </Typography>
+                  {m.status === 'completed' ? (
+                    <Typography sx={{ fontSize: textSize.sm, color: color.ink2 }}>
+                      {when(m.completedAt)}
+                    </Typography>
+                  ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                      <LiveChip
+                        label={t(`playedMatches.status.${m.status}`)}
+                        data-testid={`played-status-${m.slug}`}
+                      />
+                      <Typography sx={{ fontSize: textSize.sm, color: color.ink2 }}>
+                        {when(m.loadedAt)}
+                      </Typography>
+                    </Box>
+                  )}
                   <Box
                     sx={{
                       display: 'flex',

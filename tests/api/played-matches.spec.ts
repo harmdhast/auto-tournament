@@ -7,7 +7,8 @@ import { findMatchByTeams } from '../helpers/matches';
 /**
  * Played matches outlive their tournament (Vikunja 1834): deleting a
  * tournament keeps its finished matches (with its name), its id is never given
- * out again, and /api/matches/played lists them next to standalone matches.
+ * out again, and /api/matches/played lists them next to standalone matches,
+ * after the current ones.
  *
  * @tag api
  */
@@ -32,6 +33,17 @@ test.describe.serial('Played matches', () => {
     const match = await findMatchByTeams(request, team1.id, team2.id);
     expect(match).toBeTruthy();
     expect((await request.post('/api/test/match-state', { headers: getAuthHeader(), data: { slug: match!.slug, status: 'live' } })).ok()).toBe(true);
+
+    // A current match is listed before the played ones, with no winner yet.
+    const current = (await (await request.get('/api/matches/played', { headers: getAuthHeader() })).json()).matches as Array<{
+      slug: string;
+      status: string;
+      winner: string | null;
+    }>;
+    const at = current.findIndex((m) => m.slug === match!.slug);
+    expect(current[at]).toMatchObject({ status: 'live', winner: null });
+    expect(current.slice(0, at).every((m) => m.status !== 'completed')).toBe(true);
+
     expect((await request.post(`/api/matches/${match!.slug}/winner`, { headers: getAuthHeader(), data: { winner: 'team1' } })).ok()).toBe(true);
     await expect
       .poll(async () => (await (await request.get('/api/tournament', { headers: as(id) })).json()).tournament?.status, { timeout: 15000 })
@@ -57,6 +69,7 @@ test.describe.serial('Played matches', () => {
       kind: 'tournament',
       tournamentId: null,
       tournamentName: 'Gone cup',
+      status: 'completed',
       team1: team1.name,
       winner: 'team1',
     });
