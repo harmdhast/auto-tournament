@@ -327,6 +327,8 @@ export default function Servers() {
         variant="scrollable"
         allowScrollButtonsMobile
         sx={{
+          // The page head ends with a wide margin; the tabs belong to it.
+          mt: -4,
           borderBottom: 1,
           borderColor: 'divider',
           minHeight: 40,

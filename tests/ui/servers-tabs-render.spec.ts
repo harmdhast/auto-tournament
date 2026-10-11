@@ -67,6 +67,14 @@ test.describe('Servers tabs render', () => {
     expect(new Set(pads).size).toBe(1);
   });
 
+  test('the tab row sits close to the page title', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/manage/servers');
+    const subtitle = await page.getByTestId('servers-limit').boundingBox();
+    const tabs = await page.getByRole('tablist').boundingBox();
+    expect(tabs!.y - (subtitle!.y + subtitle!.height)).toBeLessThanOrEqual(32);
+  });
+
   test('a long tile name is readable on Manage', async ({ page, request }) => {
     const server = await createTestServer(request, 'rcon-legacy');
     expect(server).toBeTruthy();
