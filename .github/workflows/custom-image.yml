@@ -3,6 +3,7 @@ name: Custom image
 on:
   push:
     tags:
+      - 'v*.custom.*'
       - 'v*-custom.*'
 
 permissions:
@@ -13,7 +14,8 @@ concurrency:
   group: custom-image-${{ github.ref_name }}
   cancel-in-progress: false
 
-# vX.Y.Z-custom.N: X.Y.Z is the upstream version custom is based on. The tag
+# vX.Y.Z-beta.N.custom.M (vX.Y.Z-custom.M on a stable vX.Y.Z): the upstream
+# release custom is based on plus a fork build number. The tag
 # is the version baked into the image and the CS2 module in its offline
 # snapshot. Pushed to ghcr.io/<owner>/auto-tournament as :<tag> and :custom.
 #
@@ -48,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           version="${TAG#v}"
-          [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-custom\.[0-9]+$ ]] || { echo "::error::$TAG is not vX.Y.Z-custom.N"; exit 1; }
+          [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-(((beta|rc)\.[1-9][0-9]*\.)?custom\.[1-9][0-9]*)$ ]] || { echo "::error::$TAG is not vX.Y.Z-beta.N.custom.M or vX.Y.Z-custom.M"; exit 1; }
           node -e "
             const fs = require('fs');
             for (const f of ['package.json', 'api/package.json', 'client/package.json']) {

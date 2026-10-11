@@ -4,7 +4,7 @@
 
 ## Versions
 
-Tags are `vX.Y.Z-custom.N`, where `X.Y.Z` is the upstream release tag `custom` is based on (e.g. `v3.0.0-beta.82-custom.1`). Pushing a tag builds `ghcr.io/harmdhast/auto-tournament:<tag>` (and `:custom`) for linux/amd64 (`.github/workflows/custom-image.yml`). The tag is the version baked into the image.
+Tags are the upstream release tag `custom` is based on plus `.custom.N` (`v3.0.0-beta.82.custom.1` for `v3.0.0-beta.82`; `vX.Y.Z-custom.N` on a stable `vX.Y.Z`). The dot keeps SemVer ordering numeric: the platform only auto-updates the CS2 module to a newer version (`beta.100.custom.1` > `beta.99.custom.1`, and a custom build outranks the upstream release it is based on). Pushing a tag builds `ghcr.io/harmdhast/auto-tournament:<tag>` (and `:custom`) for linux/amd64 (`.github/workflows/custom-image.yml`). The tag is the version baked into the image.
 
 CS2 ships as a signed module in the image's offline snapshot. The workflow signs it with the repository secret `MODULE_SIGNING_KEY` (Ed25519 private key, PEM) when set, and instances need `MODULE_TRUSTED_KEYS=<the public key>`. Without the secret a throwaway key is used and the job summary prints the key to trust.
 
