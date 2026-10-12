@@ -1,6 +1,9 @@
 /** A Ready Up server in its panel: whether it takes matches, and what can be done on it. */
-import { Box, Typography } from '@mui/material';
-import { useModuleTranslation } from '../../../../module-sdk';
+import { useState } from 'react';
+import { Box, Button, Typography } from '@mui/material';
+import { api, useModuleTranslation, useSnackbar } from '../../../../module-sdk';
+import type { Server } from '../../cs2.types';
+import ServerModal from '../ServerModal';
 import { Facts } from '../fleet/SideSheet';
 import { AvailabilityChip, AvailabilityReason } from '../fleet/readyup/AvailabilityChip';
 import { ResetServerButton } from '../fleet/readyup/ResetServerButton';
@@ -18,11 +21,24 @@ export function ReadyUpServerSection({
   onChanged: () => void;
 }) {
   const { t, i18n } = useModuleTranslation('cs2');
+  const { showError } = useSnackbar();
   const { server, gone, reload } = useFleetServer(fleetId);
+  const [editing, setEditing] = useState<Server | null>(null);
   const when = (s: number | null) => (s ? new Date(s * 1000).toLocaleString(i18n.language) : '—');
   const changed = () => {
     void reload();
     onChanged();
+  };
+
+  const edit = async (id: string) => {
+    try {
+      const res = await api.get<{ success: boolean; server?: Server }>(
+        `/api/servers/${encodeURIComponent(id)}`
+      );
+      if (res.server) setEditing(res.server);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t('serverModal.errors.saveFailed'));
+    }
   };
 
   if (gone) {
@@ -84,6 +100,18 @@ export function ReadyUpServerSection({
           [t('serversBoard.readyUp.sheet.lastSeen'), when(server.lastSeen)],
         ]}
       />
+      {server.linkedServerId && (
+        <Box>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => void edit(server.linkedServerId!)}
+            data-testid="server-panel-edit"
+          >
+            {t('serversList.edit', { defaultValue: 'Edit' })}
+          </Button>
+        </Box>
+      )}
       <FleetPlayers server={server} onChanged={changed} />
       <FleetConsole server={server} />
       {server.status === 'enrolled' && (
@@ -94,6 +122,12 @@ export function ReadyUpServerSection({
           <FleetServerPushSection server={server} />
         </Box>
       )}
+      <ServerModal
+        open={editing !== null}
+        server={editing}
+        onClose={() => setEditing(null)}
+        onSave={changed}
+      />
     </Box>
   );
 }
