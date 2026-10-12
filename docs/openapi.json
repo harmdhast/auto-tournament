@@ -9027,23 +9027,55 @@
         "tags": [
           "Maps"
         ],
-        "summary": "POST /api/maps/:id/upload-image",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
+        "summary": "Upload a map image (admin)",
+        "description": "Accepts a base64 data URL (png, jpg, gif or webp). The optional small copy is served in cards; without it the full image is used.",
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
               "type": "string"
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "imageData"
+                ],
+                "properties": {
+                  "imageData": {
+                    "type": "string",
+                    "description": "Base64 data URL of the full image"
+                  },
+                  "imageType": {
+                    "type": "string",
+                    "description": "Image MIME type for raw base64 without a data URL"
+                  },
+                  "smallImageData": {
+                    "type": "string",
+                    "description": "Optional webp data URL of the 640x360 small copy"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Image stored; returns its imageUrl"
+          },
+          "400": {
+            "description": "Invalid image data"
+          },
+          "404": {
+            "description": "Map not found"
+          }
+        },
         "security": [
           {
             "bearerAuth": []
