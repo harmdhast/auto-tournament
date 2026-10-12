@@ -154,6 +154,13 @@ async function runJobs(jobs, task) {
   return written;
 }
 
+/** Write through `<file>.tmp` so an interrupted write never looks finished. */
+async function writeAtomic(file, data) {
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(`${file}.tmp`, data);
+  await fs.rename(`${file}.tmp`, file);
+}
+
 async function exists(file) {
   try {
     await fs.access(file);
@@ -200,16 +207,14 @@ async function main() {
       download.then(forget, forget);
     }
     const out = await convert(sharp, job, await download);
-    await fs.mkdir(path.dirname(target), { recursive: true });
-    await fs.writeFile(target, out);
+    await writeAtomic(target, out);
   });
 
   if (written.length === 0) throw new Error('no image could be downloaded');
-  await fs.mkdir(OUT_DIR, { recursive: true });
   const manifest = buildManifest(sha, written, written.length === jobs.length);
   const skinsManifest = buildSkinsManifest(sha, written);
-  await fs.writeFile(path.join(OUT_DIR, 'skins.json'), JSON.stringify(skinsManifest));
-  await fs.writeFile(manifestPath, JSON.stringify(manifest));
+  await writeAtomic(path.join(OUT_DIR, 'skins.json'), JSON.stringify(skinsManifest));
+  await writeAtomic(manifestPath, JSON.stringify(manifest));
   for (const entry of await fs.readdir(OUT_DIR)) {
     if (entry !== sha && entry !== 'manifest.json' && entry !== 'skins.json') await fs.rm(path.join(OUT_DIR, entry), { recursive: true, force: true });
   }
