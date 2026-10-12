@@ -232,6 +232,44 @@ test.describe('CS2 map sync', () => {
     expect(current.activeDuty).toBe('updated');
   });
 
+  test('prunes system-managed rows that are not playable map ids', { tag: ['@api', '@maps'] }, () => {
+    const state = legacyState();
+    state.maps.push(
+      { id: 'de_ancient_icon.svg', displayName: 'de_ancient_icon.svg', imageUrl: null, systemManaged: true },
+      { id: 'de_custom.svg', displayName: 'Mine', imageUrl: null, systemManaged: false }
+    );
+    const plan = planMapSync(state, catalog, 'auto');
+    expect(plan.removeMaps).toEqual(['de_ancient_icon.svg']);
+    expect(plan.updateMaps.map((m) => m.id)).not.toContain('de_ancient_icon.svg');
+  });
+
+  test('drops pruned ids from pools', { tag: ['@api', '@maps'] }, () => {
+    const state = legacyState();
+    state.maps.push({ id: 'de_ancient_icon.svg', displayName: 'x', imageUrl: null, systemManaged: true });
+    state.pools = [
+      { id: 1, name: ACTIVE_DUTY_POOL, mapIds: ['de_ancient_icon.svg', 'de_dust2'], isDefault: true, systemManaged: true },
+      { id: 2, name: 'LAN finals', mapIds: ['de_ancient_icon.svg', 'de_dust2'], isDefault: false, systemManaged: false },
+    ];
+    const plan = planMapSync(state, catalog, 'auto');
+    expect(plan.updatePools.map((p) => p.id)).toEqual([1]);
+    expect(plan.updatePools.some((p) => p.mapIds.includes('de_ancient_icon.svg'))).toBe(false);
+    expect(plan.scrubPools).toEqual([{ id: 2, mapIds: ['de_dust2'] }]);
+  });
+
+  test('prunes even when the catalogue is stale', { tag: ['@api', '@maps'] }, () => {
+    const state = legacyState({ appliedGeneratedAt: '2027-01-01T00:00:00Z' });
+    state.maps.push({ id: 'de_ancient_icon.svg', displayName: 'x', imageUrl: null, systemManaged: true });
+    state.pools = [
+      { id: 1, name: ACTIVE_DUTY_POOL, mapIds: ['de_ancient_icon.svg', 'de_dust2'], isDefault: true, systemManaged: true },
+    ];
+    const plan = planMapSync(state, catalog, 'auto');
+    expect(plan.stale).toBe(true);
+    expect(plan.removeMaps).toEqual(['de_ancient_icon.svg']);
+    expect(plan.updatePools).toEqual([
+      { id: 1, name: ACTIVE_DUTY_POOL, mapIds: ['de_dust2'], added: [], removed: ['de_ancient_icon.svg'] },
+    ]);
+  });
+
   test('migration 003 marks the old hard-coded Active Duty list as unmodified', { tag: ['@api', '@maps'] }, () => {
     const migration = CS2_MIGRATIONS.find((m) => m.id === CS2_CATALOG_MARKERS_MIGRATION_ID);
     expect(migration).toBeDefined();
