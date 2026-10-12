@@ -1,6 +1,6 @@
 /**
  * Servers: every server on one list, grouped by the csm machine that runs it
- * (Ready Up servers and servers added by address on no machine), and the
+ * (Ready Up servers on no machine), and the
  * fleet-wide settings as tabs (keys, push, automatic scaling, failover).
  *
  * A machine is linked with one command; every server on it is created,
@@ -76,8 +76,8 @@ export default function Servers() {
     sources.reload
   );
   const groups = useMemo(
-    () => buildServerGroups(hosts, sources.fleetServers, sources.servers),
-    [hosts, sources.fleetServers, sources.servers]
+    () => buildServerGroups(hosts, sources.fleetServers),
+    [hosts, sources.fleetServers]
   );
   const [tab, setTab] = useState<ServersTab>(() => tabFromHash() ?? 'servers');
   const [addMenu, setAddMenu] = useState<HTMLElement | null>(null);
@@ -279,17 +279,11 @@ export default function Servers() {
   const linked = link ? hosts.find((h) => h.id === link.hostId) : undefined;
   const linkConnected = !!linked && linked.status === 'enrolled' && linked.online;
 
-  // The servers that count: revoked or not yet enrolled Ready Up records and disabled RCON servers do not.
+  // The servers that count: revoked or not yet enrolled Ready Up records do not.
   const total = groups.reduce(
     (n, g) =>
       n +
-      g.rows.filter((r) =>
-        r.kind === 'readyup'
-          ? r.fleet.status === 'enrolled'
-          : r.kind === 'rcon'
-            ? r.server.enabled
-            : true
-      ).length,
+      g.rows.filter((r) => (r.kind === 'readyup' ? r.fleet.status === 'enrolled' : true)).length,
     0
   );
   const machineHost = machineId ? (hosts.find((h) => h.id === machineId) ?? null) : null;
@@ -367,7 +361,6 @@ export default function Servers() {
                 groups={groups}
                 fleet={fleet}
                 matches={matches}
-                readAt={sources.readAt}
                 actionsFor={actionsFor}
                 sourceLabel={sourceLabel}
                 onOpen={(row) => openServer(row.key)}
@@ -490,8 +483,6 @@ export default function Servers() {
         row={panelRow}
         fleet={fleet}
         matches={matches}
-        servers={sources.servers}
-        readAt={sources.readAt}
         onClose={() => openServer(null)}
         onDeleteMachineServer={(host, server) => setDeleteServer({ host, server })}
         onChanged={() => void sources.reload()}

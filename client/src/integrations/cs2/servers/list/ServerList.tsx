@@ -23,7 +23,7 @@ import {
   tokens,
   useModuleTranslation,
 } from '../../../../module-sdk';
-import type { FleetHost, FleetHostCommand, FleetServer, Server } from '../../cs2.types';
+import type { FleetHost, FleetHostCommand, FleetServer } from '../../cs2.types';
 import { serverState } from '../machineState';
 import { MachineCard, runningOf } from '../fleet/MachineCard';
 import {
@@ -51,28 +51,6 @@ import type { ServerAction } from './useFleetServerActions';
 
 const { color } = tokens;
 
-/** An RCON server's dot colour and state word (the list carries no live status). */
-export function useRconState() {
-  const { t } = useModuleTranslation('cs2');
-  return (s: Server, readAt: number): { tone: string; word: string } => {
-    // Up when it reported in the last two minutes.
-    const up = s.status === 'online' || (!!s.lastSeen && readAt - s.lastSeen < 120);
-    if (!s.enabled)
-      return {
-        tone: color.muted,
-        word: t('serversBoard.other.disabled', { defaultValue: 'Disabled' }),
-      };
-    if (!up)
-      return { tone: color.ban, word: t('serversBoard.state.offline', { defaultValue: 'Down' }) };
-    return {
-      tone: s.currentMatch ? color.accent : color.live,
-      word: s.currentMatch
-        ? t('serversBoard.state.match', { defaultValue: 'Match' })
-        : t('serversBoard.state.free', { defaultValue: 'Free' }),
-    };
-  };
-}
-
 export interface MachineHandlers {
   onOpen: (host: FleetHost) => void;
   onMenu: (host: FleetHost, anchor: HTMLElement) => void;
@@ -87,7 +65,6 @@ export interface ServerListProps {
   groups: ServerGroup[];
   fleet: Fleet;
   matches: Record<string, ServerMatch>;
-  readAt: number;
   actionsFor: (server: FleetServer) => ServerAction[];
   sourceLabel: (connect: FleetServer['connect']) => string;
   onOpen: (row: ServerRow) => void;
@@ -221,9 +198,8 @@ function ServerListRow({
   const { t, i18n } = useModuleTranslation('cs2');
   const stateLabel = useStateLabel();
   const matchLine = useMatchLine();
-  const rconState = useRconState();
   const locale = i18n.language;
-  const fleetServer: FleetServer | null = row.kind === 'rcon' ? null : row.fleet;
+  const fleetServer: FleetServer | null = row.fleet;
 
   let name: string;
   let mark: ReactNode;
@@ -231,25 +207,10 @@ function ServerListRow({
   let reason: ReactNode = null;
   let address: string | null = null;
   let version: string | null = null;
-  let tag: string | null = null;
   let match: ServerMatch | null = null;
   let line = '';
 
-  if (row.kind === 'rcon') {
-    const s = row.server;
-    const rcon = rconState(s, props.readAt);
-    match = props.matches[s.id] ?? null;
-    line = match ? matchLine(match) : '';
-    const inMatch = match !== null && (rcon.tone === color.accent || rcon.tone === color.live);
-    const tone = inMatch ? stateTone.match : rcon.tone;
-    name = s.name;
-    mark = <Box aria-hidden sx={{ ...DOT, bgcolor: tone }} />;
-    state = <StateChip label={inMatch ? stateLabel('match', match) : rcon.word} tone={tone} />;
-    if (inMatch && line) reason = <Line area="sub">{line}</Line>;
-    address = `${s.host}:${s.port}`;
-    version = s.pluginVersion ?? null;
-    tag = t('serversList.transport.rcon', { defaultValue: 'RCON' });
-  } else if (row.kind === 'machine') {
+  if (row.kind === 'machine') {
     const { host, server } = row;
     const machineState = serverState(host, server, props.fleet.isDeleting(host, server.name));
     const matchKey = row.fleet?.linkedServerId ?? server.fleetServer?.id;
@@ -326,7 +287,6 @@ function ServerListRow({
       row.fleet?.connect?.address ??
       (host.hostname ? `${host.hostname}:${server.game_port}` : null);
     version = row.fleet?.versions?.core ?? server.readyup.installed;
-    tag = row.fleet ? t('serversList.transport.readyUp', { defaultValue: 'Ready Up' }) : null;
   } else {
     const f = row.fleet;
     match = props.matches[f.linkedServerId ?? f.id] ?? null;
@@ -362,7 +322,6 @@ function ServerListRow({
     }
     address = f.connect?.address ?? (f.host ? `${f.host.hostname}:${f.host.game_port}` : null);
     version = f.versions?.core ?? null;
-    tag = t('serversList.transport.readyUp', { defaultValue: 'Ready Up' });
   }
 
   const guessed = fleetServer ? isGuessedAddress(fleetServer) : false;
@@ -371,10 +330,7 @@ function ServerListRow({
   const items: ServerAction[] = [
     {
       id: 'open',
-      label:
-        row.kind === 'rcon'
-          ? t('serversList.edit', { defaultValue: 'Edit' })
-          : t('serversList.open', { defaultValue: 'Open' }),
+      label: t('serversList.open', { defaultValue: 'Open' }),
       run: () => props.onOpen(row),
     },
     ...(match
@@ -450,22 +406,6 @@ function ServerListRow({
             {name}
           </Box>
         </ButtonBase>
-        {tag && (
-          <Box
-            component="span"
-            sx={{
-              display: { xs: 'none', md: 'inline' },
-              fontSize: '0.6875rem',
-              color: color.muted,
-              border: `1px solid ${color.rule}`,
-              borderRadius: radii.pill,
-              px: 0.75,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {tag}
-          </Box>
-        )}
       </Box>
       <Box
         data-testid={`server-row-state-${row.key}`}
@@ -535,11 +475,11 @@ function ServerListRow({
 export function ServerList(props: ServerListProps) {
   const { t } = useModuleTranslation('cs2');
   const fleetIds = props.groups.flatMap((g) =>
-    g.rows.flatMap((r) => (r.kind !== 'rcon' && r.fleet?.status === 'enrolled' ? [r.fleet.id] : []))
+    g.rows.flatMap((r) => (r.fleet?.status === 'enrolled' ? [r.fleet.id] : []))
   );
   const pushProblems = useFleetPushProblems(fleetIds);
   const guessedAny = props.groups.some((g) =>
-    g.rows.some((r) => r.kind !== 'rcon' && r.fleet && isGuessedAddress(r.fleet))
+    g.rows.some((r) => r.fleet && isGuessedAddress(r.fleet))
   );
   const rows = (group: ServerGroup) => (
     <Box role="list" sx={listGrid}>
@@ -613,7 +553,7 @@ export function ServerList(props: ServerListProps) {
               <Typography variant="caption" color="text.secondary">
                 {t('serversList.noMachineAbout', {
                   defaultValue:
-                    'Ready Up servers that enrolled on their own, and servers added by address.',
+                    'Ready Up servers that enrolled on their own.',
                 })}
               </Typography>
             </Box>

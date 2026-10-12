@@ -2403,7 +2403,7 @@
   },
   "serversList": {
     "noMachine": "No machine",
-    "noMachineAbout": "Ready Up servers that enrolled on their own, and servers added by address.",
+    "noMachineAbout": "Ready Up servers that enrolled on their own.",
     "guessedBanner": "Some addresses were guessed from where the server connects. Check them, or set the address players use.",
     "transport": {
       "readyUp": "Ready Up",

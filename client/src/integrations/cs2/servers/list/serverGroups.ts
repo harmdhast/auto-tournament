@@ -1,9 +1,9 @@
 /**
  * Every server once, grouped by the machine that runs it. A machine server
  * linked to Ready Up is one row on its machine; Ready Up servers on no
- * machine, then RCON servers, make the No machine group.
+ * machine make the No machine group.
  */
-import type { FleetHost, FleetHostServer, FleetServer, Server } from '../../cs2.types';
+import type { FleetHost, FleetHostServer, FleetServer } from '../../cs2.types';
 
 export type ServerRow =
   | {
@@ -13,8 +13,7 @@ export type ServerRow =
       server: FleetHostServer;
       fleet: FleetServer | null;
     }
-  | { kind: 'readyup'; key: `r:${string}`; fleet: FleetServer }
-  | { kind: 'rcon'; key: `x:${string}`; server: Server };
+  | { kind: 'readyup'; key: `r:${string}`; fleet: FleetServer };
 
 export interface ServerGroup {
   key: string;
@@ -36,11 +35,7 @@ export function isGuessedAddress(server: FleetServer): boolean {
 
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
 
-export function buildServerGroups(
-  hosts: FleetHost[],
-  fleet: FleetServer[],
-  servers: Server[]
-): ServerGroup[] {
+export function buildServerGroups(hosts: FleetHost[], fleet: FleetServer[]): ServerGroup[] {
   const fleetById = new Map(fleet.map((f) => [f.id, f]));
   const onMachines = new Set<string>();
   const groups: ServerGroup[] = [...hosts]
@@ -65,14 +60,7 @@ export function buildServerGroups(
     .filter((f) => !onMachines.has(f.id))
     .sort((a, b) => Number(a.status === 'revoked') - Number(b.status === 'revoked') || byName(a, b))
     .map((f) => ({ kind: 'readyup' as const, key: `r:${f.id}` as const, fleet: f }));
-  // Ready Up servers also have a platform record (transport fleet): they are listed by their fleet row.
-  const rcon = servers
-    .filter((s) => s.transport !== 'fleet' && !onMachines.has(s.id))
-    .sort(byName)
-    .map((s) => ({ kind: 'rcon' as const, key: `x:${s.id}` as const, server: s }));
-
-  const none = [...readyUp, ...rcon];
-  if (none.length > 0) groups.push({ key: 'none', host: null, rows: none });
+  if (readyUp.length > 0) groups.push({ key: 'none', host: null, rows: readyUp });
   return groups;
 }
 
