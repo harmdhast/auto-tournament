@@ -12,8 +12,9 @@
  *   every missing one.
  * - A map the platform seeded (`system_managed = 1`) gets the catalogue's
  *   name and image. Any edit through the API clears the marker, and a map an
- *   admin created never has it, so those are never renamed. Nothing is ever
- *   deleted, not even a seeded map the catalogue no longer lists.
+ *   admin created never has it, so those are never renamed. A seeded map the
+ *   catalogue no longer lists stays; only seeded rows that are not maps at all
+ *   (`de_ancient_icon.svg`, left by an older sync) are removed, and dropped from pools.
  * - The default pools (Active Duty, and the one-mode pools) are created when
  *   missing. One the platform created and nobody has edited since
  *   (`system_managed = 1`) follows the catalogue: Active Duty is maps.json's
@@ -30,7 +31,7 @@
 import { modeFromCatalog } from './mapModes';
 import { log } from '../../../utils/logger';
 import type { SeedClient } from '../../types';
-import type { CatalogMap, MapCatalog } from './mapCatalog';
+import { isPlayableMapId, type CatalogMap, type MapCatalog } from './mapCatalog';
 
 export type MapSyncMode = 'auto' | 'admin';
 
@@ -89,10 +90,14 @@ export type ActiveDutyOutcome = 'created' | 'updated' | 'kept' | 'unchanged' | '
 export interface MapSyncPlan {
   addMaps: CatalogMap[];
   updateMaps: Array<{ id: string; displayName: string; imageUrl: string; changed: string[] }>;
+  /** Seeded rows that are not maps (an older sync stored the thumbnail folder's files), dropped from every pool. */
+  removeMaps: string[];
   /** Catalogue maps neither added nor updated: already there as they are, an admin's, or deleted on purpose. */
   skipped: number;
   insertPools: Array<{ name: string; mapIds: string[]; isDefault: boolean; enabled: boolean }>;
   updatePools: PoolChange[];
+  /** Pools an admin owns that lose `removeMaps` ids and nothing else. */
+  scrubPools: Array<{ id: number; mapIds: string[] }>;
   /** Default pools an admin edited, whose maps differ from what the catalogue would give them. */
   keptPools: Array<{ name: string; catalogue: string[] }>;
   /** Catalogue ids to record as seen. */
@@ -134,6 +139,9 @@ export function planMapSync(state: MapSyncState, catalog: MapCatalog, mode: MapS
     state.appliedGeneratedAt && catalog.generatedAt && catalog.generatedAt < state.appliedGeneratedAt
   );
 
+  const removeMaps = state.maps.filter((map) => map.systemManaged && !isPlayableMapId(map.id)).map((map) => map.id);
+  const removed = new Set(removeMaps);
+
   const addMaps: CatalogMap[] = [];
   const updateMaps: MapSyncPlan['updateMaps'] = [];
   for (const map of catalog.maps) {
@@ -142,14 +150,16 @@ export function planMapSync(state: MapSyncState, catalog: MapCatalog, mode: MapS
       if (mode === 'admin' || !known.has(map.id)) addMaps.push(map);
       continue;
     }
-    if (!row.systemManaged || stale) continue;
+    if (!row.systemManaged || stale || removed.has(row.id)) continue;
     const changed: string[] = [];
     if (row.displayName !== map.displayName) changed.push(`name ${row.displayName} → ${map.displayName}`);
     if (row.imageUrl !== map.imageUrl) changed.push('image');
     if (changed.length > 0) updateMaps.push({ id: map.id, displayName: map.displayName, imageUrl: map.imageUrl, changed });
   }
 
-  const mapIds = [...new Set([...state.maps.map((map) => map.id), ...addMaps.map((map) => map.id)])].sort();
+  const mapIds = [...new Set([...state.maps.map((map) => map.id), ...addMaps.map((map) => map.id)])]
+    .filter((id) => !removed.has(id))
+    .sort();
   const hasDefault = state.pools.some((pool) => pool.isDefault);
   const insertPools: MapSyncPlan['insertPools'] = [];
   const updatePools: PoolChange[] = [];
@@ -181,12 +191,26 @@ export function planMapSync(state: MapSyncState, catalog: MapCatalog, mode: MapS
     if (isActiveDuty) activeDuty = 'updated';
   }
 
+  const scrubPools: MapSyncPlan['scrubPools'] = [];
+  for (const pool of state.pools) {
+    const gone = pool.mapIds.filter((id) => removed.has(id));
+    if (gone.length === 0) continue;
+    const mapIds = pool.mapIds.filter((id) => !removed.has(id));
+    if (!pool.systemManaged) {
+      scrubPools.push({ id: pool.id, mapIds });
+    } else if (!updatePools.some((change) => change.id === pool.id)) {
+      updatePools.push({ id: pool.id, name: pool.name, mapIds, added: [], removed: gone });
+    }
+  }
+
   return {
     addMaps,
     updateMaps,
+    removeMaps,
     skipped: catalog.maps.length - addMaps.length - updateMaps.length,
     insertPools,
     updatePools,
+    scrubPools,
     keptPools,
     knownIds: catalog.maps.map((map) => map.id).filter((id) => !known.has(id)),
     stale,
@@ -274,6 +298,17 @@ export async function applyMapSync(
       [pool.id, JSON.stringify(pool.mapIds), now]
     );
   }
+  for (const pool of plan.scrubPools) {
+    await client.query('UPDATE cs2_map_pools SET map_ids = $2, updated_at = $3 WHERE id = $1', [
+      pool.id,
+      JSON.stringify(pool.mapIds),
+      now,
+    ]);
+  }
+  if (plan.removeMaps.length > 0) {
+    await client.query('DELETE FROM cs2_maps WHERE id = ANY($1::text[]) AND system_managed = 1', [plan.removeMaps]);
+    await client.query('DELETE FROM cs2_known_maps WHERE id = ANY($1::text[])', [plan.removeMaps]);
+  }
   if (plan.knownIds.length > 0) {
     await client.query(
       'INSERT INTO cs2_known_maps (id) SELECT unnest($1::text[]) ON CONFLICT (id) DO NOTHING',
@@ -310,6 +345,9 @@ export async function syncCs2Maps(
   if (plan.addMaps.length > 0) {
     log.info(`[CS2 maps] Added ${plan.addMaps.length} map(s) from ${from}: ${plan.addMaps.map((m) => m.id).join(', ')}`);
   }
+  if (plan.removeMaps.length > 0) {
+    log.info(`[CS2 maps] Removed ${plan.removeMaps.length} entry(ies) that are not maps: ${plan.removeMaps.join(', ')}`);
+  }
   for (const map of plan.updateMaps) {
     log.info(`[CS2 maps] Updated ${map.id} from ${from}: ${map.changed.join(', ')}`);
   }
@@ -328,7 +366,12 @@ export async function syncCs2Maps(
   if (plan.stale) {
     log.database(`[CS2 maps] ${from} is older than the map list last applied; only new maps were added`);
   } else if (
-    plan.addMaps.length + plan.updateMaps.length + plan.insertPools.length + plan.updatePools.length ===
+    plan.addMaps.length +
+      plan.updateMaps.length +
+      plan.removeMaps.length +
+      plan.insertPools.length +
+      plan.updatePools.length +
+      plan.scrubPools.length ===
     0
   ) {
     log.database(`[CS2 maps] Nothing to change from ${from}`);
