@@ -524,7 +524,14 @@ export async function handleSnapshot(
   payload: StateSnapshotPayload
 ): Promise<SnapshotOutcome> {
   noteSnapshot(ctx.serverId, payload);
-  const outcome = await liveStateStore.applySnapshot(ctx.serverId, payload);
+  let outcome: SnapshotOutcome;
+  try {
+    outcome = await liveStateStore.applySnapshot(ctx.serverId, payload);
+  } catch (error) {
+    if ((error as { code?: string }).code !== '23503') throw error;
+    log.warn(`[FLEET] ${ctx.serverId}: ${payload.state?.match_id} was deleted, dropping its snapshot`);
+    outcome = { kind: 'idle' };
+  }
   if (outcome.kind === 'replaced' && outcome.record.needsSnapshot) {
     // Still a gap after the patches that followed on from it: ask again.
     requestSnapshot(ctx, outcome.record.epoch);
