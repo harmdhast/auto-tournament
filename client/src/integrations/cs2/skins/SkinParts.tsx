@@ -198,7 +198,7 @@ export function SlotTile({ label, skin, onClick }: { label: string; skin: OwnedS
       }}
     >
       {skin ? (
-        <Box component="img" src={skin.imageUrl} alt="" sx={{ width: '100%', height: 64, objectFit: 'contain', bgcolor: color.paper3, p: 0.75, boxSizing: 'border-box' }} />
+        <Box component="img" src={skin.imageSmallUrl ?? skin.imageUrl} alt="" sx={{ width: '100%', height: 64, objectFit: 'contain', bgcolor: color.paper3, p: 0.75, boxSizing: 'border-box' }} />
       ) : (
         <Box sx={{ height: 64, display: 'grid', placeItems: 'center', bgcolor: color.paper3, color: color.muted }} aria-hidden>
           <PlusIcon size={20} />
