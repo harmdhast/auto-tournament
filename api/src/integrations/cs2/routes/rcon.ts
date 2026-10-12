@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { Rcon } from 'dathost-rcon-client';
 import { rconService } from '../services/rconService';
 import { requireAuth } from '../../../middleware/auth';
-import { requireRconEnabled } from '../../../middleware/rconEnabled';
+import { requireRconEnabled } from '../rconEnabled';
 import { log } from '../../../utils/logger';
 import { db } from '../../../config/database';
 import { parseConVarReply } from '../../../utils/pluginServerReplies';

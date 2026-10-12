@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { serverService } from '../services/serverService';
 import { CreateServerInput, UpdateServerInput } from '../../../types/server.types';
 import { requireAuth } from '../../../middleware/auth';
-import { requireRconEnabled } from '../../../middleware/rconEnabled';
+import { requireRconEnabled } from '../rconEnabled';
 import { scheduler } from '../../../core/scheduler';
 import { serverInitializationService } from '../services/serverInitializationService';
 import { settingsService } from '../../../services/settingsService';
