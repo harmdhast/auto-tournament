@@ -39,8 +39,9 @@ function countFleet(availability: ServerAvailability, servers: Server[]): Server
     if (server.allocatable) counts.free += 1;
     else if (server.busyReason === 'reserved' || server.notAllocatableReason === 'reserved')
       counts.spare += 1;
+    else if (server.matchSlug) counts.inMatch += 1;
     else if (server.busyReason === 'draining') counts.draining += 1;
-    else if (server.matchSlug || !server.busyReason) counts.inMatch += 1;
+    else if (!server.busyReason) counts.inMatch += 1;
     else counts.busy += 1;
   }
   return counts;
