@@ -111,7 +111,13 @@ export function initializeSocket(httpServer: HTTPServer, options: SocketOptions 
 
   io.on('connection', (socket) => {
     log.debug(`Socket client connected: ${socket.id}`);
-    for (const listener of connectionListeners) listener(socket);
+    for (const listener of connectionListeners) {
+      try {
+        listener(socket);
+      } catch (err) {
+        log.error(`[SOCKET] connection listener failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
 
     // The public Ready Up compatibility page. Anyone may listen (the data is
     // public), but only sockets that ask get `compat:update`, so every other
