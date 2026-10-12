@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { setupTestContext } from '../helpers/setup';
-import { createServer, createTestServer } from '../helpers/servers';
 
 /**
  * The Servers page tabs never render empty, carry no stray summary line, and
@@ -75,29 +74,48 @@ test.describe('Servers tabs render', () => {
     expect(tabs!.y - (subtitle!.y + subtitle!.height)).toBeLessThanOrEqual(32);
   });
 
-  test('a long tile name is readable on Manage', async ({ page, request }) => {
-    const server = await createTestServer(request, 'rcon-legacy');
-    expect(server).toBeTruthy();
+  test('a long tile name is readable on Manage', async ({ page }) => {
+    const longName = 'ready-up-lan Server 1791832667679';
+    const entry = (id: string, name: string) => ({
+      id,
+      name,
+      online: true,
+      status: null,
+      matchSlug: null,
+      matchNumber: null,
+      matchRound: null,
+      updatedAt: Math.floor(Date.now() / 1000),
+      inGraceWindow: false,
+      secondsUntilReady: null,
+      allocatable: true,
+      notAllocatableReason: null,
+      busyReason: null,
+      busyDetail: null,
+    });
+    await page.route('**/api/tournament/server-availability', (route) =>
+      route.fulfill({
+        json: {
+          success: true,
+          availableServerCount: 2,
+          gracePeriodSeconds: 0,
+          nextAllocationInSeconds: null,
+          requiredServerCount: 0,
+          simulationEnabled: false,
+          servers: [entry('long', longName), entry('short', 'lan-x')],
+        },
+      })
+    );
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/manage');
-    const name = page.locator(`[data-testid="manage-servers"] [title="${server!.name}"]`);
+    const name = page.locator(`[data-testid="manage-servers"] [title="${longName}"]`);
     await expect(name).toBeVisible();
     const fits = await name.evaluate(
       (el) => el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight
     );
     expect(fits).toBe(true);
-    await expect(name).toHaveText(server!.name);
+    await expect(name).toHaveText(longName);
     // A short name keeps its chip on the same line.
-    const short = await createServer(request, {
-      id: `short-${Date.now()}`,
-      name: 'lan-x',
-      host: '127.0.0.2',
-      port: 27999,
-      password: 'testpassword123',
-      enabled: true,
-    });
-    await page.reload();
-    const tile = page.locator(`[data-testid="manage-servers"] [title="${short!.name}"]`);
+    const tile = page.locator('[data-testid="manage-servers"] [title="lan-x"]');
     await expect(tile).toBeVisible();
     const sameLine = await tile.evaluate((el) => {
       const chip = el.nextElementSibling!.getBoundingClientRect();
