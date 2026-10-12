@@ -107,12 +107,21 @@ export function useMySkins() {
    */
   const equip = useCallback(async (skin: OwnedSkin) => {
     const off = skin.equipped;
-    setInventory((list) =>
-      list.map((s) => (s.slot === skin.slot ? { ...s, equipped: !off && s.id === skin.id } : s))
-    );
+    let before: OwnedSkin[] = [];
+    setInventory((list) => {
+      before = list;
+      return list.map((s) =>
+        s.slot === skin.slot ? { ...s, equipped: !off && s.id === skin.id } : s
+      );
+    });
     try {
       if (off) await api.delete(`/api/skins/me/equip/${encodeURIComponent(skin.slot)}`);
       else await api.post('/api/skins/me/equip', { skinId: skin.id });
+    } catch (error) {
+      // A refused equip used to vanish (the grid showed it equipped, the
+      // server never stored it): put the grid back and tell the caller.
+      setInventory(before);
+      throw error;
     } finally {
       announceChange();
     }
