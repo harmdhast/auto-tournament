@@ -552,8 +552,7 @@ export function ServerList(props: ServerListProps) {
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {t('serversList.noMachineAbout', {
-                  defaultValue:
-                    'Ready Up servers that enrolled on their own.',
+                  defaultValue: 'Ready Up servers that enrolled on their own.',
                 })}
               </Typography>
             </Box>
