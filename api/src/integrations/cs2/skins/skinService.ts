@@ -21,11 +21,10 @@ import fetch from 'node-fetch';
 import { db } from '../../../config/database';
 import { log } from '../../../utils/logger';
 import { emitSkinsChanged } from '../../../services/socketService';
+import { skinImageUrls } from '../assets/localAssets';
 import { WEAPON_DEFINDEX } from './skinDefindex';
 import { knifeAndGlovePrices, priceFor, priceKey, rarityIndexByPrice } from './skinPrices';
 
-export const SKIN_IMAGES_BASE =
-  'https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/skin_images';
 export const SKINS_JSON_URL =
   'https://raw.githubusercontent.com/Auto-Tournament/cs2-server-manager/master/skin_images/skins.json';
 
@@ -121,6 +120,7 @@ export interface OwnedSkin {
   name: string;
   rarity: Rarity;
   imageUrl: string;
+  imageSmallUrl: string;
   slot: string;
   float: number;
   pattern: number;
@@ -196,7 +196,7 @@ function toRow(row: SkinRow, equipped: Set<number>): OwnedSkin {
     weaponName: row.weapon_name,
     name: row.variant ? `${row.name} (${row.variant})` : row.name,
     rarity: row.rarity,
-    imageUrl: `${SKIN_IMAGES_BASE}/${row.image}`,
+    ...skinImageUrls(row.image),
     slot: slotOf(row.weapon),
     float: Number(row.float_value),
     pattern: row.pattern,
@@ -626,7 +626,7 @@ export const skinService = {
             weaponName: rarest.weapon_name,
             name: rarest.name,
             rarity: rarest.rarity,
-            imageUrl: `${SKIN_IMAGES_BASE}/${rarest.image}`,
+            ...skinImageUrls(rarest.image),
             owner: rarest.owner,
           }
         : null,

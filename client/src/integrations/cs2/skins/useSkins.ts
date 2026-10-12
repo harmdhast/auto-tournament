@@ -12,6 +12,7 @@ export interface OwnedSkin {
   name: string;
   rarity: Rarity;
   imageUrl: string;
+  imageSmallUrl: string;
   slot: string;
   float: number;
   pattern: number;

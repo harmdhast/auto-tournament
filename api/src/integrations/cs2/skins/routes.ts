@@ -18,7 +18,8 @@ import { Router, type Request, type Response } from 'express';
 import { requireAuth } from '../../../middleware/auth';
 import { log } from '../../../utils/logger';
 import { resolveViewerAccount } from '../../../utils/viewerIdentity';
-import { SKIN_IMAGES_BASE, SkinError, skinService, variantOf, type SkinsConfig } from './skinService';
+import { skinImageUrls } from '../assets/localAssets';
+import { SkinError, skinService, variantOf, type SkinsConfig } from './skinService';
 
 const router = Router();
 
@@ -291,7 +292,7 @@ router.get('/admin/catalog', requireAuth, async (req, res) => {
     const all = req.query.all === '1';
     const seen = new Set<string>();
     const skins = (await skinService.catalog())
-      .map((s) => ({ ...s, variant: variantOf(s.paintKitName), imageUrl: `${SKIN_IMAGES_BASE}/${s.image}` }))
+      .map((s) => ({ ...s, variant: variantOf(s.paintKitName), ...skinImageUrls(s.image) }))
       .filter((s) => {
         const text = `${s.weaponName} ${s.name} ${s.variant ?? ''}`.toLowerCase();
         return words.every((w) => text.includes(w));
