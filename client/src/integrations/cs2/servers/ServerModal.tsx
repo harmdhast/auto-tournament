@@ -10,67 +10,40 @@ import {
   Typography,
   Switch,
   FormControlLabel,
-  InputAdornment,
   IconButton,
   CircularProgress,
   Alert,
 } from '@mui/material';
-import { EyeIcon, EyeSlashIcon, XIcon } from '@phosphor-icons/react';
-import { api, apiErrorMessage, useSnackbar, ConfirmDialog, useModuleTranslation } from '../../../module-sdk';
+import { XIcon } from '@phosphor-icons/react';
+import { api, useSnackbar, ConfirmDialog, useModuleTranslation } from '../../../module-sdk';
 import type { Server } from '../cs2.types';
 
 /**
- * Add or edit one server. The Servers page opens it with the server to edit;
- * the `resourceDialogs.add` slot opens it through `AddServerDialog`, which
- * fetches the list itself.
+ * Edit one server's settings.
  */
 export interface ServerModalProps {
   open: boolean;
   server: Server | null;
-  /** All existing servers, for duplicate checking. */
-  servers: Server[];
   onClose: () => void;
-  onSave: (createdIds?: string[]) => void;
+  onSave: () => void;
 }
 
-const slugifyServerName = (name: string): string => {
-  const base = name
-    .toLowerCase()
-    .trim()
-    // Keep all letters and numbers from any language, plus spaces/underscores/hyphens.
-    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-    .replace(/\s+/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '');
-
-  return base || `server_${Date.now().toString(36)}`;
-};
-
-export default function ServerModal({ open, server, servers, onClose, onSave }: ServerModalProps) {
-  const { showSuccess, showError, showWarning } = useSnackbar();
+export default function ServerModal({ open, server, onClose, onSave }: ServerModalProps) {
+  const { showSuccess, showError } = useSnackbar();
   const [name, setName] = useState('');
-  const [host, setHost] = useState('');
-  const [port, setPort] = useState('27015');
-  const [password, setPassword] = useState('');
   const [enabled, setEnabled] = useState(true);
   const [tournamentUse, setTournamentUse] = useState(true);
   const [failoverUse, setFailoverUse] = useState(true);
   const [skins, setSkins] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [checking, setChecking] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  const isEditing = !!server;
   const { t } = useModuleTranslation('cs2');
 
   useEffect(() => {
     if (server) {
       setName(server.name);
-      setHost(server.host);
-      setPort(server.port.toString());
-      setPassword(server.password);
       setEnabled(server.enabled);
       setTournamentUse(server.tournamentUse !== false);
       setFailoverUse(server.failoverUse !== false);
@@ -82,122 +55,34 @@ export default function ServerModal({ open, server, servers, onClose, onSave }: 
 
   const resetForm = () => {
     setName('');
-    setHost('');
-    setPort('27015');
-    setPassword('');
     setEnabled(true);
     setError('');
   };
-
   const handleNameChange = (value: string) => {
     setName(value);
     if (error) setError(''); // Clear error when user starts typing
   };
 
-
-  // A Ready Up server on the fleet link: the platform reaches it over its own
-  // connection, so it has no RCON password, and its address is what it reported.
-  const isFleet = isEditing && (server as { transport?: string } | null | undefined)?.transport === 'fleet';
-
   const handleSave = async () => {
-    console.log('handleSave called', { name, host, port, password: '***' });
-    console.log('Host value length:', host.length, 'Host trimmed length:', host.trim().length);
-    
+    if (!server) return;
     if (!name.trim()) {
-      console.log('Validation failed: name required');
       setError(t('serverModal.errors.nameRequired'));
       return;
     }
 
-    if (!host || !host.trim()) {
-      console.log('Validation failed: host required', { host, hostLength: host?.length });
-      setError(t('serverModal.errors.hostRequired'));
-      return;
-    }
-
-    const portNum = parseInt(port);
-    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-      console.log('Validation failed: invalid port', portNum);
-      setError(t('serverModal.errors.portInvalid'));
-      return;
-    }
-
-    if (!isFleet && !password.trim()) {
-      console.log('Validation failed: password required');
-      setError(t('serverModal.errors.rconRequired'));
-      return;
-    }
-
-    console.log('Validation passed, saving server...');
     setSaving(true);
     setError('');
 
     try {
-      const trimmedHost = host.trim();
-      
-      // Check for existing server with same IP:port (excluding current server when editing)
-      const existingServerByHostPort = servers.find(
-        (s) => s.host === trimmedHost && s.port === portNum && s.id !== (isEditing ? server?.id : '')
-      );
-
-      // If found, use its ID to update it; otherwise generate new ID
-      const serverId = isEditing 
-        ? server.id 
-        : existingServerByHostPort?.id || slugifyServerName(name);
-
-      if (!serverId) {
-        console.log('Validation failed: server ID generation failed');
-        setError(t('serverModal.errors.idGenerationFailed'));
-        setSaving(false);
-        return;
-      }
-
-      // When creating, check if the generated ID conflicts with a different server (not by IP:port)
-      if (!isEditing && !existingServerByHostPort) {
-        const idConflict = servers.find((s) => s.id === serverId && (s.host !== trimmedHost || s.port !== portNum));
-        if (idConflict) {
-          console.log('Validation failed: duplicate server ID', serverId);
-          setError(t('serverModal.errors.duplicateId', { id: serverId }));
-          setSaving(false);
-          return;
-        }
-      }
-
-      console.log('Creating payload for server:', serverId);
-      const payload = {
-        id: serverId,
+      await api.put(`/api/servers/${server.id}`, {
         name: name.trim(),
-        host: trimmedHost,
-        port: portNum,
-        password: password.trim(),
         enabled,
         tournamentUse,
         failoverUse,
         skins,
-        atConfig: null,
-      };
-
-      if (isEditing) {
-        console.log('Updating existing server:', server.id);
-        await api.put(`/api/servers/${server.id}`, {
-          name: payload.name,
-          ...(isFleet ? {} : { host: payload.host, port: payload.port, password: payload.password }),
-          enabled: payload.enabled,
-          tournamentUse: payload.tournamentUse,
-          ...(isFleet ? { failoverUse: payload.failoverUse } : {}),
-          skins: payload.skins,
-          atConfig: payload.atConfig,
-        });
-        console.log('Server updated successfully');
-        showSuccess(t('serverModal.success.serverUpdated'));
-        onSave();
-      } else {
-        console.log('Creating new server with payload:', payload);
-        await api.post('/api/servers?upsert=true', payload);
-        console.log('Server created successfully');
-        showSuccess(t('serverModal.success.serverCreated'));
-        onSave([payload.id]);
-      }
+      });
+      showSuccess(t('serverModal.success.serverUpdated'));
+      onSave();
       resetForm();
       onClose();
     } catch (err) {
@@ -207,58 +92,6 @@ export default function ServerModal({ open, server, servers, onClose, onSave }: 
       showError(errorMessage);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleCheckConnection = async () => {
-    if (!host?.trim()) {
-      setError(t('serverModal.errors.hostRequired'));
-      return;
-    }
-    const portNum = parseInt(port);
-    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-      setError(t('serverModal.errors.portInvalid'));
-      return;
-    }
-    if (!password.trim()) {
-      setError(t('serverModal.errors.rconRequired'));
-      return;
-    }
-    setError('');
-    setChecking(true);
-    try {
-      const result = await api.post<{
-        success: boolean;
-        error?: string;
-        serverCanReachApi?: boolean;
-        apiReachability?: 'reachable' | 'unreachable' | 'unknown';
-      }>('/api/rcon/test-connection', {
-        host: host.trim(),
-        port: portNum,
-        password: password.trim(),
-        name: name.trim() || `Test ${host.trim()}:${portNum}`,
-        serverId: server?.id,
-      });
-      if (result.success) {
-        if (result.serverCanReachApi === true) {
-          showSuccess(t('serverModal.success.connectivityOk'));
-        } else if (result.apiReachability === 'unknown') {
-          showWarning(t('serverModal.errors.rconReachableApiUnknown'));
-        } else {
-          showError(t('serverModal.errors.rconReachableApiUnreachable'));
-        }
-      } else {
-        const message = result.error || t('serverModal.errors.serverOffline');
-        setError(message);
-        showError(message);
-      }
-    } catch (err) {
-      // Also inline: a toast alone was easy to miss on a 500.
-      const message = apiErrorMessage(err, t('serverModal.errors.testConnectionFailed'));
-      setError(message);
-      showError(message);
-    } finally {
-      setChecking(false);
     }
   };
 
@@ -316,7 +149,7 @@ export default function ServerModal({ open, server, servers, onClose, onSave }: 
           }}
         >
           <Typography variant="h6" fontWeight={600}>
-            {isEditing ? t('serverModal.titleEdit') : t('serverModal.titleCreate')}
+            {t('serverModal.titleEdit')}
           </Typography>
           <IconButton onClick={onClose} size="small" aria-label="close">
             <XIcon size={20} />
@@ -341,73 +174,6 @@ export default function ServerModal({ open, server, servers, onClose, onSave }: 
                 htmlInput: { 'data-testid': 'server-name-input' },
               }}
             />
-
-            <TextField
-              label={t('serverModal.hostLabel')}
-              value={host}
-              onChange={(e) => {
-                console.log('Host changed:', e.target.value);
-                setHost(e.target.value);
-                if (error) setError(''); // Clear error when user starts typing
-              }}
-              placeholder={t('serverModal.hostPlaceholder')}
-              required={!isFleet}
-              disabled={isFleet}
-              helperText={isFleet ? t('serverModal.fleetAddress', { defaultValue: 'Reported by Ready Up over the fleet link.' }) : undefined}
-              fullWidth
-              slotProps={{
-                htmlInput: { 'data-testid': 'server-host-input' },
-              }}
-            />
-
-            <TextField
-              label={t('serverModal.portLabel')}
-              value={port}
-              onChange={(e) => {
-                setPort(e.target.value);
-                if (error) setError(''); // Clear error when user starts typing
-              }}
-              placeholder={t('serverModal.portPlaceholder')}
-              type="number"
-              required={!isFleet}
-              disabled={isFleet}
-              fullWidth
-              slotProps={{
-                htmlInput: { 'data-testid': 'server-port-input' },
-              }}
-            />
-
-            {!isFleet && (
-            <TextField
-              label={t('serverModal.rconPasswordLabel')}
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (error) setError(''); // Clear error when user starts typing
-              }}
-              placeholder={t('serverModal.rconPasswordPlaceholder')}
-              type={showPassword ? 'text' : 'password'}
-              required
-              fullWidth
-              helperText={t('serverModal.rconPasswordHelper')}
-              slotProps={{
-                htmlInput: { 'data-testid': 'server-password-input' },
-              }}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <EyeSlashIcon size={24} /> : <EyeIcon size={24} />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            )}
 
             <FormControlLabel
               control={<Switch checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />}
@@ -444,31 +210,34 @@ export default function ServerModal({ open, server, servers, onClose, onSave }: 
               }
             />
 
-            {isFleet && (
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={failoverUse && tournamentUse}
-                    disabled={!tournamentUse}
-                    onChange={(e) => setFailoverUse(e.target.checked)}
-                    inputProps={{ 'aria-label': t('serverModal.failoverUseLabel', { defaultValue: 'Use for failover' }) }}
-                    data-testid="server-failover-use"
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant="body2" fontWeight={500}>
-                      {t('serverModal.failoverUseLabel', { defaultValue: 'Use for failover' })}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {t('serverModal.failoverUseHelper', {
-                        defaultValue: 'Off: automatic failover never moves a match here or keeps it as a spare.',
-                      })}
-                    </Typography>
-                  </Box>
-                }
-              />
-            )}
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={failoverUse && tournamentUse}
+                  disabled={!tournamentUse}
+                  onChange={(e) => setFailoverUse(e.target.checked)}
+                  inputProps={{
+                    'aria-label': t('serverModal.failoverUseLabel', {
+                      defaultValue: 'Use for failover',
+                    }),
+                  }}
+                  data-testid="server-failover-use"
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2" fontWeight={500}>
+                    {t('serverModal.failoverUseLabel', { defaultValue: 'Use for failover' })}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('serverModal.failoverUseHelper', {
+                      defaultValue:
+                        'Off: automatic failover never moves a match here or keeps it as a spare.',
+                    })}
+                  </Typography>
+                </Box>
+              }
+            />
 
             <FormControlLabel
               control={
@@ -498,47 +267,27 @@ export default function ServerModal({ open, server, servers, onClose, onSave }: 
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
-          {isEditing && (
-            <Button
-              data-testid="server-delete-button"
-              onClick={handleDeleteClick}
-              color="error"
-              disabled={saving || checking}
-              sx={{ mr: 'auto' }}
-            >
-              {t('serverModal.buttons.deleteServer')}
-            </Button>
-          )}
-          {isEditing && (
-            <Button onClick={onClose} disabled={saving || checking}>
-              {t('serverModal.buttons.cancel')}
-            </Button>
-          )}
-          {/* An RCON check: a fleet server has no RCON (its status comes from the fleet link). */}
-          {!isFleet && (
-            <Button
-              variant="outlined"
-              onClick={handleCheckConnection}
-              disabled={saving || checking}
-              startIcon={checking ? <CircularProgress size={16} /> : undefined}
-              data-testid="server-check-button"
-            >
-              {checking ? t('serverModal.testingConnectivity') : t('serverModal.testConnectivity')}
-            </Button>
-          )}
+          <Button
+            data-testid="server-delete-button"
+            onClick={handleDeleteClick}
+            color="error"
+            disabled={saving}
+            sx={{ mr: 'auto' }}
+          >
+            {t('serverModal.buttons.deleteServer')}
+          </Button>
+          <Button onClick={onClose} disabled={saving}>
+            {t('serverModal.buttons.cancel')}
+          </Button>
           <Button
             data-testid="server-save-button"
             onClick={handleSave}
             variant="contained"
-            disabled={saving || checking}
+            disabled={saving}
             startIcon={saving ? <CircularProgress size={20} color="inherit" /> : undefined}
             sx={{ ml: 'auto' }}
           >
-            {saving
-              ? t('serverModal.buttons.saving')
-              : isEditing
-              ? t('serverModal.buttons.saveChanges')
-              : t('serverModal.buttons.addServer')}
+            {saving ? t('serverModal.buttons.saving') : t('serverModal.buttons.saveChanges')}
           </Button>
         </DialogActions>
       </Dialog>
