@@ -2209,7 +2209,10 @@
         "placeholder": "Opdracht",
         "rootOnly": "Alleen voor root-beheerders",
         "noOutput": "Geen uitvoer",
-        "notLinked": "Alleen voor servers die voor wedstrijden worden gebruikt"
+        "live": "Live",
+        "offline": "Server offline",
+        "unsupported": "Werk Ready Up bij om de live console te zien",
+        "dropped": "{{count}} regels overgeslagen"
       }
     }
   },

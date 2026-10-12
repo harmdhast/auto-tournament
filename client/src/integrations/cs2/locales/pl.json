@@ -2249,7 +2249,10 @@
         "placeholder": "Polecenie",
         "rootOnly": "Tylko dla administratorów root",
         "noOutput": "Brak wyniku",
-        "notLinked": "Tylko dla serwerów używanych do meczów"
+        "live": "Na żywo",
+        "offline": "Serwer offline",
+        "unsupported": "Zaktualizuj Ready Up, aby zobaczyć konsolę na żywo",
+        "dropped": "Pominięto wierszy: {{count}}"
       }
     }
   },

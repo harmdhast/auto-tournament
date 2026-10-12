@@ -2209,7 +2209,10 @@
         "placeholder": "Kommando",
         "rootOnly": "Bare for root-administratorer",
         "noOutput": "Ingen utdata",
-        "notLinked": "Bare for servere som brukes til kamper"
+        "live": "Live",
+        "offline": "Serveren er frakoblet",
+        "unsupported": "Oppdater Ready Up for å se live-konsollen",
+        "dropped": "{{count}} linjer hoppet over"
       }
     }
   },

@@ -56,14 +56,14 @@ import {
   unlinkFleetServer,
 } from './link';
 import { formatConnectAddress, unmapV4, type ConnectSource } from './address';
-import { getAssignment, runFleetCommandOn, syncMatch } from './driver';
+import { auditedFleetCommand, getAssignment, runFleetCommandOn, syncMatch } from './driver';
 import { listCommands } from './reliable';
 import { liveStateStore } from './state';
 import { resetFleetServer } from './reset';
 import { fleetPlayersOf } from './players';
 import { isSteam64 } from './push/admins';
 import { hasControlChars } from './push/settings';
-import { issuedBy } from '../routes/fleetCommands';
+import { execLineError, fleetResponseBody, isRootRequest, issuedBy } from '../routes/fleetCommands';
 import { effectiveBusyReason } from './busyReason';
 import { heldFleetSpares } from './failover';
 import { matchDisabledServerIds } from './push/pluginSets';
@@ -462,6 +462,42 @@ fleetAdminRouter.post('/servers/:id/kick', async (req: Request, res: Response) =
   } catch (error) {
     log.error(`[FLEET] ${server.id}: kick failed: ${(error as Error).message}`);
     return res.status(500).json({ ok: false, error: 'Kick failed' });
+  }
+});
+
+/** Run a console command on any enrolled server, linked or not. Root only. */
+fleetAdminRouter.post('/servers/:id/exec', async (req: Request, res: Response) => {
+  if (!isRootRequest(req)) {
+    return res.status(403).json({
+      success: false,
+      error: 'Raw console commands on Ready Up servers are for root admins only',
+    });
+  }
+  const { command } = (req.body ?? {}) as { command?: unknown };
+  const line = typeof command === 'string' ? command.trim() : '';
+  const lineError = execLineError(line);
+  if (lineError) return res.status(400).json({ success: false, error: lineError });
+  const server = await registry.getFleetServer(req.params.id);
+  if (!server) return res.status(404).json({ success: false, error: 'Fleet server not found' });
+  if (!fleetBus().isConnected(server.id)) {
+    return res.status(409).json({
+      success: false,
+      errorCode: 'offline',
+      error: 'The Ready Up server is offline',
+    });
+  }
+  try {
+    const outcome = await auditedFleetCommand(
+      server.id,
+      'exec',
+      { command: line },
+      line,
+      issuedBy(req)
+    );
+    return res.status(outcome.httpStatus).json(fleetResponseBody(outcome));
+  } catch (error) {
+    log.error(`[FLEET] ${server.id}: exec failed: ${(error as Error).message}`);
+    return res.status(500).json({ success: false, error: 'Exec failed' });
   }
 });
 

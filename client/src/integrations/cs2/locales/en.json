@@ -2209,7 +2209,10 @@
         "placeholder": "Command",
         "rootOnly": "Root admins only",
         "noOutput": "No output",
-        "notLinked": "Only for servers used for matches"
+        "live": "Live",
+        "offline": "Server offline",
+        "unsupported": "Update Ready Up to see the live console",
+        "dropped": "{{count}} lines skipped"
       }
     }
   },

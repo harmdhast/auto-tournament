@@ -26,6 +26,7 @@ import { startRestoreAudit, stopRestoreAudit } from './fleet/restore';
 import { startDemoStreams, stopDemoStreams } from './fleet/demoStream';
 import { startFleetHosts, stopFleetHosts } from './fleet/hosts/service';
 import { startServerNotices, stopServerNotices } from './fleet/serverNotices';
+import { startLogRelay, stopLogRelay } from './fleet/logRelay';
 import { startFleetPush, stopFleetPush } from './fleet/push';
 import { startFleetFailover, stopFleetFailover } from './fleet/failover';
 import { startAutoscaler, stopAutoscaler } from './fleet/autoscale/scaler';
@@ -64,6 +65,7 @@ export async function startCs2(): Promise<void> {
   startDemoStreams();
   // server.cs2_update_required / server.selftest from Ready Up servers.
   startServerNotices();
+  startLogRelay();
   // Matches left in warmup start after the admin's limit (at_autostart_after_minutes).
   startAutoStart();
   // A veto step a team does not take in time is taken for them (veto_turn_seconds).
@@ -123,6 +125,7 @@ export function stopCs2(): void {
   stopFleetHosts();
   stopFleetFailover();
   stopServerNotices();
+  stopLogRelay();
   stopFleetPush();
   stopAutoscaler();
 }
