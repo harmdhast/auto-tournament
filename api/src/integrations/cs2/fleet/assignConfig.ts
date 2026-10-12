@@ -18,7 +18,7 @@
  *   else `knife`).
  * - `rules` replaces what the plugin took as `maxRounds`, `overtimeMode` /
  *   `overtimeSegments` and the `at_*` cvars (ready, knife side pick, pauses,
- *   .gg, forfeit, demo recording).
+ *   .gg, forfeit, demo recording), plus the `.stop` settings.
  * - `cvars`: engine cvars only (`mp_*`, `sv_*`, `tv_*`, `bot_*`); Ready Up
  *   drops anything else, and `sv_password` / `sv_cheats` never go.
  * - `password`: generated per assignment by the driver.
@@ -40,6 +40,8 @@ import type {
 export interface AssignDefaults {
   allowForceReady?: boolean;
   pauseAfterRestore?: boolean;
+  stopCommandAvailable?: boolean;
+  stopCommandNoDamage?: boolean;
   /**
    * The server streams its demos over the link (`demo.stream.v1`, received by
    * ./demoStream.ts): `rules.demo.upload` follows `record`. Otherwise false.
@@ -227,6 +229,11 @@ export function rulesFromMatchConfig(
     forfeit.gg_vote = ggVote;
   }
   if (Object.keys(forfeit).length) rules.forfeit = forfeit;
+
+  const stop: NonNullable<MatchRules['stop']> = {};
+  if (defaults.stopCommandAvailable !== undefined) stop.enabled = defaults.stopCommandAvailable;
+  if (defaults.stopCommandNoDamage !== undefined) stop.no_damage = defaults.stopCommandNoDamage;
+  if (Object.keys(stop).length) rules.stop = stop;
 
   // Demos: recorded unless the match turns it off; uploaded (streamed over
   // the link, FLEET.md §12.2) when the server can.
