@@ -76,7 +76,7 @@ export function planAssets(mapsJson, skinsJson) {
   return jobs;
 }
 
-/** The manifest for the jobs that were written; an entry needs all its required files. */
+/** The boot manifest (maps only) for the jobs that were written; an entry needs all its required files. */
 export function buildManifest(sha, written, complete = true) {
   const by = (kind) => new Map(written.filter((j) => j.kind === kind).map((j) => [j.key, j.out]));
   const small = by('map-small');
@@ -88,14 +88,19 @@ export function buildManifest(sha, written, complete = true) {
     if (!fullOut) continue;
     maps[id] = { small: smallOut, full: fullOut, ...(icon.has(id) ? { icon: icon.get(id) } : {}) };
   }
-  const skinSmall = by('skin-small');
+  return { sha, base: `/cs2-assets/${sha}`, complete, maps };
+}
+
+/** The skin images that were written, kept apart so the client's boot manifest stays small. */
+export function buildSkinsManifest(sha, written) {
+  const by = (kind) => new Map(written.filter((j) => j.kind === kind).map((j) => [j.key, j.out]));
   const skinFull = by('skin-full');
   const skins = {};
-  for (const [image, smallOut] of skinSmall) {
+  for (const [image, smallOut] of by('skin-small')) {
     const fullOut = skinFull.get(image);
     if (fullOut) skins[image] = { small: smallOut, full: fullOut };
   }
-  return { sha, base: `/cs2-assets/${sha}`, complete, maps, skins };
+  return { sha, base: `/cs2-assets/${sha}`, skins };
 }
 
 /** A previous run for `sha` is reusable only when it wrote every file. */
@@ -202,12 +207,14 @@ async function main() {
   if (written.length === 0) throw new Error('no image could be downloaded');
   await fs.mkdir(OUT_DIR, { recursive: true });
   const manifest = buildManifest(sha, written, written.length === jobs.length);
+  const skinsManifest = buildSkinsManifest(sha, written);
+  await fs.writeFile(path.join(OUT_DIR, 'skins.json'), JSON.stringify(skinsManifest));
   await fs.writeFile(manifestPath, JSON.stringify(manifest));
   for (const entry of await fs.readdir(OUT_DIR)) {
-    if (entry !== sha && entry !== 'manifest.json') await fs.rm(path.join(OUT_DIR, entry), { recursive: true, force: true });
+    if (entry !== sha && entry !== 'manifest.json' && entry !== 'skins.json') await fs.rm(path.join(OUT_DIR, entry), { recursive: true, force: true });
   }
   console.log(
-    `cs2-assets: ${sha.slice(0, 7)}: ${Object.keys(manifest.maps).length} maps, ${Object.keys(manifest.skins).length} skins`,
+    `cs2-assets: ${sha.slice(0, 7)}: ${Object.keys(manifest.maps).length} maps, ${Object.keys(skinsManifest.skins).length} skins`,
   );
 }
 

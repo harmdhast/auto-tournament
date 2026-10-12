@@ -13,15 +13,28 @@ export interface LocalAssets {
   skins: Record<string, { small: string; full: string }>;
 }
 
+function readJson(publicDir: string, file: string): any {
+  return JSON.parse(fs.readFileSync(path.join(publicDir, 'cs2-assets', file), 'utf8'));
+}
+
 const cache = new Map<string, LocalAssets | null>();
 
-/** The bundled-image manifest written at build time; null when absent or unreadable. */
+/** The bundled-image manifest and skins list written at build time; null without a readable manifest. */
 export function readLocalAssets(publicDir: string = PUBLIC_DIR): LocalAssets | null {
   if (cache.has(publicDir)) return cache.get(publicDir) ?? null;
   let assets: LocalAssets | null = null;
   try {
-    const parsed = JSON.parse(fs.readFileSync(path.join(publicDir, 'cs2-assets', 'manifest.json'), 'utf8'));
-    if (parsed && typeof parsed.base === 'string' && parsed.maps && parsed.skins) assets = parsed;
+    const parsed = readJson(publicDir, 'manifest.json');
+    if (parsed && typeof parsed.base === 'string' && parsed.maps) {
+      let skins: LocalAssets['skins'] = {};
+      try {
+        const list = readJson(publicDir, 'skins.json');
+        if (list?.sha === parsed.sha && list.skins) skins = list.skins;
+      } catch {
+        skins = {};
+      }
+      assets = { sha: parsed.sha, base: parsed.base, complete: parsed.complete === true, maps: parsed.maps, skins };
+    }
   } catch {
     assets = null;
   }

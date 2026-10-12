@@ -35,7 +35,7 @@ test.describe('cs2 assets script', () => {
   });
 
   test('buildManifest keeps complete entries and omits a missing icon', async () => {
-    const { planAssets, buildManifest } = await loadScript();
+    const { planAssets, buildManifest, buildSkinsManifest } = await loadScript();
     const jobs: Job[] = planAssets(maps, skins);
     const manifest = buildManifest('a'.repeat(40), jobs);
     expect(manifest.base).toBe(`/cs2-assets/${'a'.repeat(40)}`);
@@ -45,7 +45,10 @@ test.describe('cs2 assets script', () => {
       icon: 'maps/de_dust2-icon.webp',
     });
     expect(manifest.maps.ar_baggage).toEqual({ small: 'maps/ar_baggage-small.webp', full: 'maps/ar_baggage.webp' });
-    expect(manifest.skins['ak47_redline.webp']).toEqual({
+    expect(manifest).not.toHaveProperty('skins');
+    const skinsManifest = buildSkinsManifest('a'.repeat(40), jobs);
+    expect(skinsManifest.base).toBe(`/cs2-assets/${'a'.repeat(40)}`);
+    expect(skinsManifest.skins['ak47_redline.webp']).toEqual({
       small: 'skins/small/ak47_redline.webp',
       full: 'skins/ak47_redline.webp',
     });
@@ -60,6 +63,13 @@ test.describe('cs2 assets script', () => {
     expect(Object.keys(buildManifest('b'.repeat(40), noFull).maps)).toEqual(['de_dust2']);
     const noIcon = jobs.filter((j) => j.kind !== 'map-icon');
     expect(buildManifest('b'.repeat(40), noIcon).maps.de_dust2).not.toHaveProperty('icon');
+  });
+
+  test('buildSkinsManifest omits a skin when its small or full file was not written', async () => {
+    const { planAssets, buildSkinsManifest } = await loadScript();
+    const jobs: Job[] = planAssets(maps, skins);
+    expect(Object.keys(buildSkinsManifest('b'.repeat(40), jobs.filter((j) => j.kind !== 'skin-small')).skins)).toEqual([]);
+    expect(Object.keys(buildSkinsManifest('b'.repeat(40), jobs.filter((j) => j.kind !== 'skin-full')).skins)).toEqual([]);
   });
 
   test('isCacheHit needs the same sha, a complete manifest and the folder', async () => {
