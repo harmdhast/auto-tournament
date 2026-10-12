@@ -239,26 +239,6 @@ export default function ServerModal({ open, server, onClose, onSave }: ServerMod
               }
             />
 
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={skins}
-                  onChange={(e) => setSkins(e.target.checked)}
-                  inputProps={{ 'aria-label': t('serverModal.skinsLabel') }}
-                  data-testid="server-skins"
-                />
-              }
-              label={
-                <Box>
-                  <Typography variant="body2" fontWeight={500}>
-                    {t('serverModal.skinsLabel')}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t('serverModal.skinsHelper')}
-                  </Typography>
-                </Box>
-              }
-            />
             {skins && server?.steamToken === true && (
               <Alert severity="warning" data-testid="server-skins-token-warning">
                 {t('serverModal.skinsTokenWarning')}

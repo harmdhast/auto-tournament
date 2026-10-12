@@ -270,7 +270,14 @@ router.get('/admin/config', requireAuth, async (_req, res) => {
 });
 router.put('/admin/config', requireAuth, async (req, res) => {
   try {
+    const before = (await skinService.config()).enabled;
     const config = await skinService.setConfig((req.body ?? {}) as Partial<SkinsConfig>);
+    // The servers' skins plugin follows the platform's switch.
+    if (config.enabled !== before) {
+      void import('../fleet/push/controls').then(({ syncSkinsPluginEverywhere }) =>
+        syncSkinsPluginEverywhere()
+      );
+    }
     return res.json({ success: true, config });
   } catch (error) {
     return fail(res, error, 'Saving the skins settings');

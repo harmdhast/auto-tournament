@@ -1,11 +1,10 @@
 /**
- * Virtual skins: an inventory per player, earned by winning matchmaking games
- * and placing in tournaments, shown on the platform only.
- *
- * Skins never reach a game server. Valve bans the server token of a community
- * server that lets players use items they do not own, so the inventory, the
- * equipped loadout and the profile showcase live here and nowhere else. The
- * notice that says so is fixed text in the client and cannot be edited.
+ * Skins: an inventory per player, earned by winning matchmaking games and
+ * placing in tournaments, shown on the platform and played in the servers:
+ * the equipped loadout goes to Ready Up's skins plugin when a player
+ * connects (../fleet/push/skins.ts), on every server while skins are on here.
+ * A tournament in esports mode plays without them (Ready Up's `valve`
+ * ruleset).
  *
  * Everything is off until an admin turns it on (`skins_config.enabled`).
  *
