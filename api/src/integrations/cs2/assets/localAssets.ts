@@ -13,7 +13,7 @@ export interface LocalAssets {
   skins: Record<string, { small: string; full: string }>;
 }
 
-function readJson(publicDir: string, file: string): any {
+function readJson(publicDir: string, file: string): Partial<LocalAssets> | null {
   return JSON.parse(fs.readFileSync(path.join(publicDir, 'cs2-assets', file), 'utf8'));
 }
 
@@ -29,11 +29,17 @@ export function readLocalAssets(publicDir: string = PUBLIC_DIR): LocalAssets | n
       let skins: LocalAssets['skins'] = {};
       try {
         const list = readJson(publicDir, 'skins.json');
-        if (list?.sha === parsed.sha && list.skins) skins = list.skins;
+        if (list?.sha === parsed.sha && list?.skins) skins = list.skins;
       } catch {
         skins = {};
       }
-      assets = { sha: parsed.sha, base: parsed.base, complete: parsed.complete === true, maps: parsed.maps, skins };
+      assets = {
+        sha: parsed.sha ?? '',
+        base: parsed.base,
+        complete: parsed.complete === true,
+        maps: parsed.maps,
+        skins,
+      };
     }
   } catch {
     assets = null;
@@ -44,11 +50,14 @@ export function readLocalAssets(publicDir: string = PUBLIC_DIR): LocalAssets | n
 
 export function skinImageUrls(
   image: string,
-  assets: LocalAssets | null = readLocalAssets(),
+  assets: LocalAssets | null = readLocalAssets()
 ): { imageUrl: string; imageSmallUrl: string } {
   const entry = assets?.skins[image];
   if (assets && entry) {
-    return { imageUrl: `${assets.base}/${entry.full}`, imageSmallUrl: `${assets.base}/${entry.small}` };
+    return {
+      imageUrl: `${assets.base}/${entry.full}`,
+      imageSmallUrl: `${assets.base}/${entry.small}`,
+    };
   }
   const remote = `${SKIN_IMAGES_BASE}/${image}`;
   return { imageUrl: remote, imageSmallUrl: remote };
