@@ -22,7 +22,7 @@
 
 import { Router, Request, Response } from 'express';
 import { requireAuth } from '../../../middleware/auth';
-import { requireRconEnabled } from '../../../middleware/rconEnabled';
+import { requireRconEnabled } from '../rconEnabled';
 import { validateEventToken, validateServerToken } from '../../../middleware/serverAuth';
 import type { PluginEvent, AdminCalledEvent } from './plugin-events.types';
 import { adminCallFromEvent } from './adminCalled';

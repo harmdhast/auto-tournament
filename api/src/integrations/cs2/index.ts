@@ -38,7 +38,7 @@
  * module still delegates back to them.
  */
 
-import { isRconEnabled } from '../../middleware/rconEnabled';
+import { isRconEnabled } from './rconEnabled';
 import type { MatchConfig } from '../../types/match.types';
 import type { TournamentResponse } from '../../types/tournament.types';
 import type { DbTournamentRow } from '../../types/database.types';

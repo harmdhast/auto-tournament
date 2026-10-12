@@ -15,7 +15,7 @@ import { settingsService } from '../../services/settingsService';
 import { serverService } from './services/serverService';
 import { rconService } from './services/rconService';
 import { serverInitializationService } from './services/serverInitializationService';
-import { isRconEnabled } from '../../middleware/rconEnabled';
+import { isRconEnabled } from './rconEnabled';
 import { initPluginVersionService } from './services/pluginVersionService';
 import { healthMonitoringService } from './services/healthMonitoringService';
 import { startMapAutoSync, stopMapAutoSync } from './maps/autoSync';
