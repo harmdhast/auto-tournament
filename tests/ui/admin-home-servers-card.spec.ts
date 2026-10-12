@@ -54,10 +54,6 @@ test('spare and busy servers are not counted as in a match', async ({ page, requ
         },
       })
   );
-  await page.route(
-    (url) => url.pathname === '/api/servers',
-    (route) => route.fulfill({ json: { success: true, servers: [] } })
-  );
   await page.goto('/');
   const card = page.getByTestId('admin-home-servers-card');
   const count = (k: string) => card.getByTestId(`admin-home-servers-${k}`);

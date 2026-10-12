@@ -28,10 +28,8 @@ import { Cs2TournamentMapsStep } from './setup/Cs2TournamentMapsStep';
 import { Cs2TournamentReview } from './setup/Cs2TournamentReview';
 import { cs2TournamentSetup } from './setup/cs2TournamentSettings';
 import { CreateManualMatchModal } from './standalone/CreateManualMatchModal';
-import { Cs2AdminWarnings } from './global/Cs2AdminWarnings';
 import { Cs2StartConfirm } from './start/Cs2StartConfirm';
 import { Cs2StartPreflight } from './start/Cs2StartPreflight';
-import { Cs2OutdatedServersDialog, parseCs2OutdatedError } from './start/Cs2OutdatedServersDialog';
 import { Cs2AllocationBanner } from './bracket/Cs2AllocationBanner';
 import { Cs2NextAllocationChip } from './bracket/Cs2NextAllocationChip';
 import {
@@ -129,25 +127,16 @@ export const cs2ClientIntegration: ClientGameIntegration = {
   teamPositions: ['rifler', 'awper', 'igl', 'entry', 'support', 'lurker'],
   teamSize: 5,
 
-  // The webhook URL a CS2 server reaches the platform on, and the MatchZy Enhanced
-  // plugin's own database: both are settings only this game has, so the
-  // shell's warnings about them are this module's (3.0 phase E).
-  adminGlobalWarning: Cs2AdminWarnings,
-
   // Starting a CS2 tournament means allocating servers, so the dialog talks
-  // about servers, and a refusal about out-of-date ones is answered here. The
-  // labels are the ones the button has always shown.
+  // about servers. The labels are the ones the button has always shown.
   tournamentStart: {
     confirmView: Cs2StartConfirm,
     confirmLabel: 'Yes, Start Anyway',
     cancelLabel: 'Check Servers',
     cancelPath: links.servers(),
     confirmColor: 'warning',
-    ownsFailure: (error) => parseCs2OutdatedError(error) !== null,
-    failureView: Cs2OutdatedServersDialog,
     // The same start asked from the setup page, which checks the fleet before
-    // it starts rather than describing it, and answers a refusal with the same
-    // dialog the dashboard's start does.
+    // it starts rather than describing it.
     preflight: {
       view: Cs2StartPreflight,
     },
