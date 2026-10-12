@@ -169,16 +169,16 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 
-function removeMapImageFiles(id: string, label: string): void {
+function removeMapImageFiles(id: string): void {
   for (const base of [id, `${id}-small`]) {
     for (const ext of IMAGE_EXTENSIONS) {
       const imagePath = path.join(MAP_IMAGES_DIR, `${base}.${ext}`);
       if (!fs.existsSync(imagePath)) continue;
       try {
         fs.unlinkSync(imagePath);
-        log.debug(`Deleted map image${label}: ${imagePath}`);
+        log.debug(`Deleted map image: ${imagePath}`);
       } catch (err) {
-        log.warn(`Failed to delete map image${label}: ${imagePath}`, { error: err });
+        log.warn(`Failed to delete map image: ${imagePath}`, { error: err });
         // Don't fail the request if image deletion fails
       }
     }
@@ -279,7 +279,7 @@ router.post('/:id/upload-image', async (req: Request, res: Response) => {
     }
 
     // Replace any earlier upload, whatever its extension
-    removeMapImageFiles(id, '');
+    removeMapImageFiles(id);
 
     // Save image files
     const filename = `${id}.${imageExtension}`;
@@ -379,7 +379,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     await mapService.deleteMap(id);
 
     // Delete the uploaded image and its small copy
-    removeMapImageFiles(id, '');
+    removeMapImageFiles(id);
 
     return res.json({
       success: true,
