@@ -170,7 +170,7 @@ interface Stats {
   givenThisWeek: number;
   playersWithSkins: number;
   players: number;
-  rarest: { weaponName: string; name: string; rarity: Rarity; imageUrl: string; owner: string | null } | null;
+  rarest: { weaponName: string; name: string; rarity: Rarity; imageUrl: string; imageSmallUrl: string; owner: string | null } | null;
 }
 
 /** Weights as whole percentages summing to 100 (largest remainder), in rarity order. */

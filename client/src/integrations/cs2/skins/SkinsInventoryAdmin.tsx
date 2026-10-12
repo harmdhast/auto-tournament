@@ -41,6 +41,7 @@ interface CatalogEntry {
   variant: string | null;
   rarity: string;
   imageUrl: string;
+  imageSmallUrl: string;
   /** Knives and gloves: market price in USD, which set the rarity. */
   price?: number;
 }
