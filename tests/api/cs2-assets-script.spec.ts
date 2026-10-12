@@ -72,4 +72,19 @@ test.describe('cs2 assets script', () => {
     expect(isCacheHit(buildManifest(sha, jobs, true), sha, false)).toBe(false);
     expect(isCacheHit(undefined, sha, true)).toBe(false);
   });
+
+  test('parseMasterSha reads master from a ref advertisement', async () => {
+    const { parseMasterSha } = await loadScript();
+    const sha = '5b3a1c9e0d7f4a2b8c6e1f0a9d3b7c5e2f4a6d8b';
+    const advertisement = [
+      '001e# service=git-upload-pack\n0000015b9bb5acf03b4ddeae1d5edc12213d61319a38fd1a HEAD\0multi_ack thin-pack symref=HEAD:refs/heads/master agent=git/github\n',
+      '004f9339ea06f95820d8ac13cf29602913c731595151 refs/heads/assets/skins-and-icons\n',
+      '0052f35cb6e257c35d368d3624343a4c84b4a804f6dd refs/heads/chore/third-party-notices\n',
+      `003d${sha} refs/heads/master\n`,
+      '0040aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa refs/heads/master-old\n',
+      '0000',
+    ].join('');
+    expect(parseMasterSha(advertisement)).toBe(sha);
+    expect(() => parseMasterSha('0000')).toThrow('master not found');
+  });
 });

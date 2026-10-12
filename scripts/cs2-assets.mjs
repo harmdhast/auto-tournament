@@ -10,8 +10,11 @@
  * top-level failure (offline, rate limit, sharp missing) warns and exits 0,
  * leaving previous output in place; the app falls back to the CDN.
  *
- * Env: GITHUB_TOKEN (API rate limit), CS2_ASSETS_SOURCE (JSON
- * {"api": "<commit url>", "raw": "<raw base url>"} replacing the GitHub URLs).
+ * The commit is read from the git smart-HTTP ref advertisement, which has no
+ * API quota and needs no token.
+ *
+ * Env: CS2_ASSETS_SOURCE (JSON {"refs": "<info/refs url>", "raw": "<raw base
+ * url>"} replacing the GitHub URLs).
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -20,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'client', 'public', 'cs2-assets');
 const REPO = 'Auto-Tournament/cs2-server-manager';
+const REFS_URL = `https://github.com/${REPO}.git/info/refs?service=git-upload-pack`;
 const CONCURRENCY = 16;
 const TIMEOUT_MS = 20_000;
 
@@ -31,6 +35,15 @@ function isPlayableMapId(id) {
 }
 
 const text = (value) => (typeof value === 'string' && value.trim() ? value.trim() : null);
+
+/** The commit sha of refs/heads/master in a git-upload-pack ref advertisement (pkt-line text). */
+export function parseMasterSha(advertisement) {
+  for (const line of String(advertisement).split('\n')) {
+    const match = /([0-9a-f]{40}) refs\/heads\/master(?:\0.*)?$/.exec(line);
+    if (match) return match[1];
+  }
+  throw new Error('master not found in the ref advertisement');
+}
 
 /** The files to produce for a maps.json and a skins.json; `out` is relative to `<sha>/`. */
 export function planAssets(mapsJson, skinsJson) {
@@ -90,8 +103,8 @@ export function isCacheHit(manifest, sha, folderExists) {
   return manifest?.sha === sha && manifest.complete === true && folderExists;
 }
 
-async function fetchBuffer(url, init = {}) {
-  const res = await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
+async function fetchBuffer(url) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
 }
@@ -147,15 +160,10 @@ async function exists(file) {
 
 async function main() {
   const source = process.env.CS2_ASSETS_SOURCE ? JSON.parse(process.env.CS2_ASSETS_SOURCE) : {};
-  const apiUrl = source.api ?? `https://api.github.com/repos/${REPO}/commits/master`;
+  const refsUrl = source.refs ?? REFS_URL;
   const rawBase = source.raw ?? `https://raw.githubusercontent.com/${REPO}`;
   const { default: sharp } = await import('sharp');
-  const token = process.env.GITHUB_TOKEN;
-  const commit = JSON.parse(
-    (await fetchBuffer(apiUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} })).toString(),
-  );
-  const sha = commit.sha;
-  if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error(`unexpected commit sha ${sha}`);
+  const sha = parseMasterSha((await fetchBuffer(refsUrl)).toString());
 
   const manifestPath = path.join(OUT_DIR, 'manifest.json');
   const shaDir = path.join(OUT_DIR, sha);
