@@ -7,18 +7,11 @@
     "highlights": "Highlights"
   },
   "layout": {
-    "webhookNotConfigured": "Webhook URL is not configured. Matches and servers cannot receive events until it is set.",
-    "openSettings": "Open settings",
     "pageTitle": {
       "servers": "Servers",
       "maps": "Maps & Map Pools",
       "skins": "Skins",
       "matchRules": "Match rules"
-    },
-    "atDbDown": {
-      "title": "MatchZy Enhanced DB unreachable",
-      "body_one": "{{count}} server reports that the plugin cannot reach its database. Backups and the event queue may be affected.",
-      "body_other": "{{count}} servers report that the plugin cannot reach its database. Backups and the event queue may be affected."
     }
   },
   "dashboard": {
@@ -47,11 +40,7 @@
       "inMatch": "In a match",
       "free": "Free",
       "offline": "Offline",
-      "plugin": "Plugin",
-      "pluginSame": "{{version}}, all servers match",
-      "pluginMixed": "{{count}} plugin versions in use",
       "none": "No servers connected yet.",
-      "notConfigured": "Not configured",
       "busy": "Busy",
       "spare": "Spare",
       "draining": "Draining"
@@ -80,8 +69,6 @@
       "free": "Free",
       "offline": "Offline",
       "lastHeartbeat": "Last heartbeat {{time}} ago",
-      "notConfigured": "Not configured",
-      "notConfiguredHint": "Added, but it has not reported in yet",
       "noHeartbeat": "No heartbeat yet",
       "checking": "Checking",
       "loading": "Loading servers",
@@ -663,36 +650,20 @@
     }
   },
   "serverModal": {
-    "fleetAddress": "Reported by Ready Up over the fleet link.",
-    "titleCreate": "Add Server",
     "titleEdit": "Edit Server",
     "serverNameLabel": "Server Name",
     "serverNamePlaceholder": "Match Server #1",
-    "hostLabel": "Host / IP Address",
-    "hostPlaceholder": "192.168.1.100",
-    "portLabel": "Port",
-    "portPlaceholder": "27015",
-    "rconPasswordLabel": "RCON Password",
-    "rconPasswordPlaceholder": "your-rcon-password",
-    "rconPasswordHelper": "Password for RCON access to the server",
     "enabledLabel": "Server Enabled",
     "enabledHelper": "Disabled servers won't be used for matches",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
     "failoverUseLabel": "Use for failover",
     "failoverUseHelper": "Off: automatic failover never moves a match here or keeps it as a spare.",
-    "overridesTitle": "MatchZy Enhanced Overrides (optional)",
-    "overridesDescription": "These settings override the global MatchZy Enhanced defaults for this server only. Leave blank to use global values from Settings.",
     "chatPrefixLabel": "Chat Prefix Override",
     "chatPrefixPlaceholder": "[{Green}Auto Tournament{Default}]",
-    "chatPrefixHelper": "Overrides at_chat_prefix on this server (optional)",
     "adminChatPrefixLabel": "Admin Chat Prefix Override",
     "adminChatPrefixPlaceholder": "[{Red}ADMIN{Default}]",
-    "adminChatPrefixHelper": "Overrides at_admin_chat_prefix on this server (optional)",
     "knifeOverrideLabel": "Knife Round Enabled by Default (override)",
-    "knifeOverrideHelper": "When set, overrides at_knife_enabled_default for this server. Leave in indeterminate state to use global default.",
-    "testConnectivity": "Test connectivity",
-    "testingConnectivity": "Testing connectivity…",
     "connectivity": {
       "apiToServer": "Auto Tournament API → CS2 Server:",
       "serverToApi": "Server → API (/api/events):",
@@ -701,32 +672,20 @@
     },
     "errors": {
       "nameRequired": "Server name is required",
-      "hostRequired": "Host is required",
-      "portInvalid": "Port must be a valid number between 1 and 65535",
-      "rconRequired": "RCON password is required",
-      "idGenerationFailed": "Unable to generate server ID. Please adjust the server name.",
-      "duplicateId": "Server name creates duplicate ID '{{id}}'. Choose a different name.",
       "duplicateHostPort": "A server with host:port '{{host}}:{{port}}' already exists (ID: {{id}}, Name: {{name}})",
       "testConnectionSaveFirst": "Save the server first before testing connection",
-      "testConnectionFailed": "Failed to test connection",
       "saveFailed": "Failed to save server",
-      "deleteFailed": "Failed to delete server",
-      "rconReachableApiUnreachable": "We can reach the server via RCON, but the server could not reach the API endpoint (test event missing).",
-      "rconReachableApiUnknown": "RCON works. The server has no event URL yet, so its connection back to the API can't be checked until it is saved and configured.",
-      "serverOffline": "Server appears offline or unreachable via RCON."
+      "deleteFailed": "Failed to delete server"
     },
     "success": {
-      "connectivityOk": "Bi-directional connectivity verified: server is online and can reach the API.",
       "serverUpdated": "Server updated successfully",
-      "serverCreated": "Server created successfully",
       "serverDeleted": "Server deleted successfully"
     },
     "buttons": {
       "deleteServer": "Delete Server",
       "cancel": "Cancel",
       "saving": "Saving...",
-      "saveChanges": "Save Changes",
-      "addServer": "Add Server"
+      "saveChanges": "Save Changes"
     },
     "confirmDelete": {
       "title": "Delete Server",
@@ -982,12 +941,6 @@
     "saved": "Settings saved",
     "saveFailed": "Failed to save settings",
     "loadFailed": "Failed to load settings",
-    "webhook": {
-      "title": "MatchZy Enhanced Webhook",
-      "description": "MatchZy Enhanced webhook URL that your CS2 servers can reach.",
-      "label": "Webhook URL",
-      "helper": "Example: https://your-domain.com"
-    },
     "mapSync": {
       "title": "Map Synchronization",
       "description": "Sync CS2 maps and the Active Duty pool from the map list in the cs2-server-manager repository.",
@@ -1005,72 +958,25 @@
       "failed": "Failed to sync maps"
     },
     "defaultsTitle": "Server defaults",
-    "chatDefaults": {
-      "title": "MatchZy Enhanced Chat & Knife Defaults",
-      "description": "Configure in-game chat prefixes and default knife round behavior.",
-      "chatPrefixLabel": "Chat Prefix",
-      "chatPrefixHelper": "Default: \"[{Green}Auto Tournament{Default}]\". Leave blank to reset to the default prefix.",
-      "adminChatPrefixLabel": "Admin Chat Prefix",
-      "adminChatPrefixHelper": "Default: \"[{Red}ADMIN{Default}]\". Leave blank to reset to the default admin prefix.",
-      "knifeToggleLabel": "Enable knife rounds by default for new matches (when sides are not pre-selected)",
-      "knifeNote": "Applies only when MatchZy Enhanced would normally run a knife round; explicit side picks or shuffle-assigned sides are not changed."
-    },
     "atCore": {
       "title": "Match defaults",
       "description": "Sent to Ready Up servers with each match.",
-      "expert": {
-        "title": "Expert settings",
-        "description": "These settings can make servers behave unexpectedly if misconfigured. Change them only if you know you need them.",
-        "autostartMode": {
-          "label": "Autostart mode on plugin load",
-          "helper": "0 = idle/sleep, 1 = match mode (recommended), 2 = practice mode",
-          "options": {
-            "0": "0 — Idle / sleep",
-            "1": "1 — Match mode",
-            "2": "2 — Practice mode"
-          }
-        }
-      },
       "ready": {
         "title": "Ready / Match Start",
         "minimumReadyLabel": "Minimum ready players required",
         "minimumReadyHelper": "0 = everyone connected must ready. Default: 0.",
         "allowForceReady": "Allow admins to force-ready players during setup (.forceready)"
       },
-      "access": {
-        "title": "Server Access",
-        "kickWhenNoMatchLoaded": "Kick/prevent joins when no match is loaded (tournament servers)",
-        "whitelistEnabledDefault": "Enable whitelist by default (admins can toggle with .whitelist)"
-      },
       "adminTools": {
         "title": "Admin Tools",
         "pauseAfterRestore": "Pause after round restore (.stop) so teams can coordinate",
         "joinPassword": "Join password on match servers (off: the roster whitelist alone keeps others out)",
         "stopCommandAvailable": "Enable .stop (round restore) command",
-        "stopCommandNoDamage": "Disable .stop after opposing-team damage occurs",
-        "usePauseForTacticalPause": "Make .pause behave like tactical pause"
-      },
-      "hostname": {
-        "formatLabel": "Server hostname format",
-        "formatHelper": "Applied to every server when a match loads. Tokens: {MATCH_ID}, {MAP}, {MAPNUMBER}, {TEAM1}, {TEAM2}, {TEAM1_SCORE}, {TEAM2_SCORE}. Leave empty to keep the hostname each server sets in its own config."
-      },
-      "demos": {
-        "title": "Demos",
-        "demoPathLabel": "Demo path (relative to csgo/)",
-        "demoPathHelper": "Must end with '/'. Default: AutoTournamentCS2/",
-        "demoNameFormatLabel": "Demo filename format (without .dem)",
-        "demoNameFormatHelper": "Tokens: {TIME}, {MATCH_ID}, {MAP}, {MAPNUMBER}, {TEAM1}, {TEAM2}"
+        "stopCommandNoDamage": "Disable .stop after opposing-team damage occurs"
       },
       "autostart": {
         "label": "Start matches after (minutes in warmup)",
         "helper": "0 = wait for everyone to ready up. Otherwise a loaded match goes live after this many minutes, ready or not; players are warned 1 minute and 10 seconds before."
-      },
-      "seriesEnd": {
-        "title": "Series End Timing",
-        "kickDelayNoDemoLabel": "Extra kick delay when demos are disabled (seconds)",
-        "kickDelayDemoNoUploadLabel": "Extra kick delay when demos enabled but no upload URL (seconds)",
-        "kickDelayDemoUploadLabel": "Extra kick delay when demos enabled and upload URL is set (seconds)",
-        "kickDelayHelper": "Added on top of mp_match_restart_delay."
       }
     },
     "atEnhanced": {
@@ -1091,7 +997,6 @@
       },
       "sideSelection": {
         "title": "Side Selection Timer",
-        "enabled": "Enable side selection timer",
         "timeLabel": "Time allowed (seconds)",
         "timeHelper": "Time after knife round to choose sides"
       },
@@ -1122,11 +1027,7 @@
       "simulateNote": "When enabled, the match configs sent to servers include \"simulation\": true for automated demo matches.",
       "timescaleTitle": "Simulation Timescale",
       "timescaleDescription": "Controls how fast simulated matches run. Higher values speed up bots and round flow. This only applies when simulation is enabled.",
-      "timescaleWarning": "Speeds above 2.0 can be a bit unstable and may cause odd bot behavior, but are fine to use for quick local testing.",
-      "debugChat": {
-        "label": "Enable MatchZy Enhanced debug chat messages",
-        "description": "When enabled, MatchZy Enhanced will print additional debug messages (like player connects, disconnects, and event traces) into in-game chat. Use this only for development and testing – not during live events."
-      }
+      "timescaleWarning": "Speeds above 2.0 can be a bit unstable and may cause odd bot behavior, but are fine to use for quick local testing."
     },
     "success": {
       "simulationDisabled": "Simulation mode disabled",
@@ -2126,9 +2027,6 @@
     "newServer": "New server {{n}}",
     "notAnswering": "Not answering",
     "openMatch": "Open the match",
-    "other": {
-      "disabled": "Disabled"
-    },
     "state": {
       "deleting": "Deleting…",
       "free": "Free",
@@ -2406,8 +2304,7 @@
     "noMachineAbout": "Ready Up servers that enrolled on their own.",
     "guessedBanner": "Some addresses were guessed from where the server connects. Check them, or set the address players use.",
     "transport": {
-      "readyUp": "Ready Up",
-      "rcon": "RCON"
+      "readyUp": "Ready Up"
     },
     "seen": "Seen {{time}}",
     "pushProblem": "A push to this server failed or got no answer",
@@ -2416,10 +2313,6 @@
     "edit": "Edit",
     "section": {
       "machine": "Machine"
-    },
-    "facts": {
-      "address": "Address",
-      "plugin": "Plugin"
     },
     "copyConnect": "Copy the connect command",
     "connectCopied": "Connect command copied"

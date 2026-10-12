@@ -7,18 +7,11 @@
     "highlights": "Highlights"
   },
   "layout": {
-    "webhookNotConfigured": "La URL del webhook no está configurada. Los partidos y servidores no pueden recibir eventos hasta que se configure.",
-    "openSettings": "Abrir ajustes",
     "pageTitle": {
       "servers": "Servidores",
       "maps": "Mapas y pools",
       "skins": "Skins",
       "matchRules": "Reglas de partida"
-    },
-    "atDbDown": {
-      "title": "Base de datos de MatchZy Enhanced inaccesible",
-      "body_one": "{{count}} servidor informa de que el plugin no puede acceder a su base de datos. Las copias de seguridad y la cola de eventos pueden verse afectadas.",
-      "body_other": "{{count}} servidores informan de que el plugin no puede acceder a su base de datos. Las copias de seguridad y la cola de eventos pueden verse afectadas."
     }
   },
   "dashboard": {
@@ -47,11 +40,7 @@
       "inMatch": "In a match",
       "free": "Free",
       "offline": "Offline",
-      "plugin": "Plugin",
-      "pluginSame": "{{version}}, all servers match",
-      "pluginMixed": "{{count}} plugin versions in use",
       "none": "No servers connected yet.",
-      "notConfigured": "Not configured",
       "busy": "Ocupado",
       "spare": "De reserva",
       "draining": "Vaciándose"
@@ -80,8 +69,6 @@
       "free": "Free",
       "offline": "Offline",
       "lastHeartbeat": "Last heartbeat {{time}} ago",
-      "notConfigured": "Not configured",
-      "notConfiguredHint": "Added, but it has not reported in yet",
       "noHeartbeat": "No heartbeat yet",
       "checking": "Checking",
       "loading": "Loading servers",
@@ -663,36 +650,20 @@
     }
   },
   "serverModal": {
-    "fleetAddress": "Reported by Ready Up over the fleet link.",
-    "titleCreate": "Añadir servidor",
     "titleEdit": "Editar servidor",
     "serverNameLabel": "Nombre del servidor",
     "serverNamePlaceholder": "Servidor de partida #1",
-    "hostLabel": "Host / dirección IP",
-    "hostPlaceholder": "192.168.1.100",
-    "portLabel": "Puerto",
-    "portPlaceholder": "27015",
-    "rconPasswordLabel": "Contraseña RCON",
-    "rconPasswordPlaceholder": "your-rcon-password",
-    "rconPasswordHelper": "Contraseña para acceso RCON al servidor",
     "enabledLabel": "Servidor activado",
     "enabledHelper": "Los servidores desactivados no se usarán para partidos",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
     "failoverUseLabel": "Usar para failover",
     "failoverUseHelper": "Desactivado: el failover automático nunca mueve una partida aquí ni la mantiene como reserva.",
-    "overridesTitle": "Sobrescrituras de MatchZy Enhanced (opcional)",
-    "overridesDescription": "Estos ajustes sobrescriben los valores globales de MatchZy Enhanced solo para este servidor. Déjalo en blanco para usar los valores globales de Ajustes.",
     "chatPrefixLabel": "Sobrescritura del prefijo de chat",
     "chatPrefixPlaceholder": "[{Green}Auto Tournament{Default}]",
-    "chatPrefixHelper": "Sobrescribe at_chat_prefix en este servidor (opcional)",
     "adminChatPrefixLabel": "Sobrescritura del prefijo de chat de admin",
     "adminChatPrefixPlaceholder": "[{Red}ADMIN{Default}]",
-    "adminChatPrefixHelper": "Sobrescribe at_admin_chat_prefix en este servidor (opcional)",
     "knifeOverrideLabel": "Ronda de knife activada por defecto (sobrescritura)",
-    "knifeOverrideHelper": "Cuando se configura, sobrescribe at_knife_enabled_default para este servidor. Déjalo en estado indeterminado para usar el valor global.",
-    "testConnectivity": "Probar conectividad",
-    "testingConnectivity": "Probando conectividad…",
     "connectivity": {
       "apiToServer": "API de Auto Tournament → servidor CS2:",
       "serverToApi": "Servidor → API (/api/events):",
@@ -701,32 +672,20 @@
     },
     "errors": {
       "nameRequired": "El nombre del servidor es obligatorio",
-      "hostRequired": "El host es obligatorio",
-      "portInvalid": "El puerto debe ser un número válido entre 1 y 65535",
-      "rconRequired": "La contraseña RCON es obligatoria",
-      "idGenerationFailed": "No se pudo generar el ID del servidor. Ajusta el nombre del servidor.",
-      "duplicateId": "El nombre del servidor crea un ID duplicado '{{id}}'. Elige un nombre diferente.",
       "duplicateHostPort": "Ya existe un servidor con host:puerto '{{host}}:{{port}}' (ID: {{id}}, Nombre: {{name}})",
       "testConnectionSaveFirst": "Guarda el servidor primero antes de probar la conexión",
-      "testConnectionFailed": "No se pudo probar la conexión",
       "saveFailed": "No se pudo guardar el servidor",
-      "deleteFailed": "No se pudo eliminar el servidor",
-      "rconReachableApiUnreachable": "Podemos llegar al servidor por RCON, pero el servidor no pudo llegar al endpoint de la API (falta el evento de prueba).",
-      "serverOffline": "El servidor parece estar fuera de línea o inaccesible por RCON.",
-      "rconReachableApiUnknown": "RCON works. The server has no event URL yet, so its connection back to the API can't be checked until it is saved and configured."
+      "deleteFailed": "No se pudo eliminar el servidor"
     },
     "success": {
-      "connectivityOk": "Conectividad bidireccional verificada: el servidor está en línea y puede acceder a la API.",
       "serverUpdated": "Servidor actualizado correctamente",
-      "serverCreated": "Servidor creado correctamente",
       "serverDeleted": "Servidor eliminado correctamente"
     },
     "buttons": {
       "deleteServer": "Eliminar servidor",
       "cancel": "Cancelar",
       "saving": "Guardando...",
-      "saveChanges": "Guardar cambios",
-      "addServer": "Añadir servidor"
+      "saveChanges": "Guardar cambios"
     },
     "confirmDelete": {
       "title": "Eliminar servidor",
@@ -978,12 +937,6 @@
     "title": "Counter-Strike 2 servers"
   },
   "settings": {
-    "webhook": {
-      "title": "Webhook de MatchZy Enhanced",
-      "description": "URL de webhook de MatchZy Enhanced a la que puedan acceder tus servidores CS2.",
-      "label": "URL de webhook",
-      "helper": "Ejemplo: https://tu-dominio.com"
-    },
     "mapSync": {
       "title": "Sincronización de mapas",
       "description": "Sincroniza mapas de CS2 desde el repositorio de GitHub.",
@@ -1004,72 +957,25 @@
     "saved": "Settings saved",
     "saveFailed": "Failed to save settings",
     "loadFailed": "Failed to load settings",
-    "chatDefaults": {
-      "title": "Valores por defecto de chat y knife de MatchZy Enhanced",
-      "description": "Configura los prefijos del chat en el juego y el comportamiento predeterminado de la ronda de knife.",
-      "chatPrefixLabel": "Prefijo del chat",
-      "chatPrefixHelper": "Predeterminado: \"[{Green}Auto Tournament{Default}]\". Déjalo vacío para restaurar el prefijo por defecto.",
-      "adminChatPrefixLabel": "Prefijo del chat de admin",
-      "adminChatPrefixHelper": "Predeterminado: \"[{Red}ADMIN{Default}]\". Déjalo vacío para restaurar el prefijo de admin por defecto.",
-      "knifeToggleLabel": "Habilitar rondas de knife por defecto para nuevos partidos (cuando los lados no están preseleccionados)",
-      "knifeNote": "Se aplica solo cuando MatchZy Enhanced normalmente ejecutaría una ronda de knife; no cambia selecciones explícitas de lado."
-    },
     "atCore": {
       "title": "Valores predeterminados del partido",
       "description": "Se envía a los servidores de Ready Up con cada partido.",
-      "expert": {
-        "title": "Ajustes avanzados",
-        "description": "Estos ajustes pueden hacer que el servidor se comporte de forma inesperada si están mal configurados. Cámbialos solo si sabes que los necesitas.",
-        "autostartMode": {
-          "label": "Modo de autoinicio al cargar el plugin",
-          "helper": "0 = idle/sleep, 1 = modo match (recomendado), 2 = modo practice",
-          "options": {
-            "0": "0 — Inactivo / dormir",
-            "1": "1 — Modo match",
-            "2": "2 — Modo practice"
-          }
-        }
-      },
       "ready": {
         "title": "Ready / Inicio del partido",
         "minimumReadyLabel": "Mínimo de jugadores listos requerido",
         "minimumReadyHelper": "0 = todos los jugadores conectados deben estar listos. Predeterminado: 0.",
         "allowForceReady": "Permitir a los admins forzar el ready de los jugadores durante la configuración (.forceready)"
       },
-      "access": {
-        "title": "Acceso al servidor",
-        "kickWhenNoMatchLoaded": "Expulsar/impedir unirse cuando no hay un partido cargado (servidores de torneo)",
-        "whitelistEnabledDefault": "Habilitar whitelist por defecto (los admins pueden alternar con .whitelist)"
-      },
       "adminTools": {
         "title": "Herramientas de admin",
         "pauseAfterRestore": "Pausar después de restaurar ronda (.stop) para que los equipos se coordinen",
         "joinPassword": "Join password on match servers (off: the roster whitelist alone keeps others out)",
         "stopCommandAvailable": "Habilitar el comando .stop (restaurar ronda)",
-        "stopCommandNoDamage": "Deshabilitar .stop tras daño al equipo contrario",
-        "usePauseForTacticalPause": "Hacer que .pause se comporte como pausa táctica"
-      },
-      "hostname": {
-        "formatLabel": "Formato del nombre de host del servidor",
-        "formatHelper": "Se aplica a todos los servidores cuando se carga un partido. Variables: {MATCH_ID}, {MAP}, {MAPNUMBER}, {TEAM1}, {TEAM2}, {TEAM1_SCORE}, {TEAM2_SCORE}. Déjalo vacío para mantener el nombre de host que cada servidor define en su propia configuración."
-      },
-      "demos": {
-        "title": "Demos (GOTV)",
-        "demoPathLabel": "Ruta de demos (relativa a csgo/)",
-        "demoPathHelper": "Debe terminar con '/'. Predeterminado: AutoTournamentCS2/",
-        "demoNameFormatLabel": "Formato del nombre del demo (sin .dem)",
-        "demoNameFormatHelper": "Marcadores: {TIME}, {MATCH_ID}, {MAP}, {MAPNUMBER}, {TEAM1}, {TEAM2}"
+        "stopCommandNoDamage": "Deshabilitar .stop tras daño al equipo contrario"
       },
       "autostart": {
         "label": "Start matches after (minutes in warmup)",
         "helper": "0 = wait for everyone to ready up. Otherwise a loaded match goes live after this many minutes, ready or not; players are warned 1 minute and 10 seconds before."
-      },
-      "seriesEnd": {
-        "title": "Tiempo al finalizar la serie",
-        "kickDelayNoDemoLabel": "Retraso extra de expulsión cuando los demos están desactivados (segundos)",
-        "kickDelayDemoNoUploadLabel": "Retraso extra de expulsión cuando los demos están activados pero no hay URL de subida (segundos)",
-        "kickDelayDemoUploadLabel": "Retraso extra de expulsión cuando los demos están activados y la URL de subida está configurada (segundos)",
-        "kickDelayHelper": "Se añade encima de mp_match_restart_delay."
       }
     },
     "atEnhanced": {
@@ -1090,7 +996,6 @@
       },
       "sideSelection": {
         "title": "Temporizador de selección de lado",
-        "enabled": "Habilitar temporizador de selección de lado",
         "timeLabel": "Tiempo permitido (segundos)",
         "timeHelper": "Tiempo tras la ronda de knife para elegir lado"
       },
@@ -1121,11 +1026,7 @@
       "simulateNote": "Cuando está habilitado, las configuraciones de partido enviadas a los servidores incluyen \"simulation\": true para los partidos demo automatizados.",
       "timescaleTitle": "Velocidad de simulación",
       "timescaleDescription": "Controla lo rápido que se ejecutan los partidos simulados. Valores más altos aceleran bots y rondas. Solo aplica cuando la simulación está habilitada.",
-      "timescaleWarning": "Velocidades por encima de 2.0 pueden ser inestables y causar comportamientos raros de bots, pero sirven para pruebas rápidas.",
-      "debugChat": {
-        "label": "Habilitar mensajes de chat de depuración de MatchZy Enhanced",
-        "description": "Cuando está habilitado, MatchZy Enhanced imprimirá mensajes de depuración adicionales (conexiones/desconexiones, trazas de eventos, etc.) en el chat. Úsalo solo para desarrollo y pruebas."
-      }
+      "timescaleWarning": "Velocidades por encima de 2.0 pueden ser inestables y causar comportamientos raros de bots, pero sirven para pruebas rápidas."
     },
     "success": {
       "simulationDisabled": "Modo de simulación deshabilitado",
@@ -2126,9 +2027,6 @@
     "newServer": "New server {{n}}",
     "notAnswering": "Not answering",
     "openMatch": "Abrir partida",
-    "other": {
-      "disabled": "Disabled"
-    },
     "state": {
       "deleting": "Deleting…",
       "free": "Free",
@@ -2411,8 +2309,7 @@
     "noMachineAbout": "Servidores Ready Up que se inscribieron por su cuenta.",
     "guessedBanner": "Algunas direcciones se dedujeron de dónde se conecta el servidor. Revísalas o define la dirección que usan los jugadores.",
     "transport": {
-      "readyUp": "Ready Up",
-      "rcon": "RCON"
+      "readyUp": "Ready Up"
     },
     "seen": "Visto {{time}}",
     "pushProblem": "Un envío a este servidor falló o no tuvo respuesta",
@@ -2421,10 +2318,6 @@
     "edit": "Editar",
     "section": {
       "machine": "Máquina"
-    },
-    "facts": {
-      "address": "Dirección",
-      "plugin": "Plugin"
     },
     "copyConnect": "Copiar el comando connect",
     "connectCopied": "Comando connect copiado"
