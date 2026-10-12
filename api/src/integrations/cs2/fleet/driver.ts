@@ -441,11 +441,18 @@ async function joinPasswordEnabled(): Promise<boolean> {
 async function assignDefaults(): Promise<{
   allowForceReady?: boolean;
   pauseAfterRestore?: boolean;
+  stopCommandAvailable?: boolean;
+  stopCommandNoDamage?: boolean;
 }> {
   try {
     const { cs2Settings } = await import('../settingsReaders');
     const core = await cs2Settings.getAtCoreDefaults();
-    return { allowForceReady: core.allowForceReady, pauseAfterRestore: core.pauseAfterRestore };
+    return {
+      allowForceReady: core.allowForceReady,
+      pauseAfterRestore: core.pauseAfterRestore,
+      stopCommandAvailable: core.stopCommandAvailable,
+      stopCommandNoDamage: core.stopCommandNoDamage,
+    };
   } catch {
     return {};
   }
