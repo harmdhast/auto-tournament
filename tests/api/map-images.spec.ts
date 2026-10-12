@@ -63,7 +63,7 @@ test.describe('Map image upload', () => {
         expect(uploadRes.ok(), `upload-image: ${await uploadRes.text()}`).toBe(true);
         const uploadBody = await uploadRes.json();
         expect(uploadBody.success).toBe(true);
-        expect(uploadBody.imageUrl).toBe(`/map-images/${id}.png`);
+        expect(uploadBody.imageUrl).toMatch(new RegExp(`^/map-images/${id}\\.png\\?v=\\d+$`));
 
         // The route only returns a relative URL; fetch it back exactly the
         // way a browser would, through the static /map-images mount.
@@ -78,7 +78,87 @@ test.describe('Map image upload', () => {
         const mapRes = await request.get(`/api/maps/${id}`);
         expect(mapRes.ok(), `GET /api/maps/${id}: ${await mapRes.text()}`).toBe(true);
         const mapBody = await mapRes.json();
-        expect(mapBody.map.imageUrl).toBe(`/map-images/${id}.png`);
+        expect(mapBody.map.imageUrl).toBe(uploadBody.imageUrl);
+      } finally {
+        await deleteMap(request, id);
+      }
+    }
+  );
+
+  test(
+    'a small copy is stored and served with long-lived cache headers',
+    { tag: ['@api', '@maps'] },
+    async ({ request }) => {
+      const id = uniqueMapId();
+      await createMap(request, id);
+      const dataUrl = `data:image/webp;base64,${ONE_PX_PNG_BASE64}`;
+
+      try {
+        const uploadRes = await request.post(`/api/maps/${id}/upload-image`, {
+          data: { imageData: dataUrl, smallImageData: dataUrl },
+        });
+        expect(uploadRes.ok(), `upload-image: ${await uploadRes.text()}`).toBe(true);
+        const { imageUrl } = await uploadRes.json();
+        expect(imageUrl).toMatch(new RegExp(`^/map-images/${id}\\.webp\\?v=\\d+$`));
+
+        const smallRes = await request.get(`/map-images/${id}-small.webp`);
+        expect(smallRes.status()).toBe(200);
+        expect(smallRes.headers()['cache-control']).toContain('immutable');
+
+        const fullRes = await request.get(imageUrl);
+        expect(fullRes.status()).toBe(200);
+        expect(fullRes.headers()['cache-control']).toContain('immutable');
+      } finally {
+        await deleteMap(request, id);
+      }
+
+      expect((await request.get(`/map-images/${id}.webp`)).status()).toBe(404);
+      expect((await request.get(`/map-images/${id}-small.webp`)).status()).toBe(404);
+    }
+  );
+
+  test(
+    'an upload without a small copy still works and drops an older small copy',
+    { tag: ['@api', '@maps'] },
+    async ({ request }) => {
+      const id = uniqueMapId();
+      await createMap(request, id);
+      const dataUrl = `data:image/webp;base64,${ONE_PX_PNG_BASE64}`;
+
+      try {
+        await request.post(`/api/maps/${id}/upload-image`, {
+          data: { imageData: dataUrl, smallImageData: dataUrl },
+        });
+        const res = await request.post(`/api/maps/${id}/upload-image`, {
+          data: { imageData: `data:image/png;base64,${ONE_PX_PNG_BASE64}` },
+        });
+        expect(res.ok(), `upload-image: ${await res.text()}`).toBe(true);
+        expect((await res.json()).imageUrl).toMatch(
+          new RegExp(`^/map-images/${id}\\.png\\?v=\\d+$`)
+        );
+        expect((await request.get(`/map-images/${id}.webp`)).status()).toBe(404);
+        expect((await request.get(`/map-images/${id}-small.webp`)).status()).toBe(404);
+      } finally {
+        await deleteMap(request, id);
+      }
+    }
+  );
+
+  test(
+    'a small copy that is not webp is rejected',
+    { tag: ['@api', '@maps'] },
+    async ({ request }) => {
+      const id = uniqueMapId();
+      await createMap(request, id);
+
+      try {
+        const res = await request.post(`/api/maps/${id}/upload-image`, {
+          data: {
+            imageData: `data:image/png;base64,${ONE_PX_PNG_BASE64}`,
+            smallImageData: `data:image/png;base64,${ONE_PX_PNG_BASE64}`,
+          },
+        });
+        expect(res.status()).toBe(400);
       } finally {
         await deleteMap(request, id);
       }

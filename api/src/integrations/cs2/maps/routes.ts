@@ -167,6 +167,24 @@ router.patch('/:id', async (req: Request, res: Response) => {
   }
 });
 
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+
+function removeMapImageFiles(id: string, label: string): void {
+  for (const base of [id, `${id}-small`]) {
+    for (const ext of IMAGE_EXTENSIONS) {
+      const imagePath = path.join(MAP_IMAGES_DIR, `${base}.${ext}`);
+      if (!fs.existsSync(imagePath)) continue;
+      try {
+        fs.unlinkSync(imagePath);
+        log.debug(`Deleted map image${label}: ${imagePath}`);
+      } catch (err) {
+        log.warn(`Failed to delete map image${label}: ${imagePath}`, { error: err });
+        // Don't fail the request if image deletion fails
+      }
+    }
+  }
+}
+
 /**
  * POST /api/maps/:id/upload-image
  * Upload image for a map (accepts base64 encoded image)
@@ -174,7 +192,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
 router.post('/:id/upload-image', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { imageData, imageType } = req.body;
+    const { imageData, imageType, smallImageData } = req.body;
 
     // Check if map exists
     const map = await mapService.getMapById(id);
@@ -239,13 +257,39 @@ router.post('/:id/upload-image', async (req: Request, res: Response) => {
       });
     }
 
-    // Save image file
-    const filename = `${id}.${imageExtension}`;
-    const filepath = path.join(MAP_IMAGES_DIR, filename);
-    fs.writeFileSync(filepath, imageBuffer);
+    let smallBuffer: Buffer | null = null;
+    if (smallImageData !== undefined && smallImageData !== null) {
+      const smallMatches =
+        typeof smallImageData === 'string'
+          ? smallImageData.match(/^data:image\/webp;base64,(.+)$/)
+          : null;
+      if (!smallMatches) {
+        return res.status(400).json({
+          success: false,
+          error: 'smallImageData must be a webp base64 data URL',
+        });
+      }
+      smallBuffer = Buffer.from(smallMatches[1], 'base64');
+      if (smallBuffer.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Small image data is empty',
+        });
+      }
+    }
 
-    // Generate URL (relative to public directory)
-    const imageUrl = `/map-images/${filename}`;
+    // Replace any earlier upload, whatever its extension
+    removeMapImageFiles(id, '');
+
+    // Save image files
+    const filename = `${id}.${imageExtension}`;
+    fs.writeFileSync(path.join(MAP_IMAGES_DIR, filename), imageBuffer);
+    if (smallBuffer) {
+      fs.writeFileSync(path.join(MAP_IMAGES_DIR, `${id}-small.webp`), smallBuffer);
+    }
+
+    // Generate URL (relative to public directory); ?v busts the long-lived cache
+    const imageUrl = `/map-images/${filename}?v=${Math.floor(Date.now() / 1000)}`;
 
     // Update map with new image URL
     await mapService.updateMap(id, { imageUrl });
@@ -334,38 +378,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
     // Delete the map from database
     await mapService.deleteMap(id);
 
-    // Delete associated image file if it exists
-    if (map.imageUrl) {
-      // Check if it's a local image (starts with /map-images/)
-      if (map.imageUrl.startsWith('/map-images/')) {
-        const filename = map.imageUrl.replace('/map-images/', '');
-        const imagePath = path.join(MAP_IMAGES_DIR, filename);
-        if (fs.existsSync(imagePath)) {
-          try {
-            fs.unlinkSync(imagePath);
-            log.debug(`Deleted map image: ${imagePath}`);
-          } catch (err) {
-            log.warn(`Failed to delete map image: ${imagePath}`, { error: err });
-            // Don't fail the request if image deletion fails
-          }
-        }
-      }
-    }
-
-    // Also try to delete by pattern (fallback in case imageUrl wasn't set correctly)
-    const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
-    for (const ext of imageExtensions) {
-      const imagePath = path.join(MAP_IMAGES_DIR, `${id}.${ext}`);
-      if (fs.existsSync(imagePath)) {
-        try {
-          fs.unlinkSync(imagePath);
-          log.debug(`Deleted map image (fallback): ${imagePath}`);
-        } catch (err) {
-          log.warn(`Failed to delete map image (fallback): ${imagePath}`, { error: err });
-          // Don't fail the request if image deletion fails
-        }
-      }
-    }
+    // Delete the uploaded image and its small copy
+    removeMapImageFiles(id, '');
 
     return res.json({
       success: true,
