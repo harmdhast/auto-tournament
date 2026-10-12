@@ -7,18 +7,11 @@
     "highlights": "Highlights"
   },
   "layout": {
-    "webhookNotConfigured": "Webhook-URL is niet ingesteld. Wedstrijden en servers kunnen geen events ontvangen totdat dit is ingesteld.",
-    "openSettings": "Instellingen openen",
     "pageTitle": {
       "servers": "Spelservers",
       "maps": "Kaarten & map-pools",
       "skins": "Skins",
       "matchRules": "Wedstrijdregels"
-    },
-    "atDbDown": {
-      "title": "MatchZy Enhanced-database onbereikbaar",
-      "body_one": "{{count}} server meldt dat de plugin zijn database niet kan bereiken. Back-ups en de eventwachtrij kunnen hierdoor last hebben.",
-      "body_other": "{{count}} servers melden dat de plugin zijn database niet kan bereiken. Back-ups en de eventwachtrij kunnen hierdoor last hebben."
     }
   },
   "dashboard": {
@@ -47,11 +40,7 @@
       "inMatch": "In a match",
       "free": "Free",
       "offline": "Offline",
-      "plugin": "Plugin",
-      "pluginSame": "{{version}}, all servers match",
-      "pluginMixed": "{{count}} plugin versions in use",
       "none": "No servers connected yet.",
-      "notConfigured": "Not configured",
       "busy": "Bezet",
       "spare": "Reserve",
       "draining": "Wordt geleegd"
@@ -80,8 +69,6 @@
       "free": "Free",
       "offline": "Offline",
       "lastHeartbeat": "Last heartbeat {{time}} ago",
-      "notConfigured": "Not configured",
-      "notConfiguredHint": "Added, but it has not reported in yet",
       "noHeartbeat": "No heartbeat yet",
       "checking": "Checking",
       "loading": "Loading servers",
@@ -663,36 +650,20 @@
     }
   },
   "serverModal": {
-    "fleetAddress": "Reported by Ready Up over the fleet link.",
-    "titleCreate": "Server toevoegen",
     "titleEdit": "Server bewerken",
     "serverNameLabel": "Servernaam",
     "serverNamePlaceholder": "Matchserver #1",
-    "hostLabel": "Host / IP-adres",
-    "hostPlaceholder": "192.168.1.100",
-    "portLabel": "Poort",
-    "portPlaceholder": "27015",
-    "rconPasswordLabel": "RCON-wachtwoord",
-    "rconPasswordPlaceholder": "your-rcon-password",
-    "rconPasswordHelper": "Wachtwoord voor RCON-toegang tot de server",
     "enabledLabel": "Server ingeschakeld",
     "enabledHelper": "Uitgeschakelde servers worden niet gebruikt voor wedstrijden",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
     "failoverUseLabel": "Gebruiken voor failover",
     "failoverUseHelper": "Uit: automatische failover zet hier nooit een match neer en houdt hem ook niet als reserve.",
-    "overridesTitle": "MatchZy Enhanced-overschrijvingen (optioneel)",
-    "overridesDescription": "Deze instellingen overschrijven de globale MatchZy Enhanced-standaarden alleen voor deze server. Laat leeg om de globale waarden uit Instellingen te gebruiken.",
     "chatPrefixLabel": "Chatprefix-overschrijving",
     "chatPrefixPlaceholder": "[{Green}Auto Tournament{Default}]",
-    "chatPrefixHelper": "Overschrijft at_chat_prefix op deze server (optioneel)",
     "adminChatPrefixLabel": "Admin-chatprefix-overschrijving",
     "adminChatPrefixPlaceholder": "[{Red}ADMIN{Default}]",
-    "adminChatPrefixHelper": "Overschrijft at_admin_chat_prefix op deze server (optioneel)",
     "knifeOverrideLabel": "Knife-round standaard ingeschakeld (overschrijven)",
-    "knifeOverrideHelper": "Wanneer ingesteld, overschrijft dit at_knife_enabled_default voor deze server. Laat in onbepaalde staat om de globale standaard te gebruiken.",
-    "testConnectivity": "Connectiviteit testen",
-    "testingConnectivity": "Connectiviteit testen…",
     "connectivity": {
       "apiToServer": "Auto Tournament API → CS2-server:",
       "serverToApi": "Server → API (/api/events) (gebeurtenissen):",
@@ -701,32 +672,20 @@
     },
     "errors": {
       "nameRequired": "Servernaam is verplicht",
-      "hostRequired": "Host is verplicht",
-      "portInvalid": "Poort moet een geldig nummer zijn tussen 1 en 65535",
-      "rconRequired": "RCON-wachtwoord is verplicht",
-      "idGenerationFailed": "Kan server-ID niet genereren. Pas de servernaam aan.",
-      "duplicateId": "Servernaam veroorzaakt een dubbel ID '{{id}}'. Kies een andere naam.",
       "duplicateHostPort": "Er bestaat al een server met host:poort '{{host}}:{{port}}' (ID: {{id}}, Naam: {{name}})",
       "testConnectionSaveFirst": "Sla de server eerst op voordat je de verbinding test",
-      "testConnectionFailed": "Verbindingstest mislukt",
       "saveFailed": "Server opslaan mislukt",
-      "deleteFailed": "Server verwijderen mislukt",
-      "rconReachableApiUnreachable": "We kunnen de server bereiken via RCON, maar de server kon het API-endpoint niet bereiken (testevent ontbreekt).",
-      "serverOffline": "Server lijkt offline of onbereikbaar via RCON.",
-      "rconReachableApiUnknown": "RCON works. The server has no event URL yet, so its connection back to the API can't be checked until it is saved and configured."
+      "deleteFailed": "Server verwijderen mislukt"
     },
     "success": {
-      "connectivityOk": "Connectiviteit in beide richtingen geverifieerd: server is online en kan de API bereiken.",
       "serverUpdated": "Server succesvol bijgewerkt",
-      "serverCreated": "Server succesvol aangemaakt",
       "serverDeleted": "Server succesvol verwijderd"
     },
     "buttons": {
       "deleteServer": "Server verwijderen",
       "cancel": "Annuleren",
       "saving": "Opslaan...",
-      "saveChanges": "Wijzigingen opslaan",
-      "addServer": "Server toevoegen"
+      "saveChanges": "Wijzigingen opslaan"
     },
     "confirmDelete": {
       "title": "Server verwijderen",
@@ -978,12 +937,6 @@
     "title": "Counter-Strike 2 servers"
   },
   "settings": {
-    "webhook": {
-      "title": "MatchZy Enhanced webhook",
-      "description": "MatchZy Enhanced webhook-URL die je CS2-servers kunnen bereiken.",
-      "label": "Webhook-URL",
-      "helper": "Voorbeeld: https://jouw-domein.nl"
-    },
     "mapSync": {
       "title": "Kaart-synchronisatie",
       "description": "Synchroniseer CS2-kaarten vanuit de GitHub-repository.",
@@ -1004,77 +957,30 @@
     "saved": "Settings saved",
     "saveFailed": "Failed to save settings",
     "loadFailed": "Failed to load settings",
-    "chatDefaults": {
-      "title": "MatchZy Enhanced chat- & knife-standaarden",
-      "description": "Configureer chat-prefixen in-game en het standaard knife-round gedrag.",
-      "chatPrefixLabel": "Chat-prefix",
-      "chatPrefixHelper": "Standaard: \"[{Green}Auto Tournament{Default}]\". Laat leeg om terug te zetten naar de standaard.",
-      "adminChatPrefixLabel": "Admin chat-prefix",
-      "adminChatPrefixHelper": "Standaard: \"[{Red}ADMIN{Default}]\". Laat leeg om terug te zetten naar de standaard.",
-      "knifeToggleLabel": "Knife-rounds standaard inschakelen voor nieuwe wedstrijden (wanneer sides niet vooraf gekozen zijn)",
-      "knifeNote": "Geldt alleen wanneer MatchZy Enhanced normaal een knife-round zou spelen; expliciete side-picks worden niet aangepast."
-    },
     "atCore": {
-      "title": "MatchZy Enhanced Core-standaarden",
-      "description": "Deze standaarden worden naar servers gestuurd tijdens initialisatie en vóór elke wedstrijd-load.",
-      "expert": {
-        "title": "Expertinstellingen",
-        "description": "Deze instellingen kunnen onverwacht servergedrag veroorzaken als ze verkeerd zijn ingesteld. Wijzig ze alleen als je weet dat je ze nodig hebt.",
-        "autostartMode": {
-          "label": "Autostart-modus bij plugin-load",
-          "helper": "0 = idle/sleep, 1 = match mode (aanbevolen), 2 = practice mode",
-          "options": {
-            "0": "0 — Inactief / slaapstand",
-            "1": "1 — Match-modus",
-            "2": "2 — Practice-modus"
-          }
-        }
-      },
+      "title": "Match-standaarden",
+      "description": "Wordt bij elke wedstrijd naar de Ready Up-servers gestuurd.",
       "ready": {
         "title": "Ready / Start wedstrijd",
         "minimumReadyLabel": "Minimum aantal ready-spelers vereist",
         "minimumReadyHelper": "0 = iedereen die verbonden is moet ready zijn. Standaard: 0.",
-        "allowForceReady": "Sta admins toe spelers force-ready te zetten tijdens setup (!forceready)"
-      },
-      "access": {
-        "title": "Servertoegang",
-        "kickWhenNoMatchLoaded": "Kick/voorkom joins wanneer geen wedstrijd geladen is (toernooiservers)",
-        "whitelistEnabledDefault": "Whitelist standaard inschakelen (admins kunnen togglen met .whitelist)"
+        "allowForceReady": "Sta admins toe spelers force-ready te zetten tijdens setup (.forceready)"
       },
       "adminTools": {
         "title": "Admin-tools",
         "pauseAfterRestore": "Pauzeren na round restore (.stop) zodat teams kunnen overleggen",
         "joinPassword": "Join password on match servers (off: the roster whitelist alone keeps others out)",
         "stopCommandAvailable": "Schakel .stop (round restore) commando in",
-        "stopCommandNoDamage": "Schakel .stop uit na schade aan het andere team",
-        "usePauseForTacticalPause": "Laat .pause zich gedragen als tactische pauze"
-      },
-      "hostname": {
-        "formatLabel": "Formaat serverhostnaam",
-        "formatHelper": "Wordt op elke server toegepast wanneer een wedstrijd wordt geladen. Tokens: {MATCH_ID}, {MAP}, {MAPNUMBER}, {TEAM1}, {TEAM2}, {TEAM1_SCORE}, {TEAM2_SCORE}. Laat leeg om de hostnaam te behouden die elke server in zijn eigen config instelt."
-      },
-      "demos": {
-        "title": "Demo’s",
-        "demoPathLabel": "Demo-pad (relatief aan csgo/)",
-        "demoPathHelper": "Moet eindigen op '/'. Standaard: AutoTournamentCS2/",
-        "demoNameFormatLabel": "Demo-bestandsnaamformaat (zonder .dem)",
-        "demoNameFormatHelper": "Plaatsvervangers: {TIME}, {MATCH_ID}, {MAP}, {MAPNUMBER}, {TEAM1}, {TEAM2}"
+        "stopCommandNoDamage": "Schakel .stop uit na schade aan het andere team"
       },
       "autostart": {
         "label": "Start matches after (minutes in warmup)",
         "helper": "0 = wait for everyone to ready up. Otherwise a loaded match goes live after this many minutes, ready or not; players are warned 1 minute and 10 seconds before."
-      },
-      "seriesEnd": {
-        "title": "Timing einde serie",
-        "kickDelayNoDemoLabel": "Extra kick-vertraging wanneer demo’s uit staan (seconden)",
-        "kickDelayDemoNoUploadLabel": "Extra kick-vertraging wanneer demo’s aan staan maar geen upload-URL (seconden)",
-        "kickDelayDemoUploadLabel": "Extra kick-vertraging wanneer demo’s aan staan en upload-URL is ingesteld (seconden)",
-        "kickDelayHelper": "Wordt opgeteld bij mp_match_restart_delay."
       }
     },
     "atEnhanced": {
-      "title": "MatchZy Enhanced-functies",
-      "description": "Configureer geavanceerde match-functies. Laat velden leeg om de MatchZy Enhanced-standaard te gebruiken.",
+      "title": "Match-functies",
+      "description": "Wordt bij elke wedstrijd naar de Ready Up-servers gestuurd. Laat een instelling leeg om de Ready Up-standaard te gebruiken.",
       "autoready": {
         "title": "Auto-ready",
         "label": "Markeer spelers automatisch als ready wanneer ze joinen",
@@ -1090,7 +996,6 @@
       },
       "sideSelection": {
         "title": "Timer side-keuze",
-        "enabled": "Timer voor side-keuze inschakelen",
         "timeLabel": "Tijd (seconden)",
         "timeHelper": "Tijd na knife-round om sides te kiezen"
       },
@@ -1111,21 +1016,17 @@
       "demo": {
         "title": "Demo-opname",
         "enabled": "Automatische GOTV demo-opname inschakelen",
-        "description": "Wanneer uitgeschakeld, herstart de server ~10s na match-einde (vs 60-90s met opname)"
+        "description": "Demo’s worden op de server opgenomen en na elke map automatisch naar Auto Tournament geüpload."
       }
     },
     "developer": {
       "title": "Ontwikkelaarsopties",
       "description": "Alleen voor lokale ontwikkeling; niet inschakelen in productie.",
       "simulateToggleLabel": "Simuleer wedstrijden (gebruik bot-gestuurde demo-wedstrijden i.p.v. echte spelers)",
-      "simulateNote": "Wanneer ingeschakeld, bevatten gegenereerde MatchZy Enhanced-configs \"simulation\": true voor geautomatiseerde demo-wedstrijden.",
+      "simulateNote": "Wanneer ingeschakeld, bevatten de naar de servers gestuurde wedstrijdconfigs \"simulation\": true voor geautomatiseerde demo-wedstrijden.",
       "timescaleTitle": "Simulatie-snelheid",
       "timescaleDescription": "Bepaalt hoe snel gesimuleerde wedstrijden lopen. Hogere waarden versnellen bots en rondes. Dit geldt alleen wanneer simulatie is ingeschakeld.",
-      "timescaleWarning": "Snelheden boven 2.0 kunnen instabiel zijn en vreemd bot-gedrag veroorzaken, maar zijn ok voor snelle lokale tests.",
-      "debugChat": {
-        "label": "MatchZy Enhanced debug-chatberichten inschakelen",
-        "description": "Wanneer ingeschakeld, toont MatchZy Enhanced extra debug-berichten (connects/disconnects, event-traces, etc.) in de chat. Gebruik dit alleen voor ontwikkeling en testen."
-      }
+      "timescaleWarning": "Snelheden boven 2.0 kunnen instabiel zijn en vreemd bot-gedrag veroorzaken, maar zijn ok voor snelle lokale tests."
     },
     "success": {
       "simulationDisabled": "Simulatiemodus uitgeschakeld",
@@ -1134,7 +1035,7 @@
     },
     "reset": {
       "title": "Instellingen resetten?",
-      "description": "Reset alle instellingen op deze pagina terug naar defaults. Bestaande toernooien en servers worden niet gewijzigd, maar nieuwe wedstrijden en lookups gebruiken de default-waarden. Doorgaan?",
+      "description": "Reset de CS2-serverstandaarden op dit tabblad (demo’s, ready-up, pauzes en de rest). Bestaande toernooien en servers worden niet gewijzigd, maar nieuwe wedstrijden gebruiken de standaardwaarden. Doorgaan?",
       "cancel": "Annuleren",
       "confirm": "Resetten",
       "success": "Instellingen gereset naar standaard.",
@@ -2126,9 +2027,6 @@
     "newServer": "New server {{n}}",
     "notAnswering": "Not answering",
     "openMatch": "Match openen",
-    "other": {
-      "disabled": "Disabled"
-    },
     "state": {
       "deleting": "Deleting…",
       "free": "Free",
@@ -2408,11 +2306,10 @@
   },
   "serversList": {
     "noMachine": "Zonder machine",
-    "noMachineAbout": "Ready Up-servers die zich zelf hebben aangemeld, en servers toegevoegd op adres.",
+    "noMachineAbout": "Ready Up-servers die zich zelf hebben aangemeld.",
     "guessedBanner": "Sommige adressen zijn geraden op basis van waar de server vandaan verbindt. Controleer ze, of stel het adres in dat spelers gebruiken.",
     "transport": {
-      "readyUp": "Ready Up",
-      "rcon": "RCON"
+      "readyUp": "Ready Up"
     },
     "seen": "Gezien {{time}}",
     "pushProblem": "Een verzending naar deze server is mislukt of kreeg geen antwoord",
@@ -2421,10 +2318,6 @@
     "edit": "Bewerken",
     "section": {
       "machine": "Machine"
-    },
-    "facts": {
-      "address": "Adres",
-      "plugin": "Plugin"
     },
     "copyConnect": "Connect-opdracht kopiëren",
     "connectCopied": "Connect-opdracht gekopieerd"

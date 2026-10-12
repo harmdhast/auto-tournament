@@ -124,14 +124,6 @@ test('server tiles sort by status, matches first', async ({ page }) => {
       'm-live': match('m-live'),
     }
   );
-  await page.route('**/api/servers', (route) =>
-    route.fulfill({
-      json: {
-        success: true,
-        servers: [{ id: 'u1', name: 'z-new', enabled: true, lastSeen: null }],
-      },
-    })
-  );
   await page.goto('/manage');
   const grid = page.getByTestId('manage-servers');
   await expect(grid.getByText('e-live')).toBeVisible({ timeout: 15000 });
@@ -142,7 +134,6 @@ test('server tiles sort by status, matches first', async ({ page }) => {
     'c-spare',
     'f-busy',
     'a-offline',
-    'z-new',
   ]);
 });
 
@@ -158,9 +149,6 @@ test('a stale slug on an allocatable server reads Free and sorts with the free o
       entry('c-free', { allocatable: true, notAllocatableReason: null }),
     ],
     { 'm-live': match('m-live') }
-  );
-  await page.route('**/api/servers', (route) =>
-    route.fulfill({ json: { success: true, servers: [] } })
   );
   await page.goto('/manage');
   const grid = page.getByTestId('manage-servers');

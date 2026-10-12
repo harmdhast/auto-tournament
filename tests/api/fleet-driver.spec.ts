@@ -518,7 +518,7 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     await request.post(`/api/matches/${slug}/force-cancel`, { headers: getAuthHeader() });
   });
 
-  test('link to an existing server row, unlink restores RCON; RCON servers keep the RCON path', async ({
+  test('link to an existing server row, unlink deletes it; RCON servers keep the RCON path', async ({
     request,
   }) => {
     const rcon = await createTestServer(request, 'fleet-rcon');
@@ -565,13 +565,7 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     });
     expect(elsewhere.status()).toBe(409);
     await unlink(request, fake.serverId);
-    const back = await (
-      await request.get(`/api/servers/${rcon!.id}`, { headers: getAuthHeader() })
-    ).json();
-    expect(back.server ?? back).toMatchObject({
-      transport: 'rcon',
-      fleetServerId: null,
-      enabled: true,
-    });
+    const gone = await request.get(`/api/servers/${rcon!.id}`, { headers: getAuthHeader() });
+    expect(gone.status()).toBe(404);
   });
 });

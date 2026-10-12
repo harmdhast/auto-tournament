@@ -23,7 +23,6 @@ import {
   useTileMatchLine,
 } from './fleet/serverStateMark';
 import { useServerAvailability } from './useServerAvailability';
-import { useUnconfiguredServers } from './useUnconfiguredServers';
 
 /**
  * The Manage console's server grid (`dashboardWidgets.manageResources`). It
@@ -33,16 +32,8 @@ import { useUnconfiguredServers } from './useUnconfiguredServers';
 export const ServerGrid: React.FC<ManageResourcesProps> = () => {
   const { availability, answers } = useServerAvailability(5000);
   const servers = availability?.servers ?? [];
-  const unconfigured = useUnconfiguredServers(30_000);
   const matches = useServerMatches();
-  return (
-    <ServerGridView
-      servers={servers}
-      unconfigured={unconfigured}
-      matches={matches}
-      answers={answers}
-    />
-  );
+  return <ServerGridView servers={servers} matches={matches} answers={answers} />;
 };
 
 /** "UB R1 M1" for a double-elimination match; null for one the bracket does not label. */
@@ -78,7 +69,8 @@ export function serverRank(
   if (match) return PHASE_RANK[match.phase ?? ''] ?? OTHER_PHASE_RANK;
   if (server.allocatable) return FREE_RANK;
   if (
-    server.notAllocatableReason === 'grace-window' || server.busyReason === 'reserved' ||
+    server.notAllocatableReason === 'grace-window' ||
+    server.busyReason === 'reserved' ||
     server.busyReason === 'draining'
   )
     return RESTING_RANK;
@@ -219,13 +211,11 @@ const Tile: React.FC<{
  */
 const ServerGridView: React.FC<{
   servers: ServerAllocationInfo[];
-  /** Added but never set up: listed so the grid matches the Servers page. */
-  unconfigured: { id: string; name: string }[];
   /** Fleet server id → the match on it. */
   matches: Record<string, ServerMatch>;
   /** How many availability answers have arrived; 0 while the first is on its way. */
   answers: number;
-}> = ({ servers, unconfigured, matches, answers }) => {
+}> = ({ servers, matches, answers }) => {
   const { t } = useModuleTranslation('cs2');
   const stateLabel = useStateLabel();
   const matchLine = useMatchLine();
@@ -263,7 +253,7 @@ const ServerGridView: React.FC<{
         </Box>
       );
     }
-    if (servers.length === 0 && unconfigured.length === 0) {
+    if (servers.length === 0) {
       return (
         <Box component="p" sx={{ m: 0, fontSize: textSize.sm, color: tokens.color.muted }}>
           {t('managePage.servers.none')}
@@ -371,17 +361,6 @@ const ServerGridView: React.FC<{
             />
           );
         })}
-        {unconfigured.map((server) => (
-          <Tile
-            key={server.id}
-            data-testid="manage-server-not-configured"
-            name={server.name}
-            chip={
-              <StateChip label={t('managePage.servers.notConfigured')} tone={tokens.color.muted} />
-            }
-            line={t('managePage.servers.notConfiguredHint')}
-          />
-        ))}
       </Box>
     );
   };

@@ -38,6 +38,7 @@
  * module still delegates back to them.
  */
 
+import { isRconEnabled } from '../../middleware/rconEnabled';
 import type { MatchConfig } from '../../types/match.types';
 import type { TournamentResponse } from '../../types/tournament.types';
 import type { DbTournamentRow } from '../../types/database.types';
@@ -383,6 +384,7 @@ export const cs2Integration: GameIntegration = {
 
   /** Every enabled server runs an up-to-date CS2 build (RCON BuildID + Steam UpToDateCheck). */
   async checkStart(_scope) {
+    if (!isRconEnabled()) return { ok: true };
     const { preflightServersUpToDateForTournamentStart } = await import('./tournamentStart');
     const preflight = await preflightServersUpToDateForTournamentStart();
     if (preflight.ok) return { ok: true };
@@ -397,6 +399,7 @@ export const cs2Integration: GameIntegration = {
 
   /** Persistent MatchZy Enhanced webhook config on every enabled server, so allocation's connectivity checks pass. */
   async prepareStart(_scope) {
+    if (!isRconEnabled()) return;
     const { bootstrapServerWebhooksForTournamentStart } = await import('./tournamentStart');
     await bootstrapServerWebhooksForTournamentStart();
   },
@@ -407,6 +410,7 @@ export const cs2Integration: GameIntegration = {
    * given. Rejects when it is not configured, which blocks the start.
    */
   async resolveBaseUrl(_scope) {
+    if (!isRconEnabled()) return '';
     const { settingsService } = await import('../../services/settingsService');
     return settingsService.requireWebhookUrl();
   },

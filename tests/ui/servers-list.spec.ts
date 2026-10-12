@@ -11,7 +11,7 @@ import {
 /**
  * The Servers tab lists every server once, grouped by machine: a machine
  * server running Ready Up is one row on its machine; Ready Up servers on no
- * machine, then RCON servers, are under No machine. Rows are one line on a
+ * machine are under No machine; a server without Ready Up is not listed. Rows are one line on a
  * desktop and two on a phone; Reset shows on a busy row only.
  *
  * @tag ui
@@ -37,26 +37,6 @@ async function stubAll(page: Page, fleetOver: Record<string, Record<string, unkn
   await stubMachines(page, [machineHost('m1', [{ name: 'server-1', fleetId: 'a' }])]);
   await stubFleet(page, fleet);
   await stubFleetDetail(page, fleet);
-  await page.route(
-    (url) => url.pathname === '/api/servers',
-    (route) =>
-      route.fulfill({
-        json: {
-          success: true,
-          servers: [
-            {
-              id: 'rc1',
-              name: 'rcon-legacy',
-              host: '10.0.0.9',
-              port: 27015,
-              enabled: true,
-              transport: 'rcon',
-              status: 'online',
-            },
-          ],
-        },
-      })
-  );
   await page.route(
     (url) => /^\/api\/fleet\/servers\/[^/]+\/push$/.test(url.pathname),
     (route) => {
@@ -175,21 +155,41 @@ test.describe('Server list', () => {
     const keys = await none
       .locator('[data-testid^="server-row-"][role="listitem"]')
       .evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
-    expect(keys).toEqual(['server-row-r:b', 'server-row-r:c', 'server-row-x:rc1']);
+    expect(keys).toEqual(['server-row-r:b', 'server-row-r:c']);
     await expect(page.getByTestId('server-row-r:a')).toHaveCount(0);
+  });
+
+  test('a server record without Ready Up is not listed', async ({ page }) => {
+    await stubAll(page);
+    await page.route(
+      (url) => url.pathname === '/api/servers',
+      (route) =>
+        route.fulfill({
+          json: {
+            success: true,
+            servers: [
+              { id: 'rc1', name: 'rcon-legacy', host: '10.0.0.9', port: 27015, enabled: true },
+            ],
+          },
+        })
+    );
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('server-row-r:b')).toBeVisible();
+    await expect(page.locator('[data-testid^="server-row-x:"]')).toHaveCount(0);
+    await expect(page.getByText('rcon-legacy')).toHaveCount(0);
   });
 
   test('the header counts every listed server', async ({ page }) => {
     await stubAll(page);
     await page.goto('/manage/servers');
-    await expect(page.getByTestId('server-row-x:rc1')).toBeVisible();
-    await expect(page.getByTestId('servers-limit')).toContainText('1 machine · 4 servers');
+    await expect(page.getByTestId('server-row-r:b')).toBeVisible();
+    await expect(page.getByTestId('servers-limit')).toContainText('1 machine · 3 servers');
   });
 
   test('back leaves an old fleetServer link', async ({ page }) => {
     await stubAll(page);
     await page.goto('/manage/servers');
-    await expect(page.getByTestId('server-row-x:rc1')).toBeVisible();
+    await expect(page.getByTestId('server-row-r:b')).toBeVisible();
     await page.goto('/manage/servers?fleetServer=b');
     await expect(page).toHaveURL(/[?&]server=r%3Ab/);
     await page.goBack();
@@ -205,36 +205,9 @@ test.describe('Server list', () => {
       fleetServer('d', { status: 'revoked', online: false }),
     ];
     await stubFleet(page, fleet);
-    await page.route(
-      (url) => url.pathname === '/api/servers',
-      (route) =>
-        route.fulfill({
-          json: {
-            success: true,
-            servers: [
-              {
-                id: 'rc1',
-                name: 'rcon-legacy',
-                host: '10.0.0.9',
-                port: 27015,
-                enabled: true,
-                transport: 'rcon',
-              },
-              {
-                id: 'rc2',
-                name: 'rcon-off',
-                host: '10.0.0.8',
-                port: 27015,
-                enabled: false,
-                transport: 'rcon',
-              },
-            ],
-          },
-        })
-    );
     await page.goto('/manage/servers');
     await expect(page.getByTestId('server-row-r:d')).toBeVisible();
-    await expect(page.getByTestId('servers-limit')).toContainText('1 machine · 4 servers');
+    await expect(page.getByTestId('servers-limit')).toContainText('1 machine · 3 servers');
   });
 
   test('machine rows keep their health lines', async ({ page }) => {
@@ -463,25 +436,11 @@ test.describe('Server list', () => {
   test('the wizard shows only with no servers', async ({ page }) => {
     await stubMachines(page, []);
     await stubFleet(page, []);
-    let servers: unknown[] = [];
-    await page.route(
-      (url) => url.pathname === '/api/servers',
-      (route) => route.fulfill({ json: { success: true, servers } })
-    );
     await page.goto('/manage/servers');
     await expect(page.getByText('Name the machine')).toBeVisible();
-    servers = [
-      {
-        id: 'rc1',
-        name: 'rcon-legacy',
-        host: '10.0.0.9',
-        port: 27015,
-        enabled: true,
-        transport: 'rcon',
-      },
-    ];
+    await stubFleet(page, [fleetServer('b')]);
     await page.reload();
-    await expect(page.getByTestId('server-row-x:rc1')).toBeVisible();
+    await expect(page.getByTestId('server-row-r:b')).toBeVisible();
     await expect(page.getByText('Name the machine')).toHaveCount(0);
   });
 
@@ -493,7 +452,7 @@ test.describe('Server list', () => {
     const heights = await page
       .locator('[role="listitem"][data-testid^="server-row-"]')
       .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
-    expect(heights.length).toBe(4);
+    expect(heights.length).toBe(3);
     for (const h of heights) expect(h).toBeLessThanOrEqual(52);
   });
 
@@ -501,7 +460,7 @@ test.describe('Server list', () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await stubAll(page);
     await page.goto('/manage/servers');
-    await expect(page.getByTestId('server-row-x:rc1')).toBeVisible();
+    await expect(page.getByTestId('server-row-r:b')).toBeVisible();
     const lefts = async (prefix: string) =>
       page
         .locator(`[data-testid^="${prefix}"]`)
@@ -516,7 +475,7 @@ test.describe('Server list', () => {
   test('no summary pills: each row says its own state', async ({ page }) => {
     await stubAll(page);
     await page.goto('/manage/servers');
-    await expect(page.getByTestId('server-row-x:rc1')).toBeVisible();
+    await expect(page.getByTestId('server-row-r:b')).toBeVisible();
     await expect(page.getByTestId('machines-summary')).toHaveCount(0);
   });
 
@@ -630,25 +589,6 @@ test.describe('Server list', () => {
     const row = page.getByTestId('server-row-r:b');
     await expect(row.getByTestId('server-row-state-r:b')).toContainText('Knife');
     await expect(row).toContainText('Team A vs Team B · de_dust2');
-  });
-
-  test('an RCON row in a match shows the line', async ({ page }) => {
-    await stubAll(page);
-    await stubMatches(page, {
-      rc1: {
-        slug: 'm-rc',
-        liveStatus: 'live',
-        team1MapScore: 2,
-        team2MapScore: 0,
-        currentMap: 'de_anubis',
-        mapNumber: 0,
-        maps: ['de_anubis'],
-      },
-    });
-    await page.goto('/manage/servers');
-    const row = page.getByTestId('server-row-x:rc1');
-    await expect(row.getByTestId('server-row-state-x:rc1')).toContainText('Live');
-    await expect(row).toContainText('Team A vs Team B · de_anubis 2 – 0');
   });
 
   test('the row menu opens the match', async ({ page }) => {

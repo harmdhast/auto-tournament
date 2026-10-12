@@ -41,7 +41,7 @@ test.describe('Ready Up servers on the server list', () => {
     await expect(row('d').getByTestId('fleet-reason-d')).toHaveCount(0);
   });
 
-  test('RCON servers are listed under No machine; Ready Up records are not listed twice', async ({
+  test('server records without Ready Up are not listed; Ready Up records are not listed twice', async ({
     page,
   }) => {
     const row = (id: string, transport: 'rcon' | 'fleet') => ({
@@ -60,9 +60,56 @@ test.describe('Ready Up servers on the server list', () => {
       (route) => route.fulfill({ json: { success: true, servers } })
     );
     await page.goto('/manage/servers');
-    const none = page.getByTestId('server-group-none');
-    await expect(none.getByTestId('server-row-x:rcon-1')).toContainText('srv-rcon-1');
-    await expect(none).not.toContainText('srv-fleet-1');
+    await expect(page.getByTestId('servers-add')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('srv-rcon-1')).toHaveCount(0);
+    await expect(page.getByText('srv-fleet-1')).toHaveCount(0);
+  });
+
+  test('a linked Ready Up server opens its settings and saves them', async ({ page }) => {
+    const servers = [fleetServer('a'), fleetServer('b', { linkedServerId: null })];
+    await stubFleet(page, servers);
+    await stubFleetDetail(page, servers);
+    const record = {
+      id: 'cs2-a',
+      name: 'ru-a',
+      host: '10.0.0.1',
+      port: 27015,
+      password: '',
+      enabled: true,
+      transport: 'fleet',
+      tournamentUse: true,
+      failoverUse: true,
+      skins: false,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    let saved: Record<string, unknown> | null = null;
+    await page.route(
+      (url) => url.pathname === '/api/servers/cs2-a',
+      (route) => {
+        if (route.request().method() === 'PUT') {
+          saved = route.request().postDataJSON();
+          return route.fulfill({ json: { success: true, server: { ...record, ...saved } } });
+        }
+        return route.fulfill({ json: { success: true, server: record } });
+      }
+    );
+    await page.goto('/manage/servers');
+
+    await page.getByTestId('server-row-r:b').click();
+    await expect(page.getByTestId('server-panel-readyup')).toBeVisible();
+    await expect(page.getByTestId('server-panel-edit')).toHaveCount(0);
+    await page.getByTestId('side-sheet-close').click();
+
+    await page.getByTestId('server-row-r:a').click();
+    await page.getByTestId('server-panel-edit').click();
+    const modal = page.getByTestId('server-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal.getByTestId('server-host-input')).toHaveCount(0);
+    await modal.getByTestId('server-tournament-use').click();
+    await modal.getByTestId('server-save-button').click();
+    await expect(modal).toHaveCount(0);
+    expect(saved).toMatchObject({ name: 'ru-a', tournamentUse: false });
   });
 
   test('a Ready Up server opens in its own panel; offline and gone servers say so', async ({

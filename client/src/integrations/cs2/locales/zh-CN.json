@@ -7,18 +7,11 @@
     "highlights": "Highlights"
   },
   "layout": {
-    "webhookNotConfigured": "尚未配置 Webhook URL。配置完成之前，比赛和服务器无法接收事件。",
-    "openSettings": "打开设置",
     "pageTitle": {
       "servers": "服务器",
       "maps": "地图与地图池",
       "skins": "皮肤",
       "matchRules": "比赛规则"
-    },
-    "atDbDown": {
-      "title": "无法连接 MatchZy Enhanced 数据库",
-      "body_one": "{{count}} 台服务器报告插件无法连接其数据库。备份和事件队列可能受到影响。",
-      "body_other": "{{count}} 台服务器报告插件无法连接其数据库。备份和事件队列可能受到影响。"
     }
   },
   "dashboard": {
@@ -47,11 +40,7 @@
       "inMatch": "In a match",
       "free": "Free",
       "offline": "Offline",
-      "plugin": "Plugin",
-      "pluginSame": "{{version}}, all servers match",
-      "pluginMixed": "{{count}} plugin versions in use",
       "none": "No servers connected yet.",
-      "notConfigured": "Not configured",
       "busy": "忙碌",
       "spare": "备用",
       "draining": "正在排空"
@@ -80,8 +69,6 @@
       "free": "Free",
       "offline": "Offline",
       "lastHeartbeat": "Last heartbeat {{time}} ago",
-      "notConfigured": "Not configured",
-      "notConfiguredHint": "Added, but it has not reported in yet",
       "noHeartbeat": "No heartbeat yet",
       "checking": "Checking",
       "loading": "Loading servers",
@@ -663,36 +650,20 @@
     }
   },
   "serverModal": {
-    "fleetAddress": "Reported by Ready Up over the fleet link.",
-    "titleCreate": "新增服务器",
     "titleEdit": "编辑服务器",
     "serverNameLabel": "服务器名称",
     "serverNamePlaceholder": "比赛服务器 #1",
-    "hostLabel": "主机 / IP 地址",
-    "hostPlaceholder": "192.168.1.100",
-    "portLabel": "端口",
-    "portPlaceholder": "27015",
-    "rconPasswordLabel": "RCON 密码",
-    "rconPasswordPlaceholder": "your-rcon-password",
-    "rconPasswordHelper": "用于 RCON 访问服务器的密码",
     "enabledLabel": "服务器启用",
     "enabledHelper": "被禁用的服务器不会用于比赛",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
     "failoverUseLabel": "用于故障转移",
     "failoverUseHelper": "关闭：自动故障转移不会将比赛移到此服务器，也不会将其保留为备用。",
-    "overridesTitle": "MatchZy Enhanced 覆盖配置（可选）",
-    "overridesDescription": "这些设置仅覆盖此服务器的全局 MatchZy Enhanced 默认值。留空则使用“设置”中的全局值。",
     "chatPrefixLabel": "聊天前缀覆盖",
     "chatPrefixPlaceholder": "[{Green}Auto Tournament{Default}]",
-    "chatPrefixHelper": "覆盖此服务器上的 at_chat_prefix（可选）",
     "adminChatPrefixLabel": "管理员聊天前缀覆盖",
     "adminChatPrefixPlaceholder": "[{Red}ADMIN{Default}]",
-    "adminChatPrefixHelper": "覆盖此服务器上的 at_admin_chat_prefix（可选）",
     "knifeOverrideLabel": "默认启用刀局（覆盖）",
-    "knifeOverrideHelper": "设置后会覆盖此服务器上的 at_knife_enabled_default。保持中间态以使用全局默认值。",
-    "testConnectivity": "测试连通性",
-    "testingConnectivity": "正在测试连通性…",
     "connectivity": {
       "apiToServer": "Auto Tournament API → CS2 服务器：",
       "serverToApi": "服务器 → API（/api/events）：",
@@ -701,32 +672,20 @@
     },
     "errors": {
       "nameRequired": "服务器名称为必填项",
-      "hostRequired": "主机为必填项",
-      "portInvalid": "端口必须是 1 到 65535 之间的有效数字",
-      "rconRequired": "RCON 密码为必填项",
-      "idGenerationFailed": "无法生成服务器 ID，请调整服务器名称。",
-      "duplicateId": "服务器名称会生成重复 ID “{{id}}”，请选择其他名称。",
       "duplicateHostPort": "已存在使用主机与端口 '{{host}}:{{port}}' 的服务器（ID：{{id}}，名称：{{name}}）",
       "testConnectionSaveFirst": "请先保存服务器，然后再测试连通性",
-      "testConnectionFailed": "测试连通性失败",
       "saveFailed": "保存服务器失败",
-      "deleteFailed": "删除服务器失败",
-      "rconReachableApiUnreachable": "可以通过 RCON 连接到服务器，但服务器无法访问 API 端点（未收到测试事件）。",
-      "serverOffline": "服务器似乎离线或无法通过 RCON 访问。",
-      "rconReachableApiUnknown": "RCON works. The server has no event URL yet, so its connection back to the API can't be checked until it is saved and configured."
+      "deleteFailed": "删除服务器失败"
     },
     "success": {
-      "connectivityOk": "双向连通性验证通过：服务器在线且可以访问 API。",
       "serverUpdated": "服务器更新成功",
-      "serverCreated": "服务器创建成功",
       "serverDeleted": "服务器删除成功"
     },
     "buttons": {
       "deleteServer": "删除服务器",
       "cancel": "取消",
       "saving": "正在保存…",
-      "saveChanges": "保存更改",
-      "addServer": "新增服务器"
+      "saveChanges": "保存更改"
     },
     "confirmDelete": {
       "title": "删除服务器",
@@ -978,12 +937,6 @@
     "title": "Counter-Strike 2 servers"
   },
   "settings": {
-    "webhook": {
-      "title": "MatchZy Enhanced Webhook 地址",
-      "description": "供 CS2 服务器访问的 MatchZy Enhanced Webhook 地址。",
-      "label": "Webhook 地址",
-      "helper": "示例：https://your-domain.com"
-    },
     "mapSync": {
       "title": "地图同步",
       "description": "从 GitHub 仓库同步 CS2 地图。",
@@ -1004,77 +957,30 @@
     "saved": "Settings saved",
     "saveFailed": "Failed to save settings",
     "loadFailed": "Failed to load settings",
-    "chatDefaults": {
-      "title": "MatchZy Enhanced 聊天与刀局默认值",
-      "description": "配置游戏内聊天前缀和默认刀局行为。",
-      "chatPrefixLabel": "聊天前缀",
-      "chatPrefixHelper": "默认值：\"[{Green}Auto Tournament{Default}]\"。留空以重置为默认前缀。",
-      "adminChatPrefixLabel": "管理员聊天前缀",
-      "adminChatPrefixHelper": "默认值：\"[{Red}ADMIN{Default}]\"。留空以重置为默认管理员前缀。",
-      "knifeToggleLabel": "对未预先选择阵营的新比赛默认启用刀局",
-      "knifeNote": "仅在 MatchZy Enhanced 正常会运行刀局时生效；不会改变显式选择阵营或洗牌分配阵营的情况。"
-    },
     "atCore": {
-      "title": "MatchZy Enhanced 核心默认值",
-      "description": "这些默认值会在服务器初始化以及每次加载比赛前下发到服务器。",
-      "expert": {
-        "title": "专家设置",
-        "description": "如果配置不当，这些设置可能导致服务器出现意外行为。仅在你确实需要时再修改。",
-        "autostartMode": {
-          "label": "插件加载时的自动启动模式",
-          "helper": "0 = 空闲/休眠，1 = 比赛模式（推荐），2 = 练习模式",
-          "options": {
-            "0": "0 — 空闲 / 休眠",
-            "1": "1 — 比赛模式",
-            "2": "2 — 练习模式"
-          }
-        }
-      },
+      "title": "比赛默认值",
+      "description": "每场比赛都会下发到 Ready Up 服务器。",
       "ready": {
         "title": "准备 / 比赛开始",
         "minimumReadyLabel": "最少准备人数要求",
         "minimumReadyHelper": "0 = 所有已连接玩家都必须准备。默认：0。",
-        "allowForceReady": "允许管理员在设置阶段强制准备玩家（!forceready）"
-      },
-      "access": {
-        "title": "服务器访问",
-        "kickWhenNoMatchLoaded": "未加载比赛时踢出/阻止加入（赛事服务器）",
-        "whitelistEnabledDefault": "默认启用白名单（管理员可用 .whitelist 切换）"
+        "allowForceReady": "允许管理员在设置阶段强制准备玩家（.forceready）"
       },
       "adminTools": {
         "title": "管理员工具",
         "pauseAfterRestore": "回合恢复（.stop）后自动暂停，便于队伍沟通",
         "joinPassword": "Join password on match servers (off: the roster whitelist alone keeps others out)",
         "stopCommandAvailable": "启用 .stop（回合恢复）命令",
-        "stopCommandNoDamage": "当发生对方队伤害后禁用 .stop",
-        "usePauseForTacticalPause": "让 .pause 的行为类似战术暂停"
-      },
-      "hostname": {
-        "formatLabel": "服务器主机名格式",
-        "formatHelper": "在加载比赛时应用到每台服务器。可用变量：{MATCH_ID}、{MAP}、{MAPNUMBER}、{TEAM1}、{TEAM2}、{TEAM1_SCORE}、{TEAM2_SCORE}。留空则保留各服务器自身配置中设置的主机名。"
-      },
-      "demos": {
-        "title": "Demo",
-        "demoPathLabel": "Demo 路径（相对于 csgo/）",
-        "demoPathHelper": "必须以 “/” 结尾。默认：AutoTournamentCS2/",
-        "demoNameFormatLabel": "Demo 文件名格式（不含 .dem）",
-        "demoNameFormatHelper": "可用标记：{TIME}、{MATCH_ID}、{MAP}、{MAPNUMBER}、{TEAM1}、{TEAM2}"
+        "stopCommandNoDamage": "当发生对方队伤害后禁用 .stop"
       },
       "autostart": {
         "label": "Start matches after (minutes in warmup)",
         "helper": "0 = wait for everyone to ready up. Otherwise a loaded match goes live after this many minutes, ready or not; players are warned 1 minute and 10 seconds before."
-      },
-      "seriesEnd": {
-        "title": "系列结束时间",
-        "kickDelayNoDemoLabel": "禁用 Demo 时额外踢出延迟（秒）",
-        "kickDelayDemoNoUploadLabel": "启用 Demo 但未设置上传 URL 时额外踢出延迟（秒）",
-        "kickDelayDemoUploadLabel": "启用 Demo 且已设置上传 URL 时额外踢出延迟（秒）",
-        "kickDelayHelper": "在 mp_match_restart_delay 的基础上额外增加。"
       }
     },
     "atEnhanced": {
-      "title": "MatchZy Enhanced 功能",
-      "description": "配置高级比赛功能。留空设置以使用 MatchZy Enhanced 插件默认值。",
+      "title": "比赛功能",
+      "description": "每场比赛都会下发到 Ready Up 服务器。留空设置则使用 Ready Up 默认值。",
       "autoready": {
         "title": "自动准备系统",
         "label": "玩家加入时自动标记为已准备",
@@ -1090,7 +996,6 @@
       },
       "sideSelection": {
         "title": "阵营选择计时器",
-        "enabled": "启用阵营选择计时器",
         "timeLabel": "允许时间（秒）",
         "timeHelper": "刀局后选择阵营的时间"
       },
@@ -1111,21 +1016,17 @@
       "demo": {
         "title": "Demo 录制",
         "enabled": "启用自动 GOTV demo 录制",
-        "description": "禁用后，服务器在比赛结束后约 10 秒重启（启用录制时为 60-90 秒）"
+        "description": "Demo 在服务器上录制，每张地图结束后自动上传到 Auto Tournament。"
       }
     },
     "developer": {
       "title": "开发者选项",
       "description": "仅用于本地开发，请勿在生产环境启用。",
       "simulateToggleLabel": "模拟比赛（使用机器人驱动的 Demo 比赛代替真实玩家）",
-      "simulateNote": "启用后，生成的 MatchZy Enhanced 配置会包含 \"simulation\": true 字段，用于自动化 Demo 比赛。",
+      "simulateNote": "启用后，下发到服务器的比赛配置会包含 \"simulation\": true 字段，用于自动化 Demo 比赛。",
       "timescaleTitle": "模拟时间倍率",
       "timescaleDescription": "控制模拟比赛的运行速度。数值越高，机器人和回合流程越快。仅在启用模拟时生效。",
-      "timescaleWarning": "大于 2.0 的速度可能略显不稳定，并可能导致奇怪的机器人行为，但适合快速本地测试。",
-      "debugChat": {
-        "label": "启用 MatchZy Enhanced 调试聊天消息",
-        "description": "启用后，MatchZy Enhanced 会在游戏内聊天中打印额外的调试消息（例如玩家连接/断开、事件追踪等）。仅建议在开发和测试环境中使用，请不要在正式赛事中启用。"
-      }
+      "timescaleWarning": "大于 2.0 的速度可能略显不稳定，并可能导致奇怪的机器人行为，但适合快速本地测试。"
     },
     "success": {
       "simulationDisabled": "已禁用模拟模式",
@@ -1134,7 +1035,7 @@
     },
     "reset": {
       "title": "重置设置？",
-      "description": "将此页面上的所有设置重置为默认值。现有锦标赛和服务器不会改变，但新的比赛和查询将使用默认值。是否继续？",
+      "description": "重置此页面上的 CS2 服务器默认值（Demo、ready-up、暂停等其他设置）。现有锦标赛和服务器不会改变，但新的比赛将使用默认值。是否继续？",
       "cancel": "取消",
       "confirm": "重置",
       "success": "设置已重置为默认值",
@@ -2126,9 +2027,6 @@
     "newServer": "New server {{n}}",
     "notAnswering": "Not answering",
     "openMatch": "打开比赛",
-    "other": {
-      "disabled": "Disabled"
-    },
     "state": {
       "deleting": "Deleting…",
       "free": "Free",
@@ -2408,11 +2306,10 @@
   },
   "serversList": {
     "noMachine": "无机器",
-    "noMachineAbout": "自行注册的 Ready Up 服务器，以及按地址添加的服务器。",
+    "noMachineAbout": "自行注册的 Ready Up 服务器。",
     "guessedBanner": "部分地址是根据服务器的连接来源推测的。请检查，或设置玩家使用的地址。",
     "transport": {
-      "readyUp": "Ready Up",
-      "rcon": "RCON"
+      "readyUp": "Ready Up"
     },
     "seen": "最后在线 {{time}}",
     "pushProblem": "向此服务器的推送失败或无响应",
@@ -2421,10 +2318,6 @@
     "edit": "编辑",
     "section": {
       "machine": "机器"
-    },
-    "facts": {
-      "address": "地址",
-      "plugin": "插件"
     },
     "copyConnect": "复制 connect 命令",
     "connectCopied": "已复制 connect 命令"

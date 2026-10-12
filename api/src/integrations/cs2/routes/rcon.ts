@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { Rcon } from 'dathost-rcon-client';
 import { rconService } from '../services/rconService';
 import { requireAuth } from '../../../middleware/auth';
+import { requireRconEnabled } from '../../../middleware/rconEnabled';
 import { log } from '../../../utils/logger';
 import { db } from '../../../config/database';
 import { parseConVarReply } from '../../../utils/pluginServerReplies';
@@ -110,7 +111,7 @@ router.get('/test', async (_req: Request, res: Response) => {
  * POST /api/rcon/test-connection
  * Test RCON connection to a server without requiring it to be saved
  */
-router.post('/test-connection', async (req: Request, res: Response) => {
+router.post('/test-connection', requireRconEnabled, async (req: Request, res: Response) => {
   try {
     const { host, port, password, name, serverId: requestedServerId } = req.body;
 
@@ -180,7 +181,7 @@ router.post('/test-connection', async (req: Request, res: Response) => {
  * POST /api/rcon/practice-mode
  * Start practice mode (css_prac)
  */
-router.post('/practice-mode', async (req: Request, res: Response) => {
+router.post('/practice-mode', requireRconEnabled, async (req: Request, res: Response) => {
   try {
     const { serverId } = req.body;
 
@@ -238,7 +239,7 @@ router.post('/start-match', async (req: Request, res: Response) => {
  * POST /api/rcon/change-map
  * Change map (css_map <mapname>)
  */
-router.post('/change-map', async (req: Request, res: Response) => {
+router.post('/change-map', requireRconEnabled, async (req: Request, res: Response) => {
   try {
     const { serverId, mapName } = req.body;
 
@@ -454,7 +455,7 @@ router.post('/end-warmup', async (req: Request, res: Response) => {
  * POST /api/rcon/reload-admins
  * Reload admin configuration (reload_admins)
  */
-router.post('/reload-admins', async (req: Request, res: Response) => {
+router.post('/reload-admins', requireRconEnabled, async (req: Request, res: Response) => {
   try {
     const { serverId } = req.body;
 

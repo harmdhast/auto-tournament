@@ -15,6 +15,7 @@ import { settingsService } from '../../services/settingsService';
 import { serverService } from './services/serverService';
 import { rconService } from './services/rconService';
 import { serverInitializationService } from './services/serverInitializationService';
+import { isRconEnabled } from '../../middleware/rconEnabled';
 import { initPluginVersionService } from './services/pluginVersionService';
 import { healthMonitoringService } from './services/healthMonitoringService';
 import { startMapAutoSync, stopMapAutoSync } from './maps/autoSync';
@@ -91,16 +92,18 @@ export async function startCs2(): Promise<void> {
   // Automatic scaling of Ready Up servers on those machines (fleet/autoscale/).
   startAutoscaler();
 
-  await bootstrapServerWebhooks().catch((error) => {
-    log.warn('Failed to auto-configure server webhooks on startup', { error });
-  });
+  if (isRconEnabled()) {
+    await bootstrapServerWebhooks().catch((error) => {
+      log.warn('Failed to auto-configure server webhooks on startup', { error });
+    });
 
-  // Fetch latest MatchZy Enhanced version (fire-and-forget, cached for 1 hour)
-  initPluginVersionService();
+    // Fetch latest MatchZy Enhanced version (fire-and-forget, cached for 1 hour)
+    initPluginVersionService();
 
-  // Start health monitoring for server tracking
-  // Checks every minute to mark inactive servers as offline
-  healthMonitoringService.start();
+    // Start health monitoring for server tracking
+    // Checks every minute to mark inactive servers as offline
+    healthMonitoringService.start();
+  }
 
   // Every map's type, for the tournament map-type rule (maps/mapModes.ts).
   await mapService.getAllMaps().catch((error) => {

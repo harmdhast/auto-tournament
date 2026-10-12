@@ -22,6 +22,7 @@
 
 import { Router, Request, Response } from 'express';
 import { requireAuth } from '../../../middleware/auth';
+import { requireRconEnabled } from '../../../middleware/rconEnabled';
 import { validateEventToken, validateServerToken } from '../../../middleware/serverAuth';
 import type { PluginEvent, AdminCalledEvent } from './plugin-events.types';
 import { adminCallFromEvent } from './adminCalled';
@@ -78,7 +79,7 @@ router.get('/test', (req: Request, res: Response) => {
  * POST /api/events
  * Receive MatchZy Enhanced events via webhook (legacy endpoint without server ID)
  */
-router.post('/', validateEventToken, async (req: Request, res: Response) => {
+router.post('/', requireRconEnabled, validateEventToken, async (req: Request, res: Response) => {
   await handleEventRequest(req, res, undefined);
 });
 
@@ -87,7 +88,7 @@ router.post('/', validateEventToken, async (req: Request, res: Response) => {
  * Allows the server plugin to push a full match report directly via HTTP
  * Must be defined BEFORE the catch-all route to avoid matching /report as a parameter
  */
-router.post('/report', validateServerToken, async (req: Request, res: Response) => {
+router.post('/report', requireRconEnabled, validateServerToken, async (req: Request, res: Response) => {
   try {
     const { serverId, matchSlug, report } = req.body ?? {};
 
@@ -174,7 +175,7 @@ router.post('/report', validateServerToken, async (req: Request, res: Response) 
  * POST /api/events/:matchSlugOrServerId
  * Receive MatchZy Enhanced events via webhook with match slug or server ID in URL
  */
-router.post('/:matchSlugOrServerId', validateEventToken, async (req: Request, res: Response) => {
+router.post('/:matchSlugOrServerId', requireRconEnabled, validateEventToken, async (req: Request, res: Response) => {
   const identifier = req.params.matchSlugOrServerId;
   await handleEventRequest(req, res, identifier);
 });

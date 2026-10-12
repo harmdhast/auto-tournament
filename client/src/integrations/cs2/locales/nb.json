@@ -7,18 +7,11 @@
     "highlights": "Highlights"
   },
   "layout": {
-    "webhookNotConfigured": "Webhook-URL er ikke konfigurert. Kamper og servere kan ikke motta hendelser før den er satt.",
-    "openSettings": "Åpne innstillinger",
     "pageTitle": {
       "servers": "Servere",
       "maps": "Kart og kartpooler",
       "skins": "Skins",
       "matchRules": "Kampregler"
-    },
-    "atDbDown": {
-      "title": "MatchZy Enhanced-databasen er utilgjengelig",
-      "body_one": "{{count}} server melder at pluginen ikke når databasen sin. Backuper og hendelseskøen kan bli berørt.",
-      "body_other": "{{count}} servere melder at pluginen ikke når databasen sin. Backuper og hendelseskøen kan bli berørt."
     }
   },
   "dashboard": {
@@ -47,11 +40,7 @@
       "inMatch": "I kamp",
       "free": "Ledig",
       "offline": "Offline",
-      "plugin": "Plugin",
-      "pluginSame": "{{version}}, alle servere matcher",
-      "pluginMixed": "{{count}} plugin-versjoner i bruk",
       "none": "Ingen servere tilkoblet enda.",
-      "notConfigured": "Ikke satt opp",
       "busy": "Opptatt",
       "spare": "Reserve",
       "draining": "Tømmes"
@@ -80,8 +69,6 @@
       "free": "Ledig",
       "offline": "Offline",
       "lastHeartbeat": "Siste puls {{time}} siden",
-      "notConfigured": "Ikke satt opp",
-      "notConfiguredHint": "Lagt til, men har ikke meldt seg ennå",
       "noHeartbeat": "Ingen puls ennå",
       "checking": "Sjekker",
       "loading": "Laster servere",
@@ -663,36 +650,20 @@
     }
   },
   "serverModal": {
-    "fleetAddress": "Rapportert av Ready Up over fleet-koblingen.",
-    "titleCreate": "Legg til server",
     "titleEdit": "Rediger server",
     "serverNameLabel": "Servernavn",
     "serverNamePlaceholder": "Match-server #1",
-    "hostLabel": "Vert / IP-adresse",
-    "hostPlaceholder": "192.168.1.100",
-    "portLabel": "Portnummer",
-    "portPlaceholder": "27015",
-    "rconPasswordLabel": "RCON-passord",
-    "rconPasswordPlaceholder": "ditt-rcon-passord",
-    "rconPasswordHelper": "Passord for RCON-tilgang til serveren",
     "enabledLabel": "Server aktivert",
     "enabledHelper": "Deaktiverte servere brukes ikke til kamper",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
     "failoverUseLabel": "Bruk til failover",
     "failoverUseHelper": "Av: automatisk failover flytter aldri en kamp hit og holder den heller ikke som reserve.",
-    "overridesTitle": "MatchZy Enhanced-overstyringer (valgfritt)",
-    "overridesDescription": "Disse innstillingene overstyrer globale MatchZy Enhanced-standarder kun for denne serveren. La stå tomt for å bruke globale verdier fra Innstillinger.",
     "chatPrefixLabel": "Overstyr chat-prefiks",
     "chatPrefixPlaceholder": "[{Green}Auto Tournament{Default}]",
-    "chatPrefixHelper": "Overstyrer at_chat_prefix på denne serveren (valgfritt)",
     "adminChatPrefixLabel": "Overstyr admin-chat-prefiks",
     "adminChatPrefixPlaceholder": "[{Red}ADMIN{Default}]",
-    "adminChatPrefixHelper": "Overstyrer at_admin_chat_prefix på denne serveren (valgfritt)",
     "knifeOverrideLabel": "Knivrunde aktivert som standard (overstyr)",
-    "knifeOverrideHelper": "Når satt, overstyrer at_knife_enabled_default for denne serveren. La stå ubestemt for å bruke global standard.",
-    "testConnectivity": "Test tilkobling",
-    "testingConnectivity": "Tester tilkobling…",
     "connectivity": {
       "apiToServer": "Auto Tournament API → CS2-server:",
       "serverToApi": "Server → API (/api/events) (hendelser):",
@@ -701,32 +672,20 @@
     },
     "errors": {
       "nameRequired": "Servernavn er påkrevd",
-      "hostRequired": "Vert er påkrevd",
-      "portInvalid": "Port må være et gyldig tall mellom 1 og 65535",
-      "rconRequired": "RCON-passord er påkrevd",
-      "idGenerationFailed": "Kunne ikke generere server-ID. Juster servernavnet.",
-      "duplicateId": "Servernavnet gir en duplisert ID '{{id}}'. Velg et annet navn.",
       "duplicateHostPort": "En server med vert:port '{{host}}:{{port}}' finnes allerede (ID: {{id}}, Navn: {{name}})",
       "testConnectionSaveFirst": "Lagre serveren før du tester tilkobling",
-      "testConnectionFailed": "Klarte ikke å teste tilkobling",
       "saveFailed": "Klarte ikke å lagre server",
-      "deleteFailed": "Klarte ikke å slette server",
-      "rconReachableApiUnreachable": "Vi når serveren via RCON, men serveren klarte ikke å nå API-endepunktet (testhendelse mangler).",
-      "serverOffline": "Serveren virker å være offline eller utilgjengelig via RCON.",
-      "rconReachableApiUnknown": "RCON works. The server has no event URL yet, so its connection back to the API can't be checked until it is saved and configured."
+      "deleteFailed": "Klarte ikke å slette server"
     },
     "success": {
-      "connectivityOk": "Toveis tilkobling bekreftet: serveren er online og kan nå API-et.",
       "serverUpdated": "Server oppdatert",
-      "serverCreated": "Server opprettet",
       "serverDeleted": "Server slettet"
     },
     "buttons": {
       "deleteServer": "Slett server",
       "cancel": "Avbryt",
       "saving": "Lagrer...",
-      "saveChanges": "Lagre endringer",
-      "addServer": "Legg til server"
+      "saveChanges": "Lagre endringer"
     },
     "confirmDelete": {
       "title": "Slett server",
@@ -982,12 +941,6 @@
     "saved": "Innstillinger lagret",
     "saveFailed": "Kunne ikke lagre innstillingene",
     "loadFailed": "Kunne ikke laste innstillingene",
-    "webhook": {
-      "title": "MatchZy Enhanced-webhook",
-      "description": "Webhook-URL som CS2-serverne kan nå.",
-      "label": "Webhook-URL",
-      "helper": "Eksempel: https://ditt-domene.no"
-    },
     "mapSync": {
       "title": "Kartsynkronisering",
       "description": "Synk CS2-kart og Active Duty-poolen fra kartlisten i cs2-server-manager-repositoriet.",
@@ -1005,77 +958,30 @@
       "failed": "Klarte ikke å synkronisere kart"
     },
     "defaultsTitle": "Serverstandarder",
-    "chatDefaults": {
-      "title": "MatchZy Enhanced chat- og knivstandarder",
-      "description": "Konfigurer chat‑prefikser og standard oppførsel for knivrunde.",
-      "chatPrefixLabel": "Chat‑prefiks",
-      "chatPrefixHelper": "Standard: \"[{Green}Auto Tournament{Default}]\". La stå tomt for standard.",
-      "adminChatPrefixLabel": "Admin chat‑prefiks",
-      "adminChatPrefixHelper": "Standard: \"[{Red}ADMIN{Default}]\". La stå tomt for standard.",
-      "knifeToggleLabel": "Aktiver knivrunder som standard for nye kamper",
-      "knifeNote": "Gjelder kun når MatchZy Enhanced ellers ville kjørt knivrunde."
-    },
     "atCore": {
-      "title": "MatchZy Enhanced core-standarder",
-      "description": "Disse standardene sendes til servere under initialisering og før hver kamp lastes inn.",
-      "expert": {
-        "title": "Ekspertinnstillinger",
-        "description": "Disse innstillingene kan gi uventet serveroppførsel hvis de settes feil.",
-        "autostartMode": {
-          "label": "Autostart‑modus ved plugin‑start",
-          "helper": "0 = idle/sleep, 1 = match‑modus (anbefalt), 2 = practice‑modus",
-          "options": {
-            "0": "0 — Inaktiv / hvilemodus",
-            "1": "1 — Match‑modus",
-            "2": "2 — Practice‑modus"
-          }
-        }
-      },
+      "title": "Kampstandarder",
+      "description": "Sendes til Ready Up-servere med hver kamp.",
       "ready": {
         "title": "Ready / kampstart",
         "minimumReadyLabel": "Minimum antall ready-spillere",
         "minimumReadyHelper": "0 = alle tilkoblede spillere må ready. Standard: 0.",
-        "allowForceReady": "Tillat admin å force-ready spillere under oppsett (!forceready)"
-      },
-      "access": {
-        "title": "Servertilgang",
-        "kickWhenNoMatchLoaded": "Kick/hindre joins når ingen kamp er lastet (turneringsservere)",
-        "whitelistEnabledDefault": "Aktiver whitelist som standard (admin kan toggle med .whitelist)"
+        "allowForceReady": "Tillat admin å force-ready spillere under oppsett (.forceready)"
       },
       "adminTools": {
         "title": "Adminverktøy",
         "pauseAfterRestore": "Pause etter round restore (.stop) slik at lag kan koordinere",
         "joinPassword": "Passord for å koble til kampservere (av: bare spillerne på laget slipper inn uansett)",
         "stopCommandAvailable": "Aktiver .stop (round restore)-kommandoen",
-        "stopCommandNoDamage": "Deaktiver .stop etter skade på motstanderlaget",
-        "usePauseForTacticalPause": "La .pause oppføre seg som taktisk pause"
-      },
-      "hostname": {
-        "formatLabel": "Format for serverens vertsnavn",
-        "formatHelper": "Brukes på alle servere når en kamp lastes. Variabler: {MATCH_ID}, {MAP}, {MAPNUMBER}, {TEAM1}, {TEAM2}, {TEAM1_SCORE}, {TEAM2_SCORE}. La feltet stå tomt for å beholde vertsnavnet hver server setter i sin egen konfig."
-      },
-      "demos": {
-        "title": "Demoer",
-        "demoPathLabel": "Demo-sti (relativ til csgo/)",
-        "demoPathHelper": "Må slutte med '/'. Standard: AutoTournamentCS2/",
-        "demoNameFormatLabel": "Demo-filnavnformat (uten .dem)",
-        "demoNameFormatHelper": "Tokener: {TIME}, {MATCH_ID}, {MAP}, {MAPNUMBER}, {TEAM1}, {TEAM2}"
+        "stopCommandNoDamage": "Deaktiver .stop etter skade på motstanderlaget"
       },
       "autostart": {
         "label": "Start kamper etter (minutter i oppvarming)",
         "helper": "0 = vent til alle er klare. Ellers går en lastet kamp live etter så mange minutter, klar eller ikke; spillerne varsles 1 minutt og 10 sekunder før."
-      },
-      "seriesEnd": {
-        "title": "Timing ved serieslutt",
-        "kickDelayNoDemoLabel": "Ekstra kick-forsinkelse når demoer er av (sekunder)",
-        "kickDelayDemoNoUploadLabel": "Ekstra kick-forsinkelse når demoer er på, men ingen upload-URL (sekunder)",
-        "kickDelayDemoUploadLabel": "Ekstra kick-forsinkelse når demoer er på og upload-URL er satt (sekunder)",
-        "kickDelayHelper": "Legges oppå mp_match_restart_delay."
       }
     },
     "atEnhanced": {
-      "title": "MatchZy Enhanced‑funksjoner",
-      "description": "Avanserte match‑funksjoner. La stå tomt for MatchZy Enhanced‑standard.",
+      "title": "Kampfunksjoner",
+      "description": "Sendes til Ready Up-servere med hver kamp. La en innstilling stå tom for å bruke Ready Up-standarden.",
       "autoready": {
         "title": "Auto‑ready",
         "label": "Auto‑marker spillere som ready når de joiner",
@@ -1091,7 +997,6 @@
       },
       "sideSelection": {
         "title": "Sidevalg‑timer",
-        "enabled": "Aktiver timer for sidevalg",
         "timeLabel": "Tid (sekunder)",
         "timeHelper": "Tid etter knivrunde til å velge side"
       },
@@ -1112,21 +1017,17 @@
       "demo": {
         "title": "Demo‑opptak",
         "enabled": "Aktiver demo‑opptak (Auto Tournament konfigurerer GOTV + opplasting automatisk)",
-        "description": "Når aktivert setter Auto Tournament tv_enable 1 og konfigurerer MatchZy Enhanced til å laste opp demoer til Auto Tournament automatisk etter hvert kart."
+        "description": "Demoer tas opp på serveren og lastes opp til Auto Tournament automatisk etter hvert kart."
       }
     },
     "developer": {
       "title": "Utvikleralternativer",
       "description": "Kun for lokal utvikling – ikke bruk i produksjon.",
       "simulateToggleLabel": "Simuler kamper (bruk bot-styrte demo-kamper i stedet for ekte spillere)",
-      "simulateNote": "Når aktivert, inkluderer genererte MatchZy Enhanced-konfiger \"simulation\": true for automatiserte demo-kamper.",
+      "simulateNote": "Når aktivert, inkluderer konfigurasjonene for kamper som sendes til servere \"simulation\": true for automatiserte demo-kamper.",
       "timescaleTitle": "Simuleringshastighet",
       "timescaleDescription": "Styrer hvor raskt simulerte kamper kjører. Høyere verdier gjør bots og runde-flow raskere. Gjelder kun når simulering er aktivert.",
-      "timescaleWarning": "Hastigheter over 2.0 kan være litt ustabile og gi rar bot-oppførsel, men fungerer fint for rask lokal testing.",
-      "debugChat": {
-        "label": "Aktiver MatchZy Enhanced debug-chatmeldinger",
-        "description": "Når aktivert, skriver MatchZy Enhanced ekstra debug-meldinger (connect/disconnect, event-traces osv.) i in-game chat. Bruk kun for utvikling og testing."
-      }
+      "timescaleWarning": "Hastigheter over 2.0 kan være litt ustabile og gi rar bot-oppførsel, men fungerer fint for rask lokal testing."
     },
     "success": {
       "simulationDisabled": "Simuleringsmodus deaktivert",
@@ -1135,7 +1036,7 @@
     },
     "reset": {
       "title": "Tilbakestille innstillinger?",
-      "description": "Tilbakestill CS2-serverstandardene i denne fanen (chat, demoer, klarmelding, pauser og resten). Eksisterende turneringer og servere endres ikke, men nye kamper vil bruke standardverdiene. Fortsette?",
+      "description": "Tilbakestill CS2-serverstandardene på denne fanen (demoer, ready-up, pauser og resten). Eksisterende turneringer og servere endres ikke, men nye kamper vil bruke standardverdiene. Fortsette?",
       "cancel": "Avbryt",
       "confirm": "Tilbakestill",
       "success": "Innstillinger tilbakestilt til standardverdier",
@@ -2128,9 +2029,6 @@
     "newServer": "Ny server {{n}}",
     "notAnswering": "Svarer ikke",
     "openMatch": "Åpne kampen",
-    "other": {
-      "disabled": "Deaktivert"
-    },
     "restarts_one": "{{count}} omstart på 24 t",
     "restarts_other": "{{count}} omstarter på 24 t",
     "stoppedLine": "Starter når en kamp trenger den",
@@ -2403,11 +2301,10 @@
   },
   "serversList": {
     "noMachine": "Uten maskin",
-    "noMachineAbout": "Ready Up-servere som meldte seg på selv, og servere lagt til med adresse.",
+    "noMachineAbout": "Ready Up-servere som meldte seg på selv.",
     "guessedBanner": "Noen adresser ble gjettet ut fra hvor serveren kobler til fra. Sjekk dem, eller angi adressen spillerne bruker.",
     "transport": {
-      "readyUp": "Ready Up",
-      "rcon": "RCON"
+      "readyUp": "Ready Up"
     },
     "seen": "Sist sett {{time}}",
     "pushProblem": "En sending til denne serveren feilet eller fikk ikke svar",
@@ -2416,10 +2313,6 @@
     "edit": "Rediger",
     "section": {
       "machine": "Maskin"
-    },
-    "facts": {
-      "address": "Adresse",
-      "plugin": "Plugin"
     },
     "copyConnect": "Kopier connect-kommandoen",
     "connectCopied": "Connect-kommando kopiert"
