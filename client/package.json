@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "vite",
     "dev:host": "vite --host",
-    "build": "vite build",
+    "build": "node ../scripts/cs2-assets.mjs && vite build",
     "i18n:check": "node scripts/check-duplicate-json-keys.mjs",
     "i18n:missing": "node scripts/check-missing-i18n-keys.mjs",
     "i18n:sync": "node scripts/sync-missing-i18n-keys.mjs",
