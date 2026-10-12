@@ -55,7 +55,8 @@
       "none": "No servers connected yet.",
       "notConfigured": "Not configured",
       "busy": "Zajęty",
-      "spare": "Rezerwowy"
+      "spare": "Rezerwowy",
+      "draining": "Opróżnianie"
     },
     "setup": {
       "serversDone": "{{count}} server added",
@@ -103,7 +104,8 @@
         "matchDisabled": "Wtyczka meczu wyłączona",
         "draining": "Opróżnianie",
         "reserved": "Zapas na failover"
-      }
+      },
+      "draining": "Opróżnianie"
     },
     "needsYou": {
       "stale": {

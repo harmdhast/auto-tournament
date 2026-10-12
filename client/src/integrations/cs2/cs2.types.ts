@@ -260,8 +260,10 @@ export function asServerAvailability(
 export interface ServerFleetCounts {
   online: number;
   inMatch: number;
-  /** Not taking matches for another reason (a Ready Up server waiting for reset, draining, ...). */
+  /** Not taking matches for another reason (a Ready Up server waiting for reset, a local match, ...). */
   busy: number;
+  /** A Ready Up server finishing up before it takes matches again. */
+  draining: number;
   /** Held back for failover. */
   spare: number;
   free: number;

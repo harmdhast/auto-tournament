@@ -192,7 +192,8 @@ test('the tile chips use the Servers page colours', async ({ page }) => {
       entry('s-live', { matchSlug: 'm-live', notAllocatableReason: null }),
       entry('s-free', { allocatable: true, notAllocatableReason: null }),
       entry('s-spare', { busyReason: 'reserved', notAllocatableReason: 'reserved' }),
-      entry('s-busy', { busyReason: 'draining' }),
+      entry('s-busy', { busyReason: 'local_match' }),
+      entry('s-drain', { busyReason: 'draining' }),
     ],
     { 'm-live': match('m-live') }
   );
@@ -214,4 +215,26 @@ test('the tile chips use the Servers page colours', async ({ page }) => {
   expect((await chip('Free')).color).toBe('rgb(63, 193, 104)');
   expect((await chip('Spare')).color).toBe('rgb(127, 176, 232)');
   expect((await chip('Busy')).color).toBe('rgb(242, 184, 75)');
+  expect((await chip('Draining')).color).toBe('rgb(127, 176, 232)');
+});
+
+test('draining reads Draining and a local match reads Busy', async ({ page }) => {
+  await ensureSignedIn(page);
+  await mockFleet(
+    page,
+    [
+      entry('s-drain', { busyReason: 'draining' }),
+      entry('s-local', { busyReason: 'local_match', busyDetail: 'cup-final' }),
+    ],
+    {}
+  );
+  await page.goto('/manage');
+  const grid = page.getByTestId('manage-servers');
+  await expect(grid.getByText('s-drain')).toBeVisible({ timeout: 15000 });
+  const tile = (name: string) =>
+    grid.getByText(name).locator('xpath=ancestor::*[.//*[contains(@class,"MuiChip-root")]][1]');
+  await expect(tile('s-drain').locator('.MuiChip-root')).toHaveText('Draining');
+  await expect(tile('s-drain')).not.toContainText('Busy');
+  await expect(tile('s-local').locator('.MuiChip-root')).toHaveText('Busy');
+  await expect(grid.getByText('Local match cup-final still loaded')).toBeVisible();
 });
