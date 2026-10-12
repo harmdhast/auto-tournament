@@ -19,7 +19,7 @@ import type { Map, MapGameMode, MapResponse } from '../cs2.types';
 import { FadeInImage } from '../common/FadeInImage';
 import { isCustomMapImage, mapCatalogUrl, mapImageUrl } from './cs2Assets';
 import { MAP_MODES, mapModeKey, modeFromMapName, modeFromWorkshopTags } from './mapModes';
-import { resizeToWebp } from './resizeImage';
+import { resizeToWebp, WebpUnsupportedError } from './resizeImage';
 
 interface MapModalProps {
   open: boolean;
@@ -195,14 +195,30 @@ export default function MapModal({ open, map, onClose, onSave }: MapModalProps) 
     reader.readAsDataURL(file);
   };
 
+  const readAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+
   const uploadImageFile = async (mapId: string, file: File): Promise<string> => {
     let imageData: string;
-    let smallImageData: string;
+    let smallImageData: string | undefined;
     try {
       imageData = await resizeToWebp(file, 1920, 1080, 0.85);
       smallImageData = await resizeToWebp(file, 640, 360, 0.8);
-    } catch {
-      throw new Error(t('mapModal.errors.readFileFailed'));
+    } catch (err) {
+      if (!(err instanceof WebpUnsupportedError)) {
+        throw new Error(t('mapModal.errors.readFileFailed'));
+      }
+      try {
+        imageData = await readAsDataUrl(file);
+      } catch {
+        throw new Error(t('mapModal.errors.readFileFailed'));
+      }
+      smallImageData = undefined;
     }
 
     try {

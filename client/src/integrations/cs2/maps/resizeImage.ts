@@ -1,4 +1,11 @@
 /* eslint-disable no-undef -- DOM types are checked by tsc */
+export class WebpUnsupportedError extends Error {
+  constructor() {
+    super('Browser cannot encode webp');
+    this.name = 'WebpUnsupportedError';
+  }
+}
+
 const loadBitmap = async (file: Blob): Promise<ImageBitmap | HTMLImageElement> => {
   if (typeof createImageBitmap === 'function') {
     return createImageBitmap(file);
@@ -84,7 +91,7 @@ export async function resizeToWebp(
 
   const dataUrl = canvas.toDataURL('image/webp', quality);
   if (!dataUrl.startsWith('data:image/webp')) {
-    throw new Error('Browser cannot encode webp');
+    throw new WebpUnsupportedError();
   }
   return dataUrl;
 }
