@@ -17,6 +17,7 @@
   ],
   "main": "api/dist/index.js",
   "scripts": {
+    "cs2:assets": "node scripts/cs2-assets.mjs",
     "api:dev": "yarn workspace @auto-tournament/api dev",
     "api:build": "yarn workspace @auto-tournament/api build",
     "api:start": "yarn workspace @auto-tournament/api start",
@@ -123,6 +124,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.0",
+    "sharp": "^0.35.5",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   },

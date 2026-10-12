@@ -154,6 +154,12 @@ const lines = [
   '',
   `${packages.length} packages.`,
   '',
+  '## CS2 map and skin images',
+  '',
+  'The CS2 map and skin images are taken from the cs2-server-manager repository',
+  '(https://github.com/Auto-Tournament/cs2-server-manager) and resized when the web app is built.',
+  'They are the property of Valve Corporation. Auto Tournament is not affiliated with or endorsed by Valve.',
+  '',
 ];
 for (const p of packages) {
   lines.push(`## ${p.name} ${p.version}`, '');
