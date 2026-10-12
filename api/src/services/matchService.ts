@@ -12,6 +12,7 @@ import {
 } from '../utils/matchIntegration';
 import { tournamentRowToResponse } from '../utils/tournamentRow';
 import type { DbMatchRow, DbTournamentRow } from '../types/database.types';
+import { matchLiveStatsService } from './matchLiveStatsService';
 
 class MatchService {
   /**
@@ -191,6 +192,7 @@ class MatchService {
 
     const serverId = match.server_id;
     await db.deleteAsync('matches', 'slug = ?', [slug]);
+    matchLiveStatsService.clear(slug);
     log.success(`Match deleted: ${slug}`);
 
     // If the deleted match had a server assigned, free it through the
