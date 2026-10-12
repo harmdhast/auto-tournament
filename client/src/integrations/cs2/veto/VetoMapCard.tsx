@@ -243,8 +243,8 @@ export const VetoMapCard: React.FC<VetoMapCardProps> = ({
           state === 'picked'
             ? `0 0 0 1px ${color.pick}`
             : isCurrentTurn
-            ? `0 0 0 1px ${withAlpha(actionColor, 0.5)}`
-            : 'none',
+              ? `0 0 0 1px ${withAlpha(actionColor, 0.5)}`
+              : 'none',
         transition: `box-shadow ${duration.base}ms ${ease.out}, border-color ${duration.base}ms ${ease.out}`,
         '&:hover': isClickable
           ? {

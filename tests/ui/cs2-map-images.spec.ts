@@ -72,7 +72,9 @@ test.describe('map image helper', () => {
     expect(mapImageFallback('de_x', 'small', up)).toBe(up);
     expect(mapImageUrl('de_x', 'full', up)).toBe(up);
     expect(mapImageFallback('de_x', 'full', up)).toBeUndefined();
-    expect(mapImageUrl('de_x', 'small', '/map-images/de_x.webp')).toBe('/map-images/de_x-small.webp');
+    expect(mapImageUrl('de_x', 'small', '/map-images/de_x.webp')).toBe(
+      '/map-images/de_x-small.webp'
+    );
   });
 
   test('a catalogue url is not an upload', () => {

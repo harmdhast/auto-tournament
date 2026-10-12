@@ -137,7 +137,11 @@ function useMatchConnect(
  * controls to that player alone, even to a teammate looking at it. The route
  * checks again, and sends an address only to a player on the match.
  */
-export function MatchServerPanel({ matchSlug, viewerCanJoin, matchStatus }: MatchConnectPanelProps) {
+export function MatchServerPanel({
+  matchSlug,
+  viewerCanJoin,
+  matchStatus,
+}: MatchConnectPanelProps) {
   const { t } = useModuleTranslation('cs2');
   const { showError } = useSnackbar();
   const connect = useMatchConnect(matchSlug, viewerCanJoin, matchStatus);
@@ -147,8 +151,10 @@ export function MatchServerPanel({ matchSlug, viewerCanJoin, matchStatus }: Matc
   const reduceMotion = useReducedMotion();
 
   const server = connect ? effectiveServer(connect) : null;
-  const currentMapData = useMemo(() => mapDataFor(connect?.currentMap ?? null), [connect?.currentMap]);
-
+  const currentMapData = useMemo(
+    () => mapDataFor(connect?.currentMap ?? null),
+    [connect?.currentMap]
+  );
 
   const onConnect = () => {
     if (!server) return;
@@ -210,14 +216,15 @@ export function MatchServerPanel({ matchSlug, viewerCanJoin, matchStatus }: Matc
 
   return (
     <Box display="flex" flexDirection="column" gap={2}>
-
       <Box display="flex" flexDirection="column" gap={2}>
         {server.moved && (
           <Alert severity="warning" data-testid="match-server-moved">
             <Typography variant="body2" fontWeight={600} gutterBottom>
               {server.moved.inPlace
                 ? t('matchInfo.server.resumedTitle', { defaultValue: 'The server restarted' })
-                : t('matchInfo.server.movedTitle', { defaultValue: 'The match moved to a new server' })}
+                : t('matchInfo.server.movedTitle', {
+                    defaultValue: 'The match moved to a new server',
+                  })}
             </Typography>
             <Typography variant="body2">
               {server.moved.inPlace
@@ -256,7 +263,14 @@ export function MatchServerPanel({ matchSlug, viewerCanJoin, matchStatus }: Matc
         <Box display="flex" gap={1} alignItems="center" justifyContent="center" flexWrap="wrap">
           <Typography
             variant="body2"
-            sx={{ ...mono, color: 'text.secondary', px: 1.5, py: 1, borderRadius: radii.md, bgcolor: tokens.color.paper3 }}
+            sx={{
+              ...mono,
+              color: 'text.secondary',
+              px: 1.5,
+              py: 1,
+              borderRadius: radii.md,
+              bgcolor: tokens.color.paper3,
+            }}
           >
             connect {server.host}:{server.port}
             {server.password ? `; password ${server.password}` : ''}
@@ -277,12 +291,18 @@ export function MatchServerPanel({ matchSlug, viewerCanJoin, matchStatus }: Matc
           {server.name}
           {currentMapData ? ` · ${currentMapData.displayName}` : ''}
           {server.status ? ` · ${statusLabel}` : ''}
-          {server.password ? '' : ` · ${t('matchInfo.server.noPassword', { defaultValue: "No password: you're on the list." })}`}
+          {server.password
+            ? ''
+            : ` · ${t('matchInfo.server.noPassword', { defaultValue: "No password: you're on the list." })}`}
           {` ${t('matchInfo.server.startsGame', { defaultValue: 'CS2 not open? The button starts it.' })}`}
         </Typography>
 
         {copyFallbackCommand && (
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, fontFamily: 'monospace' }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ mt: 1, fontFamily: 'monospace' }}
+          >
             {t('matchInfo.copyFallback', { command: copyFallbackCommand })}
           </Typography>
         )}

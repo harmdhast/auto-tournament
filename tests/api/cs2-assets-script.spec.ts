@@ -5,12 +5,18 @@ import { pathToFileURL } from 'node:url';
 type Job = { kind: string; key: string; src: string; out: string };
 
 // Native import: the script is ESM (import.meta), which the spec transpiler would turn into CJS.
-const nativeImport = new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<any>;
-const loadScript = () => nativeImport(pathToFileURL(path.resolve(__dirname, '../../scripts/cs2-assets.mjs')).href);
+const nativeImport = new Function('specifier', 'return import(specifier)') as (
+  specifier: string
+) => Promise<any>;
+const loadScript = () =>
+  nativeImport(pathToFileURL(path.resolve(__dirname, '../../scripts/cs2-assets.mjs')).href);
 
 const maps = {
   maps: [
-    { id: 'de_dust2', images: { full: 'de_dust2.webp', thumb: 'de_dust2_thumb.webp', icon: 'de_dust2_icon.svg' } },
+    {
+      id: 'de_dust2',
+      images: { full: 'de_dust2.webp', thumb: 'de_dust2_thumb.webp', icon: 'de_dust2_icon.svg' },
+    },
     { id: 'ar_baggage', images: { full: 'ar_baggage.webp', thumb: 'ar_baggage_thumb.webp' } },
     { id: 'random', images: { full: 'random.webp' } },
     { id: 'lobby_x', images: { full: 'lobby_x.webp' } },
@@ -44,7 +50,10 @@ test.describe('cs2 assets script', () => {
       full: 'maps/de_dust2.webp',
       icon: 'maps/de_dust2-icon.webp',
     });
-    expect(manifest.maps.ar_baggage).toEqual({ small: 'maps/ar_baggage-small.webp', full: 'maps/ar_baggage.webp' });
+    expect(manifest.maps.ar_baggage).toEqual({
+      small: 'maps/ar_baggage-small.webp',
+      full: 'maps/ar_baggage.webp',
+    });
     expect(manifest).not.toHaveProperty('skins');
     const skinsManifest = buildSkinsManifest('a'.repeat(40), jobs);
     expect(skinsManifest.base).toBe(`/cs2-assets/${'a'.repeat(40)}`);
@@ -68,8 +77,22 @@ test.describe('cs2 assets script', () => {
   test('buildSkinsManifest omits a skin when its small or full file was not written', async () => {
     const { planAssets, buildSkinsManifest } = await loadScript();
     const jobs: Job[] = planAssets(maps, skins);
-    expect(Object.keys(buildSkinsManifest('b'.repeat(40), jobs.filter((j) => j.kind !== 'skin-small')).skins)).toEqual([]);
-    expect(Object.keys(buildSkinsManifest('b'.repeat(40), jobs.filter((j) => j.kind !== 'skin-full')).skins)).toEqual([]);
+    expect(
+      Object.keys(
+        buildSkinsManifest(
+          'b'.repeat(40),
+          jobs.filter((j) => j.kind !== 'skin-small')
+        ).skins
+      )
+    ).toEqual([]);
+    expect(
+      Object.keys(
+        buildSkinsManifest(
+          'b'.repeat(40),
+          jobs.filter((j) => j.kind !== 'skin-full')
+        ).skins
+      )
+    ).toEqual([]);
   });
 
   test('isCacheHit needs the same sha, a complete manifest and the folder', async () => {
