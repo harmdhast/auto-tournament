@@ -454,7 +454,7 @@ app.use('/app', express.static(PUBLIC_DIR));
 // (integrations/cs2/maps/routes.ts) resolve it from -- see that module for
 // why, and for why it lives under DATA_DIR (the mounted volume) rather than
 // under PUBLIC_DIR (build output, wiped by every update).
-app.use('/map-images', express.static(MAP_IMAGES_DIR));
+app.use('/map-images', express.static(MAP_IMAGES_DIR, { maxAge: '1y', immutable: true }));
 app.get('/app/*', (_req: Request, res: Response) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });

@@ -19,6 +19,7 @@ import type { Map, MapGameMode, MapResponse } from '../cs2.types';
 import { FadeInImage } from '../common/FadeInImage';
 import { isCustomMapImage, mapCatalogUrl, mapImageUrl } from './cs2Assets';
 import { MAP_MODES, mapModeKey, modeFromMapName, modeFromWorkshopTags } from './mapModes';
+import { resizeToWebp } from './resizeImage';
 
 interface MapModalProps {
   open: boolean;
@@ -195,37 +196,29 @@ export default function MapModal({ open, map, onClose, onSave }: MapModalProps) 
   };
 
   const uploadImageFile = async (mapId: string, file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const base64Data = e.target?.result as string;
+    let imageData: string;
+    let smallImageData: string;
+    try {
+      imageData = await resizeToWebp(file, 1920, 1080, 0.85);
+      smallImageData = await resizeToWebp(file, 640, 360, 0.8);
+    } catch {
+      throw new Error(t('mapModal.errors.readFileFailed'));
+    }
 
-          // Upload image
-          const response = await api.post<{ success: boolean; imageUrl: string }>(
-            `/api/maps/${mapId}/upload-image`,
-            {
-              imageData: base64Data,
-            }
-          );
+    try {
+      const response = await api.post<{ success: boolean; imageUrl: string }>(
+        `/api/maps/${mapId}/upload-image`,
+        { imageData, smallImageData }
+      );
 
-          if (response.success && response.imageUrl) {
-            resolve(response.imageUrl);
-          } else {
-            reject(new Error(t('mapModal.errors.uploadFailed')));
-          }
-        } catch (err) {
-          const error = err as { error?: string; message?: string };
-          reject(new Error(error.error || error.message || t('mapModal.errors.uploadFailed')));
-        }
-      };
-
-      reader.onerror = () => {
-        reject(new Error(t('mapModal.errors.readFileFailed')));
-      };
-
-      reader.readAsDataURL(file);
-    });
+      if (response.success && response.imageUrl) {
+        return response.imageUrl;
+      }
+      throw new Error(t('mapModal.errors.uploadFailed'));
+    } catch (err) {
+      const error = err as { error?: string; message?: string };
+      throw new Error(error.error || error.message || t('mapModal.errors.uploadFailed'));
+    }
   };
 
   const handleDownloadImage = async () => {
