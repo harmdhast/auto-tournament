@@ -45,6 +45,15 @@ export function claimUnassign(key: string): boolean {
   return true;
 }
 
+/** The platform's own assignment of `slug` to this fleet server is still open (unlink and relink keep it). */
+async function holdsOpenAssignment(slug: string, fleetServerId: string): Promise<boolean> {
+  const row = await db.queryOneAsync<{ match_slug: string }>(
+    'SELECT match_slug FROM cs2_fleet_assignments WHERE match_slug = ? AND server_id = ? AND ended_at IS NULL',
+    [slug, fleetServerId]
+  );
+  return !!row;
+}
+
 /** Why the platform no longer runs `slug` on this fleet server; null when it still does. */
 export async function orphanReason(
   slug: string,
@@ -57,6 +66,7 @@ export async function orphanReason(
   if (!match) return 'cancelled';
   if (match.status === 'completed') return 'ended';
   if (match.server_id && match.server_id !== (await cs2ServerIdOf(fleetServerId))) {
+    if (await holdsOpenAssignment(slug, fleetServerId)) return null;
     return 'superseded';
   }
   return null;

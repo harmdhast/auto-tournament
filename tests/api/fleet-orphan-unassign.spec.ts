@@ -2,7 +2,7 @@ import { test, expect, type APIRequestContext } from '@playwright/test';
 import { execFileSync } from 'child_process';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
-import { FakeReadyUp, createMatch, link } from '../helpers/fleetFake';
+import { FakeReadyUp, createMatch, link, unlink } from '../helpers/fleetFake';
 
 /**
  * A Ready Up server reporting a platform assignment (reason assigned or
@@ -29,6 +29,14 @@ const auditRows = (slug: string): string =>
     ],
     { encoding: 'utf8' }
   ).trim();
+
+const psql = (sql: string): void => {
+  execFileSync(
+    'podman',
+    ['exec', 'auto-tournament-postgres', 'psql', '-U', 'postgres', '-d', 'auto_tournament', '-c', sql],
+    { encoding: 'utf8' }
+  );
+};
 
 const setState = async (
   request: APIRequestContext,
@@ -110,6 +118,24 @@ test.describe.serial('Fleet orphan unassign', () => {
     const slug = `orphan-live-${Date.now()}`;
     await createMatch(request, slug);
     await setState(request, slug, 'live', cs2Id);
+    report(fake, slug);
+    await expect(fake.next('match.unassign', 2000)).rejects.toThrow();
+  });
+
+  test('a match the platform still assigns here survives unlink and relink', async ({ request }) => {
+    const { fake, cs2Id } = await online(request);
+    const slug = `orphan-unlinked-${Date.now()}`;
+    await createMatch(request, slug);
+    await setState(request, slug, 'live', cs2Id);
+    psql(
+      `INSERT INTO cs2_fleet_assignments (match_slug, epoch, server_id, cs2_server_id, password, created_at, updated_at)
+       VALUES ('${slug}', 1, '${fake.serverId}', '${cs2Id}', 'pw', 1, 1)
+       ON CONFLICT (match_slug) DO UPDATE SET server_id = EXCLUDED.server_id, ended_at = NULL`
+    );
+    await unlink(request, fake.serverId);
+    report(fake, slug);
+    await expect(fake.next('match.unassign', 2000)).rejects.toThrow();
+    await link(request, fake.serverId);
     report(fake, slug);
     await expect(fake.next('match.unassign', 2000)).rejects.toThrow();
   });
