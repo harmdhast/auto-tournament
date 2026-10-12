@@ -202,6 +202,7 @@ export interface MatchRules {
     team_absent_seconds?: number;
     gg_vote?: { enabled?: boolean; threshold?: number; min_score_diff?: number };
   };
+  stop?: { enabled?: boolean; no_damage?: boolean };
   demo?: { record?: boolean; upload?: boolean };
   wingman?: boolean;
   simulation?: { timescale?: number };
