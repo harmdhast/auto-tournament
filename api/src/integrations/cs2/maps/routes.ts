@@ -186,8 +186,34 @@ function removeMapImageFiles(id: string): void {
 }
 
 /**
- * POST /api/maps/:id/upload-image
- * Upload image for a map (accepts base64 encoded image)
+ * @openapi
+ * /api/maps/{id}/upload-image:
+ *   post:
+ *     tags: [Maps]
+ *     summary: Upload a map image (admin)
+ *     description: Accepts a base64 data URL (png, jpg, gif or webp). The optional small copy is served in cards; without it the full image is used.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [imageData]
+ *             properties:
+ *               imageData: { type: string, description: Base64 data URL of the full image }
+ *               imageType: { type: string, description: Image MIME type for raw base64 without a data URL }
+ *               smallImageData: { type: string, description: Optional webp data URL of the 640x360 small copy }
+ *     responses:
+ *       200:
+ *         description: Image stored; returns its imageUrl
+ *       400:
+ *         description: Invalid image data
+ *       404:
+ *         description: Map not found
  */
 router.post('/:id/upload-image', async (req: Request, res: Response) => {
   try {
