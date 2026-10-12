@@ -118,17 +118,16 @@ test.describe.serial('Settings UI', () => {
       const before = await readSettings();
 
       await page.goto('/manage/match-rules');
-      await page.getByTestId('cs2-settings-demos-summary').click({ timeout: 30000 });
-      const hostname = page.getByTestId('at-hostname-format-input');
-      await expect(hostname).toBeVisible({ timeout: 15000 });
+      const veto = page.getByTestId('setting-veto-turn-seconds').locator('input');
+      await expect(veto).toBeVisible({ timeout: 30000 });
 
-      const value = `{TEAM1} v {TEAM2} ${Date.now()}`;
-      await hostname.fill(value);
-      await hostname.blur();
+      const value = 31 + (Date.now() % 20);
+      await veto.fill(String(value));
+      await veto.blur();
 
       await expect
-        .poll(async () => (await readSettings()).atHostnameFormat, {
-          message: 'hostname format to be saved',
+        .poll(async () => (await readSettings()).vetoTurnSeconds, {
+          message: 'veto seconds to be saved',
           timeout: 15000,
         })
         .toBe(value);
@@ -137,12 +136,12 @@ test.describe.serial('Settings UI', () => {
       await page.getByTestId('cs2-settings-reset-button').click();
       await page.getByTestId('cs2-settings-reset-confirm').click();
       await expect
-        .poll(async () => (await readSettings()).atHostnameFormat, {
-          message: 'hostname format to be reset',
+        .poll(async () => (await readSettings()).vetoTurnSeconds, {
+          message: 'veto seconds to be reset',
           timeout: 15000,
         })
         .not.toBe(value);
-      await expect(hostname).toHaveValue('{TEAM1} vs {TEAM2}');
+      await expect(veto).toHaveValue('45');
     }
   );
 });

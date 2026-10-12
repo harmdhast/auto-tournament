@@ -41,7 +41,7 @@ test.describe('Ready Up servers on the server list', () => {
     await expect(row('d').getByTestId('fleet-reason-d')).toHaveCount(0);
   });
 
-  test('RCON servers are listed under No machine; Ready Up records are not listed twice', async ({
+  test('server records without Ready Up are not listed; Ready Up records are not listed twice', async ({
     page,
   }) => {
     const row = (id: string, transport: 'rcon' | 'fleet') => ({
@@ -60,9 +60,9 @@ test.describe('Ready Up servers on the server list', () => {
       (route) => route.fulfill({ json: { success: true, servers } })
     );
     await page.goto('/manage/servers');
-    const none = page.getByTestId('server-group-none');
-    await expect(none.getByTestId('server-row-x:rcon-1')).toContainText('srv-rcon-1');
-    await expect(none).not.toContainText('srv-fleet-1');
+    await expect(page.getByTestId('servers-add')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('srv-rcon-1')).toHaveCount(0);
+    await expect(page.getByText('srv-fleet-1')).toHaveCount(0);
   });
 
   test('a Ready Up server opens in its own panel; offline and gone servers say so', async ({
