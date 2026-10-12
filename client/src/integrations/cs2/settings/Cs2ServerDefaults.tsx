@@ -61,7 +61,6 @@ export interface Cs2DefaultsValues {
   atBothTeamsUnpauseRequired: Flag;
   atMaxPausesPerTeam: number | null;
   atPauseDuration: number | null;
-  atSideSelectionEnabled: Flag;
   atSideSelectionTime: number | null;
   atGgEnabled: Flag;
   atGgThreshold: number | null;
@@ -95,7 +94,6 @@ const DEFAULTS: Cs2DefaultsValues = {
   atBothTeamsUnpauseRequired: null,
   atMaxPausesPerTeam: null,
   atPauseDuration: null,
-  atSideSelectionEnabled: null,
   atSideSelectionTime: null,
   atGgEnabled: null,
   atGgThreshold: null,
@@ -547,17 +545,6 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
                 {t('settings.atEnhanced.sideSelection.title')}
               </Typography>
               <Stack spacing={2}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={vals.atSideSelectionEnabled === 1}
-                      onChange={(e) => update('atSideSelectionEnabled', e.target.checked ? 1 : 0)}
-                      color="primary"
-                      size="small"
-                    />
-                  }
-                  label={t('settings.atEnhanced.sideSelection.enabled')}
-                />
                 <TextField
                   label={t('settings.atEnhanced.sideSelection.timeLabel')}
                   type="number"
@@ -571,7 +558,6 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
                   inputProps={{ min: 1, max: 999 }}
                   size="small"
                   fullWidth
-                  disabled={vals.atSideSelectionEnabled !== 1}
                 />
               </Stack>
             </Box>
