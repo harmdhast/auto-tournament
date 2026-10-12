@@ -385,15 +385,12 @@ test.describe.serial('Fleet plugin sets', () => {
     }
   });
 
-  test("a created server joins the match pool on its first hello; an admin's unlink sticks", async ({ request }) => {
+  test("a created server joins the match pool on its first hello; an admin's unlink sticks", async ({
+    request,
+  }) => {
     test.setTimeout(60_000);
-    const linkedServerId = async (id: string): Promise<string | null> => {
-      const servers = (await (await request.get('/api/fleet/servers')).json()).servers as Array<{
-        id: string;
-        linkedServerId: string | null;
-      }>;
-      return servers.find((s) => s.id === id)?.linkedServerId ?? null;
-    };
+    const linkedServerId = async (id: string): Promise<string | null> =>
+      (await (await request.get(`/api/fleet/servers/${id}`)).json()).server.linkedServerId ?? null;
     const m = await machine(request, 'plugins-link');
     try {
       const created = await createServer(request, m, { preset: 'fun' });
