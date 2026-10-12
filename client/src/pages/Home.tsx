@@ -16,7 +16,7 @@ import { eliminationRoundCount, getRoundLabel } from '../utils/matchUtils';
 import { formatBadge } from '../utils/tournamentSummary';
 import { paths, tournamentTabPath } from '../paths';
 import { tokens, radii, fontDisplay, fontMono } from '../theme/tokens';
-import { getMapImageUrl } from '../constants/maps';
+import { mapImageUrl } from '../constants/cs2Assets';
 
 const { color } = tokens;
 
@@ -382,7 +382,7 @@ const FALLBACK_MAPS = ['de_ancient', 'de_mirage', 'de_dust2', 'de_inferno', 'de_
 const SCRIM_GRADIENT = 'linear-gradient(to top, rgba(16,9,8,1) 18%, rgba(16,9,8,0.45) 70%, rgba(16,9,8,0.2))';
 
 function artSx(seed: number, bannerUrl?: string | null) {
-  const url = bannerUrl || getMapImageUrl(FALLBACK_MAPS[Math.abs(seed) % FALLBACK_MAPS.length]);
+  const url = bannerUrl || mapImageUrl(FALLBACK_MAPS[Math.abs(seed) % FALLBACK_MAPS.length], 'full');
   return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center 40%', bgcolor: color.paper3 };
 }
 

@@ -17,6 +17,7 @@ import { CloudArrowUpIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { api, useSnackbar, useModuleTranslation, radii } from '../../../module-sdk';
 import type { Map, MapGameMode, MapResponse } from '../cs2.types';
 import { FadeInImage } from '../common/FadeInImage';
+import { isCustomMapImage, mapCatalogUrl, mapImageUrl } from './cs2Assets';
 import { MAP_MODES, mapModeKey, modeFromMapName, modeFromWorkshopTags } from './mapModes';
 
 interface MapModalProps {
@@ -48,23 +49,18 @@ export default function MapModal({ open, map, onClose, onSave }: MapModalProps) 
 
   const isEditing = !!map;
 
-  const getDefaultWebpUrlForId = (mapId: string): string =>
-    `https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/map_thumbnails/${mapId}.webp`;
-
   useEffect(() => {
     if (map) {
       setId(map.id);
       setDisplayName(map.displayName);
       setGameMode(map.gameMode ?? '');
       setGameModeTouched(true);
-      // For repo-backed maps, always prefer the WebP URL derived from the map ID.
-      // For custom uploads (non-repo URLs), keep the stored imageUrl.
-      const normalizedImageUrl =
-        map.imageUrl && !map.imageUrl.includes('cs2-server-manager')
-          ? map.imageUrl
-          : getDefaultWebpUrlForId(map.id);
+      // Catalogue maps keep the catalogue URL; any other picture keeps its own.
+      const normalizedImageUrl = isCustomMapImage(map.imageUrl)
+        ? map.imageUrl
+        : mapCatalogUrl(map.id, 'full');
       setImageUrl(normalizedImageUrl || '');
-      setPreviewUrl(normalizedImageUrl || '');
+      setPreviewUrl(mapImageUrl(map.id, 'full', map.imageUrl));
       setWorkshopInput('');
       setWorkshopHint('');
     } else {
@@ -243,7 +239,7 @@ export default function MapModal({ open, map, onClose, onSave }: MapModalProps) 
 
     try {
       // Download full-size webp image from GitHub repo
-      const imageUrl = `https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/map_thumbnails/${id}.webp`;
+      const imageUrl = mapCatalogUrl(id, 'full');
 
       // Test if image exists
       const response = await fetch(imageUrl, { method: 'HEAD' });

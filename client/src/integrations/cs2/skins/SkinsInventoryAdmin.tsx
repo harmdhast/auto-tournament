@@ -229,7 +229,7 @@ export function SkinsInventoryAdmin({ onChanged }: { onChanged?: () => void }) {
                           borderLeft: `3px solid ${rarityColor[skin.rarity] ?? color.rule}`,
                         }}
                       >
-                        <Box component="img" src={skin.imageUrl} alt="" loading="lazy" sx={{ width: 56, height: 40, objectFit: 'contain' }} />
+                        <Box component="img" src={skin.imageSmallUrl ?? skin.imageUrl} alt="" loading="lazy" sx={{ width: 56, height: 40, objectFit: 'contain' }} />
                         <Box sx={{ minWidth: 0 }}>
                           <Typography noWrap fontWeight={600}>
                             {skin.weaponName} · {skin.name}
@@ -375,7 +375,7 @@ function GiveSkinDialog({
           onChange={(_, value) => pick(value)}
           renderOption={(props, o) => (
             <Box component="li" {...props} key={`${o.weapon}|${o.paintKit}`} sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
-              <Box component="img" src={o.imageUrl} alt="" loading="lazy" sx={{ width: 48, height: 34, objectFit: 'contain' }} />
+              <Box component="img" src={o.imageSmallUrl ?? o.imageUrl} alt="" loading="lazy" sx={{ width: 48, height: 34, objectFit: 'contain' }} />
               <Typography sx={{ flex: 1 }}>{entryLabel(o)}</Typography>
               {o.price !== undefined && (
                 <Typography variant="caption" color="text.secondary">

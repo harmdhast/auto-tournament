@@ -11,6 +11,7 @@ interface VetoMapCardProps {
   mapName: string;
   displayName: string;
   imageUrl: string;
+  fallbackImageUrl?: string;
   state: 'available' | 'banned' | 'picked';
   mapNumber?: number; // For picked maps (Map 1, Map 2, etc.)
   side?: MapSide; // For picked maps with side selection
@@ -35,6 +36,7 @@ export const VetoMapCard: React.FC<VetoMapCardProps> = ({
   mapName,
   displayName,
   imageUrl,
+  fallbackImageUrl,
   state,
   mapNumber,
   side,
@@ -45,7 +47,6 @@ export const VetoMapCard: React.FC<VetoMapCardProps> = ({
   isDecider,
 }) => {
   const { t } = useModuleTranslation('cs2');
-  const [imageError] = React.useState(false);
   const isClickable = !disabled && state === 'available' && !!onClick;
   // Tiles in the live veto grid (the ones given an onClick) are real buttons,
   // so keyboard and screen-reader users can reach and operate them. A tile that
@@ -152,31 +153,20 @@ export const VetoMapCard: React.FC<VetoMapCardProps> = ({
         </Box>
       )}
 
-      {!imageError ? (
-        <FadeInImage
-          src={imageUrl}
-          alt={displayName}
-          height={140}
-          sx={{
-            filter: state === 'banned' ? 'grayscale(100%)' : 'none',
-          }}
-        />
-      ) : (
-        <Box
-          sx={{
-            height: 140,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: color.paper3,
-            filter: state === 'banned' ? 'grayscale(100%)' : 'none',
-          }}
-        >
+      <FadeInImage
+        src={imageUrl}
+        fallbackSrc={fallbackImageUrl}
+        alt={displayName}
+        height={140}
+        sx={{
+          filter: state === 'banned' ? 'grayscale(100%)' : 'none',
+        }}
+        placeholder={
           <Typography variant="h4" fontWeight={700} color="text.primary">
             {displayName}
           </Typography>
-        </Box>
-      )}
+        }
+      />
 
       <CardContent
         sx={{

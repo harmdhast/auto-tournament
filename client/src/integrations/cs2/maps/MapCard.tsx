@@ -3,6 +3,7 @@ import { MapTrifoldIcon } from '@phosphor-icons/react';
 import type { Map } from '../cs2.types';
 import { FadeInImage } from '../common/FadeInImage';
 import { useModuleTranslation } from '../../../module-sdk';
+import { mapImageFallback, mapImageUrl } from './cs2Assets';
 import { mapModeColor, mapModeKey, mapModeOf } from './mapModes';
 
 interface MapCardProps {
@@ -13,20 +14,8 @@ interface MapCardProps {
 export function MapCard({ map, onClick }: MapCardProps) {
   const { t } = useModuleTranslation('cs2');
   const mode = mapModeOf(map);
-  const getPreferredImageUrl = (): string | null => {
-    const baseWebpUrl = `https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/map_thumbnails/${map.id}.webp`;
-
-    // If there's no stored URL or it's a repo URL, always use the standardized WebP path.
-    if (!map.imageUrl || map.imageUrl.includes('cs2-server-manager')) {
-      return baseWebpUrl;
-    }
-
-    // For custom uploads (non-repo URLs), use the stored URL as-is.
-    return map.imageUrl;
-  };
-
-  const preferredImageUrl = getPreferredImageUrl();
-  const showPlaceholder = !preferredImageUrl;
+  const imageUrl = mapImageUrl(map.id, 'small', map.imageUrl);
+  const fallbackUrl = mapImageFallback(map.id, 'small', map.imageUrl);
 
   return (
     <Card
@@ -56,28 +45,14 @@ export function MapCard({ map, onClick }: MapCardProps) {
           overflow: 'hidden',
         }}
       >
-        {!showPlaceholder && preferredImageUrl ? (
-          <FadeInImage
-            src={preferredImageUrl}
-            alt={map.displayName}
-            height="100%"
-            width="100%"
-            sx={{}}
-          />
-        ) : (
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              width: '100%',
-              color: 'text.disabled',
-            }}
-          >
-            <MapTrifoldIcon size={48} />
-          </Box>
-        )}
+        <FadeInImage
+          src={imageUrl}
+          fallbackSrc={fallbackUrl}
+          alt={map.displayName}
+          height="100%"
+          width="100%"
+          placeholder={<MapTrifoldIcon size={48} />}
+        />
       </Box>
       <CardContent
         sx={{

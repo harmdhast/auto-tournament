@@ -50,7 +50,7 @@ function Tile({ skin, big, onClick }: { skin: OwnedSkin; big: boolean; onClick: 
         '&:hover': { borderColor: color.muted },
       }}
     >
-      <Box component="img" src={skin.imageUrl} alt="" sx={{ width: '100%', height: big ? 170 : 84, objectFit: 'contain', bgcolor: big ? 'transparent' : color.paper3, p: 1, boxSizing: 'border-box' }} />
+      <Box component="img" src={big ? skin.imageUrl : (skin.imageSmallUrl ?? skin.imageUrl)} alt="" sx={{ width: '100%', height: big ? 170 : 84, objectFit: 'contain', bgcolor: big ? 'transparent' : color.paper3, p: 1, boxSizing: 'border-box' }} />
       <Box sx={{ px: big ? 0 : 1.25, pb: big ? 2 : 1.25, pt: 0.75, textAlign: big ? 'center' : 'left' }}>
         <Typography sx={{ fontSize: '0.75rem', color: color.muted }}>{skin.weaponName}</Typography>
         <Typography sx={{ fontWeight: 600, fontSize: big ? '1.25rem' : '0.8125rem', fontFamily: big ? fontDisplay : undefined }}>{skin.name}</Typography>
@@ -176,7 +176,7 @@ export function ProfileLoadout({
             if (!skin) return null;
             return (
               <Box key={item.skinId} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1, borderRadius: '12px', bgcolor: color.paper3 }}>
-                <Box component="img" src={skin.imageUrl} alt="" sx={{ width: 64, height: 40, objectFit: 'contain' }} />
+                <Box component="img" src={skin.imageSmallUrl ?? skin.imageUrl} alt="" sx={{ width: 64, height: 40, objectFit: 'contain' }} />
                 <Typography sx={{ flex: 1, minWidth: 0 }}>
                   {skin.weaponName} · {skin.name}
                 </Typography>

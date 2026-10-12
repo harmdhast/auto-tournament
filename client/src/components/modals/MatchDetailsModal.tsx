@@ -51,7 +51,8 @@ import { openChat } from '../chat/chatStore';
 import { PlayerRoster } from '../match/PlayerRoster';
 import { AddBackupPlayer } from '../admin/AddBackupPlayer';
 import { FleetRosterEditor } from '../admin/FleetRosterEditor';
-import { getMapData, getMapDisplayName } from '../../constants/maps';
+import { getMapDisplayName } from '../../constants/maps';
+import { mapImageFallback, mapImageUrl } from '../../constants/cs2Assets';
 import { getPhaseDisplay } from '../../types/matchPhase.types';
 import type { Match, PlayersResponse } from '../../types';
 import { useTournamentStatus } from '../../hooks/useTournamentStatus';
@@ -1138,10 +1139,8 @@ const InnerMatchDetailsModal: React.FC<InnerMatchDetailsModalProps> = ({
                   >
                     {activeMapKey && (
                       <FadeInImage
-                        src={
-                          getMapData(activeMapKey)?.image ||
-                          `https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/map_thumbnails/${activeMapKey}.webp`
-                        }
+                        src={mapImageUrl(activeMapKey, 'full')}
+                        fallbackSrc={mapImageFallback(activeMapKey, 'full')}
                         alt={currentMapLabel || activeMapKey}
                         sx={{
                           position: 'absolute',
