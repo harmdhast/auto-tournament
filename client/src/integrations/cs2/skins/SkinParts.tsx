@@ -84,11 +84,11 @@ function WhatThisMeans() {
 }
 
 /** The skin picture on a dark tile. */
-export function SkinImage({ skin, height }: { skin: Pick<OwnedSkin, 'imageUrl'>; height: number }) {
+export function SkinImage({ skin, height }: { skin: Pick<OwnedSkin, 'imageUrl'> & Partial<Pick<OwnedSkin, 'imageSmallUrl'>>; height: number }) {
   return (
     <Box
       component="img"
-      src={skin.imageUrl}
+      src={height <= 96 ? (skin.imageSmallUrl ?? skin.imageUrl) : skin.imageUrl}
       alt=""
       loading="lazy"
       sx={{ width: '100%', height, objectFit: 'contain', bgcolor: color.paper3, p: 1.25, boxSizing: 'border-box', display: 'block' }}

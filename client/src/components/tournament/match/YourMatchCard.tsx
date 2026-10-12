@@ -8,7 +8,8 @@ import { useRoundLabel } from '../../../hooks/useRoundLabel';
 import { useIntegrationFor } from '../../../integrations/registry';
 import { MatchMapChips } from '../../team/MatchMapChips';
 import { MatchPlayerPerformance } from '../../team/MatchPlayerPerformance';
-import { getMapData, getMapDisplayName } from '../../../constants/maps';
+import { getMapDisplayName } from '../../../constants/maps';
+import { mapImageUrl } from '../../../constants/cs2Assets';
 import { isVetoDisabledForMatch } from '../../../utils/matchFlags';
 import { tokens, fontDisplay, mono, radii, withAlpha } from '../../../theme/tokens';
 
@@ -233,7 +234,7 @@ export function YourMatchCard({ teamId }: { teamId: string }) {
 
   const live = match.liveStats;
   const mapKey = phase === 'veto' ? null : (live?.mapName ?? match.currentMap ?? null);
-  const mapImage = mapKey ? getMapData(mapKey)?.image : undefined;
+  const mapImage = mapKey ? mapImageUrl(mapKey, 'full') : undefined;
   const mapNumber = live?.mapNumber ?? match.mapNumber ?? null;
   const totalMaps = live?.totalMaps ?? match.maps?.length ?? null;
 

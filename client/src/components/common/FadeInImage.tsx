@@ -18,18 +18,34 @@ interface FadeInImageProps {
    * Optional children rendered on top of the image (e.g., labels, gradients).
    */
   children?: React.ReactNode;
+  /**
+   * Tried once when `src` fails to load.
+   */
+  fallbackSrc?: string;
+  /**
+   * Shown in place of the image when it (and the fallback) failed to load.
+   */
+  placeholder?: React.ReactNode;
 }
 
-export const FadeInImage: React.FC<FadeInImageProps> = ({
+const FadeInImageInner: React.FC<FadeInImageProps> = ({
   src,
   alt,
   height,
   width,
   sx,
   children,
+  fallbackSrc,
+  placeholder,
 }) => {
   const [loaded, setLoaded] = React.useState(false);
   const [error, setError] = React.useState(false);
+  const [useFallback, setUseFallback] = React.useState(false);
+
+  const handleError = () => {
+    if (fallbackSrc && !useFallback) setUseFallback(true);
+    else setError(true);
+  };
 
   return (
     <Box
@@ -47,10 +63,12 @@ export const FadeInImage: React.FC<FadeInImageProps> = ({
       {!error && (
         <Box
           component="img"
-          src={src}
+          src={useFallback && fallbackSrc ? fallbackSrc : src}
           alt={alt}
+          loading="lazy"
+          decoding="async"
           onLoad={() => setLoaded(true)}
-          onError={() => setError(true)}
+          onError={handleError}
           sx={{
             position: 'absolute',
             inset: 0,
@@ -61,6 +79,21 @@ export const FadeInImage: React.FC<FadeInImageProps> = ({
             transition: 'opacity 0.6s ease-in-out',
           }}
         />
+      )}
+
+      {error && placeholder && (
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'text.disabled',
+          }}
+        >
+          {placeholder}
+        </Box>
       )}
 
       {/* Overlay content (labels, gradients, etc.) */}
@@ -77,3 +110,8 @@ export const FadeInImage: React.FC<FadeInImageProps> = ({
     </Box>
   );
 };
+
+/** State is per `src`: a new picture starts unloaded, unfailed and without its fallback. */
+export const FadeInImage: React.FC<FadeInImageProps> = (props) => (
+  <FadeInImageInner key={props.src} {...props} />
+);

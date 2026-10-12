@@ -11,6 +11,7 @@ import { createTheme } from '@mui/material/styles';
 import { applyFaviconTheme } from './theme/favicon';
 import { IconDefaults } from './theme/icons';
 import { bootCodeModules } from './module-loader/boot';
+import { loadCs2Assets } from './constants/cs2Assets';
 
 // Log application version on startup (injected by Vite from package.json)
 
@@ -74,4 +75,8 @@ const Root: React.FC = () => {
 // pending state until it arrives (`useIntegration` in integrations/registry).
 void bootCodeModules();
 
-ReactDOM.createRoot(document.getElementById('root')!).render(<Root />);
+// The bundled CS2 image manifest is read before the first render so every map
+// picture gets its final URL; it gives up after 1.5 s and jsDelivr serves.
+void loadCs2Assets().then(() => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(<Root />);
+});

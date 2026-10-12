@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { tokens, radii, fontDisplay } from '../../theme/tokens';
+import { mapImageUrl } from '../../constants/cs2Assets';
 
 export interface RouletteMap {
   id: string;
@@ -168,7 +169,7 @@ export function MapRoulette({
                 borderRadius: radii.md,
                 overflow: 'hidden',
                 bgcolor: tokens.color.paper3,
-                backgroundImage: m.imageUrl ? `url(${m.imageUrl})` : undefined,
+                backgroundImage: `url(${mapImageUrl(m.id, 'full', m.imageUrl)})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 outline: on ? `3px solid ${tokens.color.accent}` : '3px solid transparent',

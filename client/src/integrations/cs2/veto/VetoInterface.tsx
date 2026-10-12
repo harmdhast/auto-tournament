@@ -20,6 +20,7 @@ import { getMapData, getMapDisplayName } from '../maps/mapData';
 import { getVetoOrder } from './vetoOrders';
 import type { MapSide, VetoMapInfo, VetoState, VetoStateResponse } from '../cs2.types';
 import { FadeInImage } from '../common/FadeInImage';
+import { mapImageFallback, mapImageUrl } from '../maps/cs2Assets';
 import { onSocketReconnect, useSocket, tokens, mono, withAlpha, useModuleTranslation } from '../../../module-sdk';
 import type { PreMatchViewProps as VetoInterfaceProps } from '../../types';
 
@@ -67,16 +68,6 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
-
-  const MAP_IMAGE_BASE =
-    'https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/map_thumbnails';
-
-  const getThumbnailUrl = (mapId: string): string => `${MAP_IMAGE_BASE}/${mapId}_thumb.webp`;
-
-  const getFullImageUrl = (mapId: string): string => `${MAP_IMAGE_BASE}/${mapId}.webp`;
-
-  const isRepoImageUrl = (url: string | null | undefined): boolean =>
-    !!url && url.includes('cs2-server-manager') && url.includes('map_thumbnails');
 
   // The veto response carries its maps' names and pictures (`maps`), so
   // players never need the admin-only `/api/maps` — which answered them with
@@ -179,21 +170,16 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
       const mapData = allMaps.get(mapId);
       const fallbackData = getMapData(mapId); // Fallback to hardcoded maps if not in DB
 
-      // Thumbnail strategy:
-      // - For maps with a custom imageUrl (non-repo), show that directly.
-      // - For repo-based maps or missing imageUrl, use the standardized thumbnail URL.
-      let thumbnail: string;
-      if (mapData?.imageUrl && !isRepoImageUrl(mapData.imageUrl)) {
-        thumbnail = mapData.imageUrl;
-      } else {
-        thumbnail = fallbackData?.thumbnail || getThumbnailUrl(mapId);
-      }
+      const uploaded = mapData?.imageUrl;
+      const thumbnail = mapImageUrl(mapId, 'small', uploaded);
+      const fallbackImage = mapImageFallback(mapId, 'small', uploaded);
 
       return {
         name: mapId,
         displayName: mapData?.displayName || fallbackData?.displayName || getMapDisplayName(mapId),
         // Use thumbnail for map grid cards
         image: thumbnail,
+        fallbackImage,
       };
     });
     // Only depend on allMaps order and the map data cache - not on available/banned/picked arrays
@@ -325,9 +311,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
           {vetoState.pickedMaps.map((pick) => {
             const mapData = allMaps.get(pick.mapName);
             const fallbackData = getMapData(pick.mapName);
-            const imageUrl = isRepoImageUrl(mapData?.imageUrl)
-              ? fallbackData?.image || getFullImageUrl(pick.mapName)
-              : mapData?.imageUrl || fallbackData?.image || getFullImageUrl(pick.mapName);
+            const imageUrl = mapImageUrl(pick.mapName, 'full', mapData?.imageUrl);
             // Show the side for the team viewing (team1 sees sideTeam1, team2 sees sideTeam2)
             const displaySide = isViewingTeam1
               ? pick.sideTeam1
@@ -342,6 +326,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
                     mapData?.displayName || fallbackData?.displayName || getMapDisplayName(pick.mapName)
                   }
                   imageUrl={imageUrl}
+                  fallbackImageUrl={mapImageFallback(pick.mapName, 'full', mapData?.imageUrl)}
                   state="picked"
                   mapNumber={pick.mapNumber}
                   side={displaySide}
@@ -626,13 +611,8 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
                 {/* Map Display */}
                 {sidePickMapName && (
                   <FadeInImage
-                    src={
-                      isRepoImageUrl(mapData?.imageUrl)
-                        ? fallbackData?.image || getFullImageUrl(sidePickMapName)
-                        : mapData?.imageUrl ||
-                          fallbackData?.image ||
-                          getFullImageUrl(sidePickMapName)
-                    }
+                    src={mapImageUrl(sidePickMapName, 'full', mapData?.imageUrl)}
+                    fallbackSrc={mapImageFallback(sidePickMapName, 'full', mapData?.imageUrl)}
                     alt={mapData?.displayName || fallbackData?.displayName || sidePickMapName}
                     height={250}
                     sx={{
@@ -801,6 +781,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
                   mapName={map.name}
                   displayName={map.displayName}
                   imageUrl={map.image}
+                  fallbackImageUrl={map.fallbackImage}
                   state={mapState}
                   mapNumber={pickedMap?.mapNumber}
                   side={displaySide}

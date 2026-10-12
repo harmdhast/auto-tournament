@@ -19,6 +19,7 @@ import { MatchDrop } from '../components/matchmaking/MatchDrop';
 import { MapRoulette, type RouletteMap } from '../components/matchmaking/MapRoulette';
 import { openChat } from '../components/chat/chatStore';
 import { getMapData } from '../constants/maps';
+import { mapImageUrl } from '../constants/cs2Assets';
 import { paths, playerProfilePath } from '../paths';
 import { fontDisplay, radii, textSize, tokens } from '../theme/tokens';
 
@@ -114,9 +115,7 @@ export default function PlayLobby() {
       lobby.map)
     : null;
   const mapImage = lobby.map
-    ? (lobby.mapPool.find((m) => m.id === lobby.map)?.imageUrl ??
-      getMapData(lobby.map)?.image ??
-      null)
+    ? mapImageUrl(lobby.map, 'full', lobby.mapPool.find((m) => m.id === lobby.map)?.imageUrl)
     : null;
   const modeLabel = `${t(`matchmaking.play.modeTitle.${lobby.mode}`, { defaultValue: lobby.mode })} ${lobby.mode}`;
   const statusLine =

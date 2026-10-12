@@ -2,10 +2,21 @@ import { useState, type SyntheticEvent } from 'react';
 import { Box, ButtonBase, Dialog, IconButton, Typography } from '@mui/material';
 import { ArrowRightIcon, XIcon } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
-import { getMapData, getMapDisplayName, getMapIconUrl } from '../../../constants/maps';
+import { getMapDisplayName } from '../../../constants/maps';
+import { mapImageFallback, mapImageUrl, type MapImageSize } from '../../../constants/cs2Assets';
 import { tokens, fontDisplay, radii } from '../../../theme/tokens';
 
 const { color } = tokens;
+
+/** Tries the map's fallback picture once, then runs `onGiveUp`. */
+const retryWithFallback =
+  (map: string, size: MapImageSize, onGiveUp: (img: HTMLImageElement) => void) =>
+  (event: SyntheticEvent<HTMLImageElement>) => {
+    const img = event.currentTarget;
+    const fallback = mapImageFallback(map, size);
+    if (fallback && img.getAttribute('src') !== fallback) img.src = fallback;
+    else onGiveUp(img);
+  };
 
 /** A map's icon on a dark tile; the name is its tooltip and alt text. */
 function MapIconTile({ map, size }: { map: string; size: number }) {
@@ -26,13 +37,13 @@ function MapIconTile({ map, size }: { map: string; size: number }) {
     >
       <Box
         component="img"
-        src={getMapIconUrl(map)}
+        src={mapImageUrl(map, 'icon')}
         alt={name}
         loading="lazy"
         sx={{ width: size * 0.66, height: size * 0.66, display: 'block' }}
-        onError={(event: SyntheticEvent<HTMLImageElement>) => {
-          event.currentTarget.style.visibility = 'hidden';
-        }}
+        onError={retryWithFallback(map, 'icon', (img) => {
+          img.style.visibility = 'hidden';
+        })}
       />
     </Box>
   );
@@ -122,39 +133,38 @@ export function MapPoolCard({ maps }: { maps: string[] }) {
               gap: 1.5,
             }}
           >
-            {maps.map((map) => {
-              const data = getMapData(map);
-              return (
+            {maps.map((map) => (
                 <Box
                   key={map}
                   sx={{ borderRadius: '16px', overflow: 'hidden', bgcolor: color.paper3, display: 'flex', flexDirection: 'column' }}
                 >
-                  {data?.thumbnail ? (
+                  <Box sx={{ width: '100%', aspectRatio: '16 / 9', bgcolor: color.rule }}>
                     <Box
                       component="img"
-                      src={data.thumbnail}
+                      src={mapImageUrl(map, 'small')}
                       alt=""
                       loading="lazy"
-                      sx={{ width: '100%', aspectRatio: '16 / 9', objectFit: 'cover', display: 'block' }}
+                      decoding="async"
+                      sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      onError={retryWithFallback(map, 'small', (img) => {
+                        img.style.visibility = 'hidden';
+                      })}
                     />
-                  ) : (
-                    <Box sx={{ width: '100%', aspectRatio: '16 / 9', bgcolor: color.rule }} />
-                  )}
+                  </Box>
                   <Box sx={{ px: 1.5, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.25 }}>
                     <Box
                       component="img"
-                      src={getMapIconUrl(map)}
+                      src={mapImageUrl(map, 'icon')}
                       alt=""
                       sx={{ width: 22, height: 22, display: 'block' }}
-                      onError={(event: SyntheticEvent<HTMLImageElement>) => {
-                        event.currentTarget.style.display = 'none';
-                      }}
+                      onError={retryWithFallback(map, 'icon', (img) => {
+                        img.style.display = 'none';
+                      })}
                     />
                     <Typography sx={{ fontWeight: 600 }}>{getMapDisplayName(map)}</Typography>
                   </Box>
                 </Box>
-              );
-            })}
+            ))}
           </Box>
           <Typography sx={{ fontSize: '0.875rem', color: color.muted }}>
             {t('overviewPage.mapPoolNote')}

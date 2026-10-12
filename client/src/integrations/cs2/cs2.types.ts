@@ -323,14 +323,10 @@ export interface VetoStep {
   description: string;
 }
 
-/** A map's name and pictures, from the built-in list (`maps/mapData.ts`). */
+/** A map's name, from the built-in list (`maps/mapData.ts`). */
 export interface CS2MapData {
   name: string;
   displayName: string;
-  /** Full-size image used for large hero/background displays. */
-  image: string;
-  /** Smaller thumbnail variant used for lists, chips, and small cards. */
-  thumbnail: string;
 }
 
 /** A veto map's display name and picture, as the admin set them. */

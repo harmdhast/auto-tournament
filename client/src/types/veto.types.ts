@@ -54,12 +54,4 @@ export interface VetoStep {
 export interface CS2MapData {
   name: string;
   displayName: string;
-  /**
-   * Full-size image used for large hero/background displays
-   */
-  image: string;
-  /**
-   * Smaller thumbnail variant used for lists, chips, and small cards
-   */
-  thumbnail: string;
 }

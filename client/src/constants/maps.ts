@@ -1,71 +1,17 @@
 /**
- * CS2 Map data with images
+ * CS2 map names
  */
 
 import type { CS2MapData } from '../types/veto.types';
 
-// Map images from Auto-Tournament/cs2-server-manager
-// Full-size webp images are used for large hero/background displays.
-// Thumbnails (with `_thumb` suffix) are used for smaller cards/lists.
-const MAP_IMAGE_BASE =
-  'https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/map_thumbnails';
-
-const getFullImageUrl = (mapName: string): string =>
-  `${MAP_IMAGE_BASE}/${mapName}.webp`;
-
-const getThumbnailUrl = (mapName: string): string =>
-  `${MAP_IMAGE_BASE}/${mapName}_thumb.webp`;
-
-/** The map's full-size picture, for heroes and banners. */
-export const getMapImageUrl = (mapName: string): string => getFullImageUrl(mapName);
-
-/** The map's flat icon (`de_mirage_icon.svg`), for small marks and pills. */
-export const getMapIconUrl = (mapName: string): string =>
-  `${MAP_IMAGE_BASE}/${mapName}_icon.svg`;
-
 export const CS2_MAPS: CS2MapData[] = [
-  {
-    name: 'de_ancient',
-    displayName: 'Ancient',
-    image: getFullImageUrl('de_ancient'),
-    thumbnail: getThumbnailUrl('de_ancient'),
-  },
-  {
-    name: 'de_anubis',
-    displayName: 'Anubis',
-    image: getFullImageUrl('de_anubis'),
-    thumbnail: getThumbnailUrl('de_anubis'),
-  },
-  {
-    name: 'de_dust2',
-    displayName: 'Dust II',
-    image: getFullImageUrl('de_dust2'),
-    thumbnail: getThumbnailUrl('de_dust2'),
-  },
-  {
-    name: 'de_inferno',
-    displayName: 'Inferno',
-    image: getFullImageUrl('de_inferno'),
-    thumbnail: getThumbnailUrl('de_inferno'),
-  },
-  {
-    name: 'de_mirage',
-    displayName: 'Mirage',
-    image: getFullImageUrl('de_mirage'),
-    thumbnail: getThumbnailUrl('de_mirage'),
-  },
-  {
-    name: 'de_nuke',
-    displayName: 'Nuke',
-    image: getFullImageUrl('de_nuke'),
-    thumbnail: getThumbnailUrl('de_nuke'),
-  },
-  {
-    name: 'de_vertigo',
-    displayName: 'Vertigo',
-    image: getFullImageUrl('de_vertigo'),
-    thumbnail: getThumbnailUrl('de_vertigo'),
-  },
+  { name: 'de_ancient', displayName: 'Ancient' },
+  { name: 'de_anubis', displayName: 'Anubis' },
+  { name: 'de_dust2', displayName: 'Dust II' },
+  { name: 'de_inferno', displayName: 'Inferno' },
+  { name: 'de_mirage', displayName: 'Mirage' },
+  { name: 'de_nuke', displayName: 'Nuke' },
+  { name: 'de_vertigo', displayName: 'Vertigo' },
 ];
 
 export const getMapData = (mapName: string): CS2MapData | undefined => {

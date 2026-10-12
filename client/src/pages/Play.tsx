@@ -36,6 +36,7 @@ import { InvitePicker } from '../components/social/InvitePicker';
 import { FriendsCard } from '../components/social/FriendsCard';
 import { answerPartyInvite, cancelPartyInvite } from '../components/social/socialStore';
 import { getMapData } from '../constants/maps';
+import { mapImageUrl } from '../constants/cs2Assets';
 import { paths, playLobbyPath } from '../paths';
 import { fontDisplay, fontMono, radii, textSize, tokens, withAlpha } from '../theme/tokens';
 
@@ -673,7 +674,7 @@ export default function Play() {
                   >
                     {modes.map((m) => {
                       const selected = m === mode;
-                      const image = getMapData(MODE_MAP[m] ?? 'de_mirage')?.image;
+                      const image = mapImageUrl(MODE_MAP[m] ?? 'de_mirage', 'full');
                       return (
                         <ButtonBase
                           key={m}
