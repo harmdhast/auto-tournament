@@ -18,6 +18,7 @@ Fork-only migrations (`api/src/integrations/cs2/migrations.ts`, after upstream's
 |---|---|
 | `037-fleet-availability-reason` | feat/fleet-busy-reason |
 | `040-server-failover-use` | feat/failover-server-opt-out |
+| `050-match-runtime-cascade` | match-delete-orphans |
 
 Their numbers overlap upstream's `037-*` and `040-*` ids; ids are unique strings and the runner applies the list in array order, so only the full id matters.
 
@@ -57,5 +58,6 @@ Conflicts are relative to upstream `main` at 98d57326 (v3.0.0-beta.82) and the b
 | feat/cs2-local-images | CS2 map and skin images downloaded and resized at build (`scripts/cs2-assets.mjs`, jsDelivr fallback), small images in cards, uploads resized in the browser, stale `*_icon.svg` map rows pruned by sync, Caddy compression and immutable hashed assets | cherry-picked | none | none (`VetoInterface.tsx` auto-merged with fix/veto-small-pool) | Branched from upstream `main` 231c0bdb (past beta.82): its 18 commits are cherry-picked onto `custom`. Its last commit Prettier-formats the 29 files it touches (upstream's format-on-touch rule), including whole files such as `Home.tsx` and `MatchDetailsModal.tsx`: expect conflicts there on upstream syncs |
 | feat/fleet-stop-rules | `.stop` settings reach Ready Up as `match.assign` `rules.stop` (needs Ready Up feat/fleet-stop-rules; older servers ignore it). `fleet-protocol-sync` passes only with `READYUP_DIR` on the fork's Ready Up | merged | cut from `custom`, not compared with upstream | none | |
 | feat/readyup-only | Ready Up servers only: RCON server creation, MatchZy webhooks, RCON-only admin routes, RCON monitors and start checks off unless `ENABLE_TEST_ENDPOINTS` (tests keep the RCON path); unlink deletes the server row; RCON and MatchZy UI and settings removed. Fork-only, not for upstream | merged | cut from `custom`, not compared with upstream | none | |
+| match-delete-orphans | Deleting a match cancels its `ready` matchmaking lobby (`match-deleted`) and removes its CS2 runtime rows (live state, assignment, failovers, round backups, restores) through `ON DELETE CASCADE` keys; a snapshot for a deleted match is dropped with a warning; live stats cleared on every match delete | committed on `custom` | not compared with upstream | none | Commits made directly on `custom`, no separate branch. Migration id `050` leaves upstream's `044`-`049` free |
 | feat/fleet-key-auto-link | A fleet key links the servers it enrolls on first hello | superseded by #658 | | | not merged |
 | feat/fleet-key-skins | A fleet key turns skins on for the servers it enrolls | superseded by #663 | | | not merged |
