@@ -62,6 +62,12 @@ import {
   type FleetCommandRecord,
 } from './reliable';
 import { liveStateStore } from './state';
+import {
+  bindOrphanDeps,
+  claimUnassign,
+  dropOrphanAssignment,
+  forgetDroppedOrphans,
+} from './orphans';
 import { roundBackupStore } from './backups';
 import { DEMO_STREAM_CAPABILITY } from './limits';
 import { matchPluginDisabled } from './push/pluginSets';
@@ -590,7 +596,7 @@ export async function assignMatch(
 // Unassign
 // ---------------------------------------------------------------------------
 
-async function unassignEpoch(
+export async function unassignEpoch(
   fleetServerId: string,
   matchSlug: string,
   epoch: number,
@@ -1017,7 +1023,11 @@ export function isUnsupportedAnswer(o: FleetCommandOutcome): boolean {
 // ---------------------------------------------------------------------------
 
 /** Zombie unassigns already sent: `${server}:${slug}:${epoch}`. */
-const supersededSent = new Set<string>();
+bindOrphanDeps({
+  unassign: (fleetServerId, slug, epoch, reason) =>
+    unassignEpoch(fleetServerId, slug, epoch, reason),
+  epochOf: async (slug) => (await getAssignment(slug))?.epoch ?? null,
+});
 
 async function supersede(
   fleetServerId: string,
@@ -1026,7 +1036,6 @@ async function supersede(
   why: string
 ): Promise<void> {
   const key = `${fleetServerId}:${matchSlug}:${epoch}`;
-  if (supersededSent.has(key)) return;
   // A failover is moving the match off this server right now: its epoch is
   // not dead until the target accepts (the move fences it then, failover.ts);
   // if the target refuses, this server keeps the match.
@@ -1040,8 +1049,7 @@ async function supersede(
     );
     return;
   }
-  supersededSent.add(key);
-  if (supersededSent.size > 10_000) supersededSent.clear();
+  if (!claimUnassign(key)) return;
   log.warn(
     `[FLEET] ${fleetServerId} still holds ${matchSlug} epoch ${epoch} (${why}); unassigning it (superseded)`
   );
@@ -1064,7 +1072,7 @@ export async function fenceEpoch(
   epoch: number,
   reason: 'superseded' | 'moved' = 'superseded'
 ): Promise<string> {
-  supersededSent.add(`${fleetServerId}:${matchSlug}:${epoch}`);
+  claimUnassign(`${fleetServerId}:${matchSlug}:${epoch}`);
   return unassignEpoch(fleetServerId, matchSlug, epoch, reason, MOVED_KICK_MESSAGE);
 }
 
@@ -1085,6 +1093,13 @@ export async function resolveWelcomeAssignment(
     }
   }
   return null;
+}
+
+function matchState(state: unknown): { match_id: string; epoch: number } | null {
+  const s = state as { match_id?: unknown; epoch?: unknown } | null | undefined;
+  return s && typeof s.match_id === 'string' && typeof s.epoch === 'number'
+    ? { match_id: s.match_id, epoch: s.epoch }
+    : null;
 }
 
 /** After a welcome: a server holding a match the platform has moved on from gets `superseded` (§6.1, §11.4). */
@@ -1133,6 +1148,7 @@ export async function supersedeStaleLocalCopy(
 
 async function checkHello(fleetServerId: string, hello: HelloPayload): Promise<void> {
   toldToDrop.delete(fleetServerId);
+  forgetDroppedOrphans(fleetServerId);
   const state = hello.state as { match_id?: unknown; epoch?: unknown } | null | undefined;
   if (!state && hello.availability !== 'available') {
     await supersedeStaleLocalCopy(
@@ -1162,6 +1178,13 @@ async function checkHello(fleetServerId: string, hello: HelloPayload): Promise<v
       );
     }
   }
+  void dropOrphanAssignment(fleetServerId, {
+    reason: typeof hello.reason === 'string' ? hello.reason : null,
+    detail: typeof hello.detail === 'string' ? hello.detail : null,
+    state: matchState(hello.state),
+  }).catch((error) => {
+    log.warn(`[FLEET] ${fleetServerId}: orphan check failed: ${(error as Error).message}`);
+  });
   if (hello.availability === 'available' && (await cs2ServerIdOf(fleetServerId))) {
     availableSince.set(fleetServerId, nowS());
     triggerAllocation();
@@ -1304,6 +1327,15 @@ export function startFleetDriver(): void {
       log.warn(
         `[FLEET] ${notice.serverId}: driver hook for ${notice.envelope.type} failed: ${(error as Error).message}`
       );
+    });
+  });
+  fleetInbound.onSnapshot(({ serverId, payload }) => {
+    void dropOrphanAssignment(serverId, {
+      reason: payload.availability_reason ?? null,
+      detail: payload.availability_detail ?? null,
+      state: matchState(payload.state),
+    }).catch((error) => {
+      log.warn(`[FLEET] ${serverId}: orphan check failed: ${(error as Error).message}`);
     });
   });
   fleetInbound.onAvailability(({ serverId, availability, busyReason, busyDetail }) => {
