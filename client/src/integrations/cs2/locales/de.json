@@ -1015,8 +1015,8 @@
       "knifeNote": "Gilt nur, wenn MatchZy Enhanced normalerweise eine Knife-Runde spielen würde; explizite Side-Picks werden nicht verändert."
     },
     "atCore": {
-      "title": "MatchZy Enhanced Core-Standards",
-      "description": "Diese Standards werden bei der Serverinitialisierung und vor jedem Match-Load an die Server gesendet.",
+      "title": "Match-Standardwerte",
+      "description": "Wird bei jedem Match an die Ready-Up-Server gesendet.",
       "expert": {
         "title": "Experteneinstellungen",
         "description": "Diese Einstellungen können bei falscher Konfiguration zu unerwartetem Serververhalten führen. Nur ändern, wenn du weißt, dass du sie brauchst.",
@@ -1034,7 +1034,7 @@
         "title": "Ready / Matchstart",
         "minimumReadyLabel": "Mindestanzahl bereit gemeldeter Spieler",
         "minimumReadyHelper": "0 = alle verbundenen Spieler müssen ready sein. Standard: 0.",
-        "allowForceReady": "Admins dürfen Spieler während des Setups force-ready setzen (!forceready)"
+        "allowForceReady": "Admins dürfen Spieler während des Setups force-ready setzen (.forceready)"
       },
       "access": {
         "title": "Serverzugriff",
@@ -1073,8 +1073,8 @@
       }
     },
     "atEnhanced": {
-      "title": "MatchZy Enhanced Funktionen",
-      "description": "Erweiterte Match-Funktionen. Leer lassen, um die MatchZy Enhanced-Standardwerte zu verwenden.",
+      "title": "Match-Funktionen",
+      "description": "Wird bei jedem Match an die Ready-Up-Server gesendet. Leer lassen, um den Ready-Up-Standard zu verwenden.",
       "autoready": {
         "title": "Automatisch einsatzbereites System",
         "label": "Spieler beim Join automatisch als ready markieren",
@@ -1111,14 +1111,14 @@
       "demo": {
         "title": "Demo-Aufzeichnung",
         "enabled": "Automatische GOTV-Demo-Aufzeichnung aktivieren",
-        "description": "Wenn deaktiviert, startet der Server ~10s nach Match-Ende neu (statt 60-90s mit Aufnahme)"
+        "description": "Demos werden auf dem Server aufgezeichnet und nach jeder Map automatisch zu Auto Tournament hochgeladen."
       }
     },
     "developer": {
       "title": "Entwickleroptionen",
       "description": "Nur für lokale Entwicklung; nicht in Produktion aktivieren.",
       "simulateToggleLabel": "Matches simulieren (bot-gesteuerte Demo-Matches statt echter Spieler)",
-      "simulateNote": "Wenn aktiviert, enthalten generierte MatchZy Enhanced-Konfigurationen \"simulation\": true für automatisierte Demo-Matches.",
+      "simulateNote": "Wenn aktiviert, enthalten die an die Server gesendeten Match-Konfigurationen \"simulation\": true für automatisierte Demo-Matches.",
       "timescaleTitle": "Simulations-Zeitfaktor",
       "timescaleDescription": "Steuert, wie schnell simulierte Matches laufen. Höhere Werte beschleunigen Bots und Round-Flow. Gilt nur, wenn Simulation aktiv ist.",
       "timescaleWarning": "Werte über 2.0 können etwas instabil sein und zu seltsamem Bot-Verhalten führen, sind aber für schnelle lokale Tests ok.",
@@ -1134,7 +1134,7 @@
     },
     "reset": {
       "title": "Einstellungen zurücksetzen?",
-      "description": "Setze alle Einstellungen auf dieser Seite auf Defaults zurück. Bestehende Turniere und Server werden nicht geändert, aber neue Matches und Lookups verwenden die Default-Werte. Fortfahren?",
+      "description": "Setzt die CS2-Serverstandards auf diesem Tab zurück (Demos, Ready Up, Pausen und der Rest). Bestehende Turniere und Server bleiben unverändert, aber neue Matches verwenden die Standardwerte. Fortfahren?",
       "cancel": "Abbrechen",
       "confirm": "Zurücksetzen",
       "success": "Einstellungen auf Standardwerte zurückgesetzt",
@@ -2408,7 +2408,7 @@
   },
   "serversList": {
     "noMachine": "Ohne Maschine",
-    "noMachineAbout": "Ready-Up-Server, die sich selbst angemeldet haben, und per Adresse hinzugefügte Server.",
+    "noMachineAbout": "Ready-Up-Server, die sich selbst angemeldet haben.",
     "guessedBanner": "Einige Adressen wurden aus der Verbindung des Servers geschätzt. Prüfe sie oder lege die Adresse für Spieler fest.",
     "transport": {
       "readyUp": "Ready Up",

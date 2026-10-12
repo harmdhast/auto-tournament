@@ -1015,8 +1015,8 @@
       "knifeNote": "Aplica-se apenas quando o MatchZy Enhanced normalmente executaria uma ronda de knife; escolhas explícitas de lado não são alteradas."
     },
     "atCore": {
-      "title": "Predefinições do MatchZy Enhanced Core",
-      "description": "Estas predefinições são enviadas para os servidores durante a inicialização e antes de cada carregamento de jogo.",
+      "title": "Predefinições do jogo",
+      "description": "Enviado para os servidores Ready Up com cada jogo.",
       "expert": {
         "title": "Definições avançadas",
         "description": "Estas definições podem fazer com que os servidores se comportem de forma inesperada se estiverem mal configuradas. Altera-as apenas se souberes que precisas.",
@@ -1034,7 +1034,7 @@
         "title": "Ready / Início do jogo",
         "minimumReadyLabel": "Mínimo de jogadores prontos necessário",
         "minimumReadyHelper": "0 = todos os jogadores ligados têm de estar prontos. Predefinição: 0.",
-        "allowForceReady": "Permitir que admins forcem ready durante o setup (!forceready)"
+        "allowForceReady": "Permitir que admins forcem o ready dos jogadores durante o setup (.forceready)"
       },
       "access": {
         "title": "Acesso ao servidor",
@@ -1073,8 +1073,8 @@
       }
     },
     "atEnhanced": {
-      "title": "Funcionalidades MatchZy Enhanced",
-      "description": "Configura funcionalidades avançadas de jogo. Deixa os campos vazios para usar as predefinições do MatchZy Enhanced.",
+      "title": "Funcionalidades do jogo",
+      "description": "Enviado para os servidores Ready Up com cada jogo. Deixa uma definição vazia para usar a predefinição do Ready Up.",
       "autoready": {
         "title": "Auto-ready",
         "label": "Marcar automaticamente jogadores como prontos ao entrar",
@@ -1111,14 +1111,14 @@
       "demo": {
         "title": "Gravação de demos",
         "enabled": "Ativar gravação automática de demos GOTV",
-        "description": "Quando desativado, o servidor reinicia ~10s após o fim do jogo (vs 60-90s com gravação)"
+        "description": "As demos são gravadas no servidor e carregadas automaticamente para o Auto Tournament após cada mapa."
       }
     },
     "developer": {
       "title": "Opções de programador",
       "description": "Apenas para desenvolvimento local; não ativar em produção.",
       "simulateToggleLabel": "Simular jogos (usar demos com bots em vez de jogadores reais)",
-      "simulateNote": "Quando ativado, as configurações geradas incluem \"simulation\": true para demos automatizadas.",
+      "simulateNote": "Quando ativado, as configurações de jogo enviadas para os servidores incluem \"simulation\": true para jogos demo automatizados.",
       "timescaleTitle": "Velocidade de simulação",
       "timescaleDescription": "Controla quão rápido os jogos simulados correm. Valores mais altos aceleram bots e rondas. Só se aplica quando a simulação está ativa.",
       "timescaleWarning": "Velocidades acima de 2.0 podem ser instáveis e causar comportamento estranho dos bots, mas são úteis para testes rápidos.",
@@ -1134,7 +1134,7 @@
     },
     "reset": {
       "title": "Repor definições?",
-      "description": "Repõe todas as definições desta página para os valores predefinidos. Torneios e servidores existentes não são alterados, mas novos jogos e pesquisas usarão os valores predefinidos. Continuar?",
+      "description": "Repõe as predefinições dos servidores CS2 neste separador (demos, ready-up, pausas e o resto). Os torneios e servidores existentes não são alterados, mas os novos jogos usarão as predefinições. Continuar?",
       "cancel": "Cancelar",
       "confirm": "Repor",
       "success": "Definições repostas para os valores predefinidos",
@@ -2408,7 +2408,7 @@
   },
   "serversList": {
     "noMachine": "Sem máquina",
-    "noMachineAbout": "Servidores Ready Up inscritos por si próprios e servidores adicionados por endereço.",
+    "noMachineAbout": "Servidores Ready Up inscritos por si próprios.",
     "guessedBanner": "Alguns endereços foram deduzidos a partir de onde o servidor se liga. Verifique-os ou defina o endereço usado pelos jogadores.",
     "transport": {
       "readyUp": "Ready Up",

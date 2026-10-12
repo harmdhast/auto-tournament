@@ -1015,8 +1015,8 @@
       "knifeNote": "Si applica solo quando MatchZy Enhanced eseguirebbe normalmente una knife round; le scelte esplicite dei lati non vengono modificate."
     },
     "atCore": {
-      "title": "Impostazioni predefinite MatchZy Enhanced Core",
-      "description": "Queste impostazioni vengono inviate ai server durante l’inizializzazione e prima di ogni caricamento match.",
+      "title": "Impostazioni predefinite del match",
+      "description": "Inviato ai server Ready Up con ogni match.",
       "expert": {
         "title": "Impostazioni avanzate",
         "description": "Se configurate male, queste impostazioni possono causare comportamenti imprevisti del server. Modificale solo se sai che ti servono.",
@@ -1034,7 +1034,7 @@
         "title": "Ready / Inizio match",
         "minimumReadyLabel": "Numero minimo di giocatori pronti richiesto",
         "minimumReadyHelper": "0 = tutti i giocatori connessi devono essere ready. Predefinito: 0.",
-        "allowForceReady": "Consenti agli admin di forzare il ready durante il setup (!forceready)"
+        "allowForceReady": "Consenti agli admin di forzare il ready dei giocatori durante il setup (.forceready)"
       },
       "access": {
         "title": "Accesso al server",
@@ -1073,8 +1073,8 @@
       }
     },
     "atEnhanced": {
-      "title": "Funzionalità MatchZy Enhanced",
-      "description": "Configura funzionalità avanzate del match. Lascia i campi vuoti per usare i valori predefiniti di MatchZy Enhanced.",
+      "title": "Funzionalità del match",
+      "description": "Inviato ai server Ready Up con ogni match. Lascia vuota un’impostazione per usare il valore predefinito di Ready Up.",
       "autoready": {
         "title": "Sistema auto-ready",
         "label": "Segna automaticamente i giocatori come ready quando entrano",
@@ -1111,14 +1111,14 @@
       "demo": {
         "title": "Registrazione demo",
         "enabled": "Abilita registrazione automatica delle demo GOTV",
-        "description": "Se disabilitato, il server riavvia ~10s dopo la fine del match (vs 60-90s con registrazione)"
+        "description": "Le demo vengono registrate sul server e caricate automaticamente su Auto Tournament dopo ogni mappa."
       }
     },
     "developer": {
       "title": "Opzioni sviluppatore",
       "description": "Solo per sviluppo locale; non abilitare in produzione.",
       "simulateToggleLabel": "Simula i match (usa match demo con bot invece di giocatori reali)",
-      "simulateNote": "Quando abilitato, le configurazioni generate includono \"simulation\": true per match demo automatizzati.",
+      "simulateNote": "Se abilitato, le configurazioni dei match inviate ai server includono \"simulation\": true per i match demo automatizzati.",
       "timescaleTitle": "Velocità simulazione",
       "timescaleDescription": "Controlla quanto velocemente girano i match simulati. Valori più alti accelerano bot e round. Si applica solo quando la simulazione è abilitata.",
       "timescaleWarning": "Velocità sopra 2.0 possono essere instabili e causare comportamenti strani dei bot, ma vanno bene per test rapidi.",
@@ -1134,7 +1134,7 @@
     },
     "reset": {
       "title": "Reimpostare le impostazioni?",
-      "description": "Reimposta tutte le impostazioni di questa pagina ai valori predefiniti. I tornei e server esistenti non vengono modificati, ma nuovi match e lookup useranno i valori predefiniti. Continuare?",
+      "description": "Reimposta i valori predefiniti dei server CS2 in questa scheda (demo, ready-up, pause e il resto). I tornei e i server esistenti non vengono modificati, ma i nuovi match useranno i valori predefiniti. Continuare?",
       "cancel": "Annulla",
       "confirm": "Reimposta",
       "success": "Impostazioni ripristinate ai valori predefiniti",
@@ -2408,7 +2408,7 @@
   },
   "serversList": {
     "noMachine": "Senza macchina",
-    "noMachineAbout": "Server Ready Up iscritti da soli e server aggiunti per indirizzo.",
+    "noMachineAbout": "Server Ready Up registrati autonomamente.",
     "guessedBanner": "Alcuni indirizzi sono stati dedotti da dove si connette il server. Controllali o imposta l'indirizzo usato dai giocatori.",
     "transport": {
       "readyUp": "Ready Up",

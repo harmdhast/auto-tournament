@@ -1015,8 +1015,8 @@
       "knifeNote": "Se aplica solo cuando MatchZy Enhanced normalmente ejecutaría una ronda de knife; no cambia selecciones explícitas de lado."
     },
     "atCore": {
-      "title": "Valores predeterminados de MatchZy Enhanced Core",
-      "description": "Estos valores se envían a los servidores durante la inicialización y antes de cada carga de partido.",
+      "title": "Valores predeterminados del partido",
+      "description": "Se envía a los servidores de Ready Up con cada partido.",
       "expert": {
         "title": "Ajustes avanzados",
         "description": "Estos ajustes pueden hacer que el servidor se comporte de forma inesperada si están mal configurados. Cámbialos solo si sabes que los necesitas.",
@@ -1034,7 +1034,7 @@
         "title": "Ready / Inicio del partido",
         "minimumReadyLabel": "Mínimo de jugadores listos requerido",
         "minimumReadyHelper": "0 = todos los jugadores conectados deben estar listos. Predeterminado: 0.",
-        "allowForceReady": "Permitir a los admins forzar el ready durante la configuración (!forceready)"
+        "allowForceReady": "Permitir a los admins forzar el ready de los jugadores durante la configuración (.forceready)"
       },
       "access": {
         "title": "Acceso al servidor",
@@ -1073,8 +1073,8 @@
       }
     },
     "atEnhanced": {
-      "title": "Funciones de MatchZy Enhanced",
-      "description": "Configura funciones avanzadas de partido. Deja los ajustes vacíos para usar los valores predeterminados de MatchZy Enhanced.",
+      "title": "Funciones del partido",
+      "description": "Se envía a los servidores de Ready Up con cada partido. Deja un ajuste vacío para usar el valor predeterminado de Ready Up.",
       "autoready": {
         "title": "Sistema de auto-ready",
         "label": "Marcar automáticamente a los jugadores como listos al unirse",
@@ -1111,14 +1111,14 @@
       "demo": {
         "title": "Grabación de demos",
         "enabled": "Habilitar grabación automática de demos GOTV",
-        "description": "Cuando está deshabilitado, el servidor reinicia ~10s tras el final del partido (vs 60-90s con grabación)"
+        "description": "Las demos se graban en el servidor y se suben automáticamente a Auto Tournament después de cada mapa."
       }
     },
     "developer": {
       "title": "Opciones de desarrollador",
       "description": "Solo para desarrollo local; no habilitar en producción.",
       "simulateToggleLabel": "Simular partidos (usar demos con bots en lugar de jugadores reales)",
-      "simulateNote": "Cuando está habilitado, las configuraciones generadas incluyen \"simulation\": true para demos automatizadas.",
+      "simulateNote": "Cuando está habilitado, las configuraciones de partido enviadas a los servidores incluyen \"simulation\": true para los partidos demo automatizados.",
       "timescaleTitle": "Velocidad de simulación",
       "timescaleDescription": "Controla lo rápido que se ejecutan los partidos simulados. Valores más altos aceleran bots y rondas. Solo aplica cuando la simulación está habilitada.",
       "timescaleWarning": "Velocidades por encima de 2.0 pueden ser inestables y causar comportamientos raros de bots, pero sirven para pruebas rápidas.",
@@ -1134,7 +1134,7 @@
     },
     "reset": {
       "title": "¿Restablecer ajustes?",
-      "description": "Restablece todos los ajustes de esta página a los valores por defecto. Los torneos y servidores existentes no se modifican, pero los nuevos partidos y consultas usarán los valores por defecto. ¿Continuar?",
+      "description": "Restablece los valores predeterminados del servidor CS2 en esta pestaña (demos, ready-up, pausas y el resto). Los torneos y servidores existentes no cambian, pero los nuevos partidos usarán los valores predeterminados. ¿Continuar?",
       "cancel": "Cancelar",
       "confirm": "Restablecer",
       "success": "Ajustes restablecidos a los valores por defecto",
@@ -2408,7 +2408,7 @@
   },
   "serversList": {
     "noMachine": "Sin máquina",
-    "noMachineAbout": "Servidores Ready Up inscritos por su cuenta y servidores añadidos por dirección.",
+    "noMachineAbout": "Servidores Ready Up que se inscribieron por su cuenta.",
     "guessedBanner": "Algunas direcciones se dedujeron de dónde se conecta el servidor. Revísalas o define la dirección que usan los jugadores.",
     "transport": {
       "readyUp": "Ready Up",

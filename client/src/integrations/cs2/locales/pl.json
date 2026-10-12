@@ -1053,8 +1053,8 @@
       "knifeNote": "Dotyczy tylko sytuacji, gdy MatchZy Enhanced normalnie uruchomiłby rundę knife; jawne wybory stron nie są zmieniane."
     },
     "atCore": {
-      "title": "Domyślne ustawienia MatchZy Enhanced Core",
-      "description": "Te ustawienia są wysyłane na serwery podczas inicjalizacji oraz przed każdym wczytaniem meczu.",
+      "title": "Domyślne ustawienia meczu",
+      "description": "Wysyłane na serwery Ready Up przy każdym meczu.",
       "expert": {
         "title": "Ustawienia zaawansowane",
         "description": "Te ustawienia mogą spowodować nieoczekiwane zachowanie serwera, jeśli zostaną źle skonfigurowane. Zmieniaj je tylko, jeśli wiesz, że tego potrzebujesz.",
@@ -1072,7 +1072,7 @@
         "title": "Gotowość / Start meczu",
         "minimumReadyLabel": "Minimalna wymagana liczba gotowych graczy",
         "minimumReadyHelper": "0 = wszyscy podłączeni gracze muszą być gotowi. Domyślnie: 0.",
-        "allowForceReady": "Pozwól adminom wymusić gotowość podczas konfiguracji (!forceready)"
+        "allowForceReady": "Pozwól adminom wymuszać gotowość graczy podczas konfiguracji (.forceready)"
       },
       "access": {
         "title": "Dostęp do serwera",
@@ -1111,8 +1111,8 @@
       }
     },
     "atEnhanced": {
-      "title": "Funkcje MatchZy Enhanced",
-      "description": "Skonfiguruj zaawansowane funkcje meczu. Zostaw pola puste, aby użyć domyślnych ustawień MatchZy Enhanced.",
+      "title": "Funkcje meczu",
+      "description": "Wysyłane na serwery Ready Up przy każdym meczu. Pozostaw ustawienie puste, aby użyć domyślnej wartości Ready Up.",
       "autoready": {
         "title": "Auto-ready",
         "label": "Automatycznie oznaczaj graczy jako gotowych po dołączeniu",
@@ -1149,14 +1149,14 @@
       "demo": {
         "title": "Nagrywanie demo",
         "enabled": "Włącz automatyczne nagrywanie demo GOTV",
-        "description": "Gdy wyłączone, serwer restartuje ~10s po zakończeniu meczu (vs 60-90s z nagrywaniem)"
+        "description": "Dema są nagrywane na serwerze i automatycznie wysyłane do Auto Tournament po każdej mapie."
       }
     },
     "developer": {
       "title": "Opcje deweloperskie",
       "description": "Tylko do lokalnego rozwoju; nie włączaj na produkcji.",
       "simulateToggleLabel": "Symuluj mecze (mecze demo z botami zamiast prawdziwych graczy)",
-      "simulateNote": "Gdy włączone, generowane konfiguracje zawierają \"simulation\": true dla zautomatyzowanych meczów demo.",
+      "simulateNote": "Gdy włączone, konfiguracje meczów wysyłane na serwery zawierają \"simulation\": true dla zautomatyzowanych meczów demo.",
       "timescaleTitle": "Prędkość symulacji",
       "timescaleDescription": "Kontroluje szybkość symulowanych meczów. Wyższe wartości przyspieszają boty i przebieg rund. Działa tylko, gdy symulacja jest włączona.",
       "timescaleWarning": "Wartości powyżej 2.0 mogą być niestabilne i powodować dziwne zachowanie botów, ale są ok do szybkich testów lokalnych.",
@@ -1172,7 +1172,7 @@
     },
     "reset": {
       "title": "Resetować ustawienia?",
-      "description": "Resetuje wszystkie ustawienia na tej stronie do wartości domyślnych. Istniejące turnieje i serwery nie zostaną zmienione, ale nowe mecze i wyszukiwania użyją wartości domyślnych. Kontynuować?",
+      "description": "Resetuje domyślne ustawienia serwerów CS2 na tej karcie (dema, ready-up, pauzy i reszta). Istniejące turnieje i serwery nie zostaną zmienione, ale nowe mecze użyją wartości domyślnych. Kontynuować?",
       "cancel": "Anuluj",
       "confirm": "Resetuj",
       "success": "Ustawienia zresetowane do wartości domyślnych",
@@ -2448,7 +2448,7 @@
   },
   "serversList": {
     "noMachine": "Bez maszyny",
-    "noMachineAbout": "Serwery Ready Up zapisane samodzielnie i serwery dodane po adresie.",
+    "noMachineAbout": "Serwery Ready Up, które zarejestrowały się samodzielnie.",
     "guessedBanner": "Niektóre adresy odgadnięto na podstawie miejsca, z którego łączy się serwer. Sprawdź je lub ustaw adres używany przez graczy.",
     "transport": {
       "readyUp": "Ready Up",

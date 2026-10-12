@@ -1015,8 +1015,8 @@
       "knifeNote": "仅在 MatchZy Enhanced 正常会运行刀局时生效；不会改变显式选择阵营或洗牌分配阵营的情况。"
     },
     "atCore": {
-      "title": "MatchZy Enhanced 核心默认值",
-      "description": "这些默认值会在服务器初始化以及每次加载比赛前下发到服务器。",
+      "title": "比赛默认值",
+      "description": "每场比赛都会下发到 Ready Up 服务器。",
       "expert": {
         "title": "专家设置",
         "description": "如果配置不当，这些设置可能导致服务器出现意外行为。仅在你确实需要时再修改。",
@@ -1034,7 +1034,7 @@
         "title": "准备 / 比赛开始",
         "minimumReadyLabel": "最少准备人数要求",
         "minimumReadyHelper": "0 = 所有已连接玩家都必须准备。默认：0。",
-        "allowForceReady": "允许管理员在设置阶段强制准备玩家（!forceready）"
+        "allowForceReady": "允许管理员在设置阶段强制准备玩家（.forceready）"
       },
       "access": {
         "title": "服务器访问",
@@ -1073,8 +1073,8 @@
       }
     },
     "atEnhanced": {
-      "title": "MatchZy Enhanced 功能",
-      "description": "配置高级比赛功能。留空设置以使用 MatchZy Enhanced 插件默认值。",
+      "title": "比赛功能",
+      "description": "每场比赛都会下发到 Ready Up 服务器。留空设置则使用 Ready Up 默认值。",
       "autoready": {
         "title": "自动准备系统",
         "label": "玩家加入时自动标记为已准备",
@@ -1111,14 +1111,14 @@
       "demo": {
         "title": "Demo 录制",
         "enabled": "启用自动 GOTV demo 录制",
-        "description": "禁用后，服务器在比赛结束后约 10 秒重启（启用录制时为 60-90 秒）"
+        "description": "Demo 在服务器上录制，每张地图结束后自动上传到 Auto Tournament。"
       }
     },
     "developer": {
       "title": "开发者选项",
       "description": "仅用于本地开发，请勿在生产环境启用。",
       "simulateToggleLabel": "模拟比赛（使用机器人驱动的 Demo 比赛代替真实玩家）",
-      "simulateNote": "启用后，生成的 MatchZy Enhanced 配置会包含 \"simulation\": true 字段，用于自动化 Demo 比赛。",
+      "simulateNote": "启用后，下发到服务器的比赛配置会包含 \"simulation\": true 字段，用于自动化 Demo 比赛。",
       "timescaleTitle": "模拟时间倍率",
       "timescaleDescription": "控制模拟比赛的运行速度。数值越高，机器人和回合流程越快。仅在启用模拟时生效。",
       "timescaleWarning": "大于 2.0 的速度可能略显不稳定，并可能导致奇怪的机器人行为，但适合快速本地测试。",
@@ -1134,7 +1134,7 @@
     },
     "reset": {
       "title": "重置设置？",
-      "description": "将此页面上的所有设置重置为默认值。现有锦标赛和服务器不会改变，但新的比赛和查询将使用默认值。是否继续？",
+      "description": "重置此页面上的 CS2 服务器默认值（Demo、ready-up、暂停等其他设置）。现有锦标赛和服务器不会改变，但新的比赛将使用默认值。是否继续？",
       "cancel": "取消",
       "confirm": "重置",
       "success": "设置已重置为默认值",
@@ -2408,7 +2408,7 @@
   },
   "serversList": {
     "noMachine": "无机器",
-    "noMachineAbout": "自行注册的 Ready Up 服务器，以及按地址添加的服务器。",
+    "noMachineAbout": "自行注册的 Ready Up 服务器。",
     "guessedBanner": "部分地址是根据服务器的连接来源推测的。请检查，或设置玩家使用的地址。",
     "transport": {
       "readyUp": "Ready Up",

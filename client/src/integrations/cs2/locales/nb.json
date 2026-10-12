@@ -1016,8 +1016,8 @@
       "knifeNote": "Gjelder kun når MatchZy Enhanced ellers ville kjørt knivrunde."
     },
     "atCore": {
-      "title": "MatchZy Enhanced core-standarder",
-      "description": "Disse standardene sendes til servere under initialisering og før hver kamp lastes inn.",
+      "title": "Kampstandarder",
+      "description": "Sendes til Ready Up-servere med hver kamp.",
       "expert": {
         "title": "Ekspertinnstillinger",
         "description": "Disse innstillingene kan gi uventet serveroppførsel hvis de settes feil.",
@@ -1035,7 +1035,7 @@
         "title": "Ready / kampstart",
         "minimumReadyLabel": "Minimum antall ready-spillere",
         "minimumReadyHelper": "0 = alle tilkoblede spillere må ready. Standard: 0.",
-        "allowForceReady": "Tillat admin å force-ready spillere under oppsett (!forceready)"
+        "allowForceReady": "Tillat admin å force-ready spillere under oppsett (.forceready)"
       },
       "access": {
         "title": "Servertilgang",
@@ -1074,8 +1074,8 @@
       }
     },
     "atEnhanced": {
-      "title": "MatchZy Enhanced‑funksjoner",
-      "description": "Avanserte match‑funksjoner. La stå tomt for MatchZy Enhanced‑standard.",
+      "title": "Kampfunksjoner",
+      "description": "Sendes til Ready Up-servere med hver kamp. La en innstilling stå tom for å bruke Ready Up-standarden.",
       "autoready": {
         "title": "Auto‑ready",
         "label": "Auto‑marker spillere som ready når de joiner",
@@ -1112,14 +1112,14 @@
       "demo": {
         "title": "Demo‑opptak",
         "enabled": "Aktiver demo‑opptak (Auto Tournament konfigurerer GOTV + opplasting automatisk)",
-        "description": "Når aktivert setter Auto Tournament tv_enable 1 og konfigurerer MatchZy Enhanced til å laste opp demoer til Auto Tournament automatisk etter hvert kart."
+        "description": "Demoer tas opp på serveren og lastes opp til Auto Tournament automatisk etter hvert kart."
       }
     },
     "developer": {
       "title": "Utvikleralternativer",
       "description": "Kun for lokal utvikling – ikke bruk i produksjon.",
       "simulateToggleLabel": "Simuler kamper (bruk bot-styrte demo-kamper i stedet for ekte spillere)",
-      "simulateNote": "Når aktivert, inkluderer genererte MatchZy Enhanced-konfiger \"simulation\": true for automatiserte demo-kamper.",
+      "simulateNote": "Når aktivert, inkluderer konfigurasjonene for kamper som sendes til servere \"simulation\": true for automatiserte demo-kamper.",
       "timescaleTitle": "Simuleringshastighet",
       "timescaleDescription": "Styrer hvor raskt simulerte kamper kjører. Høyere verdier gjør bots og runde-flow raskere. Gjelder kun når simulering er aktivert.",
       "timescaleWarning": "Hastigheter over 2.0 kan være litt ustabile og gi rar bot-oppførsel, men fungerer fint for rask lokal testing.",
@@ -1135,7 +1135,7 @@
     },
     "reset": {
       "title": "Tilbakestille innstillinger?",
-      "description": "Tilbakestill CS2-serverstandardene i denne fanen (chat, demoer, klarmelding, pauser og resten). Eksisterende turneringer og servere endres ikke, men nye kamper vil bruke standardverdiene. Fortsette?",
+      "description": "Tilbakestill CS2-serverstandardene på denne fanen (demoer, ready-up, pauser og resten). Eksisterende turneringer og servere endres ikke, men nye kamper vil bruke standardverdiene. Fortsette?",
       "cancel": "Avbryt",
       "confirm": "Tilbakestill",
       "success": "Innstillinger tilbakestilt til standardverdier",
@@ -2403,7 +2403,7 @@
   },
   "serversList": {
     "noMachine": "Uten maskin",
-    "noMachineAbout": "Ready Up-servere som meldte seg på selv, og servere lagt til med adresse.",
+    "noMachineAbout": "Ready Up-servere som meldte seg på selv.",
     "guessedBanner": "Noen adresser ble gjettet ut fra hvor serveren kobler til fra. Sjekk dem, eller angi adressen spillerne bruker.",
     "transport": {
       "readyUp": "Ready Up",
