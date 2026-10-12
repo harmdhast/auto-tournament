@@ -11,8 +11,8 @@ import {
 } from './cs2TournamentSettings';
 
 /**
- * Round limit and overtime, which the Counter-Strike 2 module passes to
- * MatchZy Enhanced (mp_maxrounds, overtimeMode / overtimeSegments). Same rules for
+ * Round limit and overtime, sent to Ready Up servers with each match
+ * (mp_maxrounds, overtimeMode / overtimeSegments). Same rules for
  * shuffle and bracket tournaments. They are CS2's own settings
  * (`settings.cs2`), which this step reads from and writes to the wizard's
  * settings object.
