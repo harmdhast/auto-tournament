@@ -1,5 +1,9 @@
 # Third-party media
 
+## CS2 map and skin images
+
+Map and skin images come from [CS2 Server Manager](https://github.com/Auto-Tournament/cs2-server-manager). The client build downloads them and resizes them into `client/public/cs2-assets/` (`yarn cs2:assets`), so pages load small local files instead of the originals. When an image is missing from the build, the page falls back to jsDelivr; an image you upload for a map always wins.
+
 ## Reel music: bring your own
 
 Auto Tournament ships no music and downloads none. Each install's admin adds the tracks reels may play (Match rules › Highlight videos), and is responsible for having the rights to use them in videos. The tracks stay on that install; Auto Tournament's license does not cover them.
