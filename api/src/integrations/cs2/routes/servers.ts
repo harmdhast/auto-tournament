@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { serverService } from '../services/serverService';
 import { CreateServerInput, UpdateServerInput } from '../../../types/server.types';
 import { requireAuth } from '../../../middleware/auth';
+import { requireRconEnabled } from '../../../middleware/rconEnabled';
 import { scheduler } from '../../../core/scheduler';
 import { serverInitializationService } from '../services/serverInitializationService';
 import { settingsService } from '../../../services/settingsService';
@@ -41,7 +42,7 @@ router.get('/', async (req: Request, res: Response) => {
  * Query param: ?upsert=true to update if exists instead of error
  * NOTE: This must be before /:id routes to avoid matching "batch" as an ID
  */
-router.post('/batch', async (req: Request, res: Response) => {
+router.post('/batch', requireRconEnabled, async (req: Request, res: Response) => {
   try {
     const servers: CreateServerInput[] = req.body;
     const upsert = req.query.upsert === 'true';
@@ -179,7 +180,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  * Create a new server
  * Query param: ?upsert=true to update if exists instead of error
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requireRconEnabled, async (req: Request, res: Response) => {
   try {
     const input: CreateServerInput = req.body;
     const upsert = req.query.upsert === 'true';
