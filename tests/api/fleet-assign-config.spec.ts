@@ -51,7 +51,7 @@ function tournamentConfig(over: Partial<MatchConfig> = {}): MatchConfig {
       at_both_teams_unpause_required: 1,
       at_max_pauses_per_team: 0,
       at_pause_duration: 0,
-      at_side_selection_enabled: 1,
+      at_side_selection_enabled: 0,
       at_side_selection_time: 60,
       at_gg_enabled: 1,
       at_gg_threshold: 0.8,

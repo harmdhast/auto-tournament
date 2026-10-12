@@ -189,11 +189,9 @@ export function rulesFromMatchConfig(
   if (autoready !== undefined) ready.autoready = autoready;
   if (Object.keys(ready).length) rules.ready = ready;
 
-  if (flag(cvars.at_side_selection_enabled) !== false) {
-    const seconds = num(cvars.at_side_selection_time);
-    if (seconds !== undefined) {
-      rules.knife = { side_pick_seconds: Math.min(300, Math.max(5, Math.floor(seconds))) };
-    }
+  const sidePick = num(cvars.at_side_selection_time);
+  if (sidePick !== undefined) {
+    rules.knife = { side_pick_seconds: Math.min(300, Math.max(5, Math.floor(sidePick))) };
   }
 
   const pause: NonNullable<MatchRules['pause']> = {};
