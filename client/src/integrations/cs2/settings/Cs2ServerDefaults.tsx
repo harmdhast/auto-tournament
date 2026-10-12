@@ -187,7 +187,6 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
         for (const key of keys) next[key] = stored[key];
         return next as unknown as Cs2DefaultsValues;
       });
-      window.dispatchEvent(new CustomEvent('at:settingsUpdated', { detail: settings }));
       return stored;
     },
     []

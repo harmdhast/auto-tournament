@@ -77,8 +77,8 @@ test.describe('Module sections on Admin tools and Settings', () => {
       }
 
       await group.getByRole('link', { name: 'Match rules' }).click();
-      await expect(page.getByTestId('settings-webhook-url-input')).toBeVisible({ timeout: 15000 });
       await expect(page.getByTestId('cs2-server-defaults')).toBeVisible();
+      await expect(page.getByTestId('settings-webhook-url-input')).toHaveCount(0);
       await expect(page.getByTestId('setting-veto-turn-seconds')).toBeAttached();
 
       await group.getByRole('link', { name: 'Skins' }).click();
