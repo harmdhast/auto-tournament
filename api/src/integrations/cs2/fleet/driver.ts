@@ -65,6 +65,8 @@ import { liveStateStore } from './state';
 import {
   bindOrphanDeps,
   claimUnassign,
+  claimUnassignForConnection,
+  releaseUnassign,
   dropOrphanAssignment,
   forgetDroppedOrphans,
 } from './orphans';
@@ -1134,15 +1136,23 @@ export async function supersedeStaleLocalCopy(
     [detail, fleetServerId]
   );
   const epoch = Number(moved?.from_epoch ?? assignment?.epoch ?? 1);
+  const key = `${fleetServerId}:${detail}:${epoch}`;
+  if (!claimUnassignForConnection(key)) return false;
   told.add(detail);
   toldToDrop.set(fleetServerId, told);
   log.warn(
     `[FLEET] ${fleetServerId} is busy with ${detail}, which is not its match any more; unassigning it (superseded)`
   );
-  await sendReliable(fleetServerId, {
-    type: 'match.unassign',
-    payload: { match_id: detail, epoch, reason: 'superseded', kick_message: MOVED_KICK_MESSAGE },
-  });
+  try {
+    await sendReliable(fleetServerId, {
+      type: 'match.unassign',
+      payload: { match_id: detail, epoch, reason: 'superseded', kick_message: MOVED_KICK_MESSAGE },
+    });
+  } catch (error) {
+    told.delete(detail);
+    releaseUnassign(key);
+    throw error;
+  }
   return true;
 }
 

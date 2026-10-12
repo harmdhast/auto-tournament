@@ -45,6 +45,22 @@ export function claimUnassign(key: string): boolean {
   return true;
 }
 
+/**
+ * Claims an unassign for the current connection: released on hello (forgetDroppedOrphans) or by
+ * releaseUnassign. A fence's earlier claim does not block it (a server that lost the fence is told again).
+ */
+export function claimUnassignForConnection(key: string): boolean {
+  if (claimedHere.has(key)) return false;
+  claimedHere.add(key);
+  sent.add(key);
+  return true;
+}
+
+export function releaseUnassign(key: string): void {
+  sent.delete(key);
+  claimedHere.delete(key);
+}
+
 /** The platform's own assignment of `slug` to this fleet server is still open (unlink and relink keep it). */
 async function holdsOpenAssignment(slug: string, fleetServerId: string): Promise<boolean> {
   const row = await db.queryOneAsync<{ match_slug: string }>(
@@ -120,8 +136,7 @@ export async function dropOrphanAssignment(
       !!answer
     );
   } catch (error) {
-    sent.delete(key);
-    claimedHere.delete(key);
+    releaseUnassign(key);
     await closeAudit(auditId, messageId, 'error', (error as Error).message.slice(0, 120), false);
     throw error;
   }

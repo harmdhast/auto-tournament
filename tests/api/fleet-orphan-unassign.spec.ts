@@ -193,4 +193,19 @@ test.describe.serial('Fleet orphan unassign', () => {
     fake.answer(msg, 'ok');
     await expect(fake.next('match.unassign', 2000)).rejects.toThrow();
   });
+
+  test('awaiting_reset on a completed match gets one match.unassign across hello and snapshot', async ({
+    request,
+  }) => {
+    const { fake, cs2Id } = await online(request);
+    const slug = `orphan-both-${Date.now()}`;
+    await createMatch(request, slug);
+    await setState(request, slug, 'completed', cs2Id);
+    await fake.reconnect({ availability: 'busy', reason: 'awaiting_reset', detail: slug, state: null });
+    const msg = await fake.next('match.unassign');
+    expect(msg.payload).toMatchObject({ match_id: slug });
+    fake.answer(msg, 'ok');
+    report(fake, slug, 1, 'awaiting_reset');
+    await expect(fake.next('match.unassign', 2000)).rejects.toThrow();
+  });
 });
