@@ -6,10 +6,11 @@ import { readLocalAssets, skinImageUrls } from '../../api/src/integrations/cs2/a
 
 const REMOTE = 'https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/skin_images';
 
-function tempPublic(manifest: string): string {
+function tempPublic(manifest: string, skins?: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cs2-assets-'));
   fs.mkdirSync(path.join(dir, 'cs2-assets'));
   fs.writeFileSync(path.join(dir, 'cs2-assets', 'manifest.json'), manifest);
+  if (skins !== undefined) fs.writeFileSync(path.join(dir, 'cs2-assets', 'skins.json'), skins);
   return dir;
 }
 
@@ -18,12 +19,17 @@ const manifest = JSON.stringify({
   base: '/cs2-assets/abc',
   complete: true,
   maps: {},
+});
+
+const skinsList = JSON.stringify({
+  sha: 'abc',
+  base: '/cs2-assets/abc',
   skins: { 'ak47_x.png': { small: 'skins/small/ak47_x.webp', full: 'skins/ak47_x.png' } },
 });
 
 test.describe('cs2 local assets', () => {
   test('listed skin resolves to bundled full and small', () => {
-    const assets = readLocalAssets(tempPublic(manifest));
+    const assets = readLocalAssets(tempPublic(manifest, skinsList));
     expect(skinImageUrls('ak47_x.png', assets)).toEqual({
       imageUrl: '/cs2-assets/abc/skins/ak47_x.png',
       imageSmallUrl: '/cs2-assets/abc/skins/small/ak47_x.webp',
@@ -31,7 +37,7 @@ test.describe('cs2 local assets', () => {
   });
 
   test('unlisted skin falls back to jsDelivr for both', () => {
-    const assets = readLocalAssets(tempPublic(manifest));
+    const assets = readLocalAssets(tempPublic(manifest, skinsList));
     expect(skinImageUrls('other.png', assets)).toEqual({
       imageUrl: `${REMOTE}/other.png`,
       imageSmallUrl: `${REMOTE}/other.png`,
@@ -40,6 +46,12 @@ test.describe('cs2 local assets', () => {
 
   test('null assets fall back to jsDelivr', () => {
     expect(skinImageUrls('ak47_x.png', null).imageUrl).toBe(`${REMOTE}/ak47_x.png`);
+  });
+
+  test('a missing skins list leaves skins on jsDelivr', () => {
+    const assets = readLocalAssets(tempPublic(manifest));
+    expect(assets?.skins).toEqual({});
+    expect(skinImageUrls('ak47_x.png', assets).imageUrl).toBe(`${REMOTE}/ak47_x.png`);
   });
 
   test('invalid or missing manifest reads as null', () => {
