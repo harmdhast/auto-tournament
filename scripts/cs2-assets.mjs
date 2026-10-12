@@ -55,10 +55,21 @@ export function planAssets(mapsJson, skinsJson) {
     seen.add(id);
     const images = entry.images ?? {};
     const full = text(images.full) ?? `${id}.webp`;
-    jobs.push({ kind: 'map-small', key: id, src: `map_thumbnails/${full}`, out: `maps/${id}-small.webp` });
+    jobs.push({
+      kind: 'map-small',
+      key: id,
+      src: `map_thumbnails/${full}`,
+      out: `maps/${id}-small.webp`,
+    });
     jobs.push({ kind: 'map-full', key: id, src: `map_thumbnails/${full}`, out: `maps/${id}.webp` });
     const icon = text(images.icon);
-    if (icon) jobs.push({ kind: 'map-icon', key: id, src: `map_thumbnails/${icon}`, out: `maps/${id}-icon.webp` });
+    if (icon)
+      jobs.push({
+        kind: 'map-icon',
+        key: id,
+        src: `map_thumbnails/${icon}`,
+        out: `maps/${id}-icon.webp`,
+      });
   }
   const skinSeen = new Set();
   for (const entry of Array.isArray(skinsJson?.skins) ? skinsJson.skins : []) {
@@ -71,7 +82,12 @@ export function planAssets(mapsJson, skinsJson) {
       src: `skin_images/${image}`,
       out: `skins/small/${image.replace(/\.[^./]+$/, '')}.webp`,
     });
-    jobs.push({ kind: 'skin-full', key: image, src: `skin_images/${image}`, out: `skins/${image}` });
+    jobs.push({
+      kind: 'skin-full',
+      key: image,
+      src: `skin_images/${image}`,
+      out: `skins/${image}`,
+    });
   }
   return jobs;
 }
@@ -118,9 +134,15 @@ async function convert(sharp, job, input) {
   const clear = { r: 0, g: 0, b: 0, alpha: 0 };
   switch (job.kind) {
     case 'map-small':
-      return sharp(input).resize(640, 360, { fit: 'cover', kernel: 'lanczos3' }).webp({ quality: 80 }).toBuffer();
+      return sharp(input)
+        .resize(640, 360, { fit: 'cover', kernel: 'lanczos3' })
+        .webp({ quality: 80 })
+        .toBuffer();
     case 'map-full':
-      return sharp(input).resize(1920, 1080, { fit: 'cover', kernel: 'lanczos3' }).webp({ quality: 75 }).toBuffer();
+      return sharp(input)
+        .resize(1920, 1080, { fit: 'cover', kernel: 'lanczos3' })
+        .webp({ quality: 75 })
+        .toBuffer();
     case 'map-icon':
       return sharp(input, { density: 300 })
         .resize(64, 64, { fit: 'contain', background: clear })
@@ -216,15 +238,18 @@ async function main() {
   await writeAtomic(path.join(OUT_DIR, 'skins.json'), JSON.stringify(skinsManifest));
   await writeAtomic(manifestPath, JSON.stringify(manifest));
   for (const entry of await fs.readdir(OUT_DIR)) {
-    if (entry !== sha && entry !== 'manifest.json' && entry !== 'skins.json') await fs.rm(path.join(OUT_DIR, entry), { recursive: true, force: true });
+    if (entry !== sha && entry !== 'manifest.json' && entry !== 'skins.json')
+      await fs.rm(path.join(OUT_DIR, entry), { recursive: true, force: true });
   }
   console.log(
-    `cs2-assets: ${sha.slice(0, 7)}: ${Object.keys(manifest.maps).length} maps, ${Object.keys(skinsManifest.skins).length} skins`,
+    `cs2-assets: ${sha.slice(0, 7)}: ${Object.keys(manifest.maps).length} maps, ${Object.keys(skinsManifest.skins).length} skins`
   );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((err) => {
-    console.warn(`cs2-assets: ${err.message}; keeping existing images, the app falls back to the CDN`);
+    console.warn(
+      `cs2-assets: ${err.message}; keeping existing images, the app falls back to the CDN`
+    );
   });
 }

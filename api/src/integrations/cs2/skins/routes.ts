@@ -24,7 +24,8 @@ import { SkinError, skinService, variantOf, type SkinsConfig } from './skinServi
 const router = Router();
 
 function fail(res: Response, error: unknown, what: string) {
-  if (error instanceof SkinError) return res.status(error.status).json({ success: false, error: error.message });
+  if (error instanceof SkinError)
+    return res.status(error.status).json({ success: false, error: error.message });
   log.error(`[Skins] ${what} failed`, { error });
   return res.status(500).json({ success: false, error: `${what} failed` });
 }
@@ -155,7 +156,9 @@ router.post('/me/seen', async (req, res) => {
   try {
     const uid = await playerOrStop(req, res);
     if (!uid) return;
-    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Number.isInteger) : [];
+    const ids = Array.isArray(req.body?.ids)
+      ? req.body.ids.map(Number).filter(Number.isInteger)
+      : [];
     await skinService.markSeen(uid, ids);
     return res.json({ success: true });
   } catch (error) {
@@ -206,7 +209,8 @@ router.put('/me/showcase', async (req, res) => {
  */
 router.get('/players/:steamId', async (req, res) => {
   try {
-    if (!(await skinService.config()).enabled) return res.status(404).json({ success: false, error: 'Skins are off' });
+    if (!(await skinService.config()).enabled)
+      return res.status(404).json({ success: false, error: 'Skins are off' });
     const profile = await skinService.publicProfile(req.params.steamId);
     if (!profile) return res.status(404).json({ success: false, error: 'No such player' });
     return res.json({ success: true, ...profile });
@@ -229,7 +233,8 @@ router.get('/players/:steamId', async (req, res) => {
  */
 router.get('/skin/:id', async (req, res) => {
   try {
-    if (!(await skinService.config()).enabled) return res.status(404).json({ success: false, error: 'Skins are off' });
+    if (!(await skinService.config()).enabled)
+      return res.status(404).json({ success: false, error: 'Skins are off' });
     return res.json({ success: true, ...(await skinService.one(Number(req.params.id))) });
   } catch (error) {
     return fail(res, error, 'Reading a skin');
@@ -287,7 +292,11 @@ router.put('/admin/config', requireAuth, async (req, res) => {
  */
 router.get('/admin/catalog', requireAuth, async (req, res) => {
   try {
-    const words = String(req.query.q ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const words = String(req.query.q ?? '')
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
     // `all=1`: every paint kit, so each phase of a Doppler is its own row.
     const all = req.query.all === '1';
     const seen = new Set<string>();
@@ -350,7 +359,9 @@ router.get('/admin/players', requireAuth, async (req, res) => {
         name: p.name,
         avatarUrl: p.avatar_url,
         skins: p.skins,
-        best: p.best_name ? { weaponName: p.best_weapon, name: p.best_name, rarity: p.best_rarity } : null,
+        best: p.best_name
+          ? { weaponName: p.best_weapon, name: p.best_name, rarity: p.best_rarity }
+          : null,
       })),
     });
   } catch (error) {
@@ -373,7 +384,10 @@ router.get('/admin/players', requireAuth, async (req, res) => {
  */
 router.get('/admin/players/:steamId/inventory', requireAuth, async (req, res) => {
   try {
-    return res.json({ success: true, inventory: await skinService.adminInventory(req.params.steamId) });
+    return res.json({
+      success: true,
+      inventory: await skinService.adminInventory(req.params.steamId),
+    });
   } catch (error) {
     return fail(res, error, 'Reading the inventory');
   }
@@ -440,7 +454,8 @@ router.post('/admin/players/:steamId/skins', requireAuth, async (req, res) => {
 router.delete('/admin/skins/:id', requireAuth, async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isInteger(id)) return res.status(400).json({ success: false, error: 'Bad skin id.' });
+    if (!Number.isInteger(id))
+      return res.status(400).json({ success: false, error: 'Bad skin id.' });
     await skinService.adminRemove(id);
     return res.json({ success: true });
   } catch (error) {

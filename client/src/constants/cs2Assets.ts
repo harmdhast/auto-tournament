@@ -77,11 +77,7 @@ const bundledUrl = (id: string, size: MapImageSize): string | undefined => {
   return manifest && path ? `${manifest.base}/${path}` : undefined;
 };
 
-export const mapImageUrl = (
-  id: string,
-  size: MapImageSize,
-  customUrl?: string | null
-): string => {
+export const mapImageUrl = (id: string, size: MapImageSize, customUrl?: string | null): string => {
   if (isCustomMapImage(customUrl) && size !== 'icon') {
     return size === 'small' && isUploadedMapImage(customUrl) ? uploadedSmall(customUrl) : customUrl;
   }

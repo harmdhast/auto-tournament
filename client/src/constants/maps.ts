@@ -35,4 +35,3 @@ export const getMapDisplayName = (mapName: string): string => {
   const mapData = getMapData(mapName);
   return mapData?.displayName || titleCaseMapName(mapName) || mapName;
 };
-
