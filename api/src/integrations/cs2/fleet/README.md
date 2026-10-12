@@ -61,6 +61,11 @@ FLEET.md §6.1): each hello refreshes them (`syncLinkedAddress`) unless
 link, `PUT /api/fleet/servers/:id/address`, the server editor, or linking an
 existing RCON row). `cs2_fleet_servers.peer_addr` is the client address of the
 last hello or enrollment (migration `012-fleet-connect-address`).
+Unlinking deletes the `cs2_servers` row and sets `cs2_fleet_servers.auto_linked_at`,
+so no first-hello or failover link takes the server back.
+RCON servers exist only with `ENABLE_TEST_ENDPOINTS` (the test suite): without it,
+creating one, the MatchZy webhooks (`POST /api/events*`), the RCON-only admin
+routes and the RCON monitors and start checks are off.
 A row the link creates starts with `skins` on when the server's enrollment
 key has `skins` (migration `033-fleet-key-skins`) and is neither revoked
 nor expired; one taken over from an earlier link keeps what an admin set.
