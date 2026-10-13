@@ -184,6 +184,15 @@ export function useMySkins() {
     }
   }, []);
 
+  /** Empties a slot (a pick is deleted with it): the game's default is back. */
+  const unequip = useCallback(async (slot: string) => {
+    try {
+      await api.delete(`/api/skins/me/equip/${encodeURIComponent(slot)}`);
+    } finally {
+      announceChange();
+    }
+  }, []);
+
   const markSeen = useCallback(async (ids: number[]) => {
     setUnseen((list) => list.filter((id) => !ids.includes(id)));
     await api.post('/api/skins/me/seen', { ids }).catch(() => undefined);
@@ -211,6 +220,7 @@ export function useMySkins() {
     available,
     reload,
     equip,
+    unequip,
     pick,
     markSeen,
     saveShowcase,

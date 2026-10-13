@@ -1711,6 +1711,7 @@
     "inventory": "Inventory",
     "count": "{{count}} skins",
     "equippedTitle": "Equipped",
+    "gearTitle": "Nóż i wyposażenie",
     "slot": {
       "knife": "Knife",
       "gloves": "Gloves"

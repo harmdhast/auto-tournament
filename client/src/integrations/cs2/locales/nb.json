@@ -1673,6 +1673,7 @@
     "inventory": "Inventar",
     "count": "{{count}} skins",
     "equippedTitle": "I bruk",
+    "gearTitle": "Kniv og utstyr",
     "slot": {
       "knife": "Kniv",
       "gloves": "Hansker"
