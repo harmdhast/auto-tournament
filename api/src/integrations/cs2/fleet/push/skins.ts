@@ -165,9 +165,9 @@ export async function skinsTurnedOff(fleetServerId: string): Promise<void> {
  * loadout again, under the new rules (pushSkinsOnConnect).
  */
 export async function repushConnectedLoadouts(): Promise<void> {
-  const { fleetBus } = await import('../service');
-  const bus = fleetBus();
   try {
+    const { fleetBus } = await import('../service');
+    const bus = fleetBus();
     const rows = await db.queryAsync<{ id: string }>('SELECT id FROM cs2_fleet_servers');
     for (const row of rows) {
       if (!bus.isConnected(row.id)) continue;
