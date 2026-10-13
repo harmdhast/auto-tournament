@@ -289,6 +289,7 @@ export function SlotTile({
   skin: OwnedSkin | null;
   onClick?: () => void;
 }) {
+  const { t } = useModuleTranslation('cs2');
   return (
     <Box
       data-testid="loadout-slot"
@@ -308,6 +309,7 @@ export function SlotTile({
               '&:focus-visible': { outline: `2px solid ${color.focus}`, outlineOffset: 2 },
             }
           : {}),
+        position: 'relative',
         borderRadius: '14px',
         overflow: 'hidden',
         bgcolor: color.paper2,
@@ -342,6 +344,24 @@ export function SlotTile({
           aria-hidden
         >
           <PlusIcon size={20} />
+        </Box>
+      )}
+      {skin?.source === 'catalog' && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 6,
+            left: 6,
+            px: 0.875,
+            py: '1px',
+            borderRadius: radii.pill,
+            bgcolor: color.accent,
+            color: color.accentInk,
+            fontSize: '0.625rem',
+            fontWeight: 700,
+          }}
+        >
+          {t('skins.picked')}
         </Box>
       )}
       <Typography
@@ -513,13 +533,17 @@ export function InspectSkinDialog({
                 >
                   {skin.source === 'tournament'
                     ? t('skins.place', { n: skin.place ?? 1 })
-                    : t('skins.wonMatchmaking')}
+                    : skin.source === 'catalog'
+                      ? t('skins.picked')
+                      : t('skins.wonMatchmaking')}
                 </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', color: color.ink2 }}>
-                  {[skin.sourceLabel ? sourceLabel(skin.sourceLabel) : null, date]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </Typography>
+                {skin.source !== 'catalog' && (
+                  <Typography sx={{ fontSize: '0.8125rem', color: color.ink2 }}>
+                    {[skin.sourceLabel ? sourceLabel(skin.sourceLabel) : null, date]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Typography>
+                )}
               </Box>
             </Box>
             <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>

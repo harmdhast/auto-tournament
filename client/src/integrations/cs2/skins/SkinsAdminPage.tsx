@@ -70,6 +70,7 @@ interface Reward {
 interface Config {
   enabled: boolean;
   matchmakingDrops: boolean;
+  catalogUnlocked: boolean;
   dropChance: number;
   playDropChance: number;
   rarityWeights: Record<Rarity, number>;
@@ -893,6 +894,19 @@ export function SkinsAdminPage() {
             {t('skins.admin.tournamentHint')}
           </Typography>
         </SkinsCard>
+
+        <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+          <SkinsCard
+            id="skins-catalog"
+            title={t('skins.admin.catalogUnlocked')}
+            checked={config.catalogUnlocked}
+            onToggle={(on) => set({ catalogUnlocked: on })}
+          >
+            <Typography sx={{ fontSize: '0.8125rem', color: color.muted }}>
+              {t('skins.admin.catalogUnlockedHelp')}
+            </Typography>
+          </SkinsCard>
+        </Box>
       </Box>
 
       <SkinsInventoryAdmin onChanged={() => setStatsVersion((v) => v + 1)} />

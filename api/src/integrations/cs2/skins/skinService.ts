@@ -91,6 +91,8 @@ export interface TournamentReward {
 
 export interface SkinsConfig {
   enabled: boolean;
+  /** Players equip any catalogue skin with a float and seed they choose. */
+  catalogUnlocked: boolean;
   matchmakingDrops: boolean;
   /** Chance of a skin for each winning player, 0–100. */
   dropChance: number;
@@ -104,6 +106,7 @@ export interface SkinsConfig {
 
 export const DEFAULT_CONFIG: SkinsConfig = {
   enabled: false,
+  catalogUnlocked: false,
   matchmakingDrops: true,
   dropChance: 20,
   playDropChance: 5,
@@ -144,7 +147,7 @@ export interface OwnedSkin {
   slot: string;
   float: number;
   pattern: number;
-  source: 'matchmaking' | 'tournament' | 'admin';
+  source: 'matchmaking' | 'tournament' | 'admin' | 'catalog';
   sourceLabel: string | null;
   sourceRef: string | null;
   place: number | null;
@@ -256,6 +259,7 @@ function normalizeConfig(raw: Partial<SkinsConfig>): SkinsConfig {
     })) as TournamentReward[];
   return {
     enabled: raw.enabled === true,
+    catalogUnlocked: raw.catalogUnlocked === true,
     matchmakingDrops: raw.matchmakingDrops !== false,
     dropChance:
       typeof raw.dropChance === 'number' && Number.isFinite(raw.dropChance)
@@ -300,6 +304,16 @@ async function uidOf(steamId: string): Promise<string | null> {
   return row?.uid ?? null;
 }
 
+/** Deletes the catalogue pick (not an earned skin) equipped in a slot. */
+const DROP_PICK_SQL = `DELETE FROM cs2_player_skins
+  WHERE source = 'catalog' AND player_uid = $1
+    AND id IN (SELECT skin_id FROM cs2_player_loadout WHERE player_uid = $1 AND slot = $2)`;
+
+/** Deletes the player's catalogue picks no loadout slot references (left by racing writes). */
+const DROP_ORPHAN_PICKS_SQL = `DELETE FROM cs2_player_skins
+  WHERE source = 'catalog' AND player_uid = $1
+    AND id NOT IN (SELECT skin_id FROM cs2_player_loadout WHERE player_uid = $1)`;
+
 export const skinService = {
   async config(): Promise<SkinsConfig> {
     const raw = await db.getAppSettingAsync(CONFIG_KEY).catch(() => null);
@@ -315,6 +329,12 @@ export const skinService = {
     const next = normalizeConfig({ ...(await this.config()), ...input });
     await db.setAppSettingAsync(CONFIG_KEY, JSON.stringify(next));
     return next;
+  },
+
+  /** Skins are on and players may pick any catalogue skin. */
+  async catalogOn(): Promise<boolean> {
+    const config = await this.config();
+    return config.enabled && config.catalogUnlocked;
   },
 
   /** csm's skin catalogue, cached for an hour. Empty when it cannot be read. */
@@ -420,7 +440,10 @@ export const skinService = {
   },
 
   /** A random catalogue skin of the rarity, or of a rarity drawn by weight. */
-  async pick(rarity: Rarity | null, weights?: Record<Rarity, number>): Promise<CatalogSkin | null> {
+  async randomSkin(
+    rarity: Rarity | null,
+    weights?: Record<Rarity, number>
+  ): Promise<CatalogSkin | null> {
     const catalog = await this.catalog();
     const wanted = rarity ?? (weights ? rollRarity(weights) : null);
     const pool = catalog.filter((s) => s.rarity === wanted);
@@ -449,7 +472,7 @@ export const skinService = {
         if (chance <= 0 || randomInt(0, 10000) >= chance * 100) continue;
         const uid = await uidOf(steamId);
         if (!uid) continue;
-        const skin = await this.pick(null, config.rarityWeights);
+        const skin = await this.randomSkin(null, config.rarityWeights);
         if (!skin) continue;
         await this.grant(uid, skin, { source: 'matchmaking', label: mapLabel, ref: matchSlug });
       }
@@ -492,7 +515,7 @@ export const skinService = {
             );
             skin = variants.length ? variants[randomInt(0, variants.length)] : null;
           } else {
-            skin = await this.pick(reward.rarity ?? 'rare');
+            skin = await this.randomSkin(reward.rarity ?? 'rare');
           }
           if (!skin) continue;
           await this.grant(
@@ -513,15 +536,88 @@ export const skinService = {
 
   async inventory(playerUid: string): Promise<OwnedSkin[]> {
     const rows = await db.queryAsync<SkinRow>(
-      'SELECT * FROM cs2_player_skins WHERE player_uid = ? ORDER BY created_at DESC, id DESC',
+      `SELECT * FROM cs2_player_skins WHERE player_uid = ? AND source <> 'catalog'
+        ORDER BY created_at DESC, id DESC`,
       [playerUid]
     );
+    const set = await this.equippedIds(playerUid);
+    return rows.map((row) => toRow(row, set));
+  },
+
+  async equippedIds(playerUid: string): Promise<Set<number>> {
     const equipped = await db.queryAsync<{ skin_id: number }>(
       'SELECT skin_id FROM cs2_player_loadout WHERE player_uid = ?',
       [playerUid]
     );
-    const set = new Set(equipped.map((e) => e.skin_id));
-    return rows.map((row) => toRow(row, set));
+    return new Set(equipped.map((e) => e.skin_id));
+  },
+
+  /** The player's catalogue picks, all equipped; none while the mode is off. */
+  async picks(playerUid: string): Promise<OwnedSkin[]> {
+    if (!(await this.catalogOn())) return [];
+    const rows = await db.queryAsync<SkinRow>(
+      `SELECT * FROM cs2_player_skins WHERE player_uid = ? AND source = 'catalog'
+        ORDER BY id`,
+      [playerUid]
+    );
+    const set = await this.equippedIds(playerUid);
+    return rows.filter((row) => set.has(row.id)).map((row) => toRow(row, set));
+  },
+
+  /** Equips any catalogue skin with the float and seed given, replacing the slot's pick. */
+  async pick(
+    playerUid: string,
+    input: { weapon: string; paintKit: number; float: number; pattern: number }
+  ): Promise<OwnedSkin> {
+    if (!(await this.catalogOn())) throw new SkinError(404, 'The catalogue is not unlocked.');
+    const { weapon, paintKit, float, pattern } = input;
+    const skin = (await this.catalog()).find((s) => s.weapon === weapon && s.paintKit === paintKit);
+    if (!skin) throw new SkinError(400, 'That skin is not in the catalogue.');
+    if (typeof float !== 'number' || !Number.isFinite(float) || float < 0 || float > 1)
+      throw new SkinError(400, 'The float must be between 0 and 1.');
+    if (!Number.isInteger(pattern) || pattern < 0 || pattern > 1000)
+      throw new SkinError(400, 'The pattern must be a whole number from 0 to 1000.');
+    const slot = slotOf(weapon);
+    const row = await db.withClient(async (client) => {
+      await client.query('BEGIN');
+      try {
+        await client.query(DROP_PICK_SQL, [playerUid, slot]);
+        const inserted = await client.query<SkinRow>(
+          `INSERT INTO cs2_player_skins
+             (player_uid, weapon, weapon_name, paint_kit, name, rarity, image, float_value, pattern, source, variant, seen)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'catalog', $10, TRUE) RETURNING *`,
+          [
+            playerUid,
+            skin.weapon,
+            skin.weaponName,
+            skin.paintKit,
+            skin.name,
+            skin.rarity,
+            skin.image,
+            float,
+            pattern,
+            variantOf(skin.paintKitName),
+          ]
+        );
+        await client.query(
+          `INSERT INTO cs2_player_loadout (player_uid, slot, skin_id) VALUES ($1, $2, $3)
+           ON CONFLICT (player_uid, slot) DO UPDATE SET skin_id = EXCLUDED.skin_id`,
+          [playerUid, slot, inserted.rows[0].id]
+        );
+        await client.query(DROP_ORPHAN_PICKS_SQL, [playerUid]);
+        await client.query('COMMIT');
+        return inserted.rows[0];
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      }
+    });
+    return toRow(row, new Set([row.id]));
+  },
+
+  /** Drops the player's catalogue pick in a slot (a pick lives only while equipped). */
+  async dropPick(playerUid: string, slot: string): Promise<void> {
+    await db.runAsync(DROP_PICK_SQL, [playerUid, slot]);
   },
 
   /** Equips a skin in its slot, replacing what was there. */
@@ -530,15 +626,19 @@ export const skinService = {
       'SELECT * FROM cs2_player_skins WHERE id = ? AND player_uid = ?',
       [skinId, playerUid]
     );
-    if (!skin) throw new SkinError(404, 'That skin is not in your inventory.');
+    if (!skin || skin.source === 'catalog')
+      throw new SkinError(404, 'That skin is not in your inventory.');
+    await this.dropPick(playerUid, slotOf(skin.weapon));
     await db.runAsync(
       `INSERT INTO cs2_player_loadout (player_uid, slot, skin_id) VALUES (?, ?, ?)
        ON CONFLICT (player_uid, slot) DO UPDATE SET skin_id = EXCLUDED.skin_id`,
       [playerUid, slotOf(skin.weapon), skinId]
     );
+    await db.runAsync(DROP_ORPHAN_PICKS_SQL, [playerUid]);
   },
 
   async unequip(playerUid: string, slot: string): Promise<void> {
+    await this.dropPick(playerUid, slot);
     await db.runAsync('DELETE FROM cs2_player_loadout WHERE player_uid = ? AND slot = ?', [
       playerUid,
       slot,
@@ -617,7 +717,7 @@ export const skinService = {
     const uid = await uidOf(steamId);
     if (!uid) return null;
     const inventory = await this.inventory(uid);
-    return { inventory, showcase: await this.showcase(uid) };
+    return { inventory, showcase: await this.showcase(uid), picks: await this.picks(uid) };
   },
 
   /**
@@ -631,7 +731,8 @@ export const skinService = {
     knife?: Array<{ team: 0; defindex: number }>;
     gloves?: Array<{ team: 0; defindex: number }>;
   } | null> {
-    if (!(await this.config()).enabled) return null;
+    const config = await this.config();
+    if (!config.enabled) return null;
     const uid = await uidOf(steamId);
     if (!uid) return null;
     const rows = await db.queryAsync<{
@@ -643,8 +744,8 @@ export const skinService = {
     }>(
       `SELECT s.weapon, s.paint_kit, s.float_value, s.pattern, l.slot
          FROM cs2_player_loadout l JOIN cs2_player_skins s ON s.id = l.skin_id
-        WHERE l.player_uid = ?`,
-      [uid]
+        WHERE l.player_uid = ? AND (s.source <> 'catalog' OR ?)`,
+      [uid, config.catalogUnlocked]
     );
     const paints: Array<{ team: 0; defindex: number; paint: number; wear: number; seed: number }> =
       [];
@@ -676,9 +777,9 @@ export const skinService = {
       owners: number;
       players: number;
     }>(
-      `SELECT (SELECT COUNT(*)::int FROM cs2_player_skins) AS given,
-              (SELECT COUNT(*)::int FROM cs2_player_skins WHERE created_at > ?) AS week,
-              (SELECT COUNT(DISTINCT player_uid)::int FROM cs2_player_skins) AS owners,
+      `SELECT (SELECT COUNT(*)::int FROM cs2_player_skins WHERE source <> 'catalog') AS given,
+              (SELECT COUNT(*)::int FROM cs2_player_skins WHERE source <> 'catalog' AND created_at > ?) AS week,
+              (SELECT COUNT(DISTINCT player_uid)::int FROM cs2_player_skins WHERE source <> 'catalog') AS owners,
               (SELECT COUNT(*)::int FROM players) AS players`,
       [weekAgo]
     );
@@ -693,6 +794,7 @@ export const skinService = {
       `SELECT s.weapon_name, s.name, s.rarity, s.image, p.name AS owner
          FROM cs2_player_skins s
          LEFT JOIN players p ON p.uid = s.player_uid
+        WHERE s.source <> 'catalog'
         ORDER BY array_position(ARRAY[${RARITIES.map((r) => `'${r}'`).join(',')}]::text[], s.rarity) DESC NULLS LAST, s.created_at DESC, s.id DESC
         LIMIT 1`
     );
@@ -726,12 +828,12 @@ export const skinService = {
       best_rarity: Rarity | null;
     }>(
       `SELECT p.id, p.name, p.avatar_url,
-              (SELECT COUNT(*)::int FROM cs2_player_skins s WHERE s.player_uid = p.uid) AS skins,
+              (SELECT COUNT(*)::int FROM cs2_player_skins s WHERE s.player_uid = p.uid AND s.source <> 'catalog') AS skins,
               best.weapon_name AS best_weapon, best.name AS best_name, best.rarity AS best_rarity
          FROM players p
          LEFT JOIN LATERAL (
            SELECT s.weapon_name, s.name, s.rarity FROM cs2_player_skins s
-            WHERE s.player_uid = p.uid
+            WHERE s.player_uid = p.uid AND s.source <> 'catalog'
             ORDER BY array_position(ARRAY[${RARITIES.map((r) => `'${r}'`).join(',')}]::text[], s.rarity) DESC NULLS LAST, s.id DESC
             LIMIT 1
          ) best ON TRUE
@@ -799,7 +901,8 @@ export const skinService = {
          FROM cs2_player_skins s JOIN players p ON p.uid = s.player_uid WHERE s.id = ?`,
       [skinId]
     );
-    if (!row) throw new SkinError(404, 'No such skin.');
+    if (!row || (row.source === 'catalog' && !(await this.catalogOn())))
+      throw new SkinError(404, 'No such skin.');
     const equipped = await db.queryOneAsync('SELECT 1 FROM cs2_player_loadout WHERE skin_id = ?', [
       skinId,
     ]);

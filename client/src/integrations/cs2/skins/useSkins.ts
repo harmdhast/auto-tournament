@@ -17,13 +17,33 @@ export interface OwnedSkin {
   slot: string;
   float: number;
   pattern: number;
-  source: 'matchmaking' | 'tournament' | 'admin';
+  source: 'matchmaking' | 'tournament' | 'admin' | 'catalog';
   sourceLabel: string | null;
   sourceRef: string | null;
   place: number | null;
   createdAt: number;
   seen: boolean;
   equipped: boolean;
+}
+
+/** A skin of the catalogue, equippable with any float and pattern while the catalog is unlocked. */
+export interface CatalogSkin {
+  weapon: string;
+  weaponName: string;
+  paintKit: number;
+  name: string;
+  rarity: Rarity;
+  variant: string | null;
+  slot: string;
+  imageUrl: string;
+  imageSmallUrl: string;
+}
+
+export interface PickInput {
+  weapon: string;
+  paintKit: number;
+  float: number;
+  pattern: number;
 }
 
 export interface ShowcaseItem {
@@ -39,20 +59,29 @@ export async function skinsAccountMenuItems(): Promise<AccountMenuItem[]> {
     : [];
 }
 
-/** Whether virtual skins are on. Null while unknown. */
-export function useSkinsEnabled(): boolean | null {
-  const [enabled, setEnabled] = useState<boolean | null>(null);
+/** Whether virtual skins are on, and whether players may equip any catalogue skin. Null while unknown. */
+export function useSkinsStatus(): { enabled: boolean; catalogUnlocked: boolean } | null {
+  const [status, setStatus] = useState<{ enabled: boolean; catalogUnlocked: boolean } | null>(null);
   useEffect(() => {
     let cancelled = false;
     api
-      .get<{ enabled: boolean }>('/api/skins/status')
-      .then((r) => !cancelled && setEnabled(Boolean(r.enabled)))
-      .catch(() => !cancelled && setEnabled(false));
+      .get<{ enabled: boolean; catalogUnlocked?: boolean }>('/api/skins/status')
+      .then(
+        (r) =>
+          !cancelled &&
+          setStatus({ enabled: Boolean(r.enabled), catalogUnlocked: Boolean(r.catalogUnlocked) })
+      )
+      .catch(() => !cancelled && setStatus({ enabled: false, catalogUnlocked: false }));
     return () => {
       cancelled = true;
     };
   }, []);
-  return enabled;
+  return status;
+}
+
+/** Whether virtual skins are on. Null while unknown. */
+export function useSkinsEnabled(): boolean | null {
+  return useSkinsStatus()?.enabled ?? null;
 }
 
 /** Every skins view reloads after a change made in any of them (the reveal, the grid, the profile). */
@@ -66,6 +95,7 @@ export function announceChange(): void {
 export function useMySkins() {
   const { playerUid } = useAuth();
   const [inventory, setInventory] = useState<OwnedSkin[]>([]);
+  const [picks, setPicks] = useState<OwnedSkin[]>([]);
   const [showcase, setShowcase] = useState<ShowcaseItem[]>([]);
   const [unseen, setUnseen] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,10 +110,12 @@ export function useMySkins() {
     try {
       const data = await api.get<{
         inventory: OwnedSkin[];
+        picks?: OwnedSkin[];
         showcase: ShowcaseItem[];
         unseen: number[];
       }>('/api/skins/me');
       setInventory(data.inventory ?? []);
+      setPicks(data.picks ?? []);
       setShowcase(data.showcase ?? []);
       setUnseen(data.unseen ?? []);
       setAvailable(true);
@@ -139,13 +171,33 @@ export function useMySkins() {
     announceChange();
   }, []);
 
-  return { inventory, showcase, unseen, loading, available, reload, equip, markSeen, saveShowcase };
+  /** Equips a catalogue skin with the float and pattern the player chose. */
+  const pick = useCallback(async (input: PickInput) => {
+    await api.put('/api/skins/me/picks', input);
+    announceChange();
+  }, []);
+
+  return {
+    inventory,
+    picks,
+    showcase,
+    unseen,
+    loading,
+    available,
+    reload,
+    equip,
+    pick,
+    markSeen,
+    saveShowcase,
+  };
 }
 
-/** The slots a loadout shows: knife and gloves always, then each weapon with a skin owned. */
-export function loadoutSlots(inventory: OwnedSkin[]): string[] {
+/** The slots a loadout shows: knife and gloves always, then each weapon with a skin owned or picked. */
+export function loadoutSlots(inventory: OwnedSkin[], picks: OwnedSkin[] = []): string[] {
   const weapons = [
-    ...new Set(inventory.map((s) => s.slot).filter((s) => s !== 'knife' && s !== 'gloves')),
+    ...new Set(
+      [...inventory, ...picks].map((s) => s.slot).filter((s) => s !== 'knife' && s !== 'gloves')
+    ),
   ];
   return ['knife', 'gloves', ...weapons];
 }
