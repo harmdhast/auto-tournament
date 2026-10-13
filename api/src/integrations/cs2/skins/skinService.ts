@@ -309,6 +309,11 @@ const DROP_PICK_SQL = `DELETE FROM cs2_player_skins
   WHERE source = 'catalog' AND player_uid = $1
     AND id IN (SELECT skin_id FROM cs2_player_loadout WHERE player_uid = $1 AND slot = $2)`;
 
+/** Deletes the player's catalogue picks no loadout slot references (left by racing writes). */
+const DROP_ORPHAN_PICKS_SQL = `DELETE FROM cs2_player_skins
+  WHERE source = 'catalog' AND player_uid = $1
+    AND id NOT IN (SELECT skin_id FROM cs2_player_loadout WHERE player_uid = $1)`;
+
 export const skinService = {
   async config(): Promise<SkinsConfig> {
     const raw = await db.getAppSettingAsync(CONFIG_KEY).catch(() => null);
@@ -599,6 +604,7 @@ export const skinService = {
            ON CONFLICT (player_uid, slot) DO UPDATE SET skin_id = EXCLUDED.skin_id`,
           [playerUid, slot, inserted.rows[0].id]
         );
+        await client.query(DROP_ORPHAN_PICKS_SQL, [playerUid]);
         await client.query('COMMIT');
         return inserted.rows[0];
       } catch (error) {
@@ -628,6 +634,7 @@ export const skinService = {
        ON CONFLICT (player_uid, slot) DO UPDATE SET skin_id = EXCLUDED.skin_id`,
       [playerUid, slotOf(skin.weapon), skinId]
     );
+    await db.runAsync(DROP_ORPHAN_PICKS_SQL, [playerUid]);
   },
 
   async unequip(playerUid: string, slot: string): Promise<void> {
