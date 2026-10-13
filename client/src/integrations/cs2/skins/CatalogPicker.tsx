@@ -258,7 +258,7 @@ function PickDialog({
               max={1}
               step={0.0001}
               value={floatOk ? floatValue : 0}
-              onChange={(_, v) => setFloat(String(v as number))}
+              onChange={(_, v) => setFloat(String(Math.round((v as number) * 10000) / 10000))}
               aria-label={t('skins.catalog.wear')}
             />
             <TextField
