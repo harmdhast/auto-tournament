@@ -59,6 +59,14 @@ test.describe.serial('Skins catalogue unlock', () => {
     expect(await (await player.get('/api/skins/status')).json()).toMatchObject({ enabled: false, catalogUnlocked: false });
   });
 
+  test('category filters on the server before the cap', { tag: ['@api'] }, async () => {
+    const res = await player.get('/api/skins/catalog?category=knives');
+    expect(res.status()).toBe(200);
+    const knives = ((await res.json()).skins ?? []) as { slot: string }[];
+    expect(knives.length).toBeGreaterThan(0);
+    expect(knives.every((s) => s.slot === 'knife')).toBe(true);
+  });
+
   test('catalogue is closed while the mode is off', { tag: ['@api'] }, async ({ request }) => {
     await setConfig(request, { catalogUnlocked: false });
     expect((await player.get('/api/skins/catalog')).status()).toBe(404);
@@ -122,8 +130,10 @@ test.describe.serial('Skins catalogue unlock', () => {
     await setConfig(request, { catalogUnlocked: false });
     expect((await me()).picks).toEqual([]);
     expect((await (await player.get(`/api/skins/players/${STEAM_ID}`)).json()).picks).toEqual([]);
+    expect((await player.get(`/api/skins/skin/${pick.id}`)).status()).toBe(404);
     await setConfig(request, { catalogUnlocked: true });
     expect((await me()).picks).toEqual([expect.objectContaining({ id: pick.id })]);
+    expect((await player.get(`/api/skins/skin/${pick.id}`)).status()).toBe(200);
   });
 
   test('bad picks are refused', { tag: ['@api'] }, async () => {

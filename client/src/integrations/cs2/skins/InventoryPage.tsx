@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Box,
@@ -24,14 +24,7 @@ import {
 } from '../../../module-sdk';
 import { InspectSkinDialog, SkinCard, SlotTile, VirtualNotice } from './SkinParts';
 import { CatalogPicker } from './CatalogPicker';
-import {
-  loadoutSlots,
-  useMySkins,
-  useSkinsStatus,
-  type CatalogSkin,
-  type OwnedSkin,
-  type Rarity,
-} from './useSkins';
+import { loadoutSlots, useMySkins, useSkinsStatus, type OwnedSkin, type Rarity } from './useSkins';
 
 const { color } = tokens;
 const RARITY_ORDER: Rarity[] = [
@@ -118,10 +111,6 @@ export function InventoryPage() {
     [own, mine.picks, theirs]
   );
   const inCatalog = catalogUnlocked && view === 'catalog';
-  const inFilter = useCallback(
-    (skin: CatalogSkin) => filter === 'all' || category(skin) === filter,
-    [filter]
-  );
   const loading = enabled === null || (own ? mine.loading : theirs === null);
   const shown = useMemo(() => {
     const list = inventory.filter((s) => filter === 'all' || category(s) === filter);
@@ -319,7 +308,7 @@ export function InventoryPage() {
             {inCatalog ? (
               <CatalogPicker
                 weapon={slotWeapon}
-                matches={inFilter}
+                category={filter}
                 picks={picks}
                 onPick={mine.pick}
               />

@@ -4,7 +4,7 @@
  *
  * GET    /status                   public: on or off, and whether the catalogue is unlocked
  * GET    /me                       signed in: your inventory, showcase, picks and new skins
- * GET    /catalog?q=&weapon=       signed in: search the catalogue (while it is unlocked)
+ * GET    /catalog?q=&weapon=&category=  signed in: search the catalogue (while it is unlocked)
  * PUT    /me/picks                 equip any catalogue skin ({ weapon, paintKit, float, pattern })
  * POST   /me/equip                 equip a skin ({ skinId })
  * DELETE /me/equip/:slot           empty a slot
@@ -64,6 +64,33 @@ async function playerOrStop(req: Request, res: Response): Promise<string | null>
     return null;
   }
   return viewer.uid;
+}
+
+const PISTOLS = [
+  'glock',
+  'hkp2000',
+  'usp_silencer',
+  'p250',
+  'fiveseven',
+  'tec9',
+  'cz75a',
+  'deagle',
+  'revolver',
+  'elite',
+];
+const SMGS = ['mac10', 'mp9', 'mp7', 'mp5sd', 'ump45', 'p90', 'bizon'];
+const HEAVY = ['nova', 'xm1014', 'sawedoff', 'mag7', 'm249', 'negev'];
+
+/** The weapon group a catalogue chip filters on (same groups as the inventory page). */
+function categoryOf(weapon: string): string {
+  const slot = slotOf(weapon);
+  if (slot === 'knife') return 'knives';
+  if (slot === 'gloves') return 'gloves';
+  const w = weapon.replace('weapon_', '');
+  if (PISTOLS.includes(w)) return 'pistols';
+  if (SMGS.includes(w)) return 'smgs';
+  if (HEAVY.includes(w)) return 'heavy';
+  return 'rifles';
 }
 
 /**
@@ -255,6 +282,7 @@ router.put('/me/showcase', async (req, res) => {
  *     parameters:
  *       - { in: query, name: q, schema: { type: string } }
  *       - { in: query, name: weapon, schema: { type: string }, description: Only this weapon }
+ *       - { in: query, name: category, schema: { type: string, enum: [rifles, pistols, smgs, heavy, knives, gloves] }, description: Only this weapon group }
  *     responses:
  *       200: { description: Up to 60 skins, one per paint kit }
  *       401: { description: Not signed in }
@@ -267,8 +295,10 @@ router.get('/catalog', async (req, res) => {
     if (!(await skinService.catalogOn()))
       return res.status(404).json({ success: false, error: 'The catalogue is not unlocked' });
     const weapon = typeof req.query.weapon === 'string' ? req.query.weapon : '';
+    const category = typeof req.query.category === 'string' ? req.query.category : '';
     const skins = searchCatalog(await skinService.catalog(), req.query.q, true)
       .filter((s) => !weapon || s.weapon === weapon)
+      .filter((s) => !category || categoryOf(s.weapon) === category)
       .slice(0, 60)
       .map((s) => ({
         weapon: s.weapon,

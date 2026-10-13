@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -35,12 +35,12 @@ const label = (skin: Pick<CatalogSkin, 'name' | 'variant'>) =>
  */
 export function CatalogPicker({
   weapon,
-  matches,
+  category,
   picks,
   onPick,
 }: {
   weapon: string | null;
-  matches: (skin: CatalogSkin) => boolean;
+  category: string;
   picks: OwnedSkin[];
   onPick: (input: PickInput) => Promise<void>;
 }) {
@@ -56,7 +56,7 @@ export function CatalogPicker({
     return () => clearTimeout(timer);
   }, [text]);
 
-  const key = `${q}\n${weapon ?? ''}`;
+  const key = `${q}\n${weapon ?? ''}\n${category}`;
   const skins = loaded?.key === key ? loaded.skins : null;
 
   useEffect(() => {
@@ -64,6 +64,7 @@ export function CatalogPicker({
     const query = new URLSearchParams();
     if (q) query.set('q', q);
     if (weapon) query.set('weapon', weapon);
+    if (category !== 'all') query.set('category', category);
     api
       .get<{ skins: CatalogSkin[] }>(`/api/skins/catalog?${query}`)
       .then((r) => !cancelled && setLoaded({ key, skins: r.skins ?? [] }))
@@ -75,9 +76,9 @@ export function CatalogPicker({
     return () => {
       cancelled = true;
     };
-  }, [q, weapon, key, showError, t]);
+  }, [q, weapon, category, key, showError, t]);
 
-  const shown = useMemo(() => (skins ?? []).filter(matches), [skins, matches]);
+  const shown = skins ?? [];
   const current = (skin: CatalogSkin) =>
     picks.find((p) => p.weapon === skin.weapon && p.name === label(skin)) ?? null;
 
