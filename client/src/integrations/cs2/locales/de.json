@@ -1809,7 +1809,22 @@
       "drew": "Unentschieden {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it"
+    "equipFailed": "Could not equip it",
+    "picked": "Gewählt",
+    "view": {
+      "label": "Inventaransicht",
+      "owned": "Besitz",
+      "catalog": "Katalog"
+    },
+    "catalog": {
+      "search": "Katalog durchsuchen",
+      "empty": "Keine passenden Skins.",
+      "loadFailed": "Der Katalog konnte nicht geladen werden",
+      "pickLabel": "{{name}} wählen",
+      "wear": "Abnutzung",
+      "cancel": "Abbrechen",
+      "equip": "Ausrüsten"
+    }
   },
   "matchRules": {
     "title": "Matchregeln",

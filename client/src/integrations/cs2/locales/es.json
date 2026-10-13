@@ -1809,7 +1809,22 @@
       "drew": "Empate {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it"
+    "equipFailed": "Could not equip it",
+    "picked": "Elegida",
+    "view": {
+      "label": "Vista del inventario",
+      "owned": "Mis aspectos",
+      "catalog": "Catálogo"
+    },
+    "catalog": {
+      "search": "Buscar en el catálogo",
+      "empty": "Ningún aspecto coincide.",
+      "loadFailed": "No se pudo cargar el catálogo",
+      "pickLabel": "Elegir {{name}}",
+      "wear": "Desgaste",
+      "cancel": "Cancelar",
+      "equip": "Equipar"
+    }
   },
   "matchRules": {
     "title": "Reglas de partida",

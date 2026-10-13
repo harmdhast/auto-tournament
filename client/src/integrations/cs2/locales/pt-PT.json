@@ -1809,7 +1809,22 @@
       "drew": "Empate {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it"
+    "equipFailed": "Could not equip it",
+    "picked": "Escolhida",
+    "view": {
+      "label": "Vista do inventário",
+      "owned": "Possuídas",
+      "catalog": "Catálogo"
+    },
+    "catalog": {
+      "search": "Pesquisar no catálogo",
+      "empty": "Nenhuma skin corresponde.",
+      "loadFailed": "Não foi possível carregar o catálogo",
+      "pickLabel": "Escolher {{name}}",
+      "wear": "Desgaste",
+      "cancel": "Cancelar",
+      "equip": "Equipar"
+    }
   },
   "matchRules": {
     "title": "Regras de partida",

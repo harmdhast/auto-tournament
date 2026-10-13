@@ -1809,7 +1809,22 @@
       "drew": "Drew {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it"
+    "equipFailed": "Could not equip it",
+    "picked": "Picked",
+    "view": {
+      "label": "Inventory view",
+      "owned": "Owned",
+      "catalog": "Catalog"
+    },
+    "catalog": {
+      "search": "Search the catalogue",
+      "empty": "No skins match.",
+      "loadFailed": "Could not load the catalogue",
+      "pickLabel": "Pick {{name}}",
+      "wear": "Wear",
+      "cancel": "Cancel",
+      "equip": "Equip"
+    }
   },
   "matchRules": {
     "title": "Match rules",

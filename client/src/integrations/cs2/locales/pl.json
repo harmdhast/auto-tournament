@@ -1847,7 +1847,22 @@
       "drew": "Remis {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it"
+    "equipFailed": "Could not equip it",
+    "picked": "Wybrany",
+    "view": {
+      "label": "Widok ekwipunku",
+      "owned": "Posiadane",
+      "catalog": "Katalog"
+    },
+    "catalog": {
+      "search": "Szukaj w katalogu",
+      "empty": "Brak pasujących skinów.",
+      "loadFailed": "Nie udało się wczytać katalogu",
+      "pickLabel": "Wybierz {{name}}",
+      "wear": "Zużycie",
+      "cancel": "Anuluj",
+      "equip": "Załóż"
+    }
   },
   "matchRules": {
     "title": "Zasady meczu",

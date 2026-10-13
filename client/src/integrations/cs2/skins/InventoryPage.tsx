@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Box,
@@ -8,6 +8,8 @@ import {
   Dialog,
   MenuItem,
   Select,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import { PlayCircleIcon, QuestionIcon, TrophyIcon } from '@phosphor-icons/react';
@@ -21,7 +23,15 @@ import {
   radii,
 } from '../../../module-sdk';
 import { InspectSkinDialog, SkinCard, SlotTile, VirtualNotice } from './SkinParts';
-import { loadoutSlots, useMySkins, useSkinsEnabled, type OwnedSkin, type Rarity } from './useSkins';
+import { CatalogPicker } from './CatalogPicker';
+import {
+  loadoutSlots,
+  useMySkins,
+  useSkinsStatus,
+  type CatalogSkin,
+  type OwnedSkin,
+  type Rarity,
+} from './useSkins';
 
 const { color } = tokens;
 const RARITY_ORDER: Rarity[] = [
@@ -50,7 +60,7 @@ const PISTOLS = [
 const SMGS = ['mac10', 'mp9', 'mp7', 'mp5sd', 'ump45', 'p90', 'bizon'];
 const HEAVY = ['nova', 'xm1014', 'sawedoff', 'mag7', 'm249', 'negev'];
 
-function category(skin: OwnedSkin): Filter {
+function category(skin: Pick<OwnedSkin, 'slot' | 'weapon'>): Filter {
   if (skin.slot === 'knife') return 'knives';
   if (skin.slot === 'gloves') return 'gloves';
   const w = skin.weapon.replace('weapon_', '');
@@ -71,9 +81,13 @@ export function InventoryPage() {
   const { steamId } = useParams<{ steamId?: string }>();
   // /inventory is your own; /player/:steamId/inventory is anyone's, read only.
   const own = !steamId;
-  const enabled = useSkinsEnabled();
+  const status = useSkinsStatus();
+  const enabled = status ? status.enabled : null;
+  const catalogUnlocked = own && Boolean(status?.catalogUnlocked);
   const mine = useMySkins();
-  const [theirs, setTheirs] = useState<OwnedSkin[] | null>(null);
+  const [theirs, setTheirs] = useState<{ inventory: OwnedSkin[]; picks: OwnedSkin[] } | null>(null);
+  const [view, setView] = useState<'owned' | 'catalog'>('owned');
+  const [slotWeapon, setSlotWeapon] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<'rarity' | 'newest'>('rarity');
   const [inspect, setInspect] = useState<number | null>(null);
@@ -87,17 +101,26 @@ export function InventoryPage() {
     if (own || !steamId) return;
     let cancelled = false;
     api
-      .get<{ inventory: OwnedSkin[] }>(`/api/skins/players/${steamId}`)
-      .then((r) => !cancelled && setTheirs(r.inventory ?? []))
-      .catch(() => !cancelled && setTheirs([]));
+      .get<{ inventory: OwnedSkin[]; picks?: OwnedSkin[] }>(`/api/skins/players/${steamId}`)
+      .then((r) => !cancelled && setTheirs({ inventory: r.inventory ?? [], picks: r.picks ?? [] }))
+      .catch(() => !cancelled && setTheirs({ inventory: [], picks: [] }));
     return () => {
       cancelled = true;
     };
   }, [own, steamId]);
 
   const inventory = useMemo(
-    () => (own ? mine.inventory : (theirs ?? [])),
+    () => (own ? mine.inventory : (theirs?.inventory ?? [])),
     [own, mine.inventory, theirs]
+  );
+  const picks = useMemo(
+    () => (own ? mine.picks : (theirs?.picks ?? [])),
+    [own, mine.picks, theirs]
+  );
+  const inCatalog = catalogUnlocked && view === 'catalog';
+  const inFilter = useCallback(
+    (skin: CatalogSkin) => filter === 'all' || category(skin) === filter,
+    [filter]
   );
   const loading = enabled === null || (own ? mine.loading : theirs === null);
   const shown = useMemo(() => {
@@ -108,12 +131,15 @@ export function InventoryPage() {
         : RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity)
     );
   }, [inventory, filter, sort]);
-  const slots = loadoutSlots(inventory);
+  const slots = loadoutSlots(inventory, picks);
 
   const chip = (key: Filter) => (
     <ButtonBase
       key={key}
-      onClick={() => setFilter(key)}
+      onClick={() => {
+        setFilter(key);
+        setSlotWeapon(null);
+      }}
       aria-pressed={filter === key}
       sx={{
         px: 1.75,
@@ -192,13 +218,17 @@ export function InventoryPage() {
                 }}
               >
                 {slots.map((slot) => {
-                  const skin = inventory.find((s) => s.slot === slot && s.equipped) ?? null;
+                  const skin =
+                    picks.find((s) => s.slot === slot) ??
+                    inventory.find((s) => s.slot === slot && s.equipped) ??
+                    null;
                   const label =
                     slot === 'knife'
                       ? t('skins.slot.knife')
                       : slot === 'gloves'
                         ? t('skins.slot.gloves')
-                        : (inventory.find((s) => s.slot === slot)?.weaponName ?? slot);
+                        : ([...inventory, ...picks].find((s) => s.slot === slot)?.weaponName ??
+                          slot);
                   // An equipped slot opens its skin; an empty one shows the skins that fit it.
                   return (
                     <SlotTile
@@ -208,6 +238,14 @@ export function InventoryPage() {
                       onClick={() => {
                         if (skin) {
                           setInspect(skin.id);
+                          return;
+                        }
+                        if (inCatalog) {
+                          const knifeOrGloves = slot === 'knife' || slot === 'gloves';
+                          setSlotWeapon(knifeOrGloves ? null : slot);
+                          setFilter(
+                            knifeOrGloves ? (slot === 'knife' ? 'knives' : 'gloves') : 'all'
+                          );
                           return;
                         }
                         const owned = inventory.find((s) => s.slot === slot);
@@ -227,6 +265,29 @@ export function InventoryPage() {
               </Box>
             </Box>
 
+            {catalogUnlocked && (
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={view}
+                onChange={(_, next: 'owned' | 'catalog' | null) => {
+                  if (!next) return;
+                  setView(next);
+                  setSlotWeapon(null);
+                }}
+                aria-label={t('skins.view.label')}
+                data-testid="inventory-view"
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                <ToggleButton value="owned" sx={{ px: 2, borderRadius: radii.pill }}>
+                  {t('skins.view.owned')}
+                </ToggleButton>
+                <ToggleButton value="catalog" sx={{ px: 2, borderRadius: radii.pill }}>
+                  {t('skins.view.catalog')}
+                </ToggleButton>
+              </ToggleButtonGroup>
+            )}
+
             <Box
               sx={{
                 display: 'flex',
@@ -241,19 +302,28 @@ export function InventoryPage() {
                   ['all', 'rifles', 'pistols', 'smgs', 'heavy', 'knives', 'gloves'] as Filter[]
                 ).map(chip)}
               </Box>
-              <Select
-                size="small"
-                value={sort}
-                onChange={(e) => setSort(e.target.value as 'rarity' | 'newest')}
-                sx={{ borderRadius: radii.pill, minWidth: 180 }}
-                inputProps={{ 'aria-label': t('skins.sortLabel') }}
-              >
-                <MenuItem value="rarity">{t('skins.sort.rarity')}</MenuItem>
-                <MenuItem value="newest">{t('skins.sort.newest')}</MenuItem>
-              </Select>
+              {!inCatalog && (
+                <Select
+                  size="small"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as 'rarity' | 'newest')}
+                  sx={{ borderRadius: radii.pill, minWidth: 180 }}
+                  inputProps={{ 'aria-label': t('skins.sortLabel') }}
+                >
+                  <MenuItem value="rarity">{t('skins.sort.rarity')}</MenuItem>
+                  <MenuItem value="newest">{t('skins.sort.newest')}</MenuItem>
+                </Select>
+              )}
             </Box>
 
-            {shown.length === 0 ? (
+            {inCatalog ? (
+              <CatalogPicker
+                weapon={slotWeapon}
+                matches={inFilter}
+                picks={picks}
+                onPick={mine.pick}
+              />
+            ) : shown.length === 0 ? (
               <Typography sx={{ color: color.ink2 }}>
                 {inventory.length
                   ? t('skins.noneInFilter')

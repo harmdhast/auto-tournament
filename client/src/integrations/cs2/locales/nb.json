@@ -1809,7 +1809,22 @@
       "drew": "Uavgjort {{score}}"
     },
     "unequipLabel": "Ta av {{name}}",
-    "equipFailed": "Kunne ikke ta den på"
+    "equipFailed": "Kunne ikke ta den på",
+    "picked": "Valgt",
+    "view": {
+      "label": "Inventarvisning",
+      "owned": "Eide",
+      "catalog": "Katalog"
+    },
+    "catalog": {
+      "search": "Søk i katalogen",
+      "empty": "Ingen skins samsvarer.",
+      "loadFailed": "Kunne ikke laste katalogen",
+      "pickLabel": "Velg {{name}}",
+      "wear": "Slitasje",
+      "cancel": "Avbryt",
+      "equip": "Ta på"
+    }
   },
   "matchRules": {
     "title": "Kampregler",

@@ -1809,7 +1809,22 @@
       "drew": "Nul {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it"
+    "equipFailed": "Could not equip it",
+    "picked": "Choisi",
+    "view": {
+      "label": "Vue de l'inventaire",
+      "owned": "Possédés",
+      "catalog": "Catalogue"
+    },
+    "catalog": {
+      "search": "Rechercher dans le catalogue",
+      "empty": "Aucun skin ne correspond.",
+      "loadFailed": "Impossible de charger le catalogue",
+      "pickLabel": "Choisir {{name}}",
+      "wear": "Usure",
+      "cancel": "Annuler",
+      "equip": "Équiper"
+    }
   },
   "matchRules": {
     "title": "Règles de match",

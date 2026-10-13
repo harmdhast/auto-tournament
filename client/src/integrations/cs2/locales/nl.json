@@ -1809,7 +1809,22 @@
       "drew": "Gelijk {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it"
+    "equipFailed": "Could not equip it",
+    "picked": "Gekozen",
+    "view": {
+      "label": "Inventarisweergave",
+      "owned": "In bezit",
+      "catalog": "Catalogus"
+    },
+    "catalog": {
+      "search": "Zoeken in de catalogus",
+      "empty": "Geen skins gevonden.",
+      "loadFailed": "De catalogus kon niet worden geladen",
+      "pickLabel": "{{name}} kiezen",
+      "wear": "Slijtage",
+      "cancel": "Annuleren",
+      "equip": "Uitrusten"
+    }
   },
   "matchRules": {
     "title": "Wedstrijdregels",

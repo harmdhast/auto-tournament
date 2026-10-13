@@ -1809,7 +1809,22 @@
       "drew": "Pareggio {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it"
+    "equipFailed": "Could not equip it",
+    "picked": "Scelta",
+    "view": {
+      "label": "Vista dell'inventario",
+      "owned": "Posseduti",
+      "catalog": "Catalogo"
+    },
+    "catalog": {
+      "search": "Cerca nel catalogo",
+      "empty": "Nessuna skin corrisponde.",
+      "loadFailed": "Impossibile caricare il catalogo",
+      "pickLabel": "Scegli {{name}}",
+      "wear": "Usura",
+      "cancel": "Annulla",
+      "equip": "Equipaggia"
+    }
   },
   "matchRules": {
     "title": "Regole partita",
