@@ -67,6 +67,23 @@ test.describe.serial('Skins catalogue unlock', () => {
     expect(knives.every((s) => s.slot === 'knife')).toBe(true);
   });
 
+  test('weapons list covers every slot', { tag: ['@api'] }, async ({ request }) => {
+    await setConfig(request, { catalogUnlocked: false });
+    expect((await player.get('/api/skins/catalog/weapons')).status()).toBe(404);
+    await setConfig(request, { catalogUnlocked: true });
+    const res = await player.get('/api/skins/catalog/weapons');
+    expect(res.status()).toBe(200);
+    const weapons = ((await res.json()).weapons ?? []) as { weapon: string; slot: string; category: string }[];
+    const slots = weapons.map((w) => w.slot);
+    expect(new Set(slots).size).toBe(slots.length);
+    const by = (slot: string) => weapons.find((w) => w.slot === slot);
+    expect(by('knife')).toMatchObject({ category: 'knives' });
+    expect(by('gloves')).toMatchObject({ category: 'gloves' });
+    expect(by('weapon_ak47')).toMatchObject({ category: 'rifles' });
+    expect(by('weapon_deagle')).toMatchObject({ category: 'pistols' });
+    expect(slots.slice(0, 2)).toEqual(['knife', 'gloves']);
+  });
+
   test('catalogue is closed while the mode is off', { tag: ['@api'] }, async ({ request }) => {
     await setConfig(request, { catalogUnlocked: false });
     expect((await player.get('/api/skins/catalog')).status()).toBe(404);

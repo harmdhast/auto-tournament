@@ -5,6 +5,7 @@
  * GET    /status                   public: on or off, and whether the catalogue is unlocked
  * GET    /me                       signed in: your inventory, showcase, picks and new skins
  * GET    /catalog?q=&weapon=&category=  signed in: search the catalogue (while it is unlocked)
+ * GET    /catalog/weapons          signed in: every weapon slot (while the catalogue is unlocked)
  * PUT    /me/picks                 equip any catalogue skin ({ weapon, paintKit, float, pattern })
  * POST   /me/equip                 equip a skin ({ skinId })
  * DELETE /me/equip/:slot           empty a slot
@@ -270,6 +271,62 @@ router.put('/me/showcase', async (req, res) => {
     return res.json({ success: true });
   } catch (error) {
     return fail(res, error, 'Saving the showcase');
+  }
+});
+
+const CATEGORY_ORDER = ['knives', 'gloves', 'pistols', 'smgs', 'rifles', 'heavy'];
+
+/**
+ * @openapi
+ * /api/skins/catalog/weapons:
+ *   get:
+ *     tags: [Skins]
+ *     summary: Every weapon slot of the catalogue (while it is unlocked)
+ *     responses:
+ *       200: { description: "{ weapons: [{ weapon, weaponName, slot, category }] }, knife and gloves first" }
+ *       401: { description: Not signed in }
+ *       404: { description: The catalogue is not unlocked }
+ */
+router.get('/catalog/weapons', async (req, res) => {
+  try {
+    const uid = await playerOrStop(req, res);
+    if (!uid) return;
+    if (!(await skinService.catalogOn()))
+      return res.status(404).json({ success: false, error: 'The catalogue is not unlocked' });
+    const bySlot = new Map<
+      string,
+      { weapon: string; weaponName: string; slot: string; category: string }
+    >();
+    bySlot.set('knife', {
+      weapon: 'knife',
+      weaponName: 'Knife',
+      slot: 'knife',
+      category: 'knives',
+    });
+    bySlot.set('gloves', {
+      weapon: 'gloves',
+      weaponName: 'Gloves',
+      slot: 'gloves',
+      category: 'gloves',
+    });
+    for (const s of await skinService.catalog()) {
+      const slot = slotOf(s.weapon);
+      if (!bySlot.has(slot))
+        bySlot.set(slot, {
+          weapon: s.weapon,
+          weaponName: s.weaponName,
+          slot,
+          category: categoryOf(s.weapon),
+        });
+    }
+    const weapons = [...bySlot.values()].sort(
+      (a, b) =>
+        CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) ||
+        a.weaponName.localeCompare(b.weaponName)
+    );
+    return res.json({ success: true, weapons });
+  } catch (error) {
+    return fail(res, error, 'Listing the weapons');
   }
 });
 

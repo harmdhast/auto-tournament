@@ -79,6 +79,31 @@ export function useSkinsStatus(): { enabled: boolean; catalogUnlocked: boolean }
   return status;
 }
 
+/** A weapon slot of the catalogue. */
+export interface CatalogWeapon {
+  weapon: string;
+  weaponName: string;
+  slot: string;
+  category: 'knives' | 'gloves' | 'pistols' | 'smgs' | 'rifles' | 'heavy';
+}
+
+/** Every weapon slot of the catalogue, read once while `enabled`. Empty otherwise. */
+export function useCatalogWeapons(enabled: boolean): CatalogWeapon[] {
+  const [weapons, setWeapons] = useState<CatalogWeapon[]>([]);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    api
+      .get<{ weapons?: CatalogWeapon[] }>('/api/skins/catalog/weapons')
+      .then((r) => !cancelled && setWeapons(r.weapons ?? []))
+      .catch(() => !cancelled && setWeapons([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+  return enabled ? weapons : [];
+}
+
 /** Whether virtual skins are on. Null while unknown. */
 export function useSkinsEnabled(): boolean | null {
   return useSkinsStatus()?.enabled ?? null;

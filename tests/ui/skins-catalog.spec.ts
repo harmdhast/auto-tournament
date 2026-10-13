@@ -54,6 +54,21 @@ test.describe.serial('Skins catalogue picker', () => {
     expect(me.picks[0]).toMatchObject({ weapon: 'weapon_deagle', float: 0.05, pattern: 42 });
   });
 
+  test('every weapon has a slot in the loadout', { tag: ['@ui'] }, async ({ page }) => {
+    await page.goto('/inventory');
+    const slot = page.getByTestId('loadout-slot').filter({ hasText: 'AK-47' });
+    await expect(slot).toHaveCount(1);
+    await slot.click();
+    await expect(page.getByTestId('inventory-view').getByRole('button', { name: 'Catalog' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    const tiles = page.getByTestId('catalog-tile');
+    await expect(tiles.first()).toBeVisible();
+    const texts = await tiles.allTextContents();
+    expect(texts.every((x) => x.includes('AK-47'))).toBe(true);
+  });
+
   test('the Catalog view is hidden while the mode is off', { tag: ['@ui'] }, async ({ page, request }) => {
     await setConfig(request, { catalogUnlocked: false });
     await page.goto('/inventory');
