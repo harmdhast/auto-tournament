@@ -1790,7 +1790,9 @@
       "edge": "Tussen {{a}} en {{b}}",
       "podiumHint": "Klik op een trede om te veranderen wat die geeft.",
       "rewardTitle": "Beloning voor {{place}}",
-      "done": "Klaar"
+      "done": "Klaar",
+      "catalogUnlocked": "Catalogus ontgrendeld",
+      "catalogUnlockedHelp": "Spelers kunnen elke skin uit de catalogus uitrusten, met de float en het patroon die ze zelf kiezen."
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "Wat dit betekent",

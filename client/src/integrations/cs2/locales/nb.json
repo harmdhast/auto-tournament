@@ -1790,7 +1790,9 @@
       "edge": "Mellom {{a}} og {{b}}",
       "podiumHint": "Klikk et trinn for å endre hva det gir.",
       "rewardTitle": "Premie for {{place}}",
-      "done": "Ferdig"
+      "done": "Ferdig",
+      "catalogUnlocked": "Katalogen åpnet",
+      "catalogUnlockedHelp": "Spillere kan ta på seg hvilken som helst skin fra katalogen, med float og mønster de velger selv."
     },
     "tournamentRewardsSwitch": "Skin-premier for topp tre (når skins er slått på)",
     "whatThisMeans": "Hva dette betyr",

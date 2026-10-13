@@ -1790,7 +1790,9 @@
       "edge": "Zwischen {{a}} und {{b}}",
       "podiumHint": "Klick auf eine Stufe, um zu ändern, was sie gibt.",
       "rewardTitle": "Belohnung für {{place}}",
-      "done": "Fertig"
+      "done": "Fertig",
+      "catalogUnlocked": "Katalog freigeschaltet",
+      "catalogUnlockedHelp": "Spieler können jeden Skin aus dem Katalog ausrüsten, mit selbst gewähltem Float und Muster."
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "Was das heißt",

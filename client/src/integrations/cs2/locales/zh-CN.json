@@ -1790,7 +1790,9 @@
       "edge": "{{a}} 与 {{b}} 之间",
       "podiumHint": "点击一个台阶来更改它的奖励。",
       "rewardTitle": "{{place}} 的奖励",
-      "done": "完成"
+      "done": "完成",
+      "catalogUnlocked": "解锁图鉴",
+      "catalogUnlockedHelp": "玩家可以装备图鉴中的任意皮肤，并自行选择磨损值和图案模板。"
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "这是什么意思",

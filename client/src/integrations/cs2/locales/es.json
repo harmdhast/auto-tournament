@@ -1790,7 +1790,9 @@
       "edge": "Entre {{a}} y {{b}}",
       "podiumHint": "Haz clic en un escalón para cambiar lo que da.",
       "rewardTitle": "Premio para {{place}}",
-      "done": "Hecho"
+      "done": "Hecho",
+      "catalogUnlocked": "Catálogo desbloqueado",
+      "catalogUnlockedHelp": "Los jugadores pueden equipar cualquier aspecto del catálogo, con el float y el patrón que elijan."
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "Qué significa",

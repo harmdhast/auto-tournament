@@ -1790,7 +1790,9 @@
       "edge": "Between {{a}} and {{b}}",
       "podiumHint": "Click a step to change what it gives.",
       "rewardTitle": "Reward for {{place}}",
-      "done": "Done"
+      "done": "Done",
+      "catalogUnlocked": "Catalog unlock",
+      "catalogUnlockedHelp": "Players can equip any skin from the catalogue, with the float and pattern they choose."
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "What this means",

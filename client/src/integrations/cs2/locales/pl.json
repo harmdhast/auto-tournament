@@ -1828,7 +1828,9 @@
       "edge": "Między {{a}} a {{b}}",
       "podiumHint": "Kliknij stopień, aby zmienić, co daje.",
       "rewardTitle": "Nagroda za {{place}}",
-      "done": "Gotowe"
+      "done": "Gotowe",
+      "catalogUnlocked": "Katalog odblokowany",
+      "catalogUnlockedHelp": "Gracze mogą założyć dowolny skin z katalogu, z wybranym przez siebie floatem i wzorem."
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "Co to znaczy",
