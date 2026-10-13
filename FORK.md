@@ -20,6 +20,7 @@ Fork-only migrations (`api/src/integrations/cs2/migrations.ts`, after upstream's
 | `040-server-failover-use` | feat/failover-server-opt-out |
 | `050-match-runtime-cascade` | match-delete-orphans |
 | `051-round-backup-sides` | feat/backup-round-sides |
+| feat/update-notice-setting | Admins can turn off the "newer Auto Tournament" update notice (setting `updateNotices`, on by default; module notices unchanged) | merged | none | `tests/ui/settings.spec.ts` with feat/readyup-only | Webhook URL UI test stays removed (feat/readyup-only), the new switch test kept |
 
 Their numbers overlap upstream's `037-*` and `040-*` ids; ids are unique strings and the runner applies the list in array order, so only the full id matters.
 
