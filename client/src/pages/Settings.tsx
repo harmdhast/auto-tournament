@@ -106,14 +106,16 @@ function SettingsCard({
 interface CoreSettings {
   ratingsEnabled: boolean;
   allowSelfRegister: boolean;
+  updateNotices: boolean;
 }
 
-const CORE_KEYS = ['ratingsEnabled', 'allowSelfRegister'] as const;
+const CORE_KEYS = ['ratingsEnabled', 'allowSelfRegister', 'updateNotices'] as const;
 
 function coreSettingsFrom(settings: SettingsResponse['settings'] | undefined): CoreSettings {
   return {
     ratingsEnabled: settings?.ratingsEnabled ?? true,
     allowSelfRegister: settings?.allowSelfRegister ?? false,
+    updateNotices: settings?.updateNotices ?? true,
   };
 }
 
@@ -283,6 +285,24 @@ export default function Settings() {
             <Stack spacing={2} sx={{ minWidth: 0 }}>
               <SettingsCard cardKey="site" highlight={highlight === 'site'}>
                 <SiteNameCard />
+                <SettingsRow
+                  title={t('settingsPage.site.updateNotices.toggleLabel')}
+                  sub={t('settingsPage.site.updateNotices.short')}
+                  control={
+                    <Switch
+                      checked={values.updateNotices}
+                      onChange={(event) =>
+                        setValues((prev) => ({ ...prev, updateNotices: event.target.checked }))
+                      }
+                      slotProps={{
+                        input: {
+                          'aria-label': t('settingsPage.site.updateNotices.toggleLabel'),
+                          'data-testid': 'settings-update-notices',
+                        } as React.InputHTMLAttributes<HTMLInputElement>,
+                      }}
+                    />
+                  }
+                />
               </SettingsCard>
               <SettingsCard cardKey="signin" highlight={highlight === 'signin'}>
                 <SignInProvidersCard welcome={searchParams.get('welcome') === 'setup'} />

@@ -3,7 +3,12 @@ import { db } from '../config/database';
 import { effectiveProviderSettings } from '../config/signInProviders';
 import { log } from '../utils/logger';
 import { clampSimulationTimescale } from '../utils/simulationTimescale';
-import { booleanRequest, normalizeFlag, stringRequest } from '../utils/settingFields';
+import {
+  booleanRequest,
+  isTruthySetting,
+  normalizeFlag,
+  stringRequest,
+} from '../utils/settingFields';
 import type { SettingDefinition, SettingWriteContext } from '../integrations/types';
 
 /**
@@ -45,6 +50,8 @@ export type CoreSettingKey =
   // Integrator webhooks may target private / loopback addresses (LAN events).
   // Off by default: services/webhooks/ssrf.ts.
   | 'webhooks_allow_private_targets'
+  // Admins get a notice when a newer Auto Tournament is out (routes/system.ts). On by default.
+  | 'update_notices'
   // Experimental features (services/experimentalFeatures), off by default.
   // Set through /api/experimental only.
   | 'experimental_matchmaking'
@@ -126,6 +133,13 @@ export const CORE_SETTINGS: ReadonlyArray<SettingDefinition & { key: CoreSetting
     order: 95,
     normalize: normalizeFlag('Webhooks to private and local addresses'),
     applyRequest: booleanRequest('webhooksAllowPrivateTargets'),
+  },
+  {
+    key: 'update_notices',
+    field: 'updateNotices',
+    order: 96,
+    normalize: normalizeFlag('Auto Tournament update notices'),
+    applyRequest: booleanRequest('updateNotices'),
   },
   // No `field`: /api/license sets these, PUT /api/settings never does.
   {
@@ -327,6 +341,12 @@ class SettingsService {
     if (!value) return false;
     const normalized = value.toLowerCase();
     return normalized === '1' || normalized === 'true' || normalized === 'yes';
+  }
+
+  /** Whether admins are told a newer Auto Tournament is out. On unless switched off. */
+  async areUpdateNoticesEnabled(): Promise<boolean> {
+    const value = await this.getSetting('update_notices');
+    return !value || isTruthySetting(value);
   }
 
   async isSelfRegistrationAllowed(): Promise<boolean> {

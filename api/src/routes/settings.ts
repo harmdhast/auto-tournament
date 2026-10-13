@@ -58,6 +58,7 @@ const mapSettingsResponse = async () => {
   const allowSelfRegister = await settingsService.isSelfRegistrationAllowed();
   const siteName = await settingsService.getSiteName();
   const webhooksAllowPrivateTargets = await settingsService.areWebhookPrivateTargetsAllowed();
+  const updateNotices = await settingsService.areUpdateNoticesEnabled();
   const highlights = await readHighlightSettings((key) => settingsService.getSetting(key));
 
   const integrationFields: Record<string, unknown> = {};
@@ -76,6 +77,7 @@ const mapSettingsResponse = async () => {
     allowSelfRegister,
     ...highlights,
     webhooksAllowPrivateTargets,
+    updateNotices,
     ...integrationFields,
   };
 };
@@ -125,4 +127,3 @@ router.put('/', async (req: Request, res: Response) => {
 });
 
 export default router;
-

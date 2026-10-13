@@ -8,6 +8,7 @@ import { requireAuth, requestActorId } from '../middleware/auth';
 import { isSameSiteRequest } from '../utils/accountConnections';
 import { restartSupport, scheduleRestart } from '../utils/restart';
 import { checkPlatformUpdate } from '../services/platform/updateCheck';
+import { settingsService } from '../services/settingsService';
 import { listModuleUpdates } from '../services/platform/moduleUpdates';
 
 const router = Router();
@@ -25,13 +26,17 @@ router.use(requireAuth);
  *       channel (a beta sees betas too). `latest` is null when GitHub could not
  *       be asked. Looked up once an hour. `modules`: each installed module or
  *       pack with an update (`available`), or whose last update did not take
- *       (`problem`).
+ *       (`problem`). With the `updateNotices` setting off, `available` is false
+ *       whatever `latest` is; `modules` are unchanged.
  *     responses:
  *       200:
  *         description: "{ running, latest, available, releaseUrl, modules }"
  */
 router.get('/update', async (_req: Request, res: Response) => {
-  const [platform, modules] = await Promise.all([checkPlatformUpdate(), listModuleUpdates()]);
+  const [platform, modules] = await Promise.all([
+    settingsService.areUpdateNoticesEnabled().then((notices) => checkPlatformUpdate({ notices })),
+    listModuleUpdates(),
+  ]);
   res.json({ success: true, ...platform, modules });
 });
 
