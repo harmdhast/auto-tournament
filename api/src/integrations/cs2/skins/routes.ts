@@ -2,8 +2,10 @@
  * Virtual skins: a player's inventory and loadout, other players' showcases,
  * and the admin settings. Every player route answers 404 while skins are off.
  *
- * GET    /status                   public: on or off
- * GET    /me                       signed in: your inventory, showcase and new skins
+ * GET    /status                   public: on or off, and whether the catalogue is unlocked
+ * GET    /me                       signed in: your inventory, showcase, picks and new skins
+ * GET    /catalog?q=&weapon=       signed in: search the catalogue (while it is unlocked)
+ * PUT    /me/picks                 equip any catalogue skin ({ weapon, paintKit, float, pattern })
  * POST   /me/equip                 equip a skin ({ skinId })
  * DELETE /me/equip/:slot           empty a slot
  * POST   /me/seen                  the "new skin" reveal was shown ({ ids })
@@ -20,7 +22,14 @@ import { requireAuth } from '../../../middleware/auth';
 import { log } from '../../../utils/logger';
 import { resolveViewerAccount } from '../../../utils/viewerIdentity';
 import { skinImageUrls } from '../assets/localAssets';
-import { SkinError, skinService, variantOf, type SkinsConfig } from './skinService';
+import {
+  SkinError,
+  skinService,
+  slotOf,
+  variantOf,
+  type CatalogSkin,
+  type SkinsConfig,
+} from './skinService';
 
 const router = Router();
 
@@ -58,17 +67,47 @@ async function playerOrStop(req: Request, res: Response): Promise<string | null>
 }
 
 /**
+ * Catalogue skins matching the words of `q`, one row per paint kit (`all`) or
+ * per name, each with its variant and images.
+ */
+function searchCatalog(catalog: CatalogSkin[], q: unknown, all: boolean) {
+  const words = String(q ?? '')
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  const seen = new Set<string>();
+  return catalog
+    .map((s) => ({ ...s, variant: variantOf(s.paintKitName), ...skinImageUrls(s.image) }))
+    .filter((s) => {
+      const text = `${s.weaponName} ${s.name} ${s.variant ?? ''}`.toLowerCase();
+      return words.every((w) => text.includes(w));
+    })
+    .filter((s) => {
+      const key = all ? `${s.weapon}|${s.paintKit}` : `${s.weapon}|${s.name}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+/**
  * @openapi
  * /api/skins/status:
  *   get:
  *     tags: [Skins]
- *     summary: Whether virtual skins are on (public)
+ *     summary: Whether virtual skins are on, and the catalogue unlocked (public)
  *     responses:
- *       200: { description: "{ enabled }" }
+ *       200: { description: "{ enabled, catalogUnlocked }" }
  */
 router.get('/status', async (_req, res) => {
   try {
-    return res.json({ success: true, enabled: (await skinService.config()).enabled });
+    const config = await skinService.config();
+    return res.json({
+      success: true,
+      enabled: config.enabled,
+      catalogUnlocked: config.enabled && config.catalogUnlocked,
+    });
   } catch (error) {
     return fail(res, error, 'Reading the skins status');
   }
@@ -79,7 +118,7 @@ router.get('/status', async (_req, res) => {
  * /api/skins/me:
  *   get:
  *     tags: [Skins]
- *     summary: Your inventory, showcase, and skins you have not seen yet
+ *     summary: Your inventory, showcase, catalogue picks, and skins you have not seen yet
  *     responses:
  *       200: { description: The inventory }
  *       401: { description: Not signed in }
@@ -94,6 +133,7 @@ router.get('/me', async (req, res) => {
       success: true,
       inventory,
       showcase: await skinService.showcase(uid),
+      picks: await skinService.picks(uid),
       unseen: inventory.filter((s) => !s.seen).map((s) => s.id),
     });
   } catch (error) {
@@ -208,6 +248,89 @@ router.put('/me/showcase', async (req, res) => {
 
 /**
  * @openapi
+ * /api/skins/catalog:
+ *   get:
+ *     tags: [Skins]
+ *     summary: Search the catalogue to pick a skin (while it is unlocked)
+ *     parameters:
+ *       - { in: query, name: q, schema: { type: string } }
+ *       - { in: query, name: weapon, schema: { type: string }, description: Only this weapon }
+ *     responses:
+ *       200: { description: Up to 60 skins, one per paint kit }
+ *       401: { description: Not signed in }
+ *       404: { description: The catalogue is not unlocked }
+ */
+router.get('/catalog', async (req, res) => {
+  try {
+    const uid = await playerOrStop(req, res);
+    if (!uid) return;
+    if (!(await skinService.catalogOn()))
+      return res.status(404).json({ success: false, error: 'The catalogue is not unlocked' });
+    const weapon = typeof req.query.weapon === 'string' ? req.query.weapon : '';
+    const skins = searchCatalog(await skinService.catalog(), req.query.q, true)
+      .filter((s) => !weapon || s.weapon === weapon)
+      .slice(0, 60)
+      .map((s) => ({
+        weapon: s.weapon,
+        weaponName: s.weaponName,
+        paintKit: s.paintKit,
+        name: s.name,
+        rarity: s.rarity,
+        variant: s.variant,
+        slot: slotOf(s.weapon),
+        imageUrl: s.imageUrl,
+        imageSmallUrl: s.imageSmallUrl,
+      }));
+    return res.json({ success: true, skins });
+  } catch (error) {
+    return fail(res, error, 'Searching the catalogue');
+  }
+});
+
+/**
+ * @openapi
+ * /api/skins/me/picks:
+ *   put:
+ *     tags: [Skins]
+ *     summary: Equip any catalogue skin with a chosen float and pattern
+ *     description: Replaces your pick in that slot. Only while the catalogue is unlocked.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [weapon, paintKit, float, pattern]
+ *             properties:
+ *               weapon: { type: string }
+ *               paintKit: { type: integer }
+ *               float: { type: number, minimum: 0, maximum: 1 }
+ *               pattern: { type: integer, minimum: 0, maximum: 1000 }
+ *     responses:
+ *       200: { description: The equipped pick }
+ *       400: { description: Not in the catalogue, or float or pattern out of range }
+ *       404: { description: The catalogue is not unlocked }
+ */
+router.put('/me/picks', async (req, res) => {
+  try {
+    const uid = await playerOrStop(req, res);
+    if (!uid) return;
+    const body = req.body ?? {};
+    const pick = await skinService.pick(uid, {
+      weapon: String(body.weapon ?? ''),
+      paintKit: Number(body.paintKit),
+      float: body.float,
+      pattern: body.pattern,
+    });
+    void loadoutChanged(uid);
+    return res.json({ success: true, pick });
+  } catch (error) {
+    return fail(res, error, 'Equipping a pick');
+  }
+});
+
+/**
+ * @openapi
  * /api/skins/players/{steamId}:
  *   get:
  *     tags: [Skins]
@@ -215,7 +338,7 @@ router.put('/me/showcase', async (req, res) => {
  *     parameters:
  *       - { in: path, name: steamId, required: true, schema: { type: string } }
  *     responses:
- *       200: { description: Inventory and showcase }
+ *       200: { description: Inventory, showcase and catalogue picks }
  *       404: { description: Skins are off, or no such player }
  */
 router.get('/players/:steamId', async (req, res) => {
@@ -310,27 +433,11 @@ router.put('/admin/config', requireAuth, async (req, res) => {
  */
 router.get('/admin/catalog', requireAuth, async (req, res) => {
   try {
-    const words = String(req.query.q ?? '')
-      .trim()
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(Boolean);
-    // `all=1`: every paint kit, so each phase of a Doppler is its own row.
-    const all = req.query.all === '1';
-    const seen = new Set<string>();
-    const skins = (await skinService.catalog())
-      .map((s) => ({ ...s, variant: variantOf(s.paintKitName), ...skinImageUrls(s.image) }))
-      .filter((s) => {
-        const text = `${s.weaponName} ${s.name} ${s.variant ?? ''}`.toLowerCase();
-        return words.every((w) => text.includes(w));
-      })
-      .filter((s) => {
-        const key = all ? `${s.weapon}|${s.paintKit}` : `${s.weapon}|${s.name}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, 50);
+    const skins = searchCatalog(
+      await skinService.catalog(),
+      req.query.q,
+      req.query.all === '1'
+    ).slice(0, 50);
     return res.json({ success: true, skins });
   } catch (error) {
     return fail(res, error, 'Searching the catalogue');
