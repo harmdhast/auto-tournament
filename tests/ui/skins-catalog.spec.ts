@@ -33,46 +33,53 @@ test.describe.serial('Skins catalogue picker', () => {
     await admin.dispose();
   });
 
-  test('a player picks a catalogue skin with a float and seed', { tag: ['@ui'] }, async ({ page }) => {
-    await page.goto('/inventory');
-    await page.getByTestId('inventory-view').getByRole('button', { name: 'Catalog' }).click();
-    await page.getByRole('searchbox').fill('deagle');
-    await page.getByTestId('catalog-tile').filter({ hasText: 'Desert Eagle' }).first().click();
+  test(
+    'a player picks a catalogue skin with a float and seed',
+    { tag: ['@ui'] },
+    async ({ page }) => {
+      await page.goto('/inventory');
+      await page.getByTestId('inventory-view').getByRole('button', { name: 'Catalog' }).click();
+      await page.getByRole('searchbox').fill('deagle');
+      await page.getByTestId('catalog-tile').filter({ hasText: 'Desert Eagle' }).first().click();
 
-    const dialog = page.getByTestId('catalog-pick-dialog');
-    await expect(dialog).toBeVisible();
-    await dialog.getByLabel('Float').fill('0.05');
-    await dialog.getByLabel('Pattern').fill('42');
-    await dialog.getByRole('button', { name: 'Equip' }).click();
-    await expect(dialog).toBeHidden();
+      const dialog = page.getByTestId('catalog-pick-dialog');
+      await expect(dialog).toBeVisible();
+      await dialog.getByLabel('Float').fill('0.05');
+      await dialog.getByLabel('Pattern').fill('42');
+      await dialog.getByRole('button', { name: 'Equip' }).click();
+      await expect(dialog).toBeHidden();
 
-    const picked = page.getByTestId('loadout-slot').filter({ hasText: 'Picked' });
-    await expect(picked).toHaveCount(1);
-    await expect(picked).toContainText('Desert Eagle');
+      const picked = page.getByTestId('loadout-slot').filter({ hasText: 'Picked' });
+      await expect(picked).toHaveCount(1);
+      await expect(picked).toContainText('Desert Eagle');
 
-    const me = await (await page.request.get('/api/skins/me')).json();
-    expect(me.picks[0]).toMatchObject({ weapon: 'weapon_deagle', float: 0.05, pattern: 42 });
-  });
+      const me = await (await page.request.get('/api/skins/me')).json();
+      expect(me.picks[0]).toMatchObject({ weapon: 'weapon_deagle', float: 0.05, pattern: 42 });
+    }
+  );
 
   test('every weapon has a slot in the loadout', { tag: ['@ui'] }, async ({ page }) => {
     await page.goto('/inventory');
     const slot = page.getByTestId('loadout-slot').filter({ hasText: 'AK-47' });
     await expect(slot).toHaveCount(1);
     await slot.click();
-    await expect(page.getByTestId('inventory-view').getByRole('button', { name: 'Catalog' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
+    await expect(
+      page.getByTestId('inventory-view').getByRole('button', { name: 'Catalog' })
+    ).toHaveAttribute('aria-pressed', 'true');
     const tiles = page.getByTestId('catalog-tile');
     await expect(tiles.first()).toBeVisible();
     const texts = await tiles.allTextContents();
     expect(texts.every((x) => x.includes('AK-47'))).toBe(true);
   });
 
-  test('the Catalog view is hidden while the mode is off', { tag: ['@ui'] }, async ({ page, request }) => {
-    await setConfig(request, { catalogUnlocked: false });
-    await page.goto('/inventory');
-    await expect(page.getByTestId('inventory-page')).toBeVisible();
-    await expect(page.getByTestId('inventory-view')).toHaveCount(0);
-  });
+  test(
+    'the Catalog view is hidden while the mode is off',
+    { tag: ['@ui'] },
+    async ({ page, request }) => {
+      await setConfig(request, { catalogUnlocked: false });
+      await page.goto('/inventory');
+      await expect(page.getByTestId('inventory-page')).toBeVisible();
+      await expect(page.getByTestId('inventory-view')).toHaveCount(0);
+    }
+  );
 });
