@@ -77,6 +77,7 @@ const PISTOLS = [
   'cz75a',
   'deagle',
   'revolver',
+  'taser',
   'elite',
 ];
 const SMGS = ['mac10', 'mp9', 'mp7', 'mp5sd', 'ump45', 'p90', 'bizon'];
