@@ -533,13 +533,17 @@ export function InspectSkinDialog({
                 >
                   {skin.source === 'tournament'
                     ? t('skins.place', { n: skin.place ?? 1 })
-                    : t('skins.wonMatchmaking')}
+                    : skin.source === 'catalog'
+                      ? t('skins.picked')
+                      : t('skins.wonMatchmaking')}
                 </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', color: color.ink2 }}>
-                  {[skin.sourceLabel ? sourceLabel(skin.sourceLabel) : null, date]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </Typography>
+                {skin.source !== 'catalog' && (
+                  <Typography sx={{ fontSize: '0.8125rem', color: color.ink2 }}>
+                    {[skin.sourceLabel ? sourceLabel(skin.sourceLabel) : null, date]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Typography>
+                )}
               </Box>
             </Box>
             <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
