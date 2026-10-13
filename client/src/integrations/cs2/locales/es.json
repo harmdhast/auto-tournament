@@ -1673,6 +1673,7 @@
     "inventory": "Inventory",
     "count": "{{count}} skins",
     "equippedTitle": "Equipped",
+    "gearTitle": "Cuchillo y equipo",
     "slot": {
       "knife": "Knife",
       "gloves": "Gloves"

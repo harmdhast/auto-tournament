@@ -22,7 +22,7 @@ import {
   fontDisplay,
   radii,
 } from '../../../module-sdk';
-import { InspectSkinDialog, SkinCard, SlotTile, VirtualNotice } from './SkinParts';
+import { InspectSkinDialog, LoadoutRow, SkinCard, SlotTile, VirtualNotice } from './SkinParts';
 import { CatalogPicker } from './CatalogPicker';
 import {
   loadoutSlots,
@@ -138,7 +138,8 @@ export function InventoryPage() {
     const out: { key: Filter | null; slots: string[] }[] = [{ key: null, slots: [] }];
     for (const slot of slots) {
       const cat = known.get(slot)?.category ?? category({ slot, weapon: slot });
-      const key = cat === 'knives' || cat === 'gloves' ? null : cat;
+      const gear = cat === 'knives' || cat === 'gloves' || slot === 'weapon_taser';
+      const key = gear ? null : cat;
       const group = out.find((g) => g.key === key) ?? { key, slots: [] };
       if (!out.includes(group)) out.push(group);
       group.slots.push(slot);
@@ -223,76 +224,112 @@ export function InventoryPage() {
               >
                 {t('skins.equippedTitle')}
               </Typography>
-              {groups.map((group) => (
-                <Box
-                  key={group.key ?? 'main'}
-                  sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
-                >
-                  {group.key && (
-                    <Typography
-                      component="h3"
-                      sx={{ fontSize: '0.875rem', fontWeight: 600, color: color.ink2 }}
-                    >
-                      {t(`skins.filter.${group.key}`)}
-                    </Typography>
-                  )}
+              <Box
+                sx={
+                  catalogUnlocked
+                    ? {
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: 2,
+                        alignItems: 'start',
+                      }
+                    : { display: 'contents' }
+                }
+              >
+                {groups.map((group) => (
                   <Box
+                    key={group.key ?? 'main'}
+                    data-testid="loadout-column"
                     sx={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))',
-                      gap: 1.25,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: catalogUnlocked ? 0.5 : 1,
+                      minWidth: 0,
                     }}
                   >
-                    {group.slots.map((slot) => {
-                      const skin =
-                        picks.find((s) => s.slot === slot) ??
-                        inventory.find((s) => s.slot === slot && s.equipped) ??
-                        null;
-                      const label =
-                        slot === 'knife'
-                          ? t('skins.slot.knife')
-                          : slot === 'gloves'
-                            ? t('skins.slot.gloves')
-                            : ([...inventory, ...picks].find((s) => s.slot === slot)?.weaponName ??
-                              catalogWeapons.find((w) => w.slot === slot)?.weaponName ??
-                              slot);
-                      // An equipped slot opens its skin; an empty one shows the skins that fit it.
-                      return (
-                        <SlotTile
-                          key={slot}
-                          label={label}
-                          skin={skin}
-                          onClick={() => {
-                            if (skin) {
-                              setInspect(skin.id);
-                              return;
+                    {(group.key || catalogUnlocked) && (
+                      <Typography
+                        component="h3"
+                        sx={{ fontSize: '0.875rem', fontWeight: 600, color: color.ink2 }}
+                      >
+                        {group.key ? t(`skins.filter.${group.key}`) : t('skins.gearTitle')}
+                      </Typography>
+                    )}
+                    <Box
+                      sx={
+                        catalogUnlocked
+                          ? { display: 'flex', flexDirection: 'column', gap: 0.25 }
+                          : {
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))',
+                              gap: 1.25,
                             }
-                            if (catalogUnlocked) {
-                              const knifeOrGloves = slot === 'knife' || slot === 'gloves';
-                              setView('catalog');
-                              setSlotWeapon(knifeOrGloves ? null : slot);
-                              setFilter(
-                                knifeOrGloves ? (slot === 'knife' ? 'knives' : 'gloves') : 'all'
-                              );
-                              return;
-                            }
-                            const owned = inventory.find((s) => s.slot === slot);
+                      }
+                    >
+                      {group.slots.map((slot) => {
+                        const skin =
+                          picks.find((s) => s.slot === slot) ??
+                          inventory.find((s) => s.slot === slot && s.equipped) ??
+                          null;
+                        const label =
+                          slot === 'knife'
+                            ? t('skins.slot.knife')
+                            : slot === 'gloves'
+                              ? t('skins.slot.gloves')
+                              : ([...inventory, ...picks].find((s) => s.slot === slot)
+                                  ?.weaponName ??
+                                catalogWeapons.find((w) => w.slot === slot)?.weaponName ??
+                                slot);
+                        // An equipped slot opens its skin; an empty one shows the skins that fit it.
+                        const open = () => {
+                          if (skin) {
+                            setInspect(skin.id);
+                            return;
+                          }
+                          if (catalogUnlocked) {
+                            const knifeOrGloves = slot === 'knife' || slot === 'gloves';
+                            setView('catalog');
+                            setSlotWeapon(knifeOrGloves ? null : slot);
                             setFilter(
-                              owned
-                                ? category(owned)
-                                : slot === 'knife'
-                                  ? 'knives'
-                                  : slot === 'gloves'
-                                    ? 'gloves'
-                                    : 'all'
+                              knifeOrGloves ? (slot === 'knife' ? 'knives' : 'gloves') : 'all'
                             );
-                          }}
-                        />
-                      );
-                    })}
+                            return;
+                          }
+                          const owned = inventory.find((s) => s.slot === slot);
+                          setFilter(
+                            owned
+                              ? category(owned)
+                              : slot === 'knife'
+                                ? 'knives'
+                                : slot === 'gloves'
+                                  ? 'gloves'
+                                  : 'all'
+                          );
+                        };
+                        return catalogUnlocked ? (
+                          <LoadoutRow
+                            key={slot}
+                            label={label}
+                            skin={skin}
+                            onClick={open}
+                            onUnequip={() =>
+                              void mine
+                                .unequip(slot)
+                                .catch((error: unknown) =>
+                                  showError(
+                                    error instanceof Error ? error.message : t('skins.equipFailed')
+                                  )
+                                )
+                            }
+                          />
+                        ) : (
+                          <SlotTile key={slot} label={label} skin={skin} onClick={open} />
+                        );
+                      })}
+                    </Box>
                   </Box>
-                </Box>
-              ))}
+                ))}
+              </Box>
             </Box>
 
             {catalogUnlocked && (

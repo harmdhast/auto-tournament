@@ -72,6 +72,48 @@ test.describe.serial('Skins catalogue picker', () => {
     expect(texts.every((x) => x.includes('AK-47'))).toBe(true);
   });
 
+  test('the loadout is a compact set of columns', { tag: ['@ui'] }, async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/inventory');
+    const section = page.getByRole('region', { name: 'Equipped' });
+    await expect(page.getByTestId('loadout-slot').first()).toBeVisible();
+    const box = await section.boundingBox();
+    expect(box?.height).toBeLessThan(600);
+    const columns = section.getByRole('heading', { level: 3 });
+    await expect(columns).toHaveText(['Knife & gear', 'Pistols', 'SMGs', 'Rifles', 'Heavy']);
+    const gear = section.getByTestId('loadout-column').first();
+    await expect(gear.getByTestId('loadout-slot').filter({ hasText: 'Zeus' })).toHaveCount(1);
+    await expect(
+      section
+        .getByTestId('loadout-column')
+        .nth(1)
+        .getByTestId('loadout-slot')
+        .filter({ hasText: 'Zeus' })
+    ).toHaveCount(0);
+
+    await page.setViewportSize({ width: 375, height: 800 });
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test('a loadout row unequips its pick', { tag: ['@ui'] }, async ({ page }) => {
+    await page.goto('/inventory');
+    await page.getByTestId('loadout-slot').filter({ hasText: 'Desert Eagle' }).click();
+    await page.getByTestId('catalog-tile').first().click();
+    await page.getByTestId('catalog-pick-dialog').getByRole('button', { name: 'Equip' }).click();
+    await expect(page.getByTestId('catalog-pick-dialog')).toBeHidden();
+
+    const row = page.getByTestId('loadout-slot').filter({ hasText: 'Picked' });
+    await expect(row).toHaveCount(1);
+    await page.getByRole('button', { name: 'Unequip Desert Eagle' }).click();
+    await expect(page.getByTestId('loadout-slot').filter({ hasText: 'Picked' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Desert Eagle', exact: true })).toBeVisible();
+    const me = await (await page.request.get('/api/skins/me')).json();
+    expect(me.picks.some((p: { slot: string }) => p.slot === 'weapon_deagle')).toBe(false);
+  });
+
   test(
     'the Catalog view is hidden while the mode is off',
     { tag: ['@ui'] },
