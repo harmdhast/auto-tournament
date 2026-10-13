@@ -404,12 +404,16 @@ router.get('/admin/config', requireAuth, async (_req, res) => {
 });
 router.put('/admin/config', requireAuth, async (req, res) => {
   try {
-    const before = (await skinService.config()).enabled;
+    const before = await skinService.config();
     const config = await skinService.setConfig((req.body ?? {}) as Partial<SkinsConfig>);
     // The servers' skins plugin follows the platform's switch.
-    if (config.enabled !== before) {
+    if (config.enabled !== before.enabled) {
       void import('../fleet/push/controls').then(({ syncSkinsPluginEverywhere }) =>
         syncSkinsPluginEverywhere()
+      );
+    } else if (config.enabled && config.catalogUnlocked !== before.catalogUnlocked) {
+      void import('../fleet/push/skins').then(({ repushConnectedLoadouts }) =>
+        repushConnectedLoadouts()
       );
     }
     return res.json({ success: true, config });
