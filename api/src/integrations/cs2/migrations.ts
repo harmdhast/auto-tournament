@@ -123,6 +123,7 @@ export const CS2_REEL_FAILOVER_MIGRATION_ID = '038-reel-failover';
 export const CS2_FLEET_AVAILABILITY_REASON_MIGRATION_ID = '037-fleet-availability-reason';
 export const CS2_SERVER_FAILOVER_USE_MIGRATION_ID = '040-server-failover-use';
 export const CS2_MATCH_RUNTIME_CASCADE_MIGRATION_ID = '050-match-runtime-cascade';
+export const CS2_ROUND_BACKUP_SIDES_MIGRATION_ID = '051-round-backup-sides';
 
 export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
   {
@@ -1460,6 +1461,13 @@ export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
     ALTER TABLE cs2_match_round_backup_parts ADD CONSTRAINT cs2_match_round_backup_parts_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
     ALTER TABLE cs2_match_round_restores DROP CONSTRAINT IF EXISTS cs2_match_round_restores_match_slug_fkey;
     ALTER TABLE cs2_match_round_restores ADD CONSTRAINT cs2_match_round_restores_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
+`,
+  },
+  {
+    // The sides played in the round, sent back with a resume / restore.
+    id: CS2_ROUND_BACKUP_SIDES_MIGRATION_ID,
+    up: `
+    ALTER TABLE cs2_match_round_backups ADD COLUMN IF NOT EXISTS round_sides TEXT;
 `,
   },
 ];

@@ -447,6 +447,7 @@ test.describe.serial('Fleet failover (FLEET.md §11)', () => {
       map_number: 1,
       round: backup.round,
       score: backup.score,
+      round_sides: backup.round_sides,
     });
     expect(payload.resume.backup).toEqual({
       map_number: backup.map_number,
@@ -455,6 +456,7 @@ test.describe.serial('Fleet failover (FLEET.md §11)', () => {
       size: backup.size,
       sha256: backup.sha256,
       score: backup.score,
+      round_sides: backup.round_sides,
       encoding: 'base64',
       data: backup.data,
     });
