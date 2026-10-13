@@ -901,7 +901,8 @@ export const skinService = {
          FROM cs2_player_skins s JOIN players p ON p.uid = s.player_uid WHERE s.id = ?`,
       [skinId]
     );
-    if (!row) throw new SkinError(404, 'No such skin.');
+    if (!row || (row.source === 'catalog' && !(await this.catalogOn())))
+      throw new SkinError(404, 'No such skin.');
     const equipped = await db.queryOneAsync('SELECT 1 FROM cs2_player_loadout WHERE skin_id = ?', [
       skinId,
     ]);
