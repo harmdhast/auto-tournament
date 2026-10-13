@@ -54,6 +54,30 @@ test.describe.serial('Settings UI', () => {
   );
 
   test(
+    'the update notice switch saves on its own',
+    {
+      tag: ['@ui', '@settings'],
+    },
+    async ({ page }) => {
+      const stored = async () =>
+        (await (await page.request.get('/api/settings')).json()).settings.updateNotices;
+      await page.goto('/manage/settings');
+      const toggle = page.getByTestId('settings-update-notices');
+      await expect(toggle).toBeChecked({ timeout: 15000 });
+
+      await toggle.click();
+      await expect.poll(stored, { timeout: 15000 }).toBe(false);
+
+      await page.reload();
+      await expect(page.getByTestId('settings-update-notices')).not.toBeChecked({
+        timeout: 15000,
+      });
+      await page.getByTestId('settings-update-notices').click();
+      await expect.poll(stored, { timeout: 15000 }).toBe(true);
+    }
+  );
+
+  test(
     'should update and clear the webhook URL',
     {
       tag: ['@ui', '@settings', '@configuration'],

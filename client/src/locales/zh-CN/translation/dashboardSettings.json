@@ -279,7 +279,11 @@
       "helper": "Leave it empty to use \"Auto Tournament\".",
       "save": "Save",
       "saved": "Site name saved",
-      "saveFailed": "Could not save the site name"
+      "saveFailed": "Could not save the site name",
+      "updateNotices": {
+        "toggleLabel": "Show Auto Tournament update notices",
+        "short": "Admins get a notice when a newer Auto Tournament release is out."
+      }
     },
     "experimental": {
       "title": "Experimental",

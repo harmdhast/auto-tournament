@@ -50,6 +50,49 @@ test('available only when the newest is newer than what runs', TAGS, async () =>
   });
 });
 
+test('with the notice off, a newer release is not announced', TAGS, async () => {
+  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => releases });
+  resetPlatformUpdateCache();
+  expect(
+    await checkPlatformUpdate({
+      running: '3.0.0-beta.71',
+      fetchImpl,
+      forceRefresh: true,
+      notices: false,
+    })
+  ).toEqual({
+    running: '3.0.0-beta.71',
+    latest: '3.0.0-beta.72',
+    available: false,
+    releaseUrl: 'https://example.test/b72',
+  });
+});
+
+test('the notice is a setting, on by default', TAGS, async ({ request }) => {
+  expect(await signInViaRequest(request)).toBe(true);
+  const read = async () =>
+    (
+      (await (await request.get('/api/settings')).json()) as {
+        settings: { updateNotices: unknown };
+      }
+    ).settings.updateNotices;
+  expect(await read()).toBe(true);
+  try {
+    const bad = await request.put('/api/settings', { data: { updateNotices: 'no' } });
+    expect(bad.status()).toBe(400);
+    expect(await read()).toBe(true);
+
+    const off = await request.put('/api/settings', { data: { updateNotices: false } });
+    expect(off.status()).toBe(200);
+    expect(await read()).toBe(false);
+    const update = await (await request.get('/api/system/update')).json();
+    expect(update).toMatchObject({ success: true, available: false, modules: expect.any(Array) });
+  } finally {
+    await request.put('/api/settings', { data: { updateNotices: true } });
+  }
+  expect(await read()).toBe(true);
+});
+
 test('the endpoint is admin-only', TAGS, async ({ request, playwright }) => {
   const anon = await playwright.request.newContext({ baseURL: test.info().project.use.baseURL });
   expect((await anon.get('/api/system/update')).status()).toBe(401);

@@ -319,7 +319,11 @@
       "helper": "La feltet stå tomt for å bruke «Auto Tournament».",
       "save": "Lagre",
       "saved": "Navnet er lagret",
-      "saveFailed": "Kunne ikke lagre navnet"
+      "saveFailed": "Kunne ikke lagre navnet",
+      "updateNotices": {
+        "toggleLabel": "Show Auto Tournament update notices",
+        "short": "Admins get a notice when a newer Auto Tournament release is out."
+      }
     },
     "experimental": {
       "title": "Eksperimentelt",

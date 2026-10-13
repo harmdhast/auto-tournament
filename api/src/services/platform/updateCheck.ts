@@ -66,12 +66,15 @@ export async function checkPlatformUpdate(options?: {
   running?: string;
   fetchImpl?: ReleaseFetch;
   forceRefresh?: boolean;
+  /** False: a newer release is still looked up but never reported as `available`. */
+  notices?: boolean;
 }): Promise<PlatformUpdate> {
   const running = options?.running ?? packageJson.version;
   const channel = (semver.prerelease(clean(running) ?? '') ?? []).length > 0 ? 'beta' : 'stable';
+  const notices = options?.notices ?? true;
   const now = Date.now();
   if (!options?.forceRefresh && cache && cache.channel === channel && now - cache.at < CACHE_MS) {
-    return result(running, cache.latest);
+    return result(running, cache.latest, notices);
   }
   const doFetch: ReleaseFetch = options?.fetchImpl ?? (fetch as unknown as ReleaseFetch);
   try {
@@ -80,23 +83,27 @@ export async function checkPlatformUpdate(options?: {
     });
     if (!res.ok) {
       log.warn('[UPDATE] Could not read the platform releases', { status: res.status });
-      return result(running, null);
+      return result(running, null, notices);
     }
     const latest = newestRelease((await res.json()) as GitHubRelease[], running);
     cache = { at: now, latest, channel };
-    return result(running, latest);
+    return result(running, latest, notices);
   } catch (error) {
     log.warn('[UPDATE] Could not read the platform releases', { error: (error as Error).message });
-    return result(running, null);
+    return result(running, null, notices);
   }
 }
 
-function result(running: string, latest: { version: string; url: string } | null): PlatformUpdate {
+function result(
+  running: string,
+  latest: { version: string; url: string } | null,
+  notices: boolean
+): PlatformUpdate {
   const r = clean(running);
   return {
     running,
     latest: latest?.version ?? null,
-    available: !!(latest && r && semver.gt(latest.version, r)),
+    available: notices && !!(latest && r && semver.gt(latest.version, r)),
     releaseUrl: latest?.url || null,
   };
 }

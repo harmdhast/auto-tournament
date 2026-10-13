@@ -1265,6 +1265,8 @@ const ADDED_SETTINGS: Array<{ key: string; field: string | null }> = [
   { key: 'license_lease', field: null },
   // Integrator webhooks to private / loopback targets (services/webhooks/ssrf).
   { key: 'webhooks_allow_private_targets', field: 'webhooksAllowPrivateTargets' },
+  // The admin's "newer Auto Tournament" notice (routes/system.ts).
+  { key: 'update_notices', field: 'updateNotices' },
   // Experimental feature toggles: /api/experimental only.
   { key: 'experimental_matchmaking', field: null },
   // Ready Up match servers' join password (off by default; the roster whitelist keeps others out).
