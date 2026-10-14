@@ -8,6 +8,9 @@ import {
 } from '../../api/src/integrations/cs2/fleet/push/skins';
 import { skinService } from '../../api/src/integrations/cs2/skins/skinService';
 import { playerConnectionService } from '../../api/src/services/playerConnectionService';
+// Loaded here so push/skins.ts's dynamic import finds it in the require cache:
+// Node's own loader cannot run the TypeScript source a pure spec would hand it.
+import '../../api/src/integrations/cs2/fleet/gameMessages';
 
 /**
  * Live skins pushes (fleet/push/skins.ts) go to the fleet server a match's
