@@ -104,7 +104,7 @@ test('a server in a match shows its phase, map and score and opens the match', a
   await expect(grid.getByText('Free', { exact: true })).toBeVisible();
 
   await live.click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page).toHaveURL(/\/match\/ub-r1-m1$/);
 });
 
 test('server tiles sort by status, matches first', async ({ page }) => {
