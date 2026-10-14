@@ -2906,6 +2906,15 @@
       "name": "Gamma Doppler",
       "rarity": "mythical",
       "image": "weapon_knife_karambit_am_gamma_doppler_phase4.webp"
+    },
+    {
+      "weapon": "weapon_decoy",
+      "weaponName": "Decoy Grenade",
+      "paintKit": 9001,
+      "paintKitName": "cu_fixture_decoy",
+      "name": "Fixture",
+      "rarity": "common",
+      "image": "weapon_decoy_cu_fixture_decoy.webp"
     }
   ]
 }

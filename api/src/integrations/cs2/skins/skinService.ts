@@ -280,7 +280,7 @@ export interface OwnedSkin {
   slot: string;
   float: number;
   pattern: number;
-  source: 'matchmaking' | 'tournament' | 'admin' | 'level' | 'tradeup';
+  source: 'matchmaking' | 'tournament' | 'admin' | 'level' | 'tradeup' | 'catalog';
   sourceLabel: string | null;
   sourceRef: string | null;
   place: number | null;
@@ -617,6 +617,34 @@ export function loadoutPayload(rows: LoadoutRow[]): LoadoutPayload | null {
   if (!paints.length) return null;
   return { paints, ...(knife.length ? { knife } : {}), ...(gloves.length ? { gloves } : {}) };
 }
+
+/** Which sides each skin is equipped on. */
+async function equippedSides(playerUid: string): Promise<Map<number, LoadoutTeam[]>> {
+  const equipped = await db.queryAsync<{ skin_id: number; team: number }>(
+    'SELECT skin_id, team FROM cs2_player_loadout WHERE player_uid = ?',
+    [playerUid]
+  );
+  const sides = new Map<number, LoadoutTeam[]>();
+  for (const e of equipped) {
+    sides.set(e.skin_id, [...(sides.get(e.skin_id) ?? []), Number(e.team) as LoadoutTeam]);
+  }
+  return sides;
+}
+
+/** The catalogue picks equipped in a player's slot, whatever the side. */
+async function pickIdsInSlot(playerUid: string, slot: string): Promise<number[]> {
+  const rows = await db.queryAsync<{ skin_id: number }>(
+    `SELECT l.skin_id FROM cs2_player_loadout l JOIN cs2_player_skins s ON s.id = l.skin_id
+      WHERE l.player_uid = ? AND l.slot = ? AND s.source = 'catalog'`,
+    [playerUid, slot]
+  );
+  return rows.map((r) => r.skin_id);
+}
+
+/** Deletes the given picks that no side has equipped any more. */
+const DROP_ORPHAN_PICKS_SQL = `DELETE FROM cs2_player_skins s
+  WHERE s.id = ANY($1::int[]) AND s.source = 'catalog'
+    AND NOT EXISTS (SELECT 1 FROM cs2_player_loadout l WHERE l.skin_id = s.id)`;
 
 export const skinService = {
   async config(): Promise<SkinsConfig> {
@@ -1313,18 +1341,89 @@ export const skinService = {
 
   async inventory(playerUid: string): Promise<OwnedSkin[]> {
     const rows = await db.queryAsync<SkinRow>(
-      'SELECT * FROM cs2_player_skins WHERE player_uid = ? ORDER BY created_at DESC, id DESC',
+      `SELECT * FROM cs2_player_skins WHERE player_uid = ? AND source <> 'catalog'
+        ORDER BY created_at DESC, id DESC`,
       [playerUid]
     );
-    const equipped = await db.queryAsync<{ skin_id: number; team: number }>(
-      'SELECT skin_id, team FROM cs2_player_loadout WHERE player_uid = ?',
-      [playerUid]
-    );
-    const sides = new Map<number, LoadoutTeam[]>();
-    for (const e of equipped) {
-      sides.set(e.skin_id, [...(sides.get(e.skin_id) ?? []), Number(e.team) as LoadoutTeam]);
-    }
+    const sides = await equippedSides(playerUid);
     return rows.map((row) => toRow(row, sides));
+  },
+
+  /** The player's catalogue picks that are equipped on some side; none while the mode is off. */
+  async picks(playerUid: string): Promise<OwnedSkin[]> {
+    if (!(await this.catalogOn())) return [];
+    const rows = await db.queryAsync<SkinRow>(
+      `SELECT * FROM cs2_player_skins s WHERE player_uid = ? AND source = 'catalog'
+          AND EXISTS (SELECT 1 FROM cs2_player_loadout l WHERE l.skin_id = s.id)
+        ORDER BY id`,
+      [playerUid]
+    );
+    const sides = await equippedSides(playerUid);
+    return rows.map((row) => toRow(row, sides));
+  },
+
+  /**
+   * Equips any catalogue skin with the float and seed given, for a side like
+   * an earned skin: the side's pick in the slot is replaced, "both" clears
+   * the slot's one-side picks. A pick is a `source = 'catalog'` row that lives
+   * only while some side has it equipped, and is never StatTrak.
+   */
+  async setCatalogPick(
+    playerUid: string,
+    input: { weapon: string; paintKit: number; float: unknown; seed: unknown; team?: unknown }
+  ): Promise<OwnedSkin> {
+    if (!(await this.catalogOn())) throw new SkinError(404, 'The catalogue is not unlocked.');
+    const { weapon, paintKit, float, seed } = input;
+    const skin = (await this.catalog()).find((s) => s.weapon === weapon && s.paintKit === paintKit);
+    if (!skin) throw new SkinError(400, 'That skin is not in the catalogue.');
+    if (!WEAPON_DEFINDEX[skin.weapon]) throw new SkinError(400, 'That skin cannot be equipped.');
+    if (typeof float !== 'number' || !Number.isFinite(float) || float < 0 || float > 1)
+      throw new SkinError(400, 'The float must be between 0 and 1.');
+    if (typeof seed !== 'number' || !Number.isInteger(seed) || seed < 0 || seed > 1000)
+      throw new SkinError(400, 'The seed must be a whole number from 0 to 1000.');
+    const slot = slotOf(skin.weapon);
+    const side = equipTeam(skin.weapon, input.team);
+    const replaced = await pickIdsInSlot(playerUid, slot);
+    const row = await db.withClient(async (client) => {
+      await client.query('BEGIN');
+      try {
+        const inserted = await client.query<SkinRow>(
+          `INSERT INTO cs2_player_skins
+             (player_uid, weapon, weapon_name, paint_kit, name, rarity, image, float_value, pattern, source, variant, seen)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'catalog', $10, TRUE) RETURNING *`,
+          [
+            playerUid,
+            skin.weapon,
+            skin.weaponName,
+            skin.paintKit,
+            skin.name,
+            skin.rarity,
+            skin.image,
+            float,
+            seed,
+            variantOf(skin.paintKitName),
+          ]
+        );
+        if (side === 0) {
+          await client.query(
+            'DELETE FROM cs2_player_loadout WHERE player_uid = $1 AND slot = $2 AND team <> 0',
+            [playerUid, slot]
+          );
+        }
+        await client.query(
+          `INSERT INTO cs2_player_loadout (player_uid, slot, skin_id, team) VALUES ($1, $2, $3, $4)
+           ON CONFLICT (player_uid, slot, team) DO UPDATE SET skin_id = EXCLUDED.skin_id`,
+          [playerUid, slot, inserted.rows[0].id, side]
+        );
+        await client.query(DROP_ORPHAN_PICKS_SQL, [replaced]);
+        await client.query('COMMIT');
+        return inserted.rows[0];
+      } catch (error) {
+        await client.query('ROLLBACK').catch(() => undefined);
+        throw error;
+      }
+    });
+    return toRow(row, await equippedSides(playerUid));
   },
 
   /**
@@ -1337,9 +1436,11 @@ export const skinService = {
       'SELECT * FROM cs2_player_skins WHERE id = ? AND player_uid = ?',
       [skinId, playerUid]
     );
-    if (!skin) throw new SkinError(404, 'That skin is not in your inventory.');
+    if (!skin || skin.source === 'catalog')
+      throw new SkinError(404, 'That skin is not in your inventory.');
     const slot = slotOf(skin.weapon);
     const side = equipTeam(skin.weapon, team);
+    const replaced = await pickIdsInSlot(playerUid, slot);
     if (side === 0) {
       await db.runAsync(
         'DELETE FROM cs2_player_loadout WHERE player_uid = ? AND slot = ? AND team <> 0',
@@ -1351,21 +1452,24 @@ export const skinService = {
        ON CONFLICT (player_uid, slot, team) DO UPDATE SET skin_id = EXCLUDED.skin_id`,
       [playerUid, slot, skinId, side]
     );
+    await db.runAsync(DROP_ORPHAN_PICKS_SQL, [replaced]);
   },
 
   /** Empties a slot: one side's pick (2, 3), or every side's (no team). */
   async unequip(playerUid: string, slot: string, team?: unknown): Promise<void> {
+    const replaced = await pickIdsInSlot(playerUid, slot);
     if (team === 0 || team === 2 || team === 3) {
       await db.runAsync(
         'DELETE FROM cs2_player_loadout WHERE player_uid = ? AND slot = ? AND team = ?',
         [playerUid, slot, team]
       );
-      return;
+    } else {
+      await db.runAsync('DELETE FROM cs2_player_loadout WHERE player_uid = ? AND slot = ?', [
+        playerUid,
+        slot,
+      ]);
     }
-    await db.runAsync('DELETE FROM cs2_player_loadout WHERE player_uid = ? AND slot = ?', [
-      playerUid,
-      slot,
-    ]);
+    await db.runAsync(DROP_ORPHAN_PICKS_SQL, [replaced]);
   },
 
   async markSeen(playerUid: string, ids: number[]): Promise<void> {
@@ -1443,7 +1547,7 @@ export const skinService = {
     const uid = await uidOf(steamId);
     if (!uid) return null;
     const inventory = await this.inventory(uid);
-    return { inventory, showcase: await this.showcase(uid) };
+    return { inventory, showcase: await this.showcase(uid), picks: await this.picks(uid) };
   },
 
   /**
@@ -1463,7 +1567,8 @@ export const skinService = {
     knife?: Array<{ team: LoadoutTeam; defindex: number }>;
     gloves?: Array<{ team: LoadoutTeam; defindex: number }>;
   } | null> {
-    if (!(await this.config()).enabled) return null;
+    const config = await this.config();
+    if (!config.enabled) return null;
     const uid = await uidOf(steamId);
     if (!uid) return null;
     const rows = await db.queryAsync<{
@@ -1477,8 +1582,8 @@ export const skinService = {
     }>(
       `SELECT s.weapon, s.paint_kit, s.float_value, s.pattern, s.stattrak, l.slot, l.team
          FROM cs2_player_loadout l JOIN cs2_player_skins s ON s.id = l.skin_id
-        WHERE l.player_uid = ?`,
-      [uid]
+        WHERE l.player_uid = ? AND (s.source <> 'catalog' OR ?)`,
+      [uid, config.catalogUnlocked]
     );
     return loadoutPayload(rows);
   },
@@ -1511,7 +1616,7 @@ export const skinService = {
     const owned = ids.length
       ? await db.queryAsync<{ id: number; rarity: Rarity; weapon: string; float_value: number }>(
           `SELECT id, rarity, weapon, float_value FROM cs2_player_skins
-            WHERE player_uid = ? AND id IN (${ids.map(() => '?').join(', ')})`,
+            WHERE player_uid = ? AND source <> 'catalog' AND id IN (${ids.map(() => '?').join(', ')})`,
           [playerUid, ...ids]
         )
       : [];
@@ -1578,9 +1683,9 @@ export const skinService = {
       owners: number;
       players: number;
     }>(
-      `SELECT (SELECT COUNT(*)::int FROM cs2_player_skins) AS given,
-              (SELECT COUNT(*)::int FROM cs2_player_skins WHERE created_at > ?) AS week,
-              (SELECT COUNT(DISTINCT player_uid)::int FROM cs2_player_skins) AS owners,
+      `SELECT (SELECT COUNT(*)::int FROM cs2_player_skins WHERE source <> 'catalog') AS given,
+              (SELECT COUNT(*)::int FROM cs2_player_skins WHERE source <> 'catalog' AND created_at > ?) AS week,
+              (SELECT COUNT(DISTINCT player_uid)::int FROM cs2_player_skins WHERE source <> 'catalog') AS owners,
               (SELECT COUNT(*)::int FROM players) AS players`,
       [weekAgo]
     );
@@ -1595,6 +1700,7 @@ export const skinService = {
       `SELECT s.weapon_name, s.name, s.rarity, s.image, p.name AS owner
          FROM cs2_player_skins s
          LEFT JOIN players p ON p.uid = s.player_uid
+        WHERE s.source <> 'catalog'
         ORDER BY array_position(ARRAY[${RARITIES.map((r) => `'${r}'`).join(',')}]::text[], s.rarity) DESC NULLS LAST, s.created_at DESC, s.id DESC
         LIMIT 1`
     );
@@ -1628,12 +1734,12 @@ export const skinService = {
       best_rarity: Rarity | null;
     }>(
       `SELECT p.id, p.name, p.avatar_url,
-              (SELECT COUNT(*)::int FROM cs2_player_skins s WHERE s.player_uid = p.uid) AS skins,
+              (SELECT COUNT(*)::int FROM cs2_player_skins s WHERE s.player_uid = p.uid AND s.source <> 'catalog') AS skins,
               best.weapon_name AS best_weapon, best.name AS best_name, best.rarity AS best_rarity
          FROM players p
          LEFT JOIN LATERAL (
            SELECT s.weapon_name, s.name, s.rarity FROM cs2_player_skins s
-            WHERE s.player_uid = p.uid
+            WHERE s.player_uid = p.uid AND s.source <> 'catalog'
             ORDER BY array_position(ARRAY[${RARITIES.map((r) => `'${r}'`).join(',')}]::text[], s.rarity) DESC NULLS LAST, s.id DESC
             LIMIT 1
          ) best ON TRUE
@@ -1701,7 +1807,8 @@ export const skinService = {
          FROM cs2_player_skins s JOIN players p ON p.uid = s.player_uid WHERE s.id = ?`,
       [skinId]
     );
-    if (!row) throw new SkinError(404, 'No such skin.');
+    if (!row || (row.source === 'catalog' && !(await this.catalogOn())))
+      throw new SkinError(404, 'No such skin.');
     const equipped = await db.queryOneAsync('SELECT 1 FROM cs2_player_loadout WHERE skin_id = ?', [
       skinId,
     ]);

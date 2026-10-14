@@ -6,7 +6,8 @@
  * GET    /catalog?q=&weapon=&slot=&category=  signed in: search the catalogue (while it is unlocked)
  * GET    /catalog/weapons          signed in: every weapon slot (while it is unlocked)
  * GET    /odds                     public: drop odds per rarity and per skin, and when drops happen
- * GET    /me                       signed in: your inventory, showcase and new skins
+ * GET    /me                       signed in: your inventory, showcase, catalogue picks and new skins
+ * PUT    /me/picks                 equip any catalogue skin ({ weapon, paintKit, float, seed, team? })
  * POST   /me/equip                 equip a skin ({ skinId, team?: 0 both | 2 T | 3 CT })
  * DELETE /me/equip/:slot           empty a slot (?team= one side)
  * POST   /me/seen                  the "new skin" reveal was shown ({ ids })
@@ -145,7 +146,7 @@ router.get('/tryout', async (req, res) => {
  * /api/skins/me:
  *   get:
  *     tags: [Skins]
- *     summary: Your inventory, showcase, and skins you have not seen yet
+ *     summary: Your inventory, showcase, catalogue picks, and skins you have not seen yet
  *     responses:
  *       200: { description: The inventory }
  *       401: { description: Not signed in }
@@ -160,6 +161,7 @@ router.get('/me', async (req, res) => {
       success: true,
       inventory,
       showcase: await skinService.showcase(uid),
+      picks: await skinService.picks(uid),
       unseen: inventory.filter((s) => !s.seen).map((s) => s.id),
       choices: await skinService.openChoices(uid),
     });
@@ -434,6 +436,53 @@ router.get('/catalog', async (req, res) => {
 
 /**
  * @openapi
+ * /api/skins/me/picks:
+ *   put:
+ *     tags: [Skins]
+ *     summary: Equip any catalogue skin with a chosen float and seed
+ *     description: >-
+ *       Per side like an earned skin (`team` 0 both, 2 T, 3 CT; a weapon one
+ *       side buys is always both). Replaces that side's pick in the slot and
+ *       never carries StatTrak. Only while the catalogue is unlocked.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [weapon, paintKit, float, seed]
+ *             properties:
+ *               weapon: { type: string }
+ *               paintKit: { type: integer }
+ *               float: { type: number, minimum: 0, maximum: 1 }
+ *               seed: { type: integer, minimum: 0, maximum: 1000 }
+ *               team: { type: integer, enum: [0, 2, 3], description: '0 both sides (default), 2 T, 3 CT' }
+ *     responses:
+ *       200: { description: The equipped pick }
+ *       400: { description: Not in the catalogue, no game definition for it, or float or seed out of range }
+ *       404: { description: The catalogue is not unlocked }
+ */
+router.put('/me/picks', async (req, res) => {
+  try {
+    const uid = await catalogPlayerOrStop(req, res);
+    if (!uid) return;
+    const body = req.body ?? {};
+    const pick = await skinService.setCatalogPick(uid, {
+      weapon: String(body.weapon ?? ''),
+      paintKit: Number(body.paintKit),
+      float: body.float,
+      seed: body.seed,
+      team: body.team,
+    });
+    void loadoutChanged(uid);
+    return res.json({ success: true, pick });
+  } catch (error) {
+    return fail(res, error, 'Equipping a pick');
+  }
+});
+
+/**
+ * @openapi
  * /api/skins/players/{steamId}:
  *   get:
  *     tags: [Skins]
@@ -441,7 +490,7 @@ router.get('/catalog', async (req, res) => {
  *     parameters:
  *       - { in: path, name: steamId, required: true, schema: { type: string } }
  *     responses:
- *       200: { description: Inventory and showcase }
+ *       200: { description: Inventory, showcase and catalogue picks }
  *       404: { description: Skins are off, or no such player }
  */
 router.get('/players/:steamId', async (req, res) => {
