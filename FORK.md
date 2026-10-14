@@ -12,7 +12,7 @@ CS2 ships as a signed module in the image's offline snapshot. The workflow signs
 
 `custom` keeps every branch migration's id and SQL unchanged, appended after upstream's list in merge order. Merging the same branch upstream later is then a no-op on a database that ran `custom`. If upstream ships a branch with different ids or SQL, the database needs a manual reconcile.
 
-Fork-only migrations (`api/src/integrations/cs2/migrations.ts`, after upstream's `043-recorder-host-identity`):
+Fork-only migrations (`api/src/integrations/cs2/migrations.ts`, after upstream's `054-skin-stattrak`):
 
 | id | branch |
 |---|---|
@@ -20,9 +20,15 @@ Fork-only migrations (`api/src/integrations/cs2/migrations.ts`, after upstream's
 | `040-server-failover-use` | feat/failover-server-opt-out |
 | `050-match-runtime-cascade` | match-delete-orphans |
 | `051-round-backup-sides` | feat/backup-round-sides |
-| feat/update-notice-setting | Admins can turn off the "newer Auto Tournament" update notice (setting `updateNotices`, on by default; module notices unchanged) | merged | none | `tests/ui/settings.spec.ts` with feat/readyup-only | Webhook URL UI test stays removed (feat/readyup-only), the new switch test kept |
 
-Their numbers overlap upstream's `037-*` and `040-*` ids; ids are unique strings and the runner applies the list in array order, so only the full id matters.
+Their numbers overlap upstream's `037-*`, `040-*`, `050-player-roles` and `051-skin-choices` ids; ids are unique strings and the runner applies the list in array order, so only the full id matters.
+
+## Sync
+
+`custom` is synced to upstream `main` 6ed6dd22 (`v3.0.0-beta.100-13-g6ed6dd22`, base tag `v3.0.0-beta.100`) by merge 00b054ab. Behaviour the sync dropped:
+
+- Upstream removed the match dialog (`MatchDetailsModal.tsx`, #827) and the old match controls (`AdminMatchControls.tsx`, #833): fix/match-modal-reopens, the server-supported admin controls (d467b7d6) and the dialog's local map images went with them.
+- Upstream's `?match=` link opens the match room (#833), so the Matches page no longer keeps an open dialog in the URL.
 
 ## Workflow
 
@@ -33,7 +39,7 @@ Their numbers overlap upstream's `037-*` and `040-*` ids; ids are unique strings
 
 ## Branches
 
-Conflicts are relative to upstream `main` at 98d57326 (v3.0.0-beta.82) and the branches merged before.
+Conflicts are relative to upstream `main` at 98d57326 (v3.0.0-beta.82) and the branches merged before; rows merged before the beta.100 sync were not re-compared.
 
 | Branch | Summary | Status | Conflicts vs upstream | Conflicts with other branches | Resolved in custom |
 |---|---|---|---|---|---|
@@ -60,10 +66,10 @@ Conflicts are relative to upstream `main` at 98d57326 (v3.0.0-beta.82) and the b
 | feat/cs2-local-images | CS2 map and skin images downloaded and resized at build (`scripts/cs2-assets.mjs`, jsDelivr fallback), small images in cards, uploads resized in the browser, stale `*_icon.svg` map rows pruned by sync, Caddy compression and immutable hashed assets | cherry-picked | none | none (`VetoInterface.tsx` auto-merged with fix/veto-small-pool) | Branched from upstream `main` 231c0bdb (past beta.82): its 18 commits are cherry-picked onto `custom`. Its last commit Prettier-formats the 29 files it touches (upstream's format-on-touch rule), including whole files such as `Home.tsx` and `MatchDetailsModal.tsx`: expect conflicts there on upstream syncs |
 | feat/fleet-stop-rules | `.stop` settings reach Ready Up as `match.assign` `rules.stop` (needs Ready Up feat/fleet-stop-rules; older servers ignore it). `fleet-protocol-sync` passes only with `READYUP_DIR` on the fork's Ready Up | merged | cut from `custom`, not compared with upstream | none | |
 | feat/readyup-only | Ready Up servers only: RCON server creation, MatchZy webhooks, RCON-only admin routes, RCON monitors and start checks off unless `ENABLE_TEST_ENDPOINTS` (tests keep the RCON path); unlink deletes the server row; RCON and MatchZy UI and settings removed. Fork-only, not for upstream | merged | cut from `custom`, not compared with upstream | none | |
+| feat/update-notice-setting | Admins can turn off the "newer Auto Tournament" update notice (setting `updateNotices`, on by default; module notices unchanged) | merged | none | `tests/ui/settings.spec.ts` with feat/readyup-only | Webhook URL UI test stays removed (feat/readyup-only), the new switch test kept |
 | feat/backup-round-sides | Round backups store their sides (`round_sides`) and failover resumes / restores send them back | merged | cs2 `migrations.ts` (fork migration appended) | none | |
-| match-delete-orphans | Deleting a match cancels its `ready` matchmaking lobby (`match-deleted`) and removes its CS2 runtime rows (live state, assignment, failovers, round backups, restores) through `ON DELETE CASCADE` keys; a snapshot for a deleted match is dropped with a warning; live stats cleared on every match delete | committed on `custom` | not compared with upstream | none | Commits made directly on `custom`, no separate branch. Migration id `050` leaves upstream's `044`-`049` free |
-| upstream #752, #756, #760 | Skins follow the platform toggle on every server (per-server switch gone), Esports mode per tournament, live skins on/off, equips pushed at round end (0.5 s in warmup), equip errors shown, veto countdown kept | cherry-picked | none | `skins/routes.ts` and `useSkins.ts` with feat/cs2-local-images, `ServerModal.tsx` with feat/failover-server-opt-out, `fleet/inbound.ts` with feat/fleet-busy-reason | Upstream commits 0d87a8f3, 4a513c18, 8939bafc cherry-picked with `-x` ahead of an upstream sync. Kept custom's local skin images, failover opt-out field and inbound imports; dropped the per-server skins switch |
-| fix/skins-delivery | Live skins pushes reach a fleet server linked onto an existing row (`cs2_servers.fleet_server_id`, not `matches.server_id`); the full Ready Up bundle while the platform's skins are on, and the auto-updater reinstalls a server that lacks the skins plugin | cherry-picked | none | none | Branched from upstream `main` 8939bafc: its 2 commits are cherry-picked onto `custom` (a merge would bring every upstream commit since beta.82) |
+| match-delete-orphans | Deleting a match cancels its `ready` matchmaking lobby (`match-deleted`) and removes its CS2 runtime rows (live state, assignment, failovers, round backups, restores) through `ON DELETE CASCADE` keys; a snapshot for a deleted match is dropped with a warning; live stats cleared on every match delete | committed on `custom` | not compared with upstream | none | Commits made directly on `custom`, no separate branch. Upstream now ships `044`-`054` (its own `050-player-roles`, `051-skin-choices`); the fork's `050-match-runtime-cascade` and `051-round-backup-sides` keep their ids, appended after upstream's list |
+| fix/skins-delivery | Live skins pushes reach a fleet server linked onto an existing row (`cs2_servers.fleet_server_id`, not `matches.server_id`); the full Ready Up bundle while the platform's skins are on, and the auto-updater reinstalls a server that lacks the skins plugin | cherry-picked | `fleet/push/skins.ts` at the beta.100 sync | none | Branched from upstream `main` 8939bafc: its 2 commits are cherry-picked onto `custom`. At the beta.100 sync the push queries were re-applied on upstream's per-side skins push |
 | feat/fleet-key-auto-link | A fleet key links the servers it enrolls on first hello | superseded by #658 | | | not merged |
 | feat/fleet-key-skins | A fleet key turns skins on for the servers it enrolls | superseded by #663 | | | not merged |
-| feat/skins-catalog-unlock | Admins can let players equip any catalogue skin with their own float and seed (`catalogUnlocked`, off by default; earned skins unchanged; picks are `source = 'catalog'` rows, one per slot; every weapon slot shown while unlocked; flipping it re-sends connected loadouts) | merged | cut from `custom`, not compared with upstream | none | Merged again after 3588f2f3 (every weapon slot, Zeus with the pistols) |
+| feat/skins-catalog-unlock | Admins can let players equip any catalogue skin with their own float and seed (`catalogUnlocked`, off by default) | reverted, to be rebuilt on the per-side model | cut from `custom`, not compared with upstream | none | Reverted (a192bf29) ahead of the beta.100 sync, whose per-side loadouts (#771) replace the model it was built on |
