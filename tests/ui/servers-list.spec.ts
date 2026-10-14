@@ -600,8 +600,7 @@ test.describe('Server list', () => {
     await expect(page.getByTestId('server-row-r:b')).toContainText('Team A vs Team B');
     await page.getByTestId('server-row-menu-r:b').click();
     await page.getByTestId('server-row-open-match-r:b').click();
-    await expect(page.getByRole('dialog')).toContainText('Team A');
-    await expect(page.getByRole('dialog').getByText(/^live$/i)).toHaveCount(1);
+    await expect(page).toHaveURL(/\/match\/m-b$/);
   });
 
   test('a row without a match has no open-match item', async ({ page }) => {
