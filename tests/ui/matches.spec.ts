@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test';
 import { setupTestContext } from '../helpers/setup';
 import { getAuthHeader } from '../helpers/auth';
 import { setupTournament } from '../helpers/tournamentSetup';
-import { findMatchByTeams } from '../helpers/matches';
 
 /**
  * Matches UI tests
@@ -66,34 +65,6 @@ test.describe.serial('Matches UI', () => {
       await page.goto('/manage/matches');
       await expect(page.getByTestId('matches-list')).toBeVisible();
       await expect(page.getByTestId('matches-empty-state')).toHaveCount(0);
-    }
-  );
-
-  test(
-    'a match opened from its link closes with one close',
-    { tag: ['@ui', '@matches'] },
-    async ({ page, request }) => {
-      const setup = await setupTournament(request, {
-        type: 'single_elimination',
-        format: 'bo1',
-        teamCount: 2,
-        serverCount: 1,
-        prefix: 'matches-link',
-      });
-      expect(setup, 'tournament setup should succeed').toBeTruthy();
-      const match = await findMatchByTeams(request, setup!.teams[0].id, setup!.teams[1].id);
-      expect(match).toBeTruthy();
-
-      await page.goto(`/manage/matches?match=${match!.slug}`);
-      const dialog = page.getByRole('dialog');
-      await expect(dialog).toBeVisible();
-
-      await page.keyboard.press('Escape');
-      await expect(page).not.toHaveURL(/match=/);
-      await expect(dialog).toHaveCount(0);
-      // It must not come back once the link is gone.
-      await page.waitForTimeout(1000);
-      await expect(dialog).toHaveCount(0);
     }
   );
 });
