@@ -84,6 +84,19 @@ test.describe.serial('Skins catalogue unlock', () => {
     });
   });
 
+  test(
+    'one PUT turns skins and the catalogue on together',
+    { tag: ['@api'] },
+    async ({ request }) => {
+      await setConfig(request, { enabled: false, catalogUnlocked: false });
+      const res = await setConfig(request, { enabled: true, catalogUnlocked: true });
+      expect((await res.json()).config).toMatchObject({ enabled: true, catalogUnlocked: true });
+      expect((await player.get('/api/skins/catalog')).status()).toBe(200);
+      await setConfig(request, { enabled: true, catalogUnlocked: false });
+      expect((await player.get('/api/skins/catalog')).status()).toBe(404);
+    }
+  );
+
   test('catalogue is closed while the mode is off', { tag: ['@api'] }, async ({ request }) => {
     expect(deagle.length).toBeGreaterThan(1);
     await setConfig(request, { catalogUnlocked: false });
