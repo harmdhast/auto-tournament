@@ -1,0 +1,7 @@
+# Test override: lets the app reach the fixture servers the suite starts on the host
+# (scripts/serve-skins-fixture.mjs, SKINS_JSON_URL).
+
+services:
+  auto-tournament:
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'

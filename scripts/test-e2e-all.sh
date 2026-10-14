@@ -21,7 +21,8 @@ TEST_TIMEOUT=300 # 5 minutes timeout for tests
 cleanup() {
   echo ""
   echo -e "${YELLOW}Cleaning up Docker Compose services...${NC}"
-  docker compose --env-file .env -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT}" down -v 2>/dev/null || true
+  docker compose --env-file .env -f "${COMPOSE_FILE}" -f docker/docker-compose.fixtures.yml -p "${COMPOSE_PROJECT}" down -v 2>/dev/null || true
+  [ -n "${SKINS_FIXTURE_PID:-}" ] && kill "${SKINS_FIXTURE_PID}" 2>/dev/null || true
   echo -e "${GREEN}✅ Cleanup complete${NC}"
 }
 
@@ -56,6 +57,10 @@ export API_TOKENS="${API_TOKENS:-ci-admin:ci-admin-token-0123456789abcdef}"
 export API_TOKENS_READONLY="${API_TOKENS_READONLY:-ci-readonly:ci-readonly-token-0123456789abcdef}"
 export COMPAT_INGEST_TOKEN="${COMPAT_INGEST_TOKEN:-ci-compat-token-0123456789abcdef}"
 export PLAYWRIGHT_BASE_URL="http://localhost:3069"
+# The skin catalogue comes from a local fixture, not GitHub.
+node scripts/serve-skins-fixture.mjs &
+SKINS_FIXTURE_PID=$!
+export SKINS_JSON_URL="http://host.docker.internal:${SKINS_FIXTURE_PORT:-3098}/skins.json"
 
 echo -e "${BLUE}Configuration:${NC}"
 echo "  SERVER_TOKEN: ${SERVER_TOKEN}"
@@ -73,16 +78,16 @@ export CATALOG_OFFLINE="${CATALOG_OFFLINE:-true}"
 
 # Step 1: Start Docker Compose services
 echo -e "${YELLOW}Step 1/4: Starting Docker Compose services...${NC}"
-docker compose --env-file .env -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT}" up -d --build
+docker compose --env-file .env -f "${COMPOSE_FILE}" -f docker/docker-compose.fixtures.yml -p "${COMPOSE_PROJECT}" up -d --build
 
 # Wait for PostgreSQL to be ready
 echo -e "${YELLOW}Waiting for PostgreSQL to be ready...${NC}"
 timeout=60
 elapsed=0
-while ! docker compose --env-file .env -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT}" exec -T postgres pg_isready -U "${DB_USER}" > /dev/null 2>&1; do
+while ! docker compose --env-file .env -f "${COMPOSE_FILE}" -f docker/docker-compose.fixtures.yml -p "${COMPOSE_PROJECT}" exec -T postgres pg_isready -U "${DB_USER}" > /dev/null 2>&1; do
   if [ $elapsed -ge $timeout ]; then
     echo -e "${RED}❌ PostgreSQL failed to start within ${timeout} seconds${NC}"
-    docker compose --env-file .env -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT}" logs postgres --tail=20
+    docker compose --env-file .env -f "${COMPOSE_FILE}" -f docker/docker-compose.fixtures.yml -p "${COMPOSE_PROJECT}" logs postgres --tail=20
     exit 1
   fi
   sleep 2
@@ -100,7 +105,7 @@ while ! curl -f -s http://localhost:3069/health > /dev/null 2>&1; do
   if [ $elapsed -ge $timeout ]; then
     echo -e "${RED}❌ Application failed to start within ${timeout} seconds${NC}"
     echo -e "${YELLOW}Container logs:${NC}"
-    docker compose --env-file .env -f "${COMPOSE_FILE}" -p "${COMPOSE_PROJECT}" logs auto-tournament --tail=50
+    docker compose --env-file .env -f "${COMPOSE_FILE}" -f docker/docker-compose.fixtures.yml -p "${COMPOSE_PROJECT}" logs auto-tournament --tail=50
     exit 1
   fi
   sleep 2

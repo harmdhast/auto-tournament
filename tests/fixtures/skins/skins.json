@@ -1,0 +1,2911 @@
+{
+  "skins": [
+    {
+      "weapon": "leather_handwraps",
+      "weaponName": "Hand Wraps",
+      "paintKit": 10009,
+      "paintKitName": "handwrap_leathery",
+      "name": "Leather",
+      "rarity": "ancient",
+      "image": "leather_handwraps_handwrap_leathery.webp"
+    },
+    {
+      "weapon": "motorcycle_gloves",
+      "weaponName": "Moto Gloves",
+      "paintKit": 10024,
+      "paintKitName": "motorcycle_basic_black",
+      "name": "Eclipse",
+      "rarity": "ancient",
+      "image": "motorcycle_gloves_motorcycle_basic_black.webp"
+    },
+    {
+      "weapon": "slick_gloves",
+      "weaponName": "Driver Gloves",
+      "paintKit": 1398,
+      "paintKitName": "glove_driver_silk_dragon_white",
+      "name": "Wave Chaser",
+      "rarity": "ancient",
+      "image": "slick_gloves_glove_driver_silk_dragon_white.webp"
+    },
+    {
+      "weapon": "specialist_gloves",
+      "weaponName": "Specialist Gloves",
+      "paintKit": 1413,
+      "paintKitName": "glove_specialist_abstract_green",
+      "name": "Lime Polycam",
+      "rarity": "ancient",
+      "image": "specialist_gloves_glove_specialist_abstract_green.webp"
+    },
+    {
+      "weapon": "sporty_gloves",
+      "weaponName": "Sport Gloves",
+      "paintKit": 1405,
+      "paintKitName": "glove_sport_beadwork_diamonds_purple",
+      "name": "Violet Beadwork",
+      "rarity": "ancient",
+      "image": "sporty_gloves_glove_sport_beadwork_diamonds_purple.webp"
+    },
+    {
+      "weapon": "studded_bloodhound_gloves",
+      "weaponName": "Bloodhound Gloves",
+      "paintKit": 10006,
+      "paintKitName": "bloodhound_black_silver",
+      "name": "Charred",
+      "rarity": "ancient",
+      "image": "studded_bloodhound_gloves_bloodhound_black_silver.webp"
+    },
+    {
+      "weapon": "studded_brokenfang_gloves",
+      "weaponName": "Broken Fang Gloves",
+      "paintKit": 10085,
+      "paintKitName": "operation10_metalic_green",
+      "name": "Jade",
+      "rarity": "ancient",
+      "image": "studded_brokenfang_gloves_operation10_metalic_green.webp"
+    },
+    {
+      "weapon": "studded_hydra_gloves",
+      "weaponName": "Hydra Gloves",
+      "paintKit": 10057,
+      "paintKitName": "bloodhound_hydra_black_green",
+      "name": "Emerald",
+      "rarity": "ancient",
+      "image": "studded_hydra_gloves_bloodhound_hydra_black_green.webp"
+    },
+    {
+      "weapon": "weapon_ak47",
+      "weaponName": "AK-47",
+      "paintKit": 14,
+      "paintKitName": "hy_ak47lam",
+      "name": "Red Laminate",
+      "rarity": "mythical",
+      "image": "weapon_ak47_hy_ak47lam.webp"
+    },
+    {
+      "weapon": "weapon_ak47",
+      "weaponName": "AK-47",
+      "paintKit": 72,
+      "paintKitName": "sp_mesh_tan",
+      "name": "Safari Mesh",
+      "rarity": "common",
+      "image": "weapon_ak47_sp_mesh_tan.webp"
+    },
+    {
+      "weapon": "weapon_ak47",
+      "weaponName": "AK-47",
+      "paintKit": 142,
+      "paintKitName": "cu_overpass_monster_ak47",
+      "name": "B the Monster",
+      "rarity": "legendary",
+      "image": "weapon_ak47_cu_overpass_monster_ak47.webp"
+    },
+    {
+      "weapon": "weapon_ak47",
+      "weaponName": "AK-47",
+      "paintKit": 172,
+      "paintKitName": "hy_ak47lam_bw",
+      "name": "Black Laminate",
+      "rarity": "uncommon",
+      "image": "weapon_ak47_hy_ak47lam_bw.webp"
+    },
+    {
+      "weapon": "weapon_ak47",
+      "weaponName": "AK-47",
+      "paintKit": 226,
+      "paintKitName": "hy_ak47lam_blue",
+      "name": "Blue Laminate",
+      "rarity": "rare",
+      "image": "weapon_ak47_hy_ak47lam_blue.webp"
+    },
+    {
+      "weapon": "weapon_aug",
+      "weaponName": "AUG",
+      "paintKit": 9,
+      "paintKitName": "hy_tiger",
+      "name": "Bengal Tiger",
+      "rarity": "legendary",
+      "image": "weapon_aug_hy_tiger.webp"
+    },
+    {
+      "weapon": "weapon_aug",
+      "weaponName": "AUG",
+      "paintKit": 10,
+      "paintKitName": "hy_copperhead",
+      "name": "Copperhead",
+      "rarity": "rare",
+      "image": "weapon_aug_hy_copperhead.webp"
+    },
+    {
+      "weapon": "weapon_aug",
+      "weaponName": "AUG",
+      "paintKit": 46,
+      "paintKitName": "so_pmc",
+      "name": "Contractor",
+      "rarity": "common",
+      "image": "weapon_aug_so_pmc.webp"
+    },
+    {
+      "weapon": "weapon_aug",
+      "weaponName": "AUG",
+      "paintKit": 70,
+      "paintKitName": "am_carbon_fiber",
+      "name": "Carbon Fiber",
+      "rarity": "uncommon",
+      "image": "weapon_aug_am_carbon_fiber.webp"
+    },
+    {
+      "weapon": "weapon_aug",
+      "weaponName": "AUG",
+      "paintKit": 134,
+      "paintKitName": "cu_overpass_graf_aug",
+      "name": "Eye of Zapems",
+      "rarity": "mythical",
+      "image": "weapon_aug_cu_overpass_graf_aug.webp"
+    },
+    {
+      "weapon": "weapon_aug",
+      "weaponName": "AUG",
+      "paintKit": 280,
+      "paintKitName": "cu_aug_chameleonaire",
+      "name": "Chameleon",
+      "rarity": "ancient",
+      "image": "weapon_aug_cu_aug_chameleonaire.webp"
+    },
+    {
+      "weapon": "weapon_awp",
+      "weaponName": "AWP",
+      "paintKit": 30,
+      "paintKitName": "sp_snake",
+      "name": "Snake Camo",
+      "rarity": "uncommon",
+      "image": "weapon_awp_sp_snake.webp"
+    },
+    {
+      "weapon": "weapon_awp",
+      "weaponName": "AWP",
+      "paintKit": 51,
+      "paintKitName": "am_lightning_awp",
+      "name": "Lightning Strike",
+      "rarity": "legendary",
+      "image": "weapon_awp_am_lightning_awp.webp"
+    },
+    {
+      "weapon": "weapon_awp",
+      "weaponName": "AWP",
+      "paintKit": 72,
+      "paintKitName": "sp_mesh_tan",
+      "name": "Safari Mesh",
+      "rarity": "common",
+      "image": "weapon_awp_sp_mesh_tan.webp"
+    },
+    {
+      "weapon": "weapon_awp",
+      "weaponName": "AWP",
+      "paintKit": 84,
+      "paintKitName": "hy_ddpat_pink",
+      "name": "Pink DDPAT",
+      "rarity": "rare",
+      "image": "weapon_awp_hy_ddpat_pink.webp"
+    },
+    {
+      "weapon": "weapon_awp",
+      "weaponName": "AWP",
+      "paintKit": 137,
+      "paintKitName": "cu_overpass_crakow_awp",
+      "name": "Crakow!",
+      "rarity": "mythical",
+      "image": "weapon_awp_cu_overpass_crakow_awp.webp"
+    },
+    {
+      "weapon": "weapon_bayonet",
+      "weaponName": "Bayonet",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_bayonet_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_bayonet",
+      "weaponName": "Bayonet",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_bayonet_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_bayonet",
+      "weaponName": "Bayonet",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_bayonet_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_bayonet",
+      "weaponName": "Bayonet",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_bayonet_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_bayonet",
+      "weaponName": "Bayonet",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_bayonet_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_bayonet",
+      "weaponName": "Bayonet",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_bayonet_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_bizon",
+      "weaponName": "PP-Bizon",
+      "paintKit": 3,
+      "paintKitName": "so_red",
+      "name": "Candy Apple",
+      "rarity": "uncommon",
+      "image": "weapon_bizon_so_red.webp"
+    },
+    {
+      "weapon": "weapon_bizon",
+      "weaponName": "PP-Bizon",
+      "paintKit": 13,
+      "paintKitName": "hy_splatter",
+      "name": "Blue Streak",
+      "rarity": "mythical",
+      "image": "weapon_bizon_hy_splatter.webp"
+    },
+    {
+      "weapon": "weapon_bizon",
+      "weaponName": "PP-Bizon",
+      "paintKit": 25,
+      "paintKitName": "sp_leaves",
+      "name": "Forest Leaves",
+      "rarity": "common",
+      "image": "weapon_bizon_sp_leaves.webp"
+    },
+    {
+      "weapon": "weapon_bizon",
+      "weaponName": "PP-Bizon",
+      "paintKit": 159,
+      "paintKitName": "aq_brass",
+      "name": "Brass",
+      "rarity": "rare",
+      "image": "weapon_bizon_aq_brass.webp"
+    },
+    {
+      "weapon": "weapon_bizon",
+      "weaponName": "PP-Bizon",
+      "paintKit": 542,
+      "paintKitName": "cu_bizon_Curse",
+      "name": "Judgement of Anubis",
+      "rarity": "ancient",
+      "image": "weapon_bizon_cu_bizon_curse.webp"
+    },
+    {
+      "weapon": "weapon_bizon",
+      "weaponName": "PP-Bizon",
+      "paintKit": 676,
+      "paintKitName": "cu_bizon_all_in",
+      "name": "High Roller",
+      "rarity": "legendary",
+      "image": "weapon_bizon_cu_bizon_all_in.webp"
+    },
+    {
+      "weapon": "weapon_cz75a",
+      "weaponName": "CZ75-Auto",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_cz75a_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_cz75a",
+      "weaponName": "CZ75-Auto",
+      "paintKit": 32,
+      "paintKitName": "an_silver",
+      "name": "Silver",
+      "rarity": "uncommon",
+      "image": "weapon_cz75a_an_silver.webp"
+    },
+    {
+      "weapon": "weapon_cz75a",
+      "weaponName": "CZ75-Auto",
+      "paintKit": 147,
+      "paintKitName": "sp_tape_short_jungle",
+      "name": "Jungle Dashed",
+      "rarity": "common",
+      "image": "weapon_cz75a_sp_tape_short_jungle.webp"
+    },
+    {
+      "weapon": "weapon_cz75a",
+      "weaponName": "CZ75-Auto",
+      "paintKit": 268,
+      "paintKitName": "am_diamond_plate",
+      "name": "Tread Plate",
+      "rarity": "mythical",
+      "image": "weapon_cz75a_am_diamond_plate.webp"
+    },
+    {
+      "weapon": "weapon_cz75a",
+      "weaponName": "CZ75-Auto",
+      "paintKit": 269,
+      "paintKitName": "am_fuschia",
+      "name": "The Fuschia Is Now",
+      "rarity": "legendary",
+      "image": "weapon_cz75a_am_fuschia.webp"
+    },
+    {
+      "weapon": "weapon_cz75a",
+      "weaponName": "CZ75-Auto",
+      "paintKit": 270,
+      "paintKitName": "aq_etched_cz75",
+      "name": "Victoria",
+      "rarity": "ancient",
+      "image": "weapon_cz75a_aq_etched_cz75.webp"
+    },
+    {
+      "weapon": "weapon_deagle",
+      "weaponName": "Desert Eagle",
+      "paintKit": 17,
+      "paintKitName": "hy_ddpat_urb",
+      "name": "Urban DDPAT",
+      "rarity": "common",
+      "image": "weapon_deagle_hy_ddpat_urb.webp"
+    },
+    {
+      "weapon": "weapon_deagle",
+      "weaponName": "Desert Eagle",
+      "paintKit": 37,
+      "paintKitName": "aa_flames",
+      "name": "Blaze",
+      "rarity": "rare",
+      "image": "weapon_deagle_aa_flames.webp"
+    },
+    {
+      "weapon": "weapon_deagle",
+      "weaponName": "Desert Eagle",
+      "paintKit": 61,
+      "paintKitName": "aa_vertigo",
+      "name": "Hypnotic",
+      "rarity": "mythical",
+      "image": "weapon_deagle_aa_vertigo.webp"
+    },
+    {
+      "weapon": "weapon_deagle",
+      "weaponName": "Desert Eagle",
+      "paintKit": 114,
+      "paintKitName": "deagle_calligraff",
+      "name": "Calligraffiti",
+      "rarity": "uncommon",
+      "image": "weapon_deagle_deagle_calligraff.webp"
+    },
+    {
+      "weapon": "weapon_deagle",
+      "weaponName": "Desert Eagle",
+      "paintKit": 185,
+      "paintKitName": "am_scales_bravo",
+      "name": "Golden Koi",
+      "rarity": "legendary",
+      "image": "weapon_deagle_am_scales_bravo.webp"
+    },
+    {
+      "weapon": "weapon_elite",
+      "weaponName": "Dual Berettas",
+      "paintKit": 28,
+      "paintKitName": "an_navy",
+      "name": "Anodized Navy",
+      "rarity": "rare",
+      "image": "weapon_elite_an_navy.webp"
+    },
+    {
+      "weapon": "weapon_elite",
+      "weaponName": "Dual Berettas",
+      "paintKit": 43,
+      "paintKitName": "aq_forced",
+      "name": "Stained",
+      "rarity": "uncommon",
+      "image": "weapon_elite_aq_forced.webp"
+    },
+    {
+      "weapon": "weapon_elite",
+      "weaponName": "Dual Berettas",
+      "paintKit": 46,
+      "paintKitName": "so_pmc",
+      "name": "Contractor",
+      "rarity": "common",
+      "image": "weapon_elite_so_pmc.webp"
+    },
+    {
+      "weapon": "weapon_elite",
+      "weaponName": "Dual Berettas",
+      "paintKit": 112,
+      "paintKitName": "dual_elite_hydro_strike",
+      "name": "Hydro Strike",
+      "rarity": "mythical",
+      "image": "weapon_elite_dual_elite_hydro_strike.webp"
+    },
+    {
+      "weapon": "weapon_elite",
+      "weaponName": "Dual Berettas",
+      "paintKit": 658,
+      "paintKitName": "gs_dualberettas_cobra",
+      "name": "Cobra Strike",
+      "rarity": "legendary",
+      "image": "weapon_elite_gs_dualberettas_cobra.webp"
+    },
+    {
+      "weapon": "weapon_famas",
+      "weaponName": "FAMAS",
+      "paintKit": 22,
+      "paintKitName": "sp_spray",
+      "name": "Contrast Spray",
+      "rarity": "common",
+      "image": "weapon_famas_sp_spray.webp"
+    },
+    {
+      "weapon": "weapon_famas",
+      "weaponName": "FAMAS",
+      "paintKit": 60,
+      "paintKitName": "am_zebra_dark",
+      "name": "Dark Water",
+      "rarity": "rare",
+      "image": "weapon_famas_am_zebra_dark.webp"
+    },
+    {
+      "weapon": "weapon_famas",
+      "weaponName": "FAMAS",
+      "paintKit": 70,
+      "paintKitName": "am_carbon_fiber",
+      "name": "Carbon Fiber",
+      "rarity": "uncommon",
+      "image": "weapon_famas_am_carbon_fiber.webp"
+    },
+    {
+      "weapon": "weapon_famas",
+      "weaponName": "FAMAS",
+      "paintKit": 154,
+      "paintKitName": "cu_broken_path_famas",
+      "name": "Afterimage",
+      "rarity": "legendary",
+      "image": "weapon_famas_cu_broken_path_famas.webp"
+    },
+    {
+      "weapon": "weapon_famas",
+      "weaponName": "FAMAS",
+      "paintKit": 194,
+      "paintKitName": "sp_spitfire_famas_bravo",
+      "name": "Spitfire",
+      "rarity": "mythical",
+      "image": "weapon_famas_sp_spitfire_famas_bravo.webp"
+    },
+    {
+      "weapon": "weapon_famas",
+      "weaponName": "FAMAS",
+      "paintKit": 604,
+      "paintKitName": "gs_famas_rally",
+      "name": "Roll Cage",
+      "rarity": "ancient",
+      "image": "weapon_famas_gs_famas_rally.webp"
+    },
+    {
+      "weapon": "weapon_fiveseven",
+      "weaponName": "Five-SeveN",
+      "paintKit": 3,
+      "paintKitName": "so_red",
+      "name": "Candy Apple",
+      "rarity": "uncommon",
+      "image": "weapon_fiveseven_so_red.webp"
+    },
+    {
+      "weapon": "weapon_fiveseven",
+      "weaponName": "Five-SeveN",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_fiveseven_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_fiveseven",
+      "weaponName": "Five-SeveN",
+      "paintKit": 46,
+      "paintKitName": "so_pmc",
+      "name": "Contractor",
+      "rarity": "common",
+      "image": "weapon_fiveseven_so_pmc.webp"
+    },
+    {
+      "weapon": "weapon_fiveseven",
+      "weaponName": "Five-SeveN",
+      "paintKit": 223,
+      "paintKitName": "hy_flowers",
+      "name": "Nightshade",
+      "rarity": "rare",
+      "image": "weapon_fiveseven_hy_flowers.webp"
+    },
+    {
+      "weapon": "weapon_fiveseven",
+      "weaponName": "Five-SeveN",
+      "paintKit": 352,
+      "paintKitName": "aq_57_feathers",
+      "name": "Fowl Play",
+      "rarity": "legendary",
+      "image": "weapon_fiveseven_aq_57_feathers.webp"
+    },
+    {
+      "weapon": "weapon_fiveseven",
+      "weaponName": "Five-SeveN",
+      "paintKit": 660,
+      "paintKitName": "cu_fiveseven_hyperbeast",
+      "name": "Hyper Beast",
+      "rarity": "ancient",
+      "image": "weapon_fiveseven_cu_fiveseven_hyperbeast.webp"
+    },
+    {
+      "weapon": "weapon_g3sg1",
+      "weaponName": "G3SG1",
+      "paintKit": 6,
+      "paintKitName": "hy_arctic",
+      "name": "Arctic Camo",
+      "rarity": "uncommon",
+      "image": "weapon_g3sg1_hy_arctic.webp"
+    },
+    {
+      "weapon": "weapon_g3sg1",
+      "weaponName": "G3SG1",
+      "paintKit": 8,
+      "paintKitName": "hy_desert",
+      "name": "Desert Storm",
+      "rarity": "common",
+      "image": "weapon_g3sg1_hy_desert.webp"
+    },
+    {
+      "weapon": "weapon_g3sg1",
+      "weaponName": "G3SG1",
+      "paintKit": 195,
+      "paintKitName": "hy_bluepolygon_bravo",
+      "name": "Demeter",
+      "rarity": "rare",
+      "image": "weapon_g3sg1_hy_bluepolygon_bravo.webp"
+    },
+    {
+      "weapon": "weapon_g3sg1",
+      "weaponName": "G3SG1",
+      "paintKit": 438,
+      "paintKitName": "cu_chronos_g3sg1",
+      "name": "Chronos",
+      "rarity": "mythical",
+      "image": "weapon_g3sg1_cu_chronos_g3sg1.webp"
+    },
+    {
+      "weapon": "weapon_g3sg1",
+      "weaponName": "G3SG1",
+      "paintKit": 493,
+      "paintKitName": "gs_g3sg1_flux_purple",
+      "name": "Flux",
+      "rarity": "legendary",
+      "image": "weapon_g3sg1_gs_g3sg1_flux_purple.webp"
+    },
+    {
+      "weapon": "weapon_galilar",
+      "weaponName": "Galil AR",
+      "paintKit": 76,
+      "paintKitName": "hy_forest_winter",
+      "name": "Winter Forest",
+      "rarity": "uncommon",
+      "image": "weapon_galilar_hy_forest_winter.webp"
+    },
+    {
+      "weapon": "weapon_galilar",
+      "weaponName": "Galil AR",
+      "paintKit": 83,
+      "paintKitName": "hy_ddpat_orange",
+      "name": "Orange DDPAT",
+      "rarity": "mythical",
+      "image": "weapon_galilar_hy_ddpat_orange.webp"
+    },
+    {
+      "weapon": "weapon_galilar",
+      "weaponName": "Galil AR",
+      "paintKit": 101,
+      "paintKitName": "so_tornado",
+      "name": "Tornado",
+      "rarity": "common",
+      "image": "weapon_galilar_so_tornado.webp"
+    },
+    {
+      "weapon": "weapon_galilar",
+      "weaponName": "Galil AR",
+      "paintKit": 192,
+      "paintKitName": "hy_crumple_bravo",
+      "name": "Shattered",
+      "rarity": "rare",
+      "image": "weapon_galilar_hy_crumple_bravo.webp"
+    },
+    {
+      "weapon": "weapon_galilar",
+      "weaponName": "Galil AR",
+      "paintKit": 398,
+      "paintKitName": "cu_galil_abrasion",
+      "name": "Chatterbox",
+      "rarity": "ancient",
+      "image": "weapon_galilar_cu_galil_abrasion.webp"
+    },
+    {
+      "weapon": "weapon_galilar",
+      "weaponName": "Galil AR",
+      "paintKit": 428,
+      "paintKitName": "cu_galil_eco",
+      "name": "Eco",
+      "rarity": "legendary",
+      "image": "weapon_galilar_cu_galil_eco.webp"
+    },
+    {
+      "weapon": "weapon_glock",
+      "weaponName": "Glock-18",
+      "paintKit": 2,
+      "paintKitName": "so_olive",
+      "name": "Groundwater",
+      "rarity": "common",
+      "image": "weapon_glock_so_olive.webp"
+    },
+    {
+      "weapon": "weapon_glock",
+      "weaponName": "Glock-18",
+      "paintKit": 3,
+      "paintKitName": "so_red",
+      "name": "Candy Apple",
+      "rarity": "uncommon",
+      "image": "weapon_glock_so_red.webp"
+    },
+    {
+      "weapon": "weapon_glock",
+      "weaponName": "Glock-18",
+      "paintKit": 38,
+      "paintKitName": "aa_fade",
+      "name": "Fade",
+      "rarity": "rare",
+      "image": "weapon_glock_aa_fade.webp"
+    },
+    {
+      "weapon": "weapon_glock",
+      "weaponName": "Glock-18",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_glock_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_glock",
+      "weaponName": "Glock-18",
+      "paintKit": 129,
+      "paintKitName": "glock_chomper",
+      "name": "Gold Toof",
+      "rarity": "legendary",
+      "image": "weapon_glock_glock_chomper.webp"
+    },
+    {
+      "weapon": "weapon_hkp2000",
+      "weaponName": "P2000",
+      "paintKit": 21,
+      "paintKitName": "hy_granite",
+      "name": "Granite Marbleized",
+      "rarity": "common",
+      "image": "weapon_hkp2000_hy_granite.webp"
+    },
+    {
+      "weapon": "weapon_hkp2000",
+      "weaponName": "P2000",
+      "paintKit": 32,
+      "paintKitName": "an_silver",
+      "name": "Silver",
+      "rarity": "uncommon",
+      "image": "weapon_hkp2000_an_silver.webp"
+    },
+    {
+      "weapon": "weapon_hkp2000",
+      "weaponName": "P2000",
+      "paintKit": 71,
+      "paintKitName": "am_scorpion_p2000",
+      "name": "Scorpion",
+      "rarity": "rare",
+      "image": "weapon_hkp2000_am_scorpion_p2000.webp"
+    },
+    {
+      "weapon": "weapon_hkp2000",
+      "weaponName": "P2000",
+      "paintKit": 184,
+      "paintKitName": "cu_favela_p2000",
+      "name": "Corticera",
+      "rarity": "mythical",
+      "image": "weapon_hkp2000_cu_favela_p2000.webp"
+    },
+    {
+      "weapon": "weapon_hkp2000",
+      "weaponName": "P2000",
+      "paintKit": 389,
+      "paintKitName": "cu_p2000_fire_elemental",
+      "name": "Fire Elemental",
+      "rarity": "legendary",
+      "image": "weapon_hkp2000_cu_p2000_fire_elemental.webp"
+    },
+    {
+      "weapon": "weapon_knife_butterfly",
+      "weaponName": "Butterfly Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_butterfly_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_butterfly",
+      "weaponName": "Butterfly Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_butterfly_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_butterfly",
+      "weaponName": "Butterfly Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_butterfly_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_butterfly",
+      "weaponName": "Butterfly Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_butterfly_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_butterfly",
+      "weaponName": "Butterfly Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_butterfly_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_butterfly",
+      "weaponName": "Butterfly Knife",
+      "paintKit": 617,
+      "paintKitName": "am_blackpearl_marbleized_b",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_butterfly_am_blackpearl_marbleized_b.webp"
+    },
+    {
+      "weapon": "weapon_knife_canis",
+      "weaponName": "Survival Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_canis_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_canis",
+      "weaponName": "Survival Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_canis_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_canis",
+      "weaponName": "Survival Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_canis_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_canis",
+      "weaponName": "Survival Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_canis_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_canis",
+      "weaponName": "Survival Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_canis_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_canis",
+      "weaponName": "Survival Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_canis_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_cord",
+      "weaponName": "Paracord Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_cord_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_cord",
+      "weaponName": "Paracord Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_cord_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_cord",
+      "weaponName": "Paracord Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_cord_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_cord",
+      "weaponName": "Paracord Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_cord_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_cord",
+      "weaponName": "Paracord Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_cord_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_cord",
+      "weaponName": "Paracord Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_cord_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_css",
+      "weaponName": "Classic Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_css_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_css",
+      "weaponName": "Classic Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_css_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_css",
+      "weaponName": "Classic Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_css_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_css",
+      "weaponName": "Classic Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_css_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_falchion",
+      "weaponName": "Falchion Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_falchion_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_falchion",
+      "weaponName": "Falchion Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_falchion_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_falchion",
+      "weaponName": "Falchion Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_falchion_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_falchion",
+      "weaponName": "Falchion Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_falchion_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_falchion",
+      "weaponName": "Falchion Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_falchion_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_falchion",
+      "weaponName": "Falchion Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_falchion_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_flip",
+      "weaponName": "Flip Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_flip_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_flip",
+      "weaponName": "Flip Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_flip_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_flip",
+      "weaponName": "Flip Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_flip_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_flip",
+      "weaponName": "Flip Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_flip_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_flip",
+      "weaponName": "Flip Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_flip_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_flip",
+      "weaponName": "Flip Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_flip_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_gut",
+      "weaponName": "Gut Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_gut_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_gut",
+      "weaponName": "Gut Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_gut_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_gut",
+      "weaponName": "Gut Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_gut_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_gut",
+      "weaponName": "Gut Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_gut_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_gut",
+      "weaponName": "Gut Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_gut_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_gut",
+      "weaponName": "Gut Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_gut_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_gypsy_jackknife",
+      "weaponName": "Navaja Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_gypsy_jackknife_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_gypsy_jackknife",
+      "weaponName": "Navaja Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_gypsy_jackknife_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_gypsy_jackknife",
+      "weaponName": "Navaja Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_gypsy_jackknife_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_gypsy_jackknife",
+      "weaponName": "Navaja Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_gypsy_jackknife_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_gypsy_jackknife",
+      "weaponName": "Navaja Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_gypsy_jackknife_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_gypsy_jackknife",
+      "weaponName": "Navaja Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_gypsy_jackknife_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_karambit_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_karambit_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_karambit_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_karambit_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_karambit_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_karambit_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_kukri",
+      "weaponName": "Kukri Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_kukri_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_kukri",
+      "weaponName": "Kukri Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_kukri_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_kukri",
+      "weaponName": "Kukri Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_kukri_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_kukri",
+      "weaponName": "Kukri Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_kukri_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_m9_bayonet",
+      "weaponName": "M9 Bayonet",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_m9_bayonet_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_m9_bayonet",
+      "weaponName": "M9 Bayonet",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_m9_bayonet_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_m9_bayonet",
+      "weaponName": "M9 Bayonet",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_m9_bayonet_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_m9_bayonet",
+      "weaponName": "M9 Bayonet",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_m9_bayonet_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_m9_bayonet",
+      "weaponName": "M9 Bayonet",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_m9_bayonet_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_m9_bayonet",
+      "weaponName": "M9 Bayonet",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_m9_bayonet_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_outdoor",
+      "weaponName": "Nomad Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_outdoor_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_outdoor",
+      "weaponName": "Nomad Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_outdoor_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_outdoor",
+      "weaponName": "Nomad Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_outdoor_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_outdoor",
+      "weaponName": "Nomad Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_outdoor_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_outdoor",
+      "weaponName": "Nomad Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_outdoor_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_outdoor",
+      "weaponName": "Nomad Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_outdoor_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_push",
+      "weaponName": "Shadow Daggers",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_push_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_push",
+      "weaponName": "Shadow Daggers",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_push_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_push",
+      "weaponName": "Shadow Daggers",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_push_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_push",
+      "weaponName": "Shadow Daggers",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_push_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_push",
+      "weaponName": "Shadow Daggers",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_push_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_push",
+      "weaponName": "Shadow Daggers",
+      "paintKit": 617,
+      "paintKitName": "am_blackpearl_marbleized_b",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_push_am_blackpearl_marbleized_b.webp"
+    },
+    {
+      "weapon": "weapon_knife_skeleton",
+      "weaponName": "Skeleton Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_skeleton_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_skeleton",
+      "weaponName": "Skeleton Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_skeleton_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_skeleton",
+      "weaponName": "Skeleton Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_skeleton_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_skeleton",
+      "weaponName": "Skeleton Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_skeleton_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_skeleton",
+      "weaponName": "Skeleton Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_skeleton_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_skeleton",
+      "weaponName": "Skeleton Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_skeleton_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_stiletto",
+      "weaponName": "Stiletto Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_stiletto_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_stiletto",
+      "weaponName": "Stiletto Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_stiletto_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_stiletto",
+      "weaponName": "Stiletto Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_stiletto_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_stiletto",
+      "weaponName": "Stiletto Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_stiletto_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_stiletto",
+      "weaponName": "Stiletto Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_stiletto_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_stiletto",
+      "weaponName": "Stiletto Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_stiletto_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_survival_bowie",
+      "weaponName": "Bowie Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_survival_bowie_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_survival_bowie",
+      "weaponName": "Bowie Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_survival_bowie_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_survival_bowie",
+      "weaponName": "Bowie Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_survival_bowie_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_survival_bowie",
+      "weaponName": "Bowie Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_survival_bowie_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_survival_bowie",
+      "weaponName": "Bowie Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_survival_bowie_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_survival_bowie",
+      "weaponName": "Bowie Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_survival_bowie_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_tactical",
+      "weaponName": "Huntsman Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_tactical_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_tactical",
+      "weaponName": "Huntsman Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_tactical_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_tactical",
+      "weaponName": "Huntsman Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_tactical_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_tactical",
+      "weaponName": "Huntsman Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_tactical_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_tactical",
+      "weaponName": "Huntsman Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_tactical_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_tactical",
+      "weaponName": "Huntsman Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_tactical_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_ursus",
+      "weaponName": "Ursus Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_ursus_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_ursus",
+      "weaponName": "Ursus Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_ursus_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_ursus",
+      "weaponName": "Ursus Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_ursus_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_ursus",
+      "weaponName": "Ursus Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_ursus_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_ursus",
+      "weaponName": "Ursus Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_ursus_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_ursus",
+      "weaponName": "Ursus Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_ursus_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_widowmaker",
+      "weaponName": "Talon Knife",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_knife_widowmaker_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_knife_widowmaker",
+      "weaponName": "Talon Knife",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_knife_widowmaker_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_knife_widowmaker",
+      "weaponName": "Talon Knife",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_knife_widowmaker_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_knife_widowmaker",
+      "weaponName": "Talon Knife",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_knife_widowmaker_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_knife_widowmaker",
+      "weaponName": "Talon Knife",
+      "paintKit": 409,
+      "paintKitName": "an_tiger_orange",
+      "name": "Tiger Tooth",
+      "rarity": "legendary",
+      "image": "weapon_knife_widowmaker_an_tiger_orange.webp"
+    },
+    {
+      "weapon": "weapon_knife_widowmaker",
+      "weaponName": "Talon Knife",
+      "paintKit": 417,
+      "paintKitName": "am_blackpearl_marbleized",
+      "name": "Doppler",
+      "rarity": "ancient",
+      "image": "weapon_knife_widowmaker_am_blackpearl_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_m249",
+      "weaponName": "M249",
+      "paintKit": 22,
+      "paintKitName": "sp_spray",
+      "name": "Contrast Spray",
+      "rarity": "common",
+      "image": "weapon_m249_sp_spray.webp"
+    },
+    {
+      "weapon": "weapon_m249",
+      "weaponName": "M249",
+      "paintKit": 75,
+      "paintKitName": "hy_blizzard",
+      "name": "Blizzard Marbleized",
+      "rarity": "uncommon",
+      "image": "weapon_m249_hy_blizzard.webp"
+    },
+    {
+      "weapon": "weapon_m249",
+      "weaponName": "M249",
+      "paintKit": 120,
+      "paintKitName": "m249_hypnosis",
+      "name": "Hypnosis",
+      "rarity": "rare",
+      "image": "weapon_m249_m249_hypnosis.webp"
+    },
+    {
+      "weapon": "weapon_m249",
+      "weaponName": "M249",
+      "paintKit": 496,
+      "paintKitName": "gs_m249_nebula_crusader",
+      "name": "Nebula Crusader",
+      "rarity": "mythical",
+      "image": "weapon_m249_gs_m249_nebula_crusader.webp"
+    },
+    {
+      "weapon": "weapon_m4a1",
+      "weaponName": "M4A4",
+      "paintKit": 8,
+      "paintKitName": "hy_desert",
+      "name": "Desert Storm",
+      "rarity": "common",
+      "image": "weapon_m4a1_hy_desert.webp"
+    },
+    {
+      "weapon": "weapon_m4a1",
+      "weaponName": "M4A4",
+      "paintKit": 118,
+      "paintKitName": "m4a4_fusion",
+      "name": "Turbine",
+      "rarity": "rare",
+      "image": "weapon_m4a1_m4a4_fusion.webp"
+    },
+    {
+      "weapon": "weapon_m4a1",
+      "weaponName": "M4A4",
+      "paintKit": 155,
+      "paintKitName": "cu_bullet_rain_m4a1",
+      "name": "Bullet Rain",
+      "rarity": "ancient",
+      "image": "weapon_m4a1_cu_bullet_rain_m4a1.webp"
+    },
+    {
+      "weapon": "weapon_m4a1",
+      "weaponName": "M4A4",
+      "paintKit": 167,
+      "paintKitName": "sp_nukestripe_orange",
+      "name": "Radiation Hazard",
+      "rarity": "uncommon",
+      "image": "weapon_m4a1_sp_nukestripe_orange.webp"
+    },
+    {
+      "weapon": "weapon_m4a1",
+      "weaponName": "M4A4",
+      "paintKit": 255,
+      "paintKitName": "cu_m4_asimov",
+      "name": "Asiimov",
+      "rarity": "legendary",
+      "image": "weapon_m4a1_cu_m4_asimov.webp"
+    },
+    {
+      "weapon": "weapon_m4a1",
+      "weaponName": "M4A4",
+      "paintKit": 309,
+      "paintKitName": "cu_m4a1_howling",
+      "name": "Howl",
+      "rarity": "immortal",
+      "image": "weapon_m4a1_cu_m4a1_howling.webp"
+    },
+    {
+      "weapon": "weapon_m4a1",
+      "weaponName": "M4A4",
+      "paintKit": 400,
+      "paintKitName": "cu_m4a4_ancestral",
+      "name": "龍王 (Dragon King)",
+      "rarity": "mythical",
+      "image": "weapon_m4a1_cu_m4a4_ancestral.webp"
+    },
+    {
+      "weapon": "weapon_m4a1_silencer",
+      "weaponName": "M4A1-S",
+      "paintKit": 60,
+      "paintKitName": "am_zebra_dark",
+      "name": "Dark Water",
+      "rarity": "rare",
+      "image": "weapon_m4a1_silencer_am_zebra_dark.webp"
+    },
+    {
+      "weapon": "weapon_m4a1_silencer",
+      "weaponName": "M4A1-S",
+      "paintKit": 61,
+      "paintKitName": "aa_vertigo",
+      "name": "Hypnotic",
+      "rarity": "mythical",
+      "image": "weapon_m4a1_silencer_aa_vertigo.webp"
+    },
+    {
+      "weapon": "weapon_m4a1_silencer",
+      "weaponName": "M4A1-S",
+      "paintKit": 77,
+      "paintKitName": "hy_forest_boreal",
+      "name": "Boreal Forest",
+      "rarity": "common",
+      "image": "weapon_m4a1_silencer_hy_forest_boreal.webp"
+    },
+    {
+      "weapon": "weapon_m4a1_silencer",
+      "weaponName": "M4A1-S",
+      "paintKit": 106,
+      "paintKitName": "m4a1s_vaporwave",
+      "name": "Vaporwave",
+      "rarity": "legendary",
+      "image": "weapon_m4a1_silencer_m4a1s_vaporwave.webp"
+    },
+    {
+      "weapon": "weapon_m4a1_silencer",
+      "weaponName": "M4A1-S",
+      "paintKit": 217,
+      "paintKitName": "hy_redtiger",
+      "name": "Blood Tiger",
+      "rarity": "uncommon",
+      "image": "weapon_m4a1_silencer_hy_redtiger.webp"
+    },
+    {
+      "weapon": "weapon_mac10",
+      "weaponName": "MAC-10",
+      "paintKit": 3,
+      "paintKitName": "so_red",
+      "name": "Candy Apple",
+      "rarity": "uncommon",
+      "image": "weapon_mac10_so_red.webp"
+    },
+    {
+      "weapon": "weapon_mac10",
+      "weaponName": "MAC-10",
+      "paintKit": 17,
+      "paintKitName": "hy_ddpat_urb",
+      "name": "Urban DDPAT",
+      "rarity": "common",
+      "image": "weapon_mac10_hy_ddpat_urb.webp"
+    },
+    {
+      "weapon": "weapon_mac10",
+      "weaponName": "MAC-10",
+      "paintKit": 38,
+      "paintKitName": "aa_fade",
+      "name": "Fade",
+      "rarity": "rare",
+      "image": "weapon_mac10_aa_fade.webp"
+    },
+    {
+      "weapon": "weapon_mac10",
+      "weaponName": "MAC-10",
+      "paintKit": 44,
+      "paintKitName": "aq_oiled",
+      "name": "Case Hardened",
+      "rarity": "mythical",
+      "image": "weapon_mac10_aq_oiled.webp"
+    },
+    {
+      "weapon": "weapon_mac10",
+      "weaponName": "MAC-10",
+      "paintKit": 433,
+      "paintKitName": "cu_mac10_neonrider",
+      "name": "Neon Rider",
+      "rarity": "ancient",
+      "image": "weapon_mac10_cu_mac10_neonrider.webp"
+    },
+    {
+      "weapon": "weapon_mac10",
+      "weaponName": "MAC-10",
+      "paintKit": 947,
+      "paintKitName": "cu_mac10_nacre",
+      "name": "Disco Tech",
+      "rarity": "legendary",
+      "image": "weapon_mac10_cu_mac10_nacre.webp"
+    },
+    {
+      "weapon": "weapon_mag7",
+      "weaponName": "MAG-7",
+      "paintKit": 32,
+      "paintKitName": "an_silver",
+      "name": "Silver",
+      "rarity": "uncommon",
+      "image": "weapon_mag7_an_silver.webp"
+    },
+    {
+      "weapon": "weapon_mag7",
+      "weaponName": "MAG-7",
+      "paintKit": 39,
+      "paintKitName": "so_yellow",
+      "name": "Bulldozer",
+      "rarity": "mythical",
+      "image": "weapon_mag7_so_yellow.webp"
+    },
+    {
+      "weapon": "weapon_mag7",
+      "weaponName": "MAG-7",
+      "paintKit": 99,
+      "paintKitName": "so_sand",
+      "name": "Sand Dune",
+      "rarity": "common",
+      "image": "weapon_mag7_so_sand.webp"
+    },
+    {
+      "weapon": "weapon_mag7",
+      "weaponName": "MAG-7",
+      "paintKit": 177,
+      "paintKitName": "hy_icosahedron",
+      "name": "Memento",
+      "rarity": "rare",
+      "image": "weapon_mag7_hy_icosahedron.webp"
+    },
+    {
+      "weapon": "weapon_mag7",
+      "weaponName": "MAG-7",
+      "paintKit": 737,
+      "paintKitName": "gs_mag7_glass",
+      "name": "Cinquedea",
+      "rarity": "legendary",
+      "image": "weapon_mag7_gs_mag7_glass.webp"
+    },
+    {
+      "weapon": "weapon_mp5sd",
+      "weaponName": "MP5-SD",
+      "paintKit": 161,
+      "paintKitName": "sp_overpass_paint_pen_neon",
+      "name": "Neon Squeezer",
+      "rarity": "uncommon",
+      "image": "weapon_mp5sd_sp_overpass_paint_pen_neon.webp"
+    },
+    {
+      "weapon": "weapon_mp5sd",
+      "weaponName": "MP5-SD",
+      "paintKit": 753,
+      "paintKitName": "sp_tape_short_rally",
+      "name": "Dirt Drop",
+      "rarity": "common",
+      "image": "weapon_mp5sd_sp_tape_short_rally.webp"
+    },
+    {
+      "weapon": "weapon_mp5sd",
+      "weaponName": "MP5-SD",
+      "paintKit": 781,
+      "paintKitName": "am_circuitboard_aqua",
+      "name": "Co-Processor",
+      "rarity": "rare",
+      "image": "weapon_mp5sd_am_circuitboard_aqua.webp"
+    },
+    {
+      "weapon": "weapon_mp5sd",
+      "weaponName": "MP5-SD",
+      "paintKit": 800,
+      "paintKitName": "hy_labrat_mp5",
+      "name": "Lab Rats",
+      "rarity": "mythical",
+      "image": "weapon_mp5sd_hy_labrat_mp5.webp"
+    },
+    {
+      "weapon": "weapon_mp5sd",
+      "weaponName": "MP5-SD",
+      "paintKit": 810,
+      "paintKitName": "gs_mp5_festival_drip",
+      "name": "Phosphor",
+      "rarity": "legendary",
+      "image": "weapon_mp5sd_gs_mp5_festival_drip.webp"
+    },
+    {
+      "weapon": "weapon_mp7",
+      "weaponName": "MP7",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_mp7_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_mp7",
+      "weaponName": "MP7",
+      "paintKit": 11,
+      "paintKitName": "hy_skulls",
+      "name": "Skulls",
+      "rarity": "rare",
+      "image": "weapon_mp7_hy_skulls.webp"
+    },
+    {
+      "weapon": "weapon_mp7",
+      "weaponName": "MP7",
+      "paintKit": 15,
+      "paintKitName": "hy_gelpen",
+      "name": "Gunsmoke",
+      "rarity": "uncommon",
+      "image": "weapon_mp7_hy_gelpen.webp"
+    },
+    {
+      "weapon": "weapon_mp7",
+      "weaponName": "MP7",
+      "paintKit": 213,
+      "paintKitName": "am_ossify_blue",
+      "name": "Ocean Foam",
+      "rarity": "mythical",
+      "image": "weapon_mp7_am_ossify_blue.webp"
+    },
+    {
+      "weapon": "weapon_mp7",
+      "weaponName": "MP7",
+      "paintKit": 481,
+      "paintKitName": "cu_mp7_nemsis",
+      "name": "Nemesis",
+      "rarity": "legendary",
+      "image": "weapon_mp7_cu_mp7_nemsis.webp"
+    },
+    {
+      "weapon": "weapon_mp7",
+      "weaponName": "MP7",
+      "paintKit": 696,
+      "paintKitName": "gs_mp7_bloodsport",
+      "name": "Bloodsport",
+      "rarity": "ancient",
+      "image": "weapon_mp7_gs_mp7_bloodsport.webp"
+    },
+    {
+      "weapon": "weapon_mp9",
+      "weaponName": "MP9",
+      "paintKit": 33,
+      "paintKitName": "an_red",
+      "name": "Hot Rod",
+      "rarity": "rare",
+      "image": "weapon_mp9_an_red.webp"
+    },
+    {
+      "weapon": "weapon_mp9",
+      "weaponName": "MP9",
+      "paintKit": 39,
+      "paintKitName": "so_yellow",
+      "name": "Bulldozer",
+      "rarity": "mythical",
+      "image": "weapon_mp9_so_yellow.webp"
+    },
+    {
+      "weapon": "weapon_mp9",
+      "weaponName": "MP9",
+      "paintKit": 100,
+      "paintKitName": "so_stormfront",
+      "name": "Storm",
+      "rarity": "common",
+      "image": "weapon_mp9_so_stormfront.webp"
+    },
+    {
+      "weapon": "weapon_mp9",
+      "weaponName": "MP9",
+      "paintKit": 141,
+      "paintKitName": "sp_tape_orange",
+      "name": "Orange Peel",
+      "rarity": "uncommon",
+      "image": "weapon_mp9_sp_tape_orange.webp"
+    },
+    {
+      "weapon": "weapon_mp9",
+      "weaponName": "MP9",
+      "paintKit": 609,
+      "paintKitName": "cu_mp9_narcis",
+      "name": "Airlock",
+      "rarity": "legendary",
+      "image": "weapon_mp9_cu_mp9_narcis.webp"
+    },
+    {
+      "weapon": "weapon_mp9",
+      "weaponName": "MP9",
+      "paintKit": 1134,
+      "paintKitName": "gs_mp9_starlight",
+      "name": "Starlight Protector",
+      "rarity": "ancient",
+      "image": "weapon_mp9_gs_mp9_starlight.webp"
+    },
+    {
+      "weapon": "weapon_negev",
+      "weaponName": "Negev",
+      "paintKit": 28,
+      "paintKitName": "an_navy",
+      "name": "Anodized Navy",
+      "rarity": "rare",
+      "image": "weapon_negev_an_navy.webp"
+    },
+    {
+      "weapon": "weapon_negev",
+      "weaponName": "Negev",
+      "paintKit": 74,
+      "paintKitName": "hy_arctic_contrast",
+      "name": "Polar Camo",
+      "rarity": "common",
+      "image": "weapon_negev_hy_arctic_contrast.webp"
+    },
+    {
+      "weapon": "weapon_negev",
+      "weaponName": "Negev",
+      "paintKit": 144,
+      "paintKitName": "cu_overpass_graf_negev",
+      "name": "Wall Bang",
+      "rarity": "uncommon",
+      "image": "weapon_negev_cu_overpass_graf_negev.webp"
+    },
+    {
+      "weapon": "weapon_negev",
+      "weaponName": "Negev",
+      "paintKit": 483,
+      "paintKitName": "cu_negev_annihilator",
+      "name": "Loudmouth",
+      "rarity": "mythical",
+      "image": "weapon_negev_cu_negev_annihilator.webp"
+    },
+    {
+      "weapon": "weapon_negev",
+      "weaponName": "Negev",
+      "paintKit": 763,
+      "paintKitName": "gs_negev_thor",
+      "name": "Mjölnir",
+      "rarity": "legendary",
+      "image": "weapon_negev_gs_negev_thor.webp"
+    },
+    {
+      "weapon": "weapon_nova",
+      "weaponName": "Nova",
+      "paintKit": 3,
+      "paintKitName": "so_red",
+      "name": "Candy Apple",
+      "rarity": "uncommon",
+      "image": "weapon_nova_so_red.webp"
+    },
+    {
+      "weapon": "weapon_nova",
+      "weaponName": "Nova",
+      "paintKit": 25,
+      "paintKitName": "sp_leaves",
+      "name": "Forest Leaves",
+      "rarity": "common",
+      "image": "weapon_nova_sp_leaves.webp"
+    },
+    {
+      "weapon": "weapon_nova",
+      "weaponName": "Nova",
+      "paintKit": 62,
+      "paintKitName": "cu_spring_nova",
+      "name": "Bloomstick",
+      "rarity": "legendary",
+      "image": "weapon_nova_cu_spring_nova.webp"
+    },
+    {
+      "weapon": "weapon_nova",
+      "weaponName": "Nova",
+      "paintKit": 145,
+      "paintKitName": "cu_overpass_wurst_nova",
+      "name": "Wurst Hölle",
+      "rarity": "rare",
+      "image": "weapon_nova_cu_overpass_wurst_nova.webp"
+    },
+    {
+      "weapon": "weapon_nova",
+      "weaponName": "Nova",
+      "paintKit": 214,
+      "paintKitName": "am_crumple",
+      "name": "Graphite",
+      "rarity": "mythical",
+      "image": "weapon_nova_am_crumple.webp"
+    },
+    {
+      "weapon": "weapon_p250",
+      "weaponName": "P250",
+      "paintKit": 15,
+      "paintKitName": "hy_gelpen",
+      "name": "Gunsmoke",
+      "rarity": "uncommon",
+      "image": "weapon_p250_hy_gelpen.webp"
+    },
+    {
+      "weapon": "weapon_p250",
+      "weaponName": "P250",
+      "paintKit": 27,
+      "paintKitName": "sp_tape",
+      "name": "Bone Mask",
+      "rarity": "common",
+      "image": "weapon_p250_sp_tape.webp"
+    },
+    {
+      "weapon": "weapon_p250",
+      "weaponName": "P250",
+      "paintKit": 102,
+      "paintKitName": "so_whiteout",
+      "name": "Whiteout",
+      "rarity": "rare",
+      "image": "weapon_p250_so_whiteout.webp"
+    },
+    {
+      "weapon": "weapon_p250",
+      "weaponName": "P250",
+      "paintKit": 125,
+      "paintKitName": "cu_xray_p250",
+      "name": "X-Ray",
+      "rarity": "mythical",
+      "image": "weapon_p250_cu_xray_p250.webp"
+    },
+    {
+      "weapon": "weapon_p250",
+      "weaponName": "P250",
+      "paintKit": 130,
+      "paintKitName": "p250_impact",
+      "name": "Epicenter",
+      "rarity": "legendary",
+      "image": "weapon_p250_p250_impact.webp"
+    },
+    {
+      "weapon": "weapon_p250",
+      "weaponName": "P250",
+      "paintKit": 678,
+      "paintKitName": "cu_p250_cybercroc",
+      "name": "See Ya Later",
+      "rarity": "ancient",
+      "image": "weapon_p250_cu_p250_cybercroc.webp"
+    },
+    {
+      "weapon": "weapon_p90",
+      "weaponName": "P90",
+      "paintKit": 20,
+      "paintKitName": "hy_zombie",
+      "name": "Virus",
+      "rarity": "mythical",
+      "image": "weapon_p90_hy_zombie.webp"
+    },
+    {
+      "weapon": "weapon_p90",
+      "weaponName": "P90",
+      "paintKit": 67,
+      "paintKitName": "am_slither_p90",
+      "name": "Cold Blooded",
+      "rarity": "legendary",
+      "image": "weapon_p90_am_slither_p90.webp"
+    },
+    {
+      "weapon": "weapon_p90",
+      "weaponName": "P90",
+      "paintKit": 78,
+      "paintKitName": "hy_forest_night",
+      "name": "Forest Night",
+      "rarity": "common",
+      "image": "weapon_p90_hy_forest_night.webp"
+    },
+    {
+      "weapon": "weapon_p90",
+      "weaponName": "P90",
+      "paintKit": 111,
+      "paintKitName": "sp_mesh_glacier",
+      "name": "Glacier Mesh",
+      "rarity": "rare",
+      "image": "weapon_p90_sp_mesh_glacier.webp"
+    },
+    {
+      "weapon": "weapon_p90",
+      "weaponName": "P90",
+      "paintKit": 133,
+      "paintKitName": "sp_overpass_doodle_plum",
+      "name": "Wash me",
+      "rarity": "uncommon",
+      "image": "weapon_p90_sp_overpass_doodle_plum.webp"
+    },
+    {
+      "weapon": "weapon_p90",
+      "weaponName": "P90",
+      "paintKit": 156,
+      "paintKitName": "cu_catskulls_p90",
+      "name": "Death by Kitty",
+      "rarity": "ancient",
+      "image": "weapon_p90_cu_catskulls_p90.webp"
+    },
+    {
+      "weapon": "weapon_revolver",
+      "weaponName": "R8 Revolver",
+      "paintKit": 12,
+      "paintKitName": "hy_webs",
+      "name": "Crimson Web",
+      "rarity": "rare",
+      "image": "weapon_revolver_hy_webs.webp"
+    },
+    {
+      "weapon": "weapon_revolver",
+      "weaponName": "R8 Revolver",
+      "paintKit": 27,
+      "paintKitName": "sp_tape",
+      "name": "Bone Mask",
+      "rarity": "common",
+      "image": "weapon_revolver_sp_tape.webp"
+    },
+    {
+      "weapon": "weapon_revolver",
+      "weaponName": "R8 Revolver",
+      "paintKit": 522,
+      "paintKitName": "aa_fade_revolver",
+      "name": "Fade",
+      "rarity": "ancient",
+      "image": "weapon_revolver_aa_fade_revolver.webp"
+    },
+    {
+      "weapon": "weapon_revolver",
+      "weaponName": "R8 Revolver",
+      "paintKit": 523,
+      "paintKitName": "aa_fade_metallic_revolver",
+      "name": "Amber Fade",
+      "rarity": "legendary",
+      "image": "weapon_revolver_aa_fade_metallic_revolver.webp"
+    },
+    {
+      "weapon": "weapon_revolver",
+      "weaponName": "R8 Revolver",
+      "paintKit": 595,
+      "paintKitName": "cu_r8_cybersport",
+      "name": "Reboot",
+      "rarity": "mythical",
+      "image": "weapon_revolver_cu_r8_cybersport.webp"
+    },
+    {
+      "weapon": "weapon_revolver",
+      "weaponName": "R8 Revolver",
+      "paintKit": 798,
+      "paintKitName": "so_orange_accents3",
+      "name": "Nitro",
+      "rarity": "uncommon",
+      "image": "weapon_revolver_so_orange_accents3.webp"
+    },
+    {
+      "weapon": "weapon_sawedoff",
+      "weaponName": "Sawed-Off",
+      "paintKit": 5,
+      "paintKitName": "hy_ddpat",
+      "name": "Forest DDPAT",
+      "rarity": "common",
+      "image": "weapon_sawedoff_hy_ddpat.webp"
+    },
+    {
+      "weapon": "weapon_sawedoff",
+      "weaponName": "Sawed-Off",
+      "paintKit": 30,
+      "paintKitName": "sp_snake",
+      "name": "Snake Camo",
+      "rarity": "uncommon",
+      "image": "weapon_sawedoff_sp_snake.webp"
+    },
+    {
+      "weapon": "weapon_sawedoff",
+      "weaponName": "Sawed-Off",
+      "paintKit": 41,
+      "paintKitName": "aq_copper",
+      "name": "Copper",
+      "rarity": "rare",
+      "image": "weapon_sawedoff_aq_copper.webp"
+    },
+    {
+      "weapon": "weapon_sawedoff",
+      "weaponName": "Sawed-Off",
+      "paintKit": 83,
+      "paintKitName": "hy_ddpat_orange",
+      "name": "Orange DDPAT",
+      "rarity": "mythical",
+      "image": "weapon_sawedoff_hy_ddpat_orange.webp"
+    },
+    {
+      "weapon": "weapon_sawedoff",
+      "weaponName": "Sawed-Off",
+      "paintKit": 256,
+      "paintKitName": "cu_sawedoff_octopump",
+      "name": "The Kraken",
+      "rarity": "ancient",
+      "image": "weapon_sawedoff_cu_sawedoff_octopump.webp"
+    },
+    {
+      "weapon": "weapon_sawedoff",
+      "weaponName": "Sawed-Off",
+      "paintKit": 638,
+      "paintKitName": "cu_wp_sawedoff",
+      "name": "Wasteland Princess",
+      "rarity": "legendary",
+      "image": "weapon_sawedoff_cu_wp_sawedoff.webp"
+    },
+    {
+      "weapon": "weapon_scar20",
+      "weaponName": "SCAR-20",
+      "paintKit": 46,
+      "paintKitName": "so_pmc",
+      "name": "Contractor",
+      "rarity": "common",
+      "image": "weapon_scar20_so_pmc.webp"
+    },
+    {
+      "weapon": "weapon_scar20",
+      "weaponName": "SCAR-20",
+      "paintKit": 60,
+      "paintKitName": "am_zebra_dark",
+      "name": "Dark Water",
+      "rarity": "rare",
+      "image": "weapon_scar20_am_zebra_dark.webp"
+    },
+    {
+      "weapon": "weapon_scar20",
+      "weaponName": "SCAR-20",
+      "paintKit": 70,
+      "paintKitName": "am_carbon_fiber",
+      "name": "Carbon Fiber",
+      "rarity": "uncommon",
+      "image": "weapon_scar20_am_carbon_fiber.webp"
+    },
+    {
+      "weapon": "weapon_scar20",
+      "weaponName": "SCAR-20",
+      "paintKit": 165,
+      "paintKitName": "hy_hunter_blaze_pink",
+      "name": "Splash Jam",
+      "rarity": "legendary",
+      "image": "weapon_scar20_hy_hunter_blaze_pink.webp"
+    },
+    {
+      "weapon": "weapon_scar20",
+      "weaponName": "SCAR-20",
+      "paintKit": 196,
+      "paintKitName": "an_emerald_bravo",
+      "name": "Emerald",
+      "rarity": "mythical",
+      "image": "weapon_scar20_an_emerald_bravo.webp"
+    },
+    {
+      "weapon": "weapon_sg556",
+      "weaponName": "SG 553",
+      "paintKit": 28,
+      "paintKitName": "an_navy",
+      "name": "Anodized Navy",
+      "rarity": "rare",
+      "image": "weapon_sg556_an_navy.webp"
+    },
+    {
+      "weapon": "weapon_sg556",
+      "weaponName": "SG 553",
+      "paintKit": 39,
+      "paintKitName": "so_yellow",
+      "name": "Bulldozer",
+      "rarity": "mythical",
+      "image": "weapon_sg556_so_yellow.webp"
+    },
+    {
+      "weapon": "weapon_sg556",
+      "weaponName": "SG 553",
+      "paintKit": 101,
+      "paintKitName": "so_tornado",
+      "name": "Tornado",
+      "rarity": "common",
+      "image": "weapon_sg556_so_tornado.webp"
+    },
+    {
+      "weapon": "weapon_sg556",
+      "weaponName": "SG 553",
+      "paintKit": 243,
+      "paintKitName": "sp_mesh_python",
+      "name": "Gator Mesh",
+      "rarity": "uncommon",
+      "image": "weapon_sg556_sp_mesh_python.webp"
+    },
+    {
+      "weapon": "weapon_sg556",
+      "weaponName": "SG 553",
+      "paintKit": 487,
+      "paintKitName": "cu_sg553_cyrex",
+      "name": "Cyrex",
+      "rarity": "legendary",
+      "image": "weapon_sg556_cu_sg553_cyrex.webp"
+    },
+    {
+      "weapon": "weapon_ssg08",
+      "weaponName": "SSG 08",
+      "paintKit": 26,
+      "paintKitName": "sp_short_tape",
+      "name": "Lichen Dashed",
+      "rarity": "common",
+      "image": "weapon_ssg08_sp_short_tape.webp"
+    },
+    {
+      "weapon": "weapon_ssg08",
+      "weaponName": "SSG 08",
+      "paintKit": 60,
+      "paintKitName": "am_zebra_dark",
+      "name": "Dark Water",
+      "rarity": "rare",
+      "image": "weapon_ssg08_am_zebra_dark.webp"
+    },
+    {
+      "weapon": "weapon_ssg08",
+      "weaponName": "SSG 08",
+      "paintKit": 70,
+      "paintKitName": "am_carbon_fiber",
+      "name": "Carbon Fiber",
+      "rarity": "uncommon",
+      "image": "weapon_ssg08_am_carbon_fiber.webp"
+    },
+    {
+      "weapon": "weapon_ssg08",
+      "weaponName": "SSG 08",
+      "paintKit": 128,
+      "paintKitName": "ssg08_transit_white",
+      "name": "Rapid Transit",
+      "rarity": "mythical",
+      "image": "weapon_ssg08_ssg08_transit_white.webp"
+    },
+    {
+      "weapon": "weapon_ssg08",
+      "weaponName": "SSG 08",
+      "paintKit": 222,
+      "paintKitName": "cu_shark",
+      "name": "Blood in the Water",
+      "rarity": "ancient",
+      "image": "weapon_ssg08_cu_shark.webp"
+    },
+    {
+      "weapon": "weapon_ssg08",
+      "weaponName": "SSG 08",
+      "paintKit": 503,
+      "paintKitName": "cu_ssg08_technicality",
+      "name": "Big Iron",
+      "rarity": "legendary",
+      "image": "weapon_ssg08_cu_ssg08_technicality.webp"
+    },
+    {
+      "weapon": "weapon_taser",
+      "weaponName": "Zeus x27",
+      "paintKit": 292,
+      "paintKitName": "cu_overpass_dragon_zeus",
+      "name": "Dragon Snore",
+      "rarity": "legendary",
+      "image": "weapon_taser_cu_overpass_dragon_zeus.webp"
+    },
+    {
+      "weapon": "weapon_taser",
+      "weaponName": "Zeus x27",
+      "paintKit": 1183,
+      "paintKitName": "zeus_tosai",
+      "name": "Tosai",
+      "rarity": "mythical",
+      "image": "weapon_taser_zeus_tosai.webp"
+    },
+    {
+      "weapon": "weapon_taser",
+      "weaponName": "Zeus x27",
+      "paintKit": 1268,
+      "paintKitName": "soe_electric_blue",
+      "name": "Electric Blue",
+      "rarity": "uncommon",
+      "image": "weapon_taser_soe_electric_blue.webp"
+    },
+    {
+      "weapon": "weapon_taser",
+      "weaponName": "Zeus x27",
+      "paintKit": 1297,
+      "paintKitName": "hy_digicam_forest",
+      "name": "Swamp DDPAT",
+      "rarity": "common",
+      "image": "weapon_taser_hy_digicam_forest.webp"
+    },
+    {
+      "weapon": "weapon_taser",
+      "weaponName": "Zeus x27",
+      "paintKit": 1382,
+      "paintKitName": "hye_earth_mandala_lc",
+      "name": "Earth Mandala",
+      "rarity": "rare",
+      "image": "weapon_taser_hye_earth_mandala_lc.webp"
+    },
+    {
+      "weapon": "weapon_tec9",
+      "weaponName": "Tec-9",
+      "paintKit": 2,
+      "paintKitName": "so_olive",
+      "name": "Groundwater",
+      "rarity": "common",
+      "image": "weapon_tec9_so_olive.webp"
+    },
+    {
+      "weapon": "weapon_tec9",
+      "weaponName": "Tec-9",
+      "paintKit": 36,
+      "paintKitName": "am_ossify",
+      "name": "Ossified",
+      "rarity": "rare",
+      "image": "weapon_tec9_am_ossify.webp"
+    },
+    {
+      "weapon": "weapon_tec9",
+      "weaponName": "Tec-9",
+      "paintKit": 179,
+      "paintKitName": "sp_nukestripe_green_tec9",
+      "name": "Nuclear Threat",
+      "rarity": "mythical",
+      "image": "weapon_tec9_sp_nukestripe_green_tec9.webp"
+    },
+    {
+      "weapon": "weapon_tec9",
+      "weaponName": "Tec-9",
+      "paintKit": 235,
+      "paintKitName": "hy_varicamo",
+      "name": "VariCamo",
+      "rarity": "uncommon",
+      "image": "weapon_tec9_hy_varicamo.webp"
+    },
+    {
+      "weapon": "weapon_tec9",
+      "weaponName": "Tec-9",
+      "paintKit": 614,
+      "paintKitName": "gs_tec9_supercharged",
+      "name": "Fuel Injector",
+      "rarity": "legendary",
+      "image": "weapon_tec9_gs_tec9_supercharged.webp"
+    },
+    {
+      "weapon": "weapon_ump45",
+      "weaponName": "UMP-45",
+      "paintKit": 15,
+      "paintKitName": "hy_gelpen",
+      "name": "Gunsmoke",
+      "rarity": "uncommon",
+      "image": "weapon_ump45_hy_gelpen.webp"
+    },
+    {
+      "weapon": "weapon_ump45",
+      "weaponName": "UMP-45",
+      "paintKit": 17,
+      "paintKitName": "hy_ddpat_urb",
+      "name": "Urban DDPAT",
+      "rarity": "common",
+      "image": "weapon_ump45_hy_ddpat_urb.webp"
+    },
+    {
+      "weapon": "weapon_ump45",
+      "weaponName": "UMP-45",
+      "paintKit": 37,
+      "paintKitName": "aa_flames",
+      "name": "Blaze",
+      "rarity": "rare",
+      "image": "weapon_ump45_aa_flames.webp"
+    },
+    {
+      "weapon": "weapon_ump45",
+      "weaponName": "UMP-45",
+      "paintKit": 131,
+      "paintKitName": "ump45_neo_noir",
+      "name": "Neo-Noir",
+      "rarity": "legendary",
+      "image": "weapon_ump45_ump45_neo_noir.webp"
+    },
+    {
+      "weapon": "weapon_ump45",
+      "weaponName": "UMP-45",
+      "paintKit": 412,
+      "paintKitName": "gsch_sport_ump45",
+      "name": "Crimson Foil",
+      "rarity": "mythical",
+      "image": "weapon_ump45_gsch_sport_ump45.webp"
+    },
+    {
+      "weapon": "weapon_usp_silencer",
+      "weaponName": "USP-S",
+      "paintKit": 25,
+      "paintKitName": "sp_leaves",
+      "name": "Forest Leaves",
+      "rarity": "common",
+      "image": "weapon_usp_silencer_sp_leaves.webp"
+    },
+    {
+      "weapon": "weapon_usp_silencer",
+      "weaponName": "USP-S",
+      "paintKit": 60,
+      "paintKitName": "am_zebra_dark",
+      "name": "Dark Water",
+      "rarity": "rare",
+      "image": "weapon_usp_silencer_am_zebra_dark.webp"
+    },
+    {
+      "weapon": "weapon_usp_silencer",
+      "weaponName": "USP-S",
+      "paintKit": 115,
+      "paintKitName": "usp_field_snake",
+      "name": "27",
+      "rarity": "uncommon",
+      "image": "weapon_usp_silencer_usp_field_snake.webp"
+    },
+    {
+      "weapon": "weapon_usp_silencer",
+      "weaponName": "USP-S",
+      "paintKit": 221,
+      "paintKitName": "am_electric_red",
+      "name": "Serum",
+      "rarity": "mythical",
+      "image": "weapon_usp_silencer_am_electric_red.webp"
+    },
+    {
+      "weapon": "weapon_usp_silencer",
+      "weaponName": "USP-S",
+      "paintKit": 504,
+      "paintKitName": "cu_usp_kill_confirmed",
+      "name": "Kill Confirmed",
+      "rarity": "legendary",
+      "image": "weapon_usp_silencer_cu_usp_kill_confirmed.webp"
+    },
+    {
+      "weapon": "weapon_xm1014",
+      "weaponName": "XM1014",
+      "paintKit": 17,
+      "paintKitName": "hy_ddpat_urb",
+      "name": "Urban DDPAT",
+      "rarity": "common",
+      "image": "weapon_xm1014_hy_ddpat_urb.webp"
+    },
+    {
+      "weapon": "weapon_xm1014",
+      "weaponName": "XM1014",
+      "paintKit": 42,
+      "paintKitName": "aq_blued",
+      "name": "Blue Steel",
+      "rarity": "uncommon",
+      "image": "weapon_xm1014_aq_blued.webp"
+    },
+    {
+      "weapon": "weapon_xm1014",
+      "weaponName": "XM1014",
+      "paintKit": 146,
+      "paintKitName": "cu_overpass_monsters_xm",
+      "name": "Monster Melt",
+      "rarity": "mythical",
+      "image": "weapon_xm1014_cu_overpass_monsters_xm.webp"
+    },
+    {
+      "weapon": "weapon_xm1014",
+      "weaponName": "XM1014",
+      "paintKit": 166,
+      "paintKitName": "hy_hunter_blaze_orange",
+      "name": "Blaze Orange",
+      "rarity": "rare",
+      "image": "weapon_xm1014_hy_hunter_blaze_orange.webp"
+    },
+    {
+      "weapon": "weapon_xm1014",
+      "weaponName": "XM1014",
+      "paintKit": 393,
+      "paintKitName": "cu_xm1014_caritas",
+      "name": "Tranquility",
+      "rarity": "legendary",
+      "image": "weapon_xm1014_cu_xm1014_caritas.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 416,
+      "paintKitName": "am_sapphire_marbleized",
+      "name": "Doppler",
+      "rarity": "legendary",
+      "image": "weapon_knife_karambit_am_sapphire_marbleized.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 418,
+      "paintKitName": "am_doppler_phase1",
+      "name": "Doppler",
+      "rarity": "mythical",
+      "image": "weapon_knife_karambit_am_doppler_phase1.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 419,
+      "paintKitName": "am_doppler_phase2",
+      "name": "Doppler",
+      "rarity": "mythical",
+      "image": "weapon_knife_karambit_am_doppler_phase2.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 420,
+      "paintKitName": "am_doppler_phase3",
+      "name": "Doppler",
+      "rarity": "mythical",
+      "image": "weapon_knife_karambit_am_doppler_phase3.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 421,
+      "paintKitName": "am_doppler_phase4",
+      "name": "Doppler",
+      "rarity": "mythical",
+      "image": "weapon_knife_karambit_am_doppler_phase4.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 569,
+      "paintKitName": "am_gamma_doppler_phase1",
+      "name": "Gamma Doppler",
+      "rarity": "mythical",
+      "image": "weapon_knife_karambit_am_gamma_doppler_phase1.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 570,
+      "paintKitName": "am_gamma_doppler_phase2",
+      "name": "Gamma Doppler",
+      "rarity": "mythical",
+      "image": "weapon_knife_karambit_am_gamma_doppler_phase2.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 571,
+      "paintKitName": "am_gamma_doppler_phase3",
+      "name": "Gamma Doppler",
+      "rarity": "mythical",
+      "image": "weapon_knife_karambit_am_gamma_doppler_phase3.webp"
+    },
+    {
+      "weapon": "weapon_knife_karambit",
+      "weaponName": "Karambit",
+      "paintKit": 572,
+      "paintKitName": "am_gamma_doppler_phase4",
+      "name": "Gamma Doppler",
+      "rarity": "mythical",
+      "image": "weapon_knife_karambit_am_gamma_doppler_phase4.webp"
+    }
+  ]
+}
