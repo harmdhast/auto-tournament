@@ -1673,7 +1673,6 @@
     "inventory": "Inventory",
     "count": "{{count}} skins",
     "equippedTitle": "Equipped",
-    "gearTitle": "Mes en uitrusting",
     "slot": {
       "knife": "Knife",
       "gloves": "Gloves"
@@ -1791,9 +1790,7 @@
       "edge": "Tussen {{a}} en {{b}}",
       "podiumHint": "Klik op een trede om te veranderen wat die geeft.",
       "rewardTitle": "Beloning voor {{place}}",
-      "done": "Klaar",
-      "catalogUnlocked": "Catalogus ontgrendeld",
-      "catalogUnlockedHelp": "Spelers kunnen elke skin uit de catalogus uitrusten, met de float en het patroon die ze zelf kiezen."
+      "done": "Klaar"
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "Wat dit betekent",
@@ -1810,22 +1807,7 @@
       "drew": "Gelijk {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it",
-    "picked": "Gekozen",
-    "view": {
-      "label": "Inventarisweergave",
-      "owned": "In bezit",
-      "catalog": "Catalogus"
-    },
-    "catalog": {
-      "search": "Zoeken in de catalogus",
-      "empty": "Geen skins gevonden.",
-      "loadFailed": "De catalogus kon niet worden geladen",
-      "pickLabel": "{{name}} kiezen",
-      "wear": "Slijtage",
-      "cancel": "Annuleren",
-      "equip": "Uitrusten"
-    }
+    "equipFailed": "Could not equip it"
   },
   "matchRules": {
     "title": "Wedstrijdregels",

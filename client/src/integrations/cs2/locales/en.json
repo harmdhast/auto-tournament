@@ -1673,7 +1673,6 @@
     "inventory": "Inventory",
     "count": "{{count}} skins",
     "equippedTitle": "Equipped",
-    "gearTitle": "Knife & gear",
     "slot": {
       "knife": "Knife",
       "gloves": "Gloves"
@@ -1791,9 +1790,7 @@
       "edge": "Between {{a}} and {{b}}",
       "podiumHint": "Click a step to change what it gives.",
       "rewardTitle": "Reward for {{place}}",
-      "done": "Done",
-      "catalogUnlocked": "Catalog unlock",
-      "catalogUnlockedHelp": "Players can equip any skin from the catalogue, with the float and pattern they choose."
+      "done": "Done"
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "What this means",
@@ -1810,22 +1807,7 @@
       "drew": "Drew {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it",
-    "picked": "Picked",
-    "view": {
-      "label": "Inventory view",
-      "owned": "Owned",
-      "catalog": "Catalog"
-    },
-    "catalog": {
-      "search": "Search the catalogue",
-      "empty": "No skins match.",
-      "loadFailed": "Could not load the catalogue",
-      "pickLabel": "Pick {{name}}",
-      "wear": "Wear",
-      "cancel": "Cancel",
-      "equip": "Equip"
-    }
+    "equipFailed": "Could not equip it"
   },
   "matchRules": {
     "title": "Match rules",

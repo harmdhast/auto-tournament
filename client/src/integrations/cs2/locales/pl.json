@@ -1711,7 +1711,6 @@
     "inventory": "Inventory",
     "count": "{{count}} skins",
     "equippedTitle": "Equipped",
-    "gearTitle": "Nóż i wyposażenie",
     "slot": {
       "knife": "Knife",
       "gloves": "Gloves"
@@ -1829,9 +1828,7 @@
       "edge": "Między {{a}} a {{b}}",
       "podiumHint": "Kliknij stopień, aby zmienić, co daje.",
       "rewardTitle": "Nagroda za {{place}}",
-      "done": "Gotowe",
-      "catalogUnlocked": "Katalog odblokowany",
-      "catalogUnlockedHelp": "Gracze mogą założyć dowolny skin z katalogu, z wybranym przez siebie floatem i wzorem."
+      "done": "Gotowe"
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "Co to znaczy",
@@ -1848,22 +1845,7 @@
       "drew": "Remis {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it",
-    "picked": "Wybrany",
-    "view": {
-      "label": "Widok ekwipunku",
-      "owned": "Posiadane",
-      "catalog": "Katalog"
-    },
-    "catalog": {
-      "search": "Szukaj w katalogu",
-      "empty": "Brak pasujących skinów.",
-      "loadFailed": "Nie udało się wczytać katalogu",
-      "pickLabel": "Wybierz {{name}}",
-      "wear": "Zużycie",
-      "cancel": "Anuluj",
-      "equip": "Załóż"
-    }
+    "equipFailed": "Could not equip it"
   },
   "matchRules": {
     "title": "Zasady meczu",

@@ -1673,7 +1673,6 @@
     "inventory": "Inventory",
     "count": "{{count}} skins",
     "equippedTitle": "Equipped",
-    "gearTitle": "刀具与装备",
     "slot": {
       "knife": "Knife",
       "gloves": "Gloves"
@@ -1791,9 +1790,7 @@
       "edge": "{{a}} 与 {{b}} 之间",
       "podiumHint": "点击一个台阶来更改它的奖励。",
       "rewardTitle": "{{place}} 的奖励",
-      "done": "完成",
-      "catalogUnlocked": "解锁图鉴",
-      "catalogUnlockedHelp": "玩家可以装备图鉴中的任意皮肤，并自行选择磨损值和图案模板。"
+      "done": "完成"
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "这是什么意思",
@@ -1810,22 +1807,7 @@
       "drew": "平 {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it",
-    "picked": "自选",
-    "view": {
-      "label": "库存视图",
-      "owned": "已拥有",
-      "catalog": "图鉴"
-    },
-    "catalog": {
-      "search": "搜索图鉴",
-      "empty": "没有匹配的皮肤。",
-      "loadFailed": "无法加载图鉴",
-      "pickLabel": "选择 {{name}}",
-      "wear": "磨损",
-      "cancel": "取消",
-      "equip": "装备"
-    }
+    "equipFailed": "Could not equip it"
   },
   "matchRules": {
     "title": "比赛规则",

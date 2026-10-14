@@ -1673,7 +1673,6 @@
     "inventory": "Inventory",
     "count": "{{count}} skins",
     "equippedTitle": "Equipped",
-    "gearTitle": "Faca e equipamento",
     "slot": {
       "knife": "Knife",
       "gloves": "Gloves"
@@ -1791,9 +1790,7 @@
       "edge": "Entre {{a}} e {{b}}",
       "podiumHint": "Clique num degrau para mudar o que dá.",
       "rewardTitle": "Prémio para {{place}}",
-      "done": "Concluído",
-      "catalogUnlocked": "Catálogo desbloqueado",
-      "catalogUnlockedHelp": "Os jogadores podem equipar qualquer skin do catálogo, com o float e o padrão que escolherem."
+      "done": "Concluído"
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "O que significa",
@@ -1810,22 +1807,7 @@
       "drew": "Empate {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it",
-    "picked": "Escolhida",
-    "view": {
-      "label": "Vista do inventário",
-      "owned": "Possuídas",
-      "catalog": "Catálogo"
-    },
-    "catalog": {
-      "search": "Pesquisar no catálogo",
-      "empty": "Nenhuma skin corresponde.",
-      "loadFailed": "Não foi possível carregar o catálogo",
-      "pickLabel": "Escolher {{name}}",
-      "wear": "Desgaste",
-      "cancel": "Cancelar",
-      "equip": "Equipar"
-    }
+    "equipFailed": "Could not equip it"
   },
   "matchRules": {
     "title": "Regras de partida",

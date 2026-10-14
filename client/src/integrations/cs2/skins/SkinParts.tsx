@@ -289,7 +289,6 @@ export function SlotTile({
   skin: OwnedSkin | null;
   onClick?: () => void;
 }) {
-  const { t } = useModuleTranslation('cs2');
   return (
     <Box
       data-testid="loadout-slot"
@@ -309,7 +308,6 @@ export function SlotTile({
               '&:focus-visible': { outline: `2px solid ${color.focus}`, outlineOffset: 2 },
             }
           : {}),
-        position: 'relative',
         borderRadius: '14px',
         overflow: 'hidden',
         bgcolor: color.paper2,
@@ -346,24 +344,6 @@ export function SlotTile({
           <PlusIcon size={20} />
         </Box>
       )}
-      {skin?.source === 'catalog' && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 6,
-            left: 6,
-            px: 0.875,
-            py: '1px',
-            borderRadius: radii.pill,
-            bgcolor: color.accent,
-            color: color.accentInk,
-            fontSize: '0.625rem',
-            fontWeight: 700,
-          }}
-        >
-          {t('skins.picked')}
-        </Box>
-      )}
       <Typography
         sx={{
           fontSize: '0.75rem',
@@ -377,120 +357,6 @@ export function SlotTile({
       >
         {label}
       </Typography>
-    </Box>
-  );
-}
-
-/** A compact loadout row: thumbnail, weapon and skin name, rarity accent, unequip. */
-export function LoadoutRow({
-  label,
-  skin,
-  onClick,
-  onUnequip,
-}: {
-  label: string;
-  skin: OwnedSkin | null;
-  onClick: () => void;
-  onUnequip?: () => void;
-}) {
-  const { t } = useModuleTranslation('cs2');
-  return (
-    <Box
-      sx={{
-        position: 'relative',
-        '&:hover .unequip, &:focus-within .unequip': { opacity: 1 },
-      }}
-    >
-      <Box
-        data-testid="loadout-slot"
-        component="button"
-        type="button"
-        onClick={onClick}
-        aria-label={skin ? `${label}: ${skin.name}` : label}
-        sx={{
-          all: 'unset',
-          cursor: 'pointer',
-          boxSizing: 'border-box',
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          minHeight: skin ? 40 : 32,
-          px: 1,
-          pr: skin && onUnequip ? 4.5 : 1,
-          borderLeft: `3px solid ${skin ? rarityColor[skin.rarity] : 'transparent'}`,
-          borderRadius: '6px',
-          bgcolor: skin ? color.paper2 : 'transparent',
-          '&:hover': { bgcolor: color.paper3 },
-          '&:focus-visible': { outline: `2px solid ${color.focus}`, outlineOffset: 1 },
-        }}
-      >
-        {skin && (
-          <Box
-            component="img"
-            src={skin.imageSmallUrl ?? skin.imageUrl}
-            alt=""
-            loading="lazy"
-            sx={{ width: 40, height: 28, objectFit: 'contain', flexShrink: 0 }}
-          />
-        )}
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography
-            noWrap
-            sx={{
-              fontSize: '0.8125rem',
-              lineHeight: 1.25,
-              color: skin ? color.ink : color.muted,
-              fontWeight: skin ? 600 : 400,
-            }}
-          >
-            {label}
-          </Typography>
-          {skin && (
-            <Typography noWrap sx={{ fontSize: '0.75rem', lineHeight: 1.25, color: color.ink2 }}>
-              {skin.name}
-            </Typography>
-          )}
-        </Box>
-        {skin?.source === 'catalog' && (
-          <Box
-            sx={{
-              px: 0.75,
-              borderRadius: radii.pill,
-              bgcolor: color.accent,
-              color: color.accentInk,
-              fontSize: '0.625rem',
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            {t('skins.picked')}
-          </Box>
-        )}
-      </Box>
-      {skin && onUnequip && (
-        <IconButton
-          className="unequip"
-          size="small"
-          onClick={onUnequip}
-          aria-label={t('skins.unequipLabel', { name: label })}
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            right: 4,
-            transform: 'translateY(-50%)',
-            width: 24,
-            height: 24,
-            color: color.ink2,
-            opacity: { xs: 1, md: 0 },
-            '@media (hover: none)': { opacity: 1 },
-            '&:focus-visible': { opacity: 1 },
-            '&:hover': { color: color.ink, bgcolor: color.paper },
-          }}
-        >
-          <XIcon size={12} />
-        </IconButton>
-      )}
     </Box>
   );
 }
@@ -647,17 +513,13 @@ export function InspectSkinDialog({
                 >
                   {skin.source === 'tournament'
                     ? t('skins.place', { n: skin.place ?? 1 })
-                    : skin.source === 'catalog'
-                      ? t('skins.picked')
-                      : t('skins.wonMatchmaking')}
+                    : t('skins.wonMatchmaking')}
                 </Typography>
-                {skin.source !== 'catalog' && (
-                  <Typography sx={{ fontSize: '0.8125rem', color: color.ink2 }}>
-                    {[skin.sourceLabel ? sourceLabel(skin.sourceLabel) : null, date]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </Typography>
-                )}
+                <Typography sx={{ fontSize: '0.8125rem', color: color.ink2 }}>
+                  {[skin.sourceLabel ? sourceLabel(skin.sourceLabel) : null, date]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Typography>
               </Box>
             </Box>
             <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>

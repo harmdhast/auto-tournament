@@ -1673,7 +1673,6 @@
     "inventory": "Inventar",
     "count": "{{count}} skins",
     "equippedTitle": "I bruk",
-    "gearTitle": "Kniv og utstyr",
     "slot": {
       "knife": "Kniv",
       "gloves": "Hansker"
@@ -1791,9 +1790,7 @@
       "edge": "Mellom {{a}} og {{b}}",
       "podiumHint": "Klikk et trinn for å endre hva det gir.",
       "rewardTitle": "Premie for {{place}}",
-      "done": "Ferdig",
-      "catalogUnlocked": "Katalogen åpnet",
-      "catalogUnlockedHelp": "Spillere kan ta på seg hvilken som helst skin fra katalogen, med float og mønster de velger selv."
+      "done": "Ferdig"
     },
     "tournamentRewardsSwitch": "Skin-premier for topp tre (når skins er slått på)",
     "whatThisMeans": "Hva dette betyr",
@@ -1810,22 +1807,7 @@
       "drew": "Uavgjort {{score}}"
     },
     "unequipLabel": "Ta av {{name}}",
-    "equipFailed": "Kunne ikke ta den på",
-    "picked": "Valgt",
-    "view": {
-      "label": "Inventarvisning",
-      "owned": "Eide",
-      "catalog": "Katalog"
-    },
-    "catalog": {
-      "search": "Søk i katalogen",
-      "empty": "Ingen skins samsvarer.",
-      "loadFailed": "Kunne ikke laste katalogen",
-      "pickLabel": "Velg {{name}}",
-      "wear": "Slitasje",
-      "cancel": "Avbryt",
-      "equip": "Ta på"
-    }
+    "equipFailed": "Kunne ikke ta den på"
   },
   "matchRules": {
     "title": "Kampregler",

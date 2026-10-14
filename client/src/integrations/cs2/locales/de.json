@@ -1673,7 +1673,6 @@
     "inventory": "Inventory",
     "count": "{{count}} skins",
     "equippedTitle": "Equipped",
-    "gearTitle": "Messer & Ausrüstung",
     "slot": {
       "knife": "Knife",
       "gloves": "Gloves"
@@ -1791,9 +1790,7 @@
       "edge": "Zwischen {{a}} und {{b}}",
       "podiumHint": "Klick auf eine Stufe, um zu ändern, was sie gibt.",
       "rewardTitle": "Belohnung für {{place}}",
-      "done": "Fertig",
-      "catalogUnlocked": "Katalog freigeschaltet",
-      "catalogUnlockedHelp": "Spieler können jeden Skin aus dem Katalog ausrüsten, mit selbst gewähltem Float und Muster."
+      "done": "Fertig"
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "Was das heißt",
@@ -1810,22 +1807,7 @@
       "drew": "Unentschieden {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it",
-    "picked": "Gewählt",
-    "view": {
-      "label": "Inventaransicht",
-      "owned": "Besitz",
-      "catalog": "Katalog"
-    },
-    "catalog": {
-      "search": "Katalog durchsuchen",
-      "empty": "Keine passenden Skins.",
-      "loadFailed": "Der Katalog konnte nicht geladen werden",
-      "pickLabel": "{{name}} wählen",
-      "wear": "Abnutzung",
-      "cancel": "Abbrechen",
-      "equip": "Ausrüsten"
-    }
+    "equipFailed": "Could not equip it"
   },
   "matchRules": {
     "title": "Matchregeln",
