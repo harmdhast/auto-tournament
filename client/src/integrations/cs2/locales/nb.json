@@ -1840,7 +1840,9 @@
         "given_other": "Ga {{count}} drops."
       },
       "statTrakChance": "StatTrak™-sjanse (%)",
-      "statTrakHelp": "Hvor ofte et våpen eller en kniv som droppes er StatTrak™ (CS2-kasser: 10)."
+      "statTrakHelp": "Hvor ofte et våpen eller en kniv som droppes er StatTrak™ (CS2-kasser: 10).",
+      "catalogUnlocked": "Åpne katalogen",
+      "catalogUnlockedHelp": "Spillere kan ta i bruk hvilken som helst skin fra katalogen, med float og seed de velger selv."
     },
     "tournamentRewardsSwitch": "Skin-premier for topp tre (når skins er slått på)",
     "whatThisMeans": "Hva dette betyr",
@@ -1922,7 +1924,23 @@
       "console": "Eller lim dette inn i CS2-konsollen"
     },
     "stattrak": "StatTrak™",
-    "stattrakKills": "StatTrak™-drap"
+    "stattrakKills": "StatTrak™-drap",
+    "picked": "Valgt",
+    "pickedOrigin": "Valgt fra katalogen",
+    "takeOffLabel": "Ta av {{name}}",
+    "view": {
+      "label": "Inventarvisning",
+      "owned": "Eide",
+      "catalog": "Katalog"
+    },
+    "catalog": {
+      "search": "Søk i katalogen",
+      "empty": "Ingen skins passer.",
+      "loadFailed": "Kunne ikke laste katalogen",
+      "wear": "Slitasje",
+      "cancel": "Avbryt",
+      "equip": "Ta i bruk"
+    }
   },
   "matchRules": {
     "title": "Kampregler",

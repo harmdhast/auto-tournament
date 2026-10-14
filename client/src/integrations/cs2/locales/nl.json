@@ -1840,7 +1840,9 @@
         "given_other": "Gave {{count}} drops."
       },
       "statTrakChance": "StatTrak™ chance (%)",
-      "statTrakHelp": "How often a dropped weapon or knife is StatTrak™ (CS2 cases: 10)."
+      "statTrakHelp": "How often a dropped weapon or knife is StatTrak™ (CS2 cases: 10).",
+      "catalogUnlocked": "Catalogus ontgrendeld",
+      "catalogUnlockedHelp": "Spelers kunnen elke skin uit de catalogus uitrusten, met de float en seed die ze zelf kiezen."
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "Wat dit betekent",
@@ -1922,7 +1924,23 @@
       "console": "Or paste this in the CS2 console"
     },
     "stattrak": "StatTrak™",
-    "stattrakKills": "StatTrak™ kills"
+    "stattrakKills": "StatTrak™ kills",
+    "picked": "Gekozen",
+    "pickedOrigin": "Gekozen uit de catalogus",
+    "takeOffLabel": "{{name}} uitdoen",
+    "view": {
+      "label": "Inventarisweergave",
+      "owned": "Bezit",
+      "catalog": "Catalogus"
+    },
+    "catalog": {
+      "search": "Zoek in de catalogus",
+      "empty": "Geen skins gevonden.",
+      "loadFailed": "De catalogus kon niet worden geladen",
+      "wear": "Slijtage",
+      "cancel": "Annuleren",
+      "equip": "Uitrusten"
+    }
   },
   "matchRules": {
     "title": "Wedstrijdregels",
