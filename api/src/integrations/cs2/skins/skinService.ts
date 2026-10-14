@@ -161,6 +161,8 @@ export function modeForTeamSize(size: number | undefined): string | null {
 
 export interface SkinsConfig {
   enabled: boolean;
+  /** Players equip any catalogue skin with a float and seed they choose. */
+  catalogUnlocked: boolean;
   matchmakingDrops: boolean;
   /** Chance of a skin for each winning player, 0–100 (5v5; 2v2 and 1v1 in modeChances). */
   dropChance: number;
@@ -184,6 +186,7 @@ export interface SkinsConfig {
 
 export const DEFAULT_CONFIG: SkinsConfig = {
   enabled: false,
+  catalogUnlocked: false,
   matchmakingDrops: true,
   dropChance: 20,
   playDropChance: 5,
@@ -472,6 +475,7 @@ function normalizeConfig(raw: Partial<SkinsConfig>): SkinsConfig {
     })) as TournamentReward[];
   return {
     enabled: raw.enabled === true,
+    catalogUnlocked: raw.catalogUnlocked === true,
     matchmakingDrops: raw.matchmakingDrops !== false,
     dropChance:
       typeof raw.dropChance === 'number' && Number.isFinite(raw.dropChance)
@@ -629,6 +633,12 @@ export const skinService = {
     const next = normalizeConfig({ ...(await this.config()), ...input });
     await db.setAppSettingAsync(CONFIG_KEY, JSON.stringify(next));
     return next;
+  },
+
+  /** Skins are on and players may pick any catalogue skin. */
+  async catalogOn(): Promise<boolean> {
+    const config = await this.config();
+    return config.enabled && config.catalogUnlocked;
   },
 
   /** csm's skin catalogue, cached for an hour. Empty when it cannot be read. */
