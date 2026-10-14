@@ -25,6 +25,7 @@ import { WEAPON_DEFINDEX } from './skinDefindex';
 import { knifeAndGlovePrices, priceFor, priceKey, rarityIndexByPrice } from './skinPrices';
 
 export const SKINS_JSON_URL =
+  process.env.SKINS_JSON_URL ??
   'https://raw.githubusercontent.com/Auto-Tournament/cs2-server-manager/master/skin_images/skins.json';
 
 const CONFIG_KEY = 'skins_config';
