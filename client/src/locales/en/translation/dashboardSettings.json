@@ -45,7 +45,15 @@
         "live_other": "{{count}} matches live",
         "completed_one": "{{count}} team took part",
         "completed_other": "{{count}} teams took part",
-        "winner": "Winner: {{name}}"
+        "winner": "Winner: {{name}}",
+        "teamsPlayers_one": "{{count}} player",
+        "teamsPlayers_other": "{{count}} players",
+        "enteredPlayers_one": "{{count}} player entered",
+        "enteredPlayers_other": "{{count}} players entered",
+        "draftTeamsPlayers_one": "Draft · {{count}} player",
+        "draftTeamsPlayers_other": "Draft · {{count}} players",
+        "completedPlayers_one": "{{count}} player took part",
+        "completedPlayers_other": "{{count}} players took part"
       },
       "actions": {
         "manage": "Manage",
@@ -167,6 +175,13 @@
       "issuerUrlHelp": "The address of your OpenID Connect realm or tenant. Auto Tournament reads its endpoints from /.well-known/openid-configuration.",
       "buttonName": "Button name",
       "buttonNameHelp": "Shown as “Sign in with …” on the login page, e.g. your community or identity server.",
+      "logoUpload": "Upload logo",
+      "logoReplace": "Replace logo",
+      "logoRemove": "Remove logo",
+      "logoType": "The logo must be a PNG, JPEG, WebP or SVG image.",
+      "logoSize": "The logo can be at most 150 KB.",
+      "buttonColor": "Button colour",
+      "buttonColorDefault": "Default colour",
       "clientSecret": "Client secret",
       "steamKey": "Steam Web API key",
       "secretSet": "set",
@@ -374,9 +389,52 @@
     "gameLinks": {
       "title": "Game settings",
       "hint": "Each game keeps its own settings with it in the menu."
+    },
+    "sections": {
+      "label": "Settings sections",
+      "site": {
+        "name": "Site",
+        "hint": "Name, logo, language"
+      },
+      "signin": {
+        "name": "Sign-in",
+        "hint": "Providers, admin accounts"
+      },
+      "email": {
+        "name": "Email",
+        "hint": "SMTP, what is sent"
+      },
+      "players": {
+        "name": "Players",
+        "hint": "Sign-up, ratings"
+      },
+      "matchmaking": {
+        "name": "Matchmaking",
+        "hint": "Queues and their rules"
+      },
+      "news": {
+        "name": "News",
+        "hint": "Posts on the home page"
+      },
+      "adminnotices": {
+        "name": "Notifications",
+        "hint": "What admins are told"
+      },
+      "webhooks": {
+        "name": "Integrations",
+        "hint": "Webhooks"
+      },
+      "advanced": {
+        "name": "Advanced",
+        "hint": "Experimental, developer"
+      },
+      "module": {
+        "hint": "This module’s settings"
+      }
     }
   },
   "managePage": {
+    "tournamentNotFound": "No tournament with this id. Pick one from All tournaments.",
     "title": "Manage",
     "needsYouHeading": "Needs you",
     "noTournament": "No tournament yet",
@@ -395,7 +453,7 @@
       "modules": "Modules",
       "templates": "Templates",
       "ratings": "Ratings",
-      "adminTools": "System",
+      "adminTools": "Logs & tools",
       "license": "License",
       "devTools": "Dev tools",
       "documentation": "Documentation",
@@ -405,13 +463,20 @@
         "tournament": "Tournament",
         "people": "People",
         "game": "Game",
+        "home": "Home",
+        "history": "History",
+        "setup": "Setup",
         "configuration": "Configuration",
-        "site": "Site"
+        "site": "Site",
+        "tournaments": "Tournaments",
+        "system": "System",
+        "gamesOf": "Games · {{game}}"
       },
+      "templatesAndRatings": "Templates & ratings",
       "allTournaments": "All tournaments",
       "switcher": "Tournament",
       "newTournament": "New tournament",
-      "playedMatches": "All matches",
+      "playedMatches": "Played matches",
       "tournamentBar": "This tournament",
       "scope": {
         "label": "Managing",
@@ -419,7 +484,14 @@
         "platformHint": "Tournaments, people, the site",
         "gameHint": "Its pages and settings"
       },
-      "highlights": "Highlights"
+      "highlights": "Highlights",
+      "state": {
+        "live": "live",
+        "setup": "setup"
+      },
+      "openMenu": "Open the Manage menu",
+      "closeMenu": "Close the menu",
+      "setupTab": "Setup"
     },
     "status": {
       "live": "LIVE",
@@ -740,6 +812,7 @@
     "recordingGroup": "Recorder group",
     "allRecorders": "All recorders",
     "groupHelp": "Choose which group renders this match. Disabled groups wait until enabled.",
-    "groupDisabled": "Disabled"
+    "groupDisabled": "Disabled",
+    "notCs2Demo": "{{name}} is not a CS2 demo (CS:GO demos can't be imported)."
   }
 }

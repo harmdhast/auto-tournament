@@ -76,13 +76,13 @@
       "resting": "Resting",
       "readyIn": "Ready again in {{count}}s",
       "busy": "Busy",
-      "spare": "Réserve",
       "heldBack": {
         "demoUpload": "Uploading the last match's demo",
         "outOfDate": "CS2 on this server needs an update",
         "unverified": "CS2 version not checked yet",
         "other": "Not taking matches right now"
       },
+      "spare": "Réserve",
       "busyReason": {
         "localMatch": "Match local {{slug}} encore chargé",
         "awaitingReset": "Attend la réinitialisation après la série",
@@ -407,6 +407,9 @@
   "matchInfo": {
     "server": {
       "waitingTitle": "En attente d’attribution d’un serveur",
+      "paused": "Le match est en pause.",
+      "pausedWaiting_one": "En pause : on attend que {{names}} se reconnecte.",
+      "pausedWaiting_other": "En pause : on attend que {{names}} se reconnectent.",
       "waitingBody": "Un serveur sera attribué automatiquement dès qu’il y en aura un de libre. Après chaque match, les serveurs passent par une courte période de refroidissement (environ 2 minutes) pour permettre l’envoi des démos et la réinitialisation complète du serveur. Cette page se mettra à jour automatiquement quand votre serveur sera prêt.",
       "serverName": "Serveur : {{name}}",
       "status": "Statut : {{status}}",
@@ -657,8 +660,6 @@
     "enabledHelper": "Les serveurs désactivés ne seront pas utilisés pour les matchs",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
-    "failoverUseLabel": "Utiliser pour le failover",
-    "failoverUseHelper": "Désactivé : le failover automatique ne déplace jamais un match ici et ne le garde jamais en réserve.",
     "chatPrefixLabel": "Surcharge du préfixe de chat",
     "chatPrefixPlaceholder": "[{Green}Auto Tournament{Default}]",
     "adminChatPrefixLabel": "Surcharge du préfixe de chat admin",
@@ -693,7 +694,9 @@
     },
     "skinsLabel": "Skins on this server",
     "skinsHelper": "Players' equipped virtual skins are sent to the server in warmup and between maps, never mid-map. Needs Ready Up's skins plugin and a server without a Steam server token.",
-    "skinsTokenWarning": "This server runs with a Steam server token (+sv_setsteamaccount), so it gets no skins: Valve bans the token, and the account behind it, of a server that hands out items. Remove the token in csm to use skins here."
+    "skinsTokenWarning": "This server runs with a Steam server token (+sv_setsteamaccount), so it gets no skins: Valve bans the token, and the account behind it, of a server that hands out items. Remove the token in csm to use skins here.",
+    "failoverUseLabel": "Utiliser pour le failover",
+    "failoverUseHelper": "Désactivé : le failover automatique ne déplace jamais un match ici et ne le garde jamais en réserve."
   },
   "mapPoolModal": {
     "titleCreate": "Create Map Pool",
@@ -989,6 +992,8 @@
       "pause": {
         "title": "Contrôle des pauses",
         "bothTeamsUnpause": "Exiger que les deux équipes reprennent",
+        "onDisconnect": "Pause quand un joueur tombe (5v5)",
+        "onDisconnectHelp": "Au prochain freeze time quand une équipe est incomplète ; le match reprend seul au retour du joueur (ou après 5 minutes). Pas avec le remplissage par bots.",
         "maxPausesLabel": "Nombre max de pauses par équipe",
         "maxPausesHelper": "0 = pauses illimitées",
         "pauseDurationLabel": "Durée max d’une pause (secondes)",
@@ -1520,9 +1525,9 @@
     "reserveAuto": "Automatic (1 once 2 servers are online)",
     "reserveStatus": "{{effective}} of {{pool}} online server(s) kept free for failover",
     "reserveHelp": "Spare servers stay idle: matches are not put on them, so one is ready when a server goes down. At least one server always takes matches. Spare servers count toward your license like any other server.",
-    "noTarget": "Aucun serveur n’est libre pour prendre un failover.",
     "summaryOn": "Automatic moves on",
     "summaryOff": "Automatic moves off",
+    "noTarget": "Aucun serveur n’est libre pour prendre un failover.",
     "empty": "La bascule nécessite au moins un serveur Ready Up."
   },
   "pluginSets": {
@@ -1533,7 +1538,8 @@
       "fun": "Fun",
       "custom": "Personnalisé",
       "default": "Défaut de la flotte",
-      "none": "Aucun"
+      "none": "Aucun",
+      "tryout": "Skin tryout"
     },
     "plugin": {
       "fleet": "Liaison flotte",
@@ -1605,7 +1611,7 @@
     "picksMost": "Picks most",
     "vetoShare": "{{map}} · {{count}} of {{total}} vetoes",
     "noMatchesYet": "Les chiffres apparaissent après le premier match CS2.",
-    "rating": "Rating",
+    "rating": "Performance",
     "ratingNote": "1.00 is an average player",
     "sides": "Rounds won by side",
     "ctWon_one": "CT · {{count}} round",
@@ -1639,7 +1645,7 @@
     "ttdLine": "Time to damage {{ms}} ms"
   },
   "skins": {
-    "notice": "Virtual skins. They only exist on Auto Tournament, have no money value, can't be traded or sold, and don't appear in Counter-Strike 2.",
+    "notice": "Virtual skins. They only exist on Auto Tournament, have no money value and can't be traded or sold. You see them in game on this site's servers.",
     "equipLabel": "Equip {{name}}",
     "equippedLabel": "{{name}}, equipped",
     "new": "NEW",
@@ -1664,11 +1670,16 @@
     "pattern": "Pattern",
     "place": "#{{n}} in a tournament",
     "wonMatchmaking": "Won a matchmaking game",
+    "givenByAdmin": "Given by an admin",
     "equipped": "Equipped",
     "inInventory": "In the inventory",
     "theirInventory": "{{name}}'s inventory",
     "acquired": "New skin acquired",
     "equipNow": "Equip now",
+    "equipOnT": "Équiper côté T",
+    "equipOnCt": "Équiper côté CT",
+    "equipOnBoth": "Équiper des deux côtés",
+    "takeOff": "Retirer",
     "keep": "Keep in inventory",
     "inventory": "Inventory",
     "count": "{{count}} skins",
@@ -1702,7 +1713,7 @@
     "arrange": "Arrange",
     "showInventory": "Show inventory",
     "arrangeTitle": "Arrange your loadout",
-    "arrangeHint": "Pick up to {{max}} skins, their order, and which are big.",
+    "arrangeHint": "Pick up to {{max}} skins to show on your profile, their order, and which are big.",
     "big": "Big",
     "moveUp": "Move up",
     "moveDown": "Move down",
@@ -1760,7 +1771,8 @@
         "source": {
           "matchmaking": "Matchmaking",
           "tournament": "Tournament",
-          "admin": "Given by an admin"
+          "admin": "Given by an admin",
+          "tradeup": "Échange"
         },
         "remove": "Take away",
         "removeTitle": "Take this skin away?",
@@ -1790,7 +1802,45 @@
       "edge": "Entre {{a}} et {{b}}",
       "podiumHint": "Cliquez sur une marche pour changer ce qu’elle donne.",
       "rewardTitle": "Récompense pour {{place}}",
-      "done": "Terminé"
+      "done": "Terminé",
+      "fiveVsFive": "These are for 5v5. Smaller modes drop less:",
+      "fairRules": "Only players who played the whole game get a chance: nothing for an abandoned game or one that ended early, and a repeat against the same opponents within a day drops much less. Tournament placement rewards go only to players who played in the tournament.",
+      "tournamentMatchDrops": "Tournament matches drop too (not in esports mode)",
+      "levelUpDrops": "A drop for every new level",
+      "tradeUp": "Échanges : des skins d'un grade contre un du suivant",
+      "tradeUpCount": "Skins par échange",
+      "drops": {
+        "title": "Give a drop",
+        "help": "A choice of three skins for each player, right away. Each one waits until the player opens it, on their next page view, and several wait in line.",
+        "kind": {
+          "online": "Everyone online",
+          "player": "A player",
+          "team": "A team",
+          "match": "A match"
+        },
+        "idLabel": {
+          "player": "Steam ID",
+          "team": "Team id",
+          "match": "Match id (slug)"
+        },
+        "start": "Give a drop…",
+        "cancel": "Cancel",
+        "nobody": "Nobody to give one to.",
+        "whoOnline_one": "Give a drop to the 1 player online?",
+        "whoOnline_other": "Give a drop to all {{count}} players online?",
+        "whoTeam_one": "Give a drop to the team's 1 player?",
+        "whoTeam_other": "Give a drop to the team's {{count}} players?",
+        "whoMatch_one": "Give a drop to the match's 1 player?",
+        "whoMatch_other": "Give a drop to the match's {{count}} players?",
+        "whoPlayer_one": "Give this player a drop?",
+        "whoPlayer_other": "Give this player a drop?",
+        "give_one": "Give 1 drop",
+        "give_other": "Give {{count}} drops",
+        "given_one": "Gave 1 drop.",
+        "given_other": "Gave {{count}} drops."
+      },
+      "statTrakChance": "StatTrak™ chance (%)",
+      "statTrakHelp": "How often a dropped weapon or knife is StatTrak™ (CS2 cases: 10)."
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "Ce que ça veut dire",
@@ -1807,7 +1857,72 @@
       "drew": "Nul {{score}}"
     },
     "unequipLabel": "Unequip {{name}}",
-    "equipFailed": "Could not equip it"
+    "equipFailed": "Could not equip it",
+    "chooseTitle": "Pick one to keep",
+    "chooseHelp": "Three skins dropped. Keep one; the other two are gone.",
+    "keepThis": "Keep this one",
+    "keeping": "Keeping…",
+    "chooseFailed": "Could not keep it",
+    "newDrop": "New drop",
+    "side": {
+      "ct": "CT",
+      "t": "T",
+      "both": "Both",
+      "equipFor": "Equip for",
+      "defaults": "Default skins"
+    },
+    "favourites": "Favourites",
+    "favouritesTitle": "Pick your favourites",
+    "pickFavourites": "Favourites",
+    "tournamentMatch": "From a tournament match",
+    "levelUp": "Reached a new level",
+    "drops": {
+      "title": "How skin drops work",
+      "intro": "A drop shows you {{count}} skins and you keep one. Here is when a drop can happen and how likely each skin is.",
+      "link": "Drop rates",
+      "whenTitle": "When you can get a drop",
+      "whenMatchmaking": "After a matchmaking game you played to the end",
+      "whenTournament": "After a tournament match you played in",
+      "whenLevel": "Every time you reach a new level",
+      "whenPlacement": "For a top-three place in a tournament",
+      "chanceTitle": "Chance of a drop after a game",
+      "mode": "Mode",
+      "fair": "Nothing drops from a game someone left or that ended early. Playing the same opponents again within a day drops much less.",
+      "rarityTitle": "Odds per rarity",
+      "skins_one": "{{count}} skin",
+      "skins_other": "{{count}} skins",
+      "perSkin": "{{odds}} for one exact skin",
+      "rarityNote": "Each of the {{count}} skins in a drop rolls its rarity on its own; inside a rarity every skin is as likely. Knives and gloves are ranked by price.",
+      "placementTitle": "Tournament placements",
+      "pickOfRarity": "a pick of {{rarity}} skins",
+      "rarityOdds": "Rarity odds",
+      "skinOdds": "This skin"
+    },
+    "rewards": {
+      "title": "Rewards",
+      "choosing": "choosing a skin…"
+    },
+    "tradeUp": {
+      "start": "Échanger",
+      "picked": "{{picked}} sur {{count}} choisis",
+      "cancel": "Annuler",
+      "confirm": "Échanger",
+      "gives": "Donne un skin {{rarity}}, chacun de ces {{count}} aussi probable. Son usure est la moyenne des tiens.",
+      "help": "Choisis {{count}} skins d’arme d’un grade (ni couteaux ni gants) contre un du grade suivant.",
+      "failed": "Échange impossible.",
+      "pickLabel": "Choisir {{name}}",
+      "unpickLabel": "Retirer {{name}}",
+      "origin": "Obtenu par échange"
+    },
+    "tryout": {
+      "title": "Try them in game",
+      "hint": "A practice server with your skins. Equip here and they change in game within seconds.",
+      "join": "Join",
+      "joinLabel": "Join {{name}}",
+      "console": "Or paste this in the CS2 console"
+    },
+    "stattrak": "StatTrak™",
+    "stattrakKills": "StatTrak™ kills"
   },
   "matchRules": {
     "title": "Règles de match",
@@ -1822,6 +1937,7 @@
     "lurker": "Lurker"
   },
   "analysis": {
+    "highlights": "Highlights",
     "open": "Analysis",
     "analyzing": "Analyzing…",
     "title": "{{map}} analysis",
@@ -1861,7 +1977,7 @@
     },
     "col": {
       "player": "Player",
-      "rating": "Rating",
+      "rating": "Performance",
       "kda": "K-D-A",
       "adr": "ADR",
       "kast": "KAST",
@@ -2118,6 +2234,8 @@
     }
   },
   "matchPage": {
+    "recordingClips": "Recording clips",
+    "clipsDone": "{{done}} / {{total}} clips",
     "reelLead": "Their plays in the order they happened. Pick a song in the player, then share or download it.",
     "inThisReel": "In this reel",
     "openReel": "Open in the watch page",
@@ -2223,7 +2341,12 @@
       "previous": "Previous",
       "next": "Next",
       "close": "Close",
-      "redoMatch": "Redo all clips"
+      "redoMatch": "Redo all clips",
+      "heldByFailed_one": "{{count}} clip a échoué. Les reels qui l'utiliseraient attendent que tu le refasses ou l'écartes.",
+      "heldByFailed_other": "{{count}} clips ont échoué. Les reels qui les utiliseraient attendent que tu les refasses ou les écartes.",
+      "reelElapsed": "ready {{time}} after its first clip started",
+      "reelAssembly": "joined in {{time}}",
+      "reelRender": "its clips: {{time}} of recording added up"
     },
     "add": {
       "button": "Add a recorder",
@@ -2271,8 +2394,10 @@
       "done": {
         "approved": "Approved",
         "redo": "Queued to record again",
-        "drop": "Dropped; its reels are made again"
-      }
+        "drop": "Dropped; its reels are made again",
+        "weapon": "Queued to record again without TrueView"
+      },
+      "weapon": "Redo: weapon missing (W)"
     },
     "fleet": {
       "groups": "Recorder groups",
@@ -2296,8 +2421,22 @@
       "updatePending": "Update pending",
       "updateQueued": "Recorder update queued; current work will finish first.",
       "updateAll": "Update all",
-      "build": "Build {{revision}}"
-    }
+      "updateProgress": "Mise à jour : {{done}} sur {{total}} à jour",
+      "updateDone": "{{done}} sur {{total}} à jour",
+      "updateFailed_one": "{{count}} en échec",
+      "updateFailed_other": "{{count}} en échec",
+      "build": "Build {{revision}}",
+      "latest": "Update all installs image {{image}}, agent {{agent}}",
+      "behind_one": "{{count}} recorder behind",
+      "behind_other": "{{count}} recorders behind",
+      "allCurrent": "all up to date",
+      "updateAvailable": "Update available",
+      "upToDate": "Up to date",
+      "image": "image",
+      "updatedAt": "updated {{time}}"
+    },
+    "runFailed_one": "{{count}} failed",
+    "runFailed_other": "{{count}} failed"
   },
   "tournament": {
     "botFill": {
@@ -2307,7 +2446,184 @@
     "esportsMode": {
       "label": "Esports mode",
       "help": "Valve's competitive rules (Premier settings, counted technical pauses, no knife side pick) and no skins in the server. Off: normal rules, and players see their skins."
+    },
+    "mapVeto": {
+      "label": "Map veto",
+      "onHelp": "Teams ban and pick maps before each match.",
+      "offHelp": "No veto: each match draws its maps from the pool, and a knife round picks sides. One map or more is enough."
+    },
+    "wingmanPreset": {
+      "button": "Set up as wingman"
     }
+  },
+  "library": {
+    "title": "Highlights",
+    "subtitle": "Every clip and reel from the matches played here.",
+    "kindLabel": "What to show",
+    "sortLabel": "Order",
+    "kind": {
+      "all": "All",
+      "clips": "Clips",
+      "reels": "Reels"
+    },
+    "sort": {
+      "new": "Newest",
+      "views": "Most viewed",
+      "likes": "Most liked"
+    },
+    "filter": {
+      "player": "Player: {{name}}",
+      "team": "Team: {{name}}",
+      "match": "Match: {{name}}",
+      "tournament": "Tournament: {{name}}",
+      "map": "Carte : {{name}}"
+    },
+    "views_one": "{{count}} view",
+    "views_other": "{{count}} views",
+    "likes_one": "{{count}} like",
+    "likes_other": "{{count}} likes",
+    "more": "Show more ({{shown}} of {{total}})",
+    "empty": "No highlights yet",
+    "emptyHint": "Clips and reels show up here once a match's demos are recorded.",
+    "emptyFiltered": "Nothing here yet",
+    "emptyFilteredHint": "Remove a filter to see more.",
+    "failed": "Could not load the highlights",
+    "failedHint": "Try again in a moment.",
+    "playerReel": "{{name}}'s reel",
+    "tournamentReel": "{{name}} reel",
+    "matchReel": "Match reel",
+    "kindName": {
+      "player": "Player reel",
+      "map": "Map reel",
+      "series": "Series reel",
+      "team": "Team reel",
+      "tournament": "Tournament reel"
+    },
+    "like": "Like",
+    "liked": "Liked",
+    "signInToLike": "Sign in to like videos",
+    "nav": "Highlights",
+    "teamHighlights": "Highlights",
+    "matchHighlights": "All highlights"
+  },
+  "comments": {
+    "title_one": "{{count}} comment",
+    "title_other": "{{count}} comments",
+    "titlePlain": "Comments",
+    "placeholder": "Add a comment. Times like 0:23 jump to that moment.",
+    "post": "Comment",
+    "signIn": "Sign in to comment.",
+    "none": "No comments yet.",
+    "edited": "edited",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "seek": "Jump to {{time}}",
+    "failed": "Could not save the comment"
+  },
+  "leaderboards": {
+    "title": "Category leaders",
+    "categoryLabel": "Category",
+    "rangeLabel": "Time range",
+    "category": {
+      "rating": "Performance",
+      "adr": "ADR",
+      "kd": "K/D",
+      "hs": "Headshots",
+      "opening": "Opening duels",
+      "clutch": "Clutches",
+      "kast": "KAST"
+    },
+    "range": {
+      "all": "All time",
+      "days_one": "{{count}} day",
+      "days_other": "Last {{count}} days"
+    },
+    "explain": {
+      "rating": "Auto Tournament's own rating, 1.00 for an average player: kills, deaths, assists, damage and KAST per round.",
+      "adr": "Average damage per round.",
+      "kd": "Kills per death.",
+      "hs": "The share of kills that were headshots (at least 50 kills).",
+      "opening": "The share of opening duels won: the first kill of a round, for or against (at least 10 duels).",
+      "clutch": "The share of 1vX rounds won when last alive (at least 5).",
+      "kast": "The share of rounds with a kill, an assist, a survival or a trade."
+    },
+    "qualify": "Players need {{maps}} maps and {{rounds}} rounds to qualify; ties share a rank.",
+    "empty": "Nobody qualifies yet.",
+    "player": "Player",
+    "sample": "Over",
+    "sampleHint": "{{maps}} maps, {{rounds}} rounds",
+    "sampleOf": {
+      "rating_one": "{{count}} round",
+      "rating_other": "{{count}} rounds",
+      "adr_one": "{{count}} round",
+      "adr_other": "{{count}} rounds",
+      "kd_one": "{{count}} K+D",
+      "kd_other": "{{count}} K+D",
+      "hs_one": "{{count}} kill",
+      "hs_other": "{{count}} kills",
+      "opening_one": "{{count}} duel",
+      "opening_other": "{{count}} duels",
+      "clutch_one": "{{count}} clutch",
+      "clutch_other": "{{count}} clutches",
+      "kast_one": "{{count}} round",
+      "kast_other": "{{count}} rounds"
+    }
+  },
+  "roles": {
+    "title": "Role",
+    "yours": "Your role",
+    "none": "Not set",
+    "suggested": "Suggested from the demos: {{role}} ({{confidence}}, {{maps}} maps).",
+    "confidence": {
+      "low": "low confidence",
+      "medium": "medium confidence",
+      "high": "high confidence"
+    },
+    "why": {
+      "awper": "{{share}} of the kills with the AWP.",
+      "entry": "In {{share}} of the rounds' opening duels.",
+      "support": "{{flashes}} enemies flashed and {{utility}} utility damage a round.",
+      "rifler": "No other role stands out."
+    },
+    "noSuggestion": "Not enough analysed demos to suggest a role yet (3 maps and 30 kills).",
+    "saveFailed": "Could not save the role",
+    "team": "Roles",
+    "suggestedShort": "{{role}} (suggested, {{confidence}})"
+  },
+  "recorderProgress": {
+    "step": {
+      "recording": "Recording",
+      "encoding": "Encoding",
+      "uploading": "Uploading",
+      "joining": "Joining reel",
+      "redressing": "Redrawing overlays",
+      "benchmark": "Benchmark",
+      "starting": "Starting",
+      "updating": "Updating",
+      "waiting": "Waiting"
+    },
+    "update": {
+      "draining": "Finishing its job",
+      "pulling": "Downloading update",
+      "restarting": "Restarting",
+      "checking": "Checking health",
+      "applying": "Installing"
+    },
+    "clipOf": "clip {{n}} of {{total}}",
+    "left": "~{{time}} left"
+  },
+  "crash": {
+    "downTitle": "The match server crashed",
+    "down": "We're bringing it back. You'll get a reconnect button here as soon as the match is up again.",
+    "moving": "Moving the match to another server, restored to the last round.",
+    "wait": "This usually takes under a minute.",
+    "backTitle": "Your match is back",
+    "backInPlace": "The server is up again with your match restored. Reconnect to keep playing.",
+    "backMoved": "The match moved to another server, restored to the last round. Reconnect to keep playing.",
+    "reconnect": "Reconnect",
+    "close": "Close"
   },
   "serversList": {
     "noMachine": "Sans machine",

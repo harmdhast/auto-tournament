@@ -28,6 +28,8 @@ import { Cs2TournamentMapsStep } from './setup/Cs2TournamentMapsStep';
 import { Cs2TournamentReview } from './setup/Cs2TournamentReview';
 import { cs2TournamentSetup } from './setup/cs2TournamentSettings';
 import { CreateManualMatchModal } from './standalone/CreateManualMatchModal';
+import { TournamentResultsSections } from './global/TournamentResultsSections';
+import { Cs2Overlays } from './global/Cs2Overlays';
 import { Cs2StartConfirm } from './start/Cs2StartConfirm';
 import { Cs2StartPreflight } from './start/Cs2StartPreflight';
 import { Cs2AllocationBanner } from './bracket/Cs2AllocationBanner';
@@ -50,12 +52,14 @@ import { MatchRulesPage } from './settings/MatchRulesPage';
 import { SkinsAdminPage } from './skins/SkinsAdminPage';
 import { cs2AdminPaths } from './adminPaths';
 import { InventoryPage } from './skins/InventoryPage';
-import { NewSkinReveal } from './skins/NewSkinReveal';
+import { DropRatesPage } from './skins/DropRatesPage';
 import { ProfileLoadout } from './skins/ProfileLoadout';
 import { MapActions } from './demos/MapActions';
 import { highlightPaths } from './highlights/data';
 import { PlayerHighlightsPage } from './highlights/PlayerHighlightsPage';
-import { TournamentHighlightsTab, TournamentReelSection } from './highlights/TournamentHighlights';
+import { HighlightsLibraryPage } from './highlights/HighlightsLibraryPage';
+import { Cs2Leaderboards } from './profile/Cs2Leaderboards';
+import { TournamentHighlightsTab } from './highlights/TournamentHighlights';
 import { WatchPage } from './highlights/WatchPage';
 import { MatchPublicPanel } from './highlights/MatchPublicPanel';
 import { DemoAnalysisPage } from './demos/DemoAnalysisPage';
@@ -63,6 +67,7 @@ import { demoPaths } from './demos/paths';
 import { skinPaths } from './skins/paths';
 import { skinsAccountMenuItems } from './skins/useSkins';
 import { cs2Locales } from './locales';
+import { PlayerRole } from './profile/PlayerRole';
 
 /**
  * The profile's CS2 tab: the stats, then the player's loadout. Highlights are
@@ -72,6 +77,7 @@ function Cs2ProfileView(props: PlayerProfileViewProps) {
   return (
     <>
       <Cs2ProfileStats {...props} />
+      <PlayerRole playerId={props.playerId} isOwn={!!props.isOwn} />
       <ProfileLoadout steamId={props.playerId} isOwn={!!props.isOwn} />
     </>
   );
@@ -196,7 +202,13 @@ export const cs2ClientIntegration: ClientGameIntegration = {
   // Virtual skins (skins/): the inventory pages, the Inventory link while
   // skins are on, the "new skin" reveal, and the loadout on profiles.
   accountMenuItems: skinsAccountMenuItems,
-  globalOverlay: NewSkinReveal,
+  globalOverlay: Cs2Overlays,
+
+  // Highlights, the library of every clip and reel, in the site's navigation.
+  siteNavLinks: [{ path: highlightPaths.library, labelKey: 'library.nav' }],
+
+  // The Leaderboards page's category rankings (rating, ADR, K/D…).
+  leaderboardView: Cs2Leaderboards,
 
   // Each map's match reel and analysis, once the worker made them.
   matchMapAction: MapActions,
@@ -204,10 +216,14 @@ export const cs2ClientIntegration: ClientGameIntegration = {
   // Highlights: the player's on their profile (core's section), the
   // tournament's own tab, and its reel on the results.
   usePlayerHighlights: useCs2PlayerHighlights,
-  tournamentTab: { path: 'highlights', labelKey: 'highlights.title', Component: TournamentHighlightsTab },
+  tournamentTab: {
+    path: 'highlights',
+    labelKey: 'highlights.title',
+    Component: TournamentHighlightsTab,
+  },
   // Its recorders, overlays and how to add a recorder, on core's Highlights page.
   highlightsAdmin: { labelKey: 'highlightsAdmin.cs2Tab', Component: Cs2HighlightsAdmin },
-  tournamentResultsSection: TournamentReelSection,
+  tournamentResultsSection: TournamentResultsSections,
 
   // At URLs the platform keeps. The Steam connect page these used to include
   // is core's now: Steam is the platform's sign-in, not this game's.
@@ -218,7 +234,9 @@ export const cs2ClientIntegration: ClientGameIntegration = {
     { path: cs2AdminPaths.matchRules, scope: 'admin', element: <MatchRulesPage /> },
     { path: skinPaths.inventory, scope: 'site', element: <InventoryPage /> },
     { path: skinPaths.playerInventory, scope: 'site', element: <InventoryPage /> },
+    { path: skinPaths.dropRates, scope: 'site', element: <DropRatesPage /> },
     { path: demoPaths.analysis, scope: 'site', element: <DemoAnalysisPage /> },
+    { path: highlightPaths.library, scope: 'site', element: <HighlightsLibraryPage /> },
     { path: highlightPaths.player, scope: 'site', element: <PlayerHighlightsPage /> },
     { path: highlightPaths.watch, scope: 'site', element: <WatchPage /> },
   ],

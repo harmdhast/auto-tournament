@@ -36,8 +36,7 @@ import {
 import type { Secret } from './list/useFleetServerActions';
 import type { FleetKey, FleetKeysResponse } from '../cs2.types';
 import { ServerSection } from './ServerSection';
-
-const POLL_MS = 10_000;
+import { useTopic } from '../../../module-sdk';
 
 function when(unixSeconds: number | null | undefined, locale: string): string {
   if (!unixSeconds) return '—';
@@ -70,9 +69,9 @@ export default function FleetPanel({ showSecret }: { showSecret: (secret: Secret
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => void load(), POLL_MS);
-    return () => clearInterval(timer);
   }, [load]);
+  // Re-read when the fleet changes (the `fleet` topic), not on a timer.
+  useTopic('fleet', load, { admin: true });
 
   const createKey = async () => {
     setBusy(true);

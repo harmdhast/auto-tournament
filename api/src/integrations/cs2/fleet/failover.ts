@@ -46,7 +46,12 @@
 
 import { db } from '../../../config/database';
 import { log } from '../../../utils/logger';
-import { emitBracketUpdate, emitMatchUpdate, getIO } from '../../../services/socketService';
+import {
+  emitBracketUpdate,
+  emitMatchUpdate,
+  getIO,
+  postMatchChatLine,
+} from '../../../services/socketService';
 import type { DbMatchRow } from '../../../types/database.types';
 import { ulid } from './credentials';
 import { roundBackupStore, type RoundBackupMeta } from './backups';
@@ -74,6 +79,7 @@ import {
 } from './failoverPlan';
 import type { HostHealthPayload } from './protocol/host/v1';
 import type { HelloPayload, MapStats, MatchPhase, MatchState, Score } from './protocol/v1';
+import { fleetChanged } from './adminTopics';
 
 const CHECK_MS = Number(process.env.FLEET_FAILOVER_CHECK_MS) || 10_000;
 
@@ -252,15 +258,22 @@ async function setStatus(
 }
 
 function announce(matchSlug: string, proposal: FailoverProposal | null): void {
+  // The admins' bell: a failover that is over (moved, the server back, dismissed) needs nobody.
+  if (!proposal || ['moved', 'withdrawn', 'dismissed'].includes(proposal.status)) {
+    void import('../../../services/adminNoticeService').then(({ adminNoticeService }) =>
+      adminNoticeService.resolve(`failover:${matchSlug}`)
+    );
+  }
   try {
     // A broadcast: slug and state only, never a server address or password.
+    fleetChanged();
     getIO().emit('fleet:failover', {
       matchSlug,
       proposalId: proposal?.id ?? null,
       status: proposal?.status ?? null,
     });
   } catch {
-    // No socket server (tests, startup): the admin page polls too.
+    // No socket server (tests, startup): nobody to tell.
   }
 }
 
@@ -625,6 +638,23 @@ async function createProposal(input: {
       `${backup ? `resume map ${mapNumber} round ${backup.round}` : `restart map ${mapNumber} from warmup`}`
   );
   announce(input.slug, proposal);
+  // The admins' bell: always worth knowing; a decision is theirs when auto-failover is off.
+  const auto = (await getFailoverSettings().catch(() => null))?.auto !== false;
+  void import('../../../services/adminNoticeService').then(({ adminNoticeService }) =>
+    adminNoticeService.raise(
+      'failover',
+      {
+        matchSlug: input.slug,
+        reason: input.failure.reason,
+        mapNumber,
+        round: backup?.round ?? 0,
+        needsDecision: !auto,
+      },
+      `failover:${input.slug}`
+    )
+  );
+  // The players hear it in the match chat too (a popup shows on their pages).
+  void postMatchChatLine(input.slug, 'serverDown');
   return proposal;
 }
 
@@ -908,6 +938,13 @@ export async function acceptFailover(id: string, req: AcceptRequest): Promise<Ac
   }
   const done = (await getProposal(id)) as FailoverProposal;
   announce(slug, done);
+  void postMatchChatLine(slug, 'serverBack', { map: proposal.mapNumber, round });
+  // In game, once the server has had time to load the match back.
+  setTimeout(() => {
+    void import('./gameMessages').then(({ sayInGame }) =>
+      sayInGame(target.fleetServerId, 'serverBack', { mapNumber: proposal.mapNumber, round })
+    );
+  }, 20_000).unref?.();
   return { ok: true, proposal: done };
 }
 

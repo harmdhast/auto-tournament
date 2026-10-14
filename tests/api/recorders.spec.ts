@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { signInViaRequest } from '../helpers/auth';
 
@@ -175,6 +176,36 @@ test(
     ).text();
     expect(logText).toContain('line two');
     expect((await listed()).avgClipSeconds).toBe(75);
+
+    // Runs whose clips failed: none came out, and some did; neither is a success.
+    for (const run of [
+      { clips: 0, failed: 3, error: '3 of 3 moment(s) could not be recorded' },
+      { clips: 2, failed: 1, error: '1 of 3 moment(s) could not be recorded' },
+    ]) {
+      expect(
+        (
+          await request.post('/api/game/cs2/recorder/runs', {
+            data: {
+              recorder: name,
+              kind: 'map',
+              matchSlug: 'spec',
+              mapNumber: 1,
+              startedAt: Math.floor(Date.now() / 1000) - 60,
+              seconds: 0,
+              ok: false,
+              rejected: 0,
+              ...run,
+            },
+          })
+        ).status()
+      ).toBe(200);
+    }
+    const failedRuns = (
+      await (await request.get(`/api/game/cs2/recorders/${encodeURIComponent(name)}/runs`)).json()
+    ).runs as Array<{ clips: number; failed: number; ok: boolean; error: string | null }>;
+    expect(failedRuns[0]).toMatchObject({ clips: 2, failed: 1, ok: false });
+    expect(failedRuns[1]).toMatchObject({ clips: 0, failed: 3, ok: false });
+    expect(failedRuns[1].error).toContain('3 of 3');
 
     // A benchmark: the fastest try that finished wins.
     const bench = await request.post('/api/game/cs2/recorder/benchmark', {
@@ -603,5 +634,122 @@ test(
       ).status()
     ).toBe(409);
     await request.put(`/api/game/cs2/recorder-groups/${groupId}`, { data: { enabled: false } });
+  }
+);
+
+test(
+  'host agent keeps identity and enabled settings, reporting separate builds',
+  TAGS,
+  async ({ request }) => {
+    expect(await signInViaRequest(request)).toBe(true);
+    const name = `host-agent-${Date.now()}`;
+    const hostId = randomUUID();
+    const image = `sivertio/auto-tournament-recorder@sha256:${'a'.repeat(64)}`;
+    const body = {
+      name,
+      hostname: name,
+      hostId,
+      agentVersion: '0.1.0-beta.1',
+      image,
+      revision: 'runtime-build',
+    };
+    const hello = (data = body) => request.post('/api/game/cs2/recorder/hello', { data });
+    expect((await hello()).status()).toBe(200);
+    const listed = async () =>
+      (
+        (await (await request.get('/api/game/cs2/recorders')).json()).recorders as Array<
+          Record<string, unknown>
+        >
+      ).find((r) => r.name === name)!;
+    expect(await listed()).toMatchObject({
+      enabled: false,
+      hostId,
+      agentVersion: body.agentVersion,
+      recorderImage: image,
+      recorderRevision: 'runtime-build',
+    });
+    expect(
+      (
+        await request.put(`/api/game/cs2/recorders/${encodeURIComponent(name)}/controls`, {
+          data: { enabled: true },
+        })
+      ).status()
+    ).toBe(200);
+    expect(await (await hello({ ...body, hostname: 'renamed-host' })).json()).toMatchObject({
+      name,
+    });
+    expect(await listed()).toMatchObject({
+      enabled: true,
+      hostId,
+      hostname: 'renamed-host',
+      recorderImage: image,
+    });
+    expect((await hello({ ...body, hostId: randomUUID() })).status()).toBe(409);
+    expect((await hello({ ...body, image: 'untrusted/image:latest' })).status()).toBe(400);
+
+    const headers = { 'X-AT-Recorder': name };
+    expect(await listed()).toMatchObject({ updateSupported: false });
+    expect(
+      (await request.get('/api/game/cs2/recorder/update?protocol=1', { headers })).status()
+    ).toBe(200);
+    expect(await listed()).toMatchObject({ updateSupported: true });
+    expect(
+      (
+        await request.post('/api/game/cs2/recorder/update', {
+          headers,
+          data: { status: 'current', image },
+        })
+      ).status()
+    ).toBe(409);
+    expect(
+      (
+        await request.post('/api/game/cs2/recorder/update', {
+          headers,
+          data: { status: 'updating', id: { invalid: true } },
+        })
+      ).status()
+    ).toBe(400);
+    expect(
+      (
+        await request.post('/api/game/cs2/recorder/update', {
+          headers,
+          data: { status: 'current', id: 'stale-request', image: 'untrusted/image:latest' },
+        })
+      ).status()
+    ).toBe(400);
+    expect(await listed()).toMatchObject({ enabled: true, hostId, recorderImage: image });
+  }
+);
+
+test(
+  'a host asks for its own update: what is newer, and the same queue as Update',
+  TAGS,
+  async ({ request }) => {
+    expect(await signInViaRequest(request)).toBe(true);
+    const name = `spec-self-update-${Date.now()}`;
+    const as = { 'X-AT-Recorder': name };
+    // Unknown until it has said hello.
+    expect(
+      (await request.get('/api/game/cs2/recorder/update/available', { headers: as })).status()
+    ).toBe(404);
+    await request.post('/api/game/cs2/recorder/claim', {
+      data: { recorder: name, version: 7, notReady: 'spec' },
+    });
+    const res = await request.get('/api/game/cs2/recorder/update/available', { headers: as });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    // No host agent with managed updates has been seen for it.
+    expect(body).toMatchObject({ success: true, managed: false, status: 'current' });
+    expect(body.image).toHaveProperty('newer');
+    expect(body.agent).toHaveProperty('newer');
+    // So the same queue as the Update button queues nothing.
+    const asked = await request.post('/api/game/cs2/recorder/update/request', {
+      headers: as,
+      data: {},
+    });
+    expect(asked.status()).toBe(200);
+    expect((await asked.json()).queued).toBe(0);
+    // Not without a name.
+    expect((await request.get('/api/game/cs2/recorder/update/available')).status()).toBe(400);
   }
 );

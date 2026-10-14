@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  Checkbox,
-  Dialog,
-  FormControlLabel,
-  IconButton,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Dialog, IconButton, Typography } from '@mui/material';
 import { ArrowDownIcon, ArrowUpIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { InspectSkinDialog } from './SkinParts';
 import { api, useModuleTranslation, tokens, fontDisplay, radii } from '../../../module-sdk';
@@ -16,28 +8,31 @@ import { useSkinsEnabled, useMySkins, type OwnedSkin, type ShowcaseItem } from '
 import type { PlayerProfileSectionProps } from '../../types';
 import { rarityColor } from './rarity';
 import { playerInventoryPath, skinPaths } from './paths';
+import { equippedFor } from './loadoutSides';
 
 const { color } = tokens;
-const MAX = 8;
+/** The favourites strip: two big tiles, then four small ones (a full 6 × 2 grid). */
+const MAX = 6;
+const BIG = 2;
 
-/** The showcase as the owner arranged it, or the equipped skins with knife and gloves big. */
+/**
+ * The favourites strip in the owner's order (nothing until they pick some):
+ * the first two big, the rest small.
+ */
 function arrange(
   inventory: OwnedSkin[],
   showcase: ShowcaseItem[]
 ): Array<{ skin: OwnedSkin; big: boolean }> {
   const byId = new Map(inventory.map((s) => [s.id, s]));
-  const chosen = showcase
-    .map((item) => ({ skin: byId.get(item.skinId), big: item.big }))
-    .filter((x): x is { skin: OwnedSkin; big: boolean } => Boolean(x.skin));
-  if (chosen.length) return chosen.slice(0, MAX);
-  const equipped = inventory.filter((s) => s.equipped);
-  const big = equipped.filter((s) => s.slot === 'knife' || s.slot === 'gloves');
-  const rest = equipped.filter((s) => s.slot !== 'knife' && s.slot !== 'gloves');
-  return [
-    ...big.map((skin) => ({ skin, big: true })),
-    ...rest.map((skin) => ({ skin, big: false })),
-  ].slice(0, MAX);
+  return showcase
+    .map((item) => byId.get(item.skinId))
+    .filter((skin): skin is OwnedSkin => Boolean(skin))
+    .slice(0, MAX)
+    .map((skin, i) => ({ skin, big: i < BIG }));
 }
+
+/** Knife and gloves first, then weapons in a steady order. */
+const slotRank = (slot: string) => (slot === 'knife' ? 0 : slot === 'gloves' ? 1 : 2);
 
 function Tile({ skin, big, onClick }: { skin: OwnedSkin; big: boolean; onClick: () => void }) {
   return (
@@ -100,10 +95,69 @@ function Tile({ skin, big, onClick }: { skin: OwnedSkin; big: boolean; onClick: 
   );
 }
 
+/** One side's loadout: what CT or T has on, knife and gloves big, the rest small. */
+function SideLoadout({
+  team,
+  inventory,
+  onInspect,
+}: {
+  team: 2 | 3;
+  inventory: OwnedSkin[];
+  onInspect: (id: number) => void;
+}) {
+  const { t } = useModuleTranslation('cs2');
+  const on = [...equippedFor(inventory, team).values()].sort(
+    (a, b) => slotRank(a.slot) - slotRank(b.slot) || a.weaponName.localeCompare(b.weaponName)
+  );
+  const tone = team === 3 ? color.sideCt : color.sideT;
+  return (
+    <Box
+      sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, minWidth: 0 }}
+      data-testid={`profile-loadout-${team === 3 ? 'ct' : 't'}`}
+    >
+      <Typography
+        sx={{
+          fontSize: '0.8125rem',
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: tone,
+        }}
+      >
+        {team === 3 ? t('skins.side.ct') : t('skins.side.t')}
+      </Typography>
+      {on.length === 0 ? (
+        <Typography sx={{ color: color.muted, fontSize: '0.875rem' }}>
+          {t('skins.side.defaults')}
+        </Typography>
+      ) : (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, minmax(0,1fr))',
+            gridAutoFlow: 'dense',
+            gap: 1.25,
+          }}
+        >
+          {on.map((skin) => (
+            <Tile
+              key={skin.id}
+              skin={skin}
+              big={skin.slot === 'knife' || skin.slot === 'gloves'}
+              onClick={() => onInspect(skin.id)}
+            />
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 /**
- * The loadout on a player's profile (board 4): knife and gloves big by
- * default, the rest as a shelf, at most eight. The owner arranges which ones
- * show and which are big. "Show inventory" opens everything they own.
+ * The loadout on a player's profile (board 4): what they have equipped, per
+ * side (CT and T), knife and gloves big. Above it, the favourites the owner
+ * picked (at most six in their order, the first two big); none until they pick.
+ * "Show inventory" opens everything they own.
  */
 export function ProfileLoadout({
   steamId,
@@ -234,7 +288,7 @@ export function ProfileLoadout({
             onClick={openArrange}
             sx={{ borderRadius: radii.pill }}
           >
-            {t('skins.arrange')}
+            {t('skins.pickFavourites')}
           </Button>
         )}
         <Button
@@ -246,17 +300,48 @@ export function ProfileLoadout({
           {t('skins.showInventory')}
         </Button>
       </Box>
+      {items.length > 0 && (
+        <Box
+          sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
+          data-testid="profile-favourites"
+        >
+          <Typography
+            sx={{
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: color.muted,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {t('skins.favourites')}
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0,1fr))',
+                md: 'repeat(6, minmax(0,1fr))',
+              },
+              gridAutoFlow: 'dense',
+              gap: 1.5,
+            }}
+          >
+            {items.map(({ skin, big }) => (
+              <Tile key={skin.id} skin={skin} big={big} onClick={() => setInspect(skin.id)} />
+            ))}
+          </Box>
+        </Box>
+      )}
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, minmax(0,1fr))', md: 'repeat(6, minmax(0,1fr))' },
-          gridAutoFlow: 'dense',
-          gap: 1.5,
+          gridTemplateColumns: { xs: 'minmax(0,1fr)', md: 'repeat(2, minmax(0,1fr))' },
+          gap: { xs: 3, md: 4 },
         }}
       >
-        {items.map(({ skin, big }) => (
-          <Tile key={skin.id} skin={skin} big={big} onClick={() => setInspect(skin.id)} />
-        ))}
+        <SideLoadout team={3} inventory={data.inventory} onInspect={setInspect} />
+        <SideLoadout team={2} inventory={data.inventory} onInspect={setInspect} />
       </Box>
       <Typography sx={{ fontSize: '0.75rem', color: color.muted }}>{t('skins.notice')}</Typography>
 
@@ -276,7 +361,7 @@ export function ProfileLoadout({
             component="h2"
             sx={{ fontFamily: fontDisplay, fontSize: '1.375rem', fontWeight: 600 }}
           >
-            {t('skins.arrangeTitle')}
+            {t('skins.favouritesTitle')}
           </Typography>
           <Typography sx={{ color: color.muted, fontSize: '0.875rem' }}>
             {t('skins.arrangeHint', { max: MAX })}
@@ -307,22 +392,6 @@ export function ProfileLoadout({
                 <Typography sx={{ flex: 1, minWidth: 0 }}>
                   {skin.weaponName} · {skin.name}
                 </Typography>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={item.big}
-                      onChange={(e) =>
-                        setDraft((d) =>
-                          d.map((x) =>
-                            x.skinId === item.skinId ? { ...x, big: e.target.checked } : x
-                          )
-                        )
-                      }
-                    />
-                  }
-                  label={t('skins.big')}
-                />
                 <IconButton
                   size="small"
                   aria-label={t('skins.moveUp')}
@@ -366,7 +435,7 @@ export function ProfileLoadout({
             <Button
               variant="contained"
               onClick={async () => {
-                await mine.saveShowcase(draft);
+                await mine.saveShowcase(draft.map((d, i) => ({ ...d, big: i < BIG })));
                 setArranging(false);
                 setVersion((v) => v + 1);
               }}

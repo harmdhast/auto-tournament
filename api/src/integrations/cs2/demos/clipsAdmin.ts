@@ -5,10 +5,13 @@
  *
  * Redoing a clip queues it like a new moment; its old video stays until the
  * new one replaces it. The reels it is in are made again once the redone clips
- * are recorded: they wait ('waiting') and queueMatchReelFor takes them up.
+ * are recorded: they wait ('waiting') and queueMatchReelFor takes them up. A
+ * failed clip holds its reels the same way until it is redone or dropped.
  */
 
 import { db } from '../../../config/database';
+import { wakeRecorders } from './recorderLink';
+import { emitHighlightsChanged } from '../../../services/socketService';
 import { qualityLabel, readHighlightQuality } from './highlightQuality';
 import { SERIES_REEL } from './highlights';
 
@@ -42,13 +45,48 @@ export interface AdminReel {
   clips: number | null;
   madeWith: string | null;
   outdated: boolean;
+  /** Seconds the recorder took to join the reel (claim to upload); null before done_at existed. */
+  assemblySeconds: number | null;
+  /** The included clips' render seconds added up: recorder time, not elapsed time (they record side by side). */
+  clipRenderSeconds: number | null;
+  /**
+   * Wall-clock seconds from the first included clip's claim to the reel being
+   * done. A clip recorded again counts from its last attempt; a reel made
+   * again later from older clips counts from them, so it can be long.
+   */
+  elapsedSeconds: number | null;
 }
 
 export interface AdminMatch {
   slug: string;
   match: string;
+  /** Failed clips (not funny moments): the reels that would take them wait until each is redone or dropped. */
+  failedClips: number;
   clips: AdminClip[];
   reels: AdminReel[];
+}
+
+/**
+ * A reel's times (pure: tested on its own): assembly (claim to done),
+ * its clips' render time added up, and the wall clock from its first clip's
+ * claim to done. Unknown parts are null (a reel made before done_at existed,
+ * or one not done).
+ */
+export function reelTimes(r: {
+  status: string;
+  claimStartedAt: number | null;
+  doneAt: number | null;
+  renderSeconds: number | null;
+  firstClipAt: number | null;
+}): Pick<AdminReel, 'assemblySeconds' | 'clipRenderSeconds' | 'elapsedSeconds'> {
+  const done = r.status === 'done' && r.doneAt !== null;
+  const span = (from: number | null) =>
+    done && from !== null && r.doneAt! >= from ? r.doneAt! - from : null;
+  return {
+    assemblySeconds: span(r.claimStartedAt),
+    clipRenderSeconds: r.renderSeconds === null ? null : Math.round(r.renderSeconds),
+    elapsedSeconds: span(r.firstClipAt),
+  };
 }
 
 /** A finished video made at something other than `current` (or at what no one kept). */
@@ -106,11 +144,24 @@ export async function listClips(
     status: string;
     clips: number | null;
     made_with: string | null;
+    claim_started_at: number | null;
+    done_at: number | null;
+    render_seconds: number | null;
+    first_clip_at: number | null;
   }>(
-    `SELECT match_slug, map_number, status, clips, made_with FROM cs2_match_reels
-      WHERE match_slug IN (${marks}) ORDER BY map_number`,
+    `SELECT r.match_slug, r.map_number, r.status, r.clips, r.made_with, r.claim_started_at, r.done_at,
+            c.render_seconds, c.first_clip_at
+       FROM cs2_match_reels r
+       LEFT JOIN LATERAL (
+         SELECT SUM(h.record_seconds) AS render_seconds, MIN(h.claim_started_at) AS first_clip_at
+           FROM cs2_highlights h
+          WHERE r.clip_ids IS NOT NULL
+            AND h.id IN (SELECT (jsonb_array_elements_text(r.clip_ids::jsonb))::int)
+       ) c ON TRUE
+      WHERE r.match_slug IN (${marks}) ORDER BY r.map_number`,
     slugs
   );
+  const n = (v: number | string | null) => (v === null ? null : Number(v));
   let outdated = 0;
   const out: AdminMatch[] = [];
   // Newest first, as the list is ordered by the latest clip.
@@ -143,12 +194,20 @@ export async function listClips(
         clips: r.clips === null ? null : Number(r.clips),
         madeWith: r.made_with,
         outdated: isOutdated(r.status, r.made_with, current),
+        ...reelTimes({
+          status: r.status,
+          claimStartedAt: n(r.claim_started_at),
+          doneAt: n(r.done_at),
+          renderSeconds: n(r.render_seconds),
+          firstClipAt: n(r.first_clip_at),
+        }),
       }));
     const stale = own.filter((c) => c.outdated).length + ownReels.filter((r) => r.outdated).length;
     outdated += stale;
     if (onlyOutdated && stale === 0) continue;
     out.push({
       slug: m.slug,
+      failedClips: own.filter((c) => c.status === 'failed' && c.kind !== 'funny').length,
       match: [m.team1 && m.team2 ? `${m.team1} vs ${m.team2}` : m.slug, m.played_in]
         .filter(Boolean)
         .join(' · '),
@@ -225,6 +284,7 @@ export async function redo(req: RedoRequest): Promise<{ clips: number; reels: nu
       ids
     );
     clips = touched.length;
+    if (clips) wakeRecorders();
     // Their reels wait for them.
     for (const t of touched) {
       reels.push({ slug: t.match_slug, mapNumber: Number(t.map_number) });
@@ -239,7 +299,8 @@ export async function redo(req: RedoRequest): Promise<{ clips: number; reels: nu
     seen.add(key);
     const waiting = await db.queryOneAsync<{ n: number | string }>(
       `SELECT COUNT(*) AS n FROM cs2_highlights
-        WHERE match_slug = ? AND (map_number = ? OR ? = ${SERIES_REEL}) AND status IN ('pending', 'recording')`,
+        WHERE match_slug = ? AND (map_number = ? OR ? = ${SERIES_REEL}) AND kind <> 'funny'
+          AND status IN ('pending', 'recording', 'failed')`,
       [r.slug, r.mapNumber, r.mapNumber]
     );
     const result = await db.runAsync(
@@ -252,7 +313,13 @@ export async function redo(req: RedoRequest): Promise<{ clips: number; reels: nu
   return { clips, reels: reelCount };
 }
 
-export type ReviewVerdict = 'approved' | 'redo' | 'drop';
+/**
+ * approved; redo (stutters or looks broken: recorded again, elsewhere);
+ * weapon (the weapon and hands are missing for a stretch: CS2's TrueView
+ * rebuild dropped them, the same on every machine, so it is recorded again
+ * without TrueView); drop (left out, not recorded again).
+ */
+export type ReviewVerdict = 'approved' | 'redo' | 'weapon' | 'drop';
 
 /**
  * An admin's verdict on a recorded clip, from the review on the Clips tab:
@@ -287,6 +354,14 @@ export async function reviewClip(
     );
     return { clips: 0, reels: 0 };
   }
+  if (verdict === 'weapon') {
+    await db.runAsync(
+      `UPDATE cs2_highlights SET review = 'redo', review_note = ?, reviewed_by = ?, reviewed_at = ?,
+              true_view = 0 WHERE id = ?`,
+      [text ?? 'Weapon missing: recorded again without TrueView', actor, now, id]
+    );
+    return redo({ clipIds: [id] });
+  }
   if (verdict === 'redo') {
     await db.runAsync(
       `UPDATE cs2_highlights SET review = 'redo', review_note = ?, reviewed_by = ?, reviewed_at = ?,
@@ -306,5 +381,7 @@ export async function reviewClip(
       { slug: row.match_slug, mapNumber: SERIES_REEL },
     ],
   });
+  // A dropped clip leaves the match page at once.
+  emitHighlightsChanged(row.match_slug);
   return { clips: 0, reels: reels.reels };
 }

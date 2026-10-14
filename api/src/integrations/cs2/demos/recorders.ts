@@ -1,4 +1,8 @@
-import { refreshRecorderRelease } from './recorderUpdates';
+import {
+  refreshRecorderRelease,
+  newerRecorderAgent,
+  expireRecorderUpdateRequests,
+} from './recorderUpdates';
 import { recordingFailureSql } from './recorderLeases';
 /**
  * The highlight recorders as the platform sees them: who they are, how fast
@@ -15,6 +19,7 @@ import { recordingFailureSql } from './recorderLeases';
  * - Each job's log and timings land in cs2_recorder_runs for the Recorders page.
  */
 import { db } from '../../../config/database';
+import { recorderLink, wakeRecorders } from './recorderLink';
 import { log } from '../../../utils/logger';
 import { jobFor, queueMatchReelFor, type MomentRow } from './highlights';
 import { readHighlightQuality } from './highlightQuality';
@@ -46,10 +51,13 @@ export interface RecorderRow {
   update_status: string;
   update_error: string | null;
   updated_at: number | null;
+  update_requested_at?: number | null;
   host_name: string | null;
   host_id: string | null;
   agent_version: string | null;
   update_agent_seen: number | null;
+  update_protocol: number | null;
+  latest_agent_version: string | null;
   recorder_image: string | null;
   latest_image: string | null;
   recorder_revision: string | null;
@@ -210,6 +218,14 @@ export async function saveBenchmark(
   log.info(
     `[RECORDERS] ${name} benchmarked (${source} clip): ${pick ? `${pick} Hz` : 'no try finished'}`
   );
+  const { adminNoticeService } = await import('../../../services/adminNoticeService');
+  if (pick) await adminNoticeService.resolve(`benchmark_failed:${name}`);
+  else
+    await adminNoticeService.raise(
+      'benchmark_failed',
+      { recorder: name, error: tries.find((t) => t.error)?.error ?? null },
+      `benchmark_failed:${name}`
+    );
   return { gamescopeHz: pick };
 }
 
@@ -219,8 +235,8 @@ export async function saveRun(name: string, body: Record<string, unknown>): Prom
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
   const logText = typeof body.log === 'string' ? body.log.slice(-LOG_MAX) : null;
   await db.runAsync(
-    `INSERT INTO cs2_recorder_runs (recorder, kind, match_slug, map_number, started_at, seconds, ok, clips, rejected, error, log)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO cs2_recorder_runs (recorder, kind, match_slug, map_number, started_at, seconds, ok, clips, rejected, failed, error, log)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       name.slice(0, 120),
       kind,
@@ -231,7 +247,8 @@ export async function saveRun(name: string, body: Record<string, unknown>): Prom
       body.ok === true ? 1 : 0,
       num(body.clips) ?? 0,
       num(body.rejected) ?? 0,
-      text(body.error, 1000),
+      num(body.failed) ?? 0,
+      text(body.error, 2000),
       logText,
     ]
   );
@@ -245,6 +262,7 @@ export async function saveRun(name: string, body: Record<string, unknown>): Prom
 
 /** The Recorders page: every recorder with its numbers. */
 export async function listRecorders() {
+  await expireRecorderUpdateRequests();
   await refreshRecorderRelease();
   const rows = await db.queryAsync<
     RecorderRow & {
@@ -282,6 +300,7 @@ export async function listRecorders() {
     []
   );
   const t = now();
+  const linked = recorderLink.linked();
   return rows.map((r) => {
     let benchmark: unknown = null;
     try {
@@ -302,9 +321,15 @@ export async function listRecorders() {
       platform: r.platform,
       firstSeen: Number(r.first_seen),
       lastSeen: r.last_seen ? Number(r.last_seen) : null,
-      // Busy with a job counts as online, however long since it last asked.
+      // Busy with a job counts as online, however long since it last asked;
+      // so does a live link (./recorderLink.ts).
       online:
-        (!!r.last_seen && t - Number(r.last_seen) < 15 * 60) || Number(r.working_clips ?? 0) > 0,
+        linked.has(r.name) ||
+        (!!r.last_seen && t - Number(r.last_seen) < 15 * 60) ||
+        Number(r.working_clips ?? 0) > 0,
+      // The live link: the platform pushes work to it, and it says what it is doing.
+      linked: linked.has(r.name),
+      progress: recorderLink.progressOf(r.name),
       working:
         Number(r.working_clips ?? 0) > 0
           ? {
@@ -328,14 +353,22 @@ export async function listRecorders() {
       hostname: r.host_name ?? r.name,
       hostId: r.host_id,
       agentVersion: r.agent_version,
-      updateSupported: r.update_agent_seen != null && Number(r.update_agent_seen) > now() - 300,
+      latestAgentVersion: r.latest_agent_version,
+      updateSupported:
+        r.update_protocol === 1 &&
+        r.update_agent_seen != null &&
+        Number(r.update_agent_seen) > now() - 300,
       updateAvailable:
-        !!r.latest_image && !!r.recorder_image && r.latest_image !== r.recorder_image,
+        (!!r.latest_image && !!r.recorder_image && r.latest_image !== r.recorder_image) ||
+        newerRecorderAgent(r.latest_agent_version, r.agent_version),
       recorderImage: r.recorder_image,
+      latestImage: r.latest_image,
       recorderRevision: r.recorder_revision,
       updateStatus: r.update_status,
       updateError: r.update_error,
       updatedAt: r.updated_at,
+      /** When its last update was asked for: Update all's progress counts the recorders asked together. */
+      updateRequestedAt: r.update_requested_at != null ? Number(r.update_requested_at) : null,
       lastError: r.last_error,
       lastRunFailed: r.last_run_ok === 0,
     };
@@ -354,9 +387,10 @@ export async function listRuns(name: string, limit = 50) {
     ok: number;
     clips: number;
     rejected: number;
+    failed: number | null;
     error: string | null;
   }>(
-    `SELECT id, kind, match_slug, map_number, started_at, seconds, ok, clips, rejected, error
+    `SELECT id, kind, match_slug, map_number, started_at, seconds, ok, clips, rejected, failed, error
        FROM cs2_recorder_runs WHERE recorder = ? ORDER BY id DESC LIMIT ?`,
     [name, Math.min(Math.max(limit, 1), 200)]
   );
@@ -370,6 +404,7 @@ export async function listRuns(name: string, limit = 50) {
     ok: Number(r.ok) === 1,
     clips: Number(r.clips),
     rejected: Number(r.rejected),
+    failed: Number(r.failed ?? 0),
     error: r.error,
   }));
 }
@@ -402,6 +437,7 @@ export async function resumeRecorder(name: string): Promise<void> {
 export async function requestBenchmark(name: string): Promise<void> {
   await existing(name);
   await db.runAsync('UPDATE cs2_recorders SET benchmark_wanted = 1 WHERE name = ?', [name]);
+  wakeRecorders();
 }
 
 export async function forgetRecorder(name: string): Promise<void> {

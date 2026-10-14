@@ -32,8 +32,15 @@ import { getEffectiveViewerSteamId, resolveViewerIdentity } from '../utils/viewe
 import { getIntegration, integrationForMatch } from '../integrations/registry';
 import { DEFAULT_GAME } from '../integrations/types';
 
-import { banPlayer, deletePlayer, ModerationError, moderationOf, unbanPlayer } from '../services/playerModeration';
+import {
+  banPlayer,
+  deletePlayer,
+  ModerationError,
+  moderationOf,
+  unbanPlayer,
+} from '../services/playerModeration';
 import type { Actor } from '../services/matchHolds';
+import { PresetAccountError, presetAccounts } from '../services/gameAccounts';
 
 function actorOf(req: Request): Actor {
   const id = requestActorId(req) ?? 'admin';
@@ -49,7 +56,14 @@ const router = Router();
  * match answer 404 with `restricted`. Admin routes (writes, the admin list)
  * are not affected.
  */
-const RESTRICTED_SUBPATHS = new Set(['', 'summary', 'team', 'current-match', 'rating-history', 'matches']);
+const RESTRICTED_SUBPATHS = new Set([
+  '',
+  'summary',
+  'team',
+  'current-match',
+  'rating-history',
+  'matches',
+]);
 router.param('playerId', async (req: Request, res: Response, next, playerId: string) => {
   if (req.method !== 'GET') return next();
   const sub = req.path.split('/').filter(Boolean).slice(1).join('/');
@@ -66,8 +80,11 @@ router.param('playerId', async (req: Request, res: Response, next, playerId: str
       ...(state.deleted ? { deleted: true } : { banned: true }),
       restricted: true,
     };
-    if (sub === '' || sub === 'summary') return res.json({ success: true, player: stub, restricted: true });
-    return res.status(404).json({ success: false, error: 'Not shown for this player', restricted: true });
+    if (sub === '' || sub === 'summary')
+      return res.json({ success: true, player: stub, restricted: true });
+    return res
+      .status(404)
+      .json({ success: false, error: 'Not shown for this player', restricted: true });
   } catch {
     return next();
   }
@@ -202,6 +219,16 @@ router.get('/find', async (req: Request, res: Response) => {
 router.get('/public-selection', async (_req: Request, res: Response) => {
   try {
     const players = await playerService.getAllPlayers();
+    // Each player's teams (by the teams' rosters), for the Players directory.
+    const teamsOf = new Map<string, Array<{ id: string; name: string }>>();
+    const teams = await db.queryAsync<{ id: string; name: string; players: string | null }>(
+      'SELECT id, name, players FROM teams'
+    );
+    for (const team of teams) {
+      for (const steamId of new Set((team.players ?? '').match(/\d{15,20}/g) ?? [])) {
+        teamsOf.set(steamId, [...(teamsOf.get(steamId) ?? []), { id: team.id, name: team.name }]);
+      }
+    }
 
     // Return only the fields needed for public selection/autocomplete
     const simplifiedPlayers = players.map((p) => ({
@@ -213,6 +240,7 @@ router.get('/public-selection', async (_req: Request, res: Response) => {
       matchCount: p.matchCount,
       createdAt: p.createdAt,
       isAdmin: p.isAdmin,
+      teams: teamsOf.get(p.id) ?? [],
     }));
 
     return res.json({
@@ -393,9 +421,10 @@ router.get('/:playerId/team', async (req: Request, res: Response) => {
     }
 
     // The player's role in it (captain or member), for the profile's team chip.
-    const account = await db.queryOneAsync<{ uid: string }>('SELECT uid FROM players WHERE id = ?', [
-      playerId,
-    ]);
+    const account = await db.queryOneAsync<{ uid: string }>(
+      'SELECT uid FROM players WHERE id = ?',
+      [playerId]
+    );
     const role = account ? await teamMembers.roleFor(matching.id, String(account.uid)) : null;
 
     return res.json({
@@ -415,6 +444,73 @@ router.get('/:playerId/team', async (req: Request, res: Response) => {
       success: false,
       error: message,
     });
+  }
+});
+
+/**
+ * Where the signed-in player's match lives, for `/match/now`: a tournament or
+ * hand-made match in its match room (`/match/<slug>`), a matchmaking match in
+ * its lobby. With no match coming up, a tournament they are still in (its
+ * Overview says what is next), else nothing.
+ */
+export async function matchNowPath(steamId: string): Promise<string | null> {
+  const like = `%${steamId}%`;
+  const match = await db.queryOneAsync<{
+    slug: string;
+    source: string | null;
+    round: number;
+    tournament_id: number | null;
+    team1_id: string | null;
+    team2_id: string | null;
+    in_team2: boolean;
+  }>(
+    `SELECT m.slug, m.source, m.round, m.tournament_id, m.team1_id, m.team2_id,
+            (t2.players LIKE ? ESCAPE '\\') AS in_team2
+       FROM matches m
+       LEFT JOIN teams t1 ON m.team1_id = t1.id
+       LEFT JOIN teams t2 ON m.team2_id = t2.id
+      WHERE m.status IN ('pending', 'ready', 'loaded', 'live')
+        AND ((t1.players LIKE ? ESCAPE '\\') OR (t2.players LIKE ? ESCAPE '\\') OR (m.config LIKE ? ESCAPE '\\'))
+      ORDER BY CASE WHEN m.status IN ('loaded', 'live') THEN 0 ELSE 1 END, m.round ASC, m.match_number ASC
+      LIMIT 1`,
+    [like, like, like, like]
+  );
+  if (match) {
+    if (match.source === 'matchmaking') {
+      const lobby = await db.queryOneAsync<{ id: string }>(
+        'SELECT id FROM mm_lobbies WHERE match_slug = ?',
+        [match.slug]
+      );
+      return lobby ? `/play/${lobby.id}` : '/play';
+    }
+    return `/match/${encodeURIComponent(match.slug)}`;
+  }
+  // Between matches of a tournament still running: its Overview shows what comes next.
+  const running = await db.queryOneAsync<{ id: number }>(
+    `SELECT DISTINCT t.id FROM tournament t
+       JOIN matches m ON m.tournament_id = t.id
+       LEFT JOIN teams t1 ON m.team1_id = t1.id
+       LEFT JOIN teams t2 ON m.team2_id = t2.id
+      WHERE t.status = 'in_progress' AND m.round > 0
+        AND ((t1.players LIKE ? ESCAPE '\\') OR (t2.players LIKE ? ESCAPE '\\'))
+      ORDER BY t.id DESC LIMIT 1`,
+    [like, like]
+  );
+  return running ? `/tournament/${running.id}` : null;
+}
+
+/**
+ * GET /api/players/me/match-now
+ * Where `/match/now` sends the signed-in player: `{ path }`, null with no match.
+ */
+router.get('/me/match-now', async (req: Request, res: Response) => {
+  try {
+    const steamId = await getEffectiveViewerSteamId(req);
+    if (!steamId) return res.status(401).json({ success: false, error: 'Sign in first' });
+    return res.json({ success: true, path: await matchNowPath(steamId) });
+  } catch (error) {
+    log.error("Failed to find the player's match for /me/match-now", error as Error);
+    return res.status(500).json({ success: false, error: 'Failed to find your match' });
   }
 });
 
@@ -523,6 +619,20 @@ router.get('/me/match-status', async (req: Request, res: Response) => {
         matchSlug: null,
         label: null,
       });
+    }
+
+    // A match before its tournament starts, or still waiting for an opponent, has no veto or
+    // server yet: the top bar shows nothing for it (it said "your turn in veto" before start).
+    if (match.status === 'pending' || match.status === 'ready') {
+      const tournament = match.tournament_id
+        ? await db.queryOneAsync<{ status: string }>('SELECT status FROM tournament WHERE id = ?', [
+            match.tournament_id,
+          ])
+        : null;
+      const started = !match.tournament_id || tournament?.status === 'in_progress';
+      if (!started || !match.team1_id || !match.team2_id) {
+        return res.json({ success: true, status: 'none', matchSlug: null, label: null });
+      }
     }
 
     const vetoState = match.veto_state
@@ -653,7 +763,9 @@ router.get('/me/discord-id', async (req: Request, res: Response) => {
 
     const discordId = await playerService.getDiscordId(steamId);
     if (discordId === undefined) {
-      return res.status(404).json({ success: false, error: 'No player record for this Steam account' });
+      return res
+        .status(404)
+        .json({ success: false, error: 'No player record for this Steam account' });
     }
 
     const linked = await playerService.hasLinkedDiscord(steamId);
@@ -695,7 +807,9 @@ router.put('/me/discord-id', async (req: Request, res: Response) => {
       discordId: edit.kind === 'set' ? edit.value : null,
     });
     if (!updated) {
-      return res.status(404).json({ success: false, error: 'No player record for this Steam account' });
+      return res
+        .status(404)
+        .json({ success: false, error: 'No player record for this Steam account' });
     }
 
     const discordId = (await playerService.getDiscordId(steamId)) ?? null;
@@ -952,21 +1066,15 @@ router.get('/:playerId/current-match', async (req: Request, res: Response) => {
 
           vetoSummary = {
             status,
-            team1Name:
-              vetoState.team1Name ||
-              match.team1_name ||
-              cfg.team1.name ||
-              'Team 1',
-            team2Name:
-              vetoState.team2Name ||
-              match.team2_name ||
-              cfg.team2.name ||
-              'Team 2',
+            team1Name: vetoState.team1Name || match.team1_name || cfg.team1.name || 'Team 1',
+            team2Name: vetoState.team2Name || match.team2_name || cfg.team2.name || 'Team 2',
             pickedMaps: sanitizedPickedMaps,
             actions: Array.isArray(vetoState.actions)
               ? vetoState.actions
                   .filter(
-                    (a): a is {
+                    (
+                      a
+                    ): a is {
                       step: number;
                       team: 'team1' | 'team2';
                       action: string;
@@ -1043,10 +1151,7 @@ router.get('/:playerId/current-match', async (req: Request, res: Response) => {
     }));
 
     // Normalize and enrich config players with avatars from team data or players table
-    const enrichPlayers = async (
-      normalizedPlayers: NormalizedServerPlayer[],
-      teamId?: string
-    ) => {
+    const enrichPlayers = async (normalizedPlayers: NormalizedServerPlayer[], teamId?: string) => {
       if (teamId) {
         try {
           const teamData = await teamService.getTeamById(teamId);
@@ -1129,15 +1234,15 @@ router.get('/:playerId/current-match', async (req: Request, res: Response) => {
             ? { id: playerTeam.id, name: playerTeam.name, tag: playerTeam.tag }
             : null
           : opponent.id
-          ? { id: opponent.id, name: opponent.name, tag: opponent.tag }
-          : null,
+            ? { id: opponent.id, name: opponent.name, tag: opponent.tag }
+            : null,
         team2: !isTeam1
           ? playerTeam.id
             ? { id: playerTeam.id, name: playerTeam.name, tag: playerTeam.tag }
             : null
           : opponent.id
-          ? { id: opponent.id, name: opponent.name, tag: opponent.tag }
-          : null,
+            ? { id: opponent.id, name: opponent.name, tag: opponent.tag }
+            : null,
         opponent: opponent.id
           ? {
               id: opponent.id,
@@ -1634,6 +1739,48 @@ router.get('/:playerId/matches', async (req: Request, res: Response) => {
 router.use(requireAuth);
 
 /**
+ * @openapi
+ * /api/players/{playerId}/accounts:
+ *   get:
+ *     tags: [Players]
+ *     summary: A player's game accounts other than Steam
+ *     description: |
+ *       Admin. Accounts the games need (Epic Games for Rocket League, ...):
+ *       entered by an admin (`verified: false`, the player lands on this
+ *       player when they first sign in with it) or proven by signing in.
+ *     parameters:
+ *       - in: path
+ *         name: playerId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: "`accounts`: [{ provider, externalId, verified }]"
+ */
+router.get('/:playerId/accounts', async (req: Request, res: Response) => {
+  return res.json({ success: true, accounts: await presetAccounts.list(req.params.playerId) });
+});
+
+/** Set the `accounts` a create or update carried; a refusal is answered and returns false. */
+async function applyAccounts(playerId: string, accounts: unknown, res: Response): Promise<boolean> {
+  if (accounts === undefined) return true;
+  if (!accounts || typeof accounts !== 'object' || Array.isArray(accounts)) {
+    res.status(400).json({ success: false, error: 'accounts: { provider: account id or null }' });
+    return false;
+  }
+  try {
+    await presetAccounts.set(playerId, accounts as Record<string, unknown>);
+    return true;
+  } catch (error) {
+    if (error instanceof PresetAccountError) {
+      res.status(error.status).json({ success: false, error: error.message, code: 'account' });
+      return false;
+    }
+    throw error;
+  }
+}
+
+/**
  * GET /api/players
  * Get all players (for admin management)
  */
@@ -1705,6 +1852,12 @@ router.post('/', async (req: Request, res: Response) => {
 
     // An explicit edit: an invalid discordId refuses the whole create (400).
     const created = await playerService.createPlayer(input);
+    // Game accounts (Epic Games, ...): a refused one undoes the create.
+    const accounts = (req.body as { accounts?: unknown }).accounts;
+    if (!(await applyAccounts(created.id, accounts, res))) {
+      await playerService.deletePlayer(created.id).catch(() => undefined);
+      return;
+    }
     const player = (await playerService.getPlayerByIdForAdmin(created.id)) ?? created;
 
     return res.status(201).json({
@@ -1774,7 +1927,9 @@ router.post('/import', async (req: Request, res: Response) => {
     const steamId = typeof p.steamId === 'string' ? p.steamId.trim() : '';
     const name = typeof p.name === 'string' ? p.name.trim() : '';
     if (!/^\d{17}$/.test(steamId) || !name) {
-      return res.status(400).json({ success: false, error: 'Each player needs a steamId (SteamID64) and a name' });
+      return res
+        .status(400)
+        .json({ success: false, error: 'Each player needs a steamId (SteamID64) and a name' });
     }
     players.push({
       id: steamId,
@@ -1866,7 +2021,9 @@ router.post('/bulk-delete', async (req: Request, res: Response) => {
     const adminIdsToRemove = (
       await Promise.all(unique.map((id) => playerService.getPlayerById(id)))
     ).filter((p) => p?.isAdmin).length;
-    if (bulkRemovesEveryAdmin({ adminIdsToRemove, adminCount: await playerService.countAdmins() })) {
+    if (
+      bulkRemovesEveryAdmin({ adminIdsToRemove, adminCount: await playerService.countAdmins() })
+    ) {
       return res.status(409).json({ success: false, error: LAST_ADMIN_ERROR });
     }
 
@@ -1922,7 +2079,9 @@ router.put('/:playerId', async (req: Request, res: Response) => {
     }
     const before = await playerService.getPlayerById(playerId);
     const adminChange =
-      before && input.isAdmin !== undefined && before.isAdmin !== input.isAdmin ? input.isAdmin : undefined;
+      before && input.isAdmin !== undefined && before.isAdmin !== input.isAdmin
+        ? input.isAdmin
+        : undefined;
     if (
       adminChange === false &&
       removesLastAdmin({ targetIsAdmin: true, adminCount: await playerService.countAdmins() })
@@ -1932,6 +2091,12 @@ router.put('/:playerId', async (req: Request, res: Response) => {
 
     // An explicit edit: a string overwrites, null/"" clears, an absent key
     // leaves it alone, and an invalid value refuses the whole update (400).
+    if (
+      before &&
+      !(await applyAccounts(playerId, (req.body as { accounts?: unknown }).accounts, res))
+    ) {
+      return;
+    }
     const updated = await playerService.updatePlayer(playerId, input);
 
     if (!updated) {
@@ -1978,7 +2143,10 @@ router.post('/:playerId/ban', async (req: Request, res: Response) => {
   try {
     const reason = typeof req.body?.reason === 'string' ? req.body.reason : null;
     await banPlayer(req.params.playerId, reason, actorOf(req));
-    return res.json({ success: true, player: await playerService.getPlayerById(req.params.playerId) });
+    return res.json({
+      success: true,
+      player: await playerService.getPlayerById(req.params.playerId),
+    });
   } catch (error) {
     if (error instanceof ModerationError) {
       return res.status(error.status).json({ success: false, error: error.message });
@@ -1995,7 +2163,10 @@ router.post('/:playerId/ban', async (req: Request, res: Response) => {
 router.delete('/:playerId/ban', async (req: Request, res: Response) => {
   try {
     await unbanPlayer(req.params.playerId, actorOf(req));
-    return res.json({ success: true, player: await playerService.getPlayerById(req.params.playerId) });
+    return res.json({
+      success: true,
+      player: await playerService.getPlayerById(req.params.playerId),
+    });
   } catch (error) {
     log.error('Error unbanning player', { error, playerId: req.params.playerId });
     return res.status(500).json({ success: false, error: 'Could not lift the ban' });

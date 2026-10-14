@@ -78,6 +78,52 @@
       "lower": "LB R{{round}} M{{match}}",
       "grandFinal": "Grand Final",
       "grandFinalReset": "Grand Final Reset"
+    },
+    "table": {
+      "filterLabel": "Show",
+      "search": "Find a team or player",
+      "tbd": "TBD",
+      "manage": "Manage match",
+      "empty": "No matches here.",
+      "filter": {
+        "attention_one": "Needs attention · {{count}}",
+        "attention_other": "Needs attention · {{count}}",
+        "live_one": "Live · {{count}}",
+        "live_other": "Live · {{count}}",
+        "veto_one": "Veto · {{count}}",
+        "veto_other": "Veto · {{count}}",
+        "waiting_one": "Waiting · {{count}}",
+        "waiting_other": "Waiting · {{count}}",
+        "finished_one": "Finished · {{count}}",
+        "finished_other": "Finished · {{count}}",
+        "all_one": "All · {{count}}",
+        "all_other": "All · {{count}}"
+      },
+      "columns": {
+        "match": "Match",
+        "teams": "Teams",
+        "phase": "Phase",
+        "server": "Server",
+        "attention": "Needs attention",
+        "open": "Open"
+      },
+      "attention": {
+        "calls_one": "Admin call",
+        "calls_other": "{{count}} admin calls",
+        "decide": "Decide the result"
+      },
+      "phase": {
+        "live": "Live · map {{map}}",
+        "finished": "Finished",
+        "finishedScore": "Finished · {{score}}",
+        "veto": "Map veto",
+        "waitingTeams": "Waiting for its teams",
+        "queued": "Waiting for a server · #{{position}} in queue",
+        "waiting": "Waiting"
+      },
+      "server": {
+        "freed": "Freed"
+      }
     }
   },
   "matchDetailsModal": {
@@ -211,7 +257,8 @@
     "playersHeader": "Players ({{count}})",
     "selectPlayers": "Select Players",
     "noPlayersInfo": "No players added yet. Add at least one player.",
-    "addPlayersHelper": "Add players by pasting Steam URL or selecting from existing players",
+    "addPlayersHelper": "Add a new player below, or select from existing players",
+    "addPlayersHelper_steam": "Add players by pasting Steam URL or selecting from existing players",
     "steamInputLabel": "Steam ID / Vanity URL",
     "steamInputPlaceholder": "gaben or steamcommunity.com/id/gaben",
     "resolveSteam": "Resolve Steam ID",
@@ -233,7 +280,9 @@
       "deleteFailed": "Failed to delete team",
       "discordIdInvalid": "Discord ID must be 17–20 digits (the numeric user ID, not a username)",
       "discordIdInvalidPlayers": "Invalid Discord ID for: {{names}}. It must be 17–20 digits, or left empty.",
-      "discordIdSaveFailed": "The team was saved, but the Discord ID could not be saved for: {{names}}. {{message}}"
+      "discordIdSaveFailed": "The team was saved, but the Discord ID could not be saved for: {{names}}. {{message}}",
+      "nameRequired": "Enter the player's name",
+      "addPlayerFailed": "Could not add the player"
     },
     "success": {
       "playerAdded": "Player added to team",
@@ -254,14 +303,16 @@
       "message": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
     },
     "replacePlayerAria": "Replace player {{name}}",
-    "replacePlayerTooltip": "Replace this player"
+    "replacePlayerTooltip": "Replace this player",
+    "accountLabel": "{{account}} account (optional)",
+    "accountHelper": "For {{games}}. When they sign in with {{account}}, they become this player."
   },
   "playerModal": {
     "titleCreate": "Create Player",
     "titleEdit": "Edit Player",
     "steamLabel": "Steam ID or profile URL (optional)",
     "steamHelperEditing": "Steam ID cannot be changed",
-    "steamHelperNew": "Optional: only needed for Steam games like CS2. Enter a Steam ID64, vanity URL or profile URL; \"Resolve\" fills in name and avatar.",
+    "steamHelperNew": "For {{games}}. Enter a Steam ID64, vanity URL or profile URL; \"Resolve\" fills in name and avatar.",
     "resolveSteam": "Resolve Steam ID",
     "resolving": "Resolving...",
     "playerNameLabel": "Player Name",
@@ -301,7 +352,10 @@
       "title": "Update Player ELO",
       "message": "Are you sure you want to update this player's ELO from {{from}} to {{to}}? This will reset their stats and rating history. This action cannot be undone."
     },
-    "discordIdHelper": "Optional. 17–20 digits. Lets organizers reach this player on Discord. Never shown publicly."
+    "discordIdHelper": "Optional. 17–20 digits. Lets organizers reach this player on Discord. Never shown publicly.",
+    "accountLabel": "{{account}} account (optional)",
+    "accountHelper": "For {{games}}. The account id; when they sign in with {{account}}, they become this player.",
+    "accountVerified": "Linked: they signed in with {{account}}. They change it themselves."
   },
   "teamImportModal": {
     "title": "Import Teams from JSON",
@@ -377,7 +431,8 @@
   "playerSelectionModal": {
     "title": "Select Players",
     "selectedCount": "{{count}} selected",
-    "searchPlaceholder": "Search players by name or Steam ID...",
+    "searchPlaceholder": "Search players by name...",
+    "searchPlaceholder_steam": "Search players by name or Steam ID...",
     "selectAll": {
       "select": "Select All",
       "deselect": "Deselect All"

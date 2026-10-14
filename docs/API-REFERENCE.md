@@ -11,7 +11,7 @@
 
 # API reference
 
-Every endpoint this API serves — 663 of them, 400 behind auth —
+Every endpoint this API serves — 714 of them, 417 behind auth —
 read directly from the routers rather than written down, so it cannot drift.
 
 For *how* to authenticate a bot or script, and a task-oriented tour of the
@@ -56,13 +56,19 @@ Virtual CS2 skins: inventories, loadouts, showcases and the admin inventory mana
 | Method | Path | Auth |
 | --- | --- | --- |
 | `GET` | `/api/skins/status` | public |
+| `GET` | `/api/skins/odds` | public |
+| `GET` | `/api/skins/tryout` | public |
 | `GET` | `/api/skins/me` | public |
+| `GET` | `/api/skins/me/trade-up` | public |
+| `POST` | `/api/skins/me/trade-up` | public |
+| `POST` | `/api/skins/me/choices/:id` | public |
 | `POST` | `/api/skins/me/equip` | public |
 | `DELETE` | `/api/skins/me/equip/:slot` | public |
 | `POST` | `/api/skins/me/seen` | public |
 | `PUT` | `/api/skins/me/showcase` | public |
 | `GET` | `/api/skins/players/:steamId` | public |
 | `GET` | `/api/skins/skin/:id` | public |
+| `GET` | `/api/skins/tournaments/:id/rewards` | public |
 | `GET` | `/api/skins/admin/config` | admin |
 | `PUT` | `/api/skins/admin/config` | admin |
 | `GET` | `/api/skins/admin/catalog` | admin |
@@ -70,6 +76,7 @@ Virtual CS2 skins: inventories, loadouts, showcases and the admin inventory mana
 | `GET` | `/api/skins/admin/players` | admin |
 | `GET` | `/api/skins/admin/players/:steamId/inventory` | admin |
 | `POST` | `/api/skins/admin/players/:steamId/skins` | admin |
+| `POST` | `/api/skins/admin/drops` | admin |
 | `DELETE` | `/api/skins/admin/skins/:id` | admin |
 
 ### Server bootstrap
@@ -236,6 +243,9 @@ A player's CS2 totals, everyone's totals to compare with, and their results per 
 
 | Method | Path | Auth |
 | --- | --- | --- |
+| `GET` | `/api/game/cs2/players/:playerId/role` | public |
+| `PUT` | `/api/game/cs2/players/me/role` | public |
+| `GET` | `/api/game/cs2/teams/:teamId/roles` | public |
 | `GET` | `/api/game/cs2/players/:playerId/profile` | public |
 
 ### Demo analysis
@@ -270,6 +280,14 @@ A finished match's scoreboard over its maps, and its highlight clips.
 | `GET` | `/api/game/cs2/matches/:slug/scoreboard` | public |
 | `GET` | `/api/game/cs2/matches/:slug/highlights` | public |
 
+### Leaderboards
+
+Players ranked by rating, ADR, K/D, headshots, opening duels, clutches and KAST.
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `GET` | `/api/game/cs2/leaderboards` | public |
+
 ### Highlights
 
 Each player's best moments, picked from the demo analysis, and the clips the recorder makes of them.
@@ -279,6 +297,8 @@ Each player's best moments, picked from the demo analysis, and the clips the rec
 | `POST` | `/api/game/cs2/recorder/hello` | public |
 | `GET` | `/api/game/cs2/recorder/update` | public |
 | `POST` | `/api/game/cs2/recorder/update` | public |
+| `GET` | `/api/game/cs2/recorder/update/available` | public |
+| `POST` | `/api/game/cs2/recorder/update/request` | public |
 | `POST` | `/api/game/cs2/recorder/complete` | public |
 | `POST` | `/api/game/cs2/recorder/claim` | public |
 | `POST` | `/api/game/cs2/recorder/uploads` | public |
@@ -310,6 +330,14 @@ Each player's best moments, picked from the demo analysis, and the clips the rec
 | `GET` | `/api/game/cs2/watch/match/:slug/:map` | public |
 | `GET` | `/api/game/cs2/watch/tournament/:id` | public |
 | `GET` | `/api/game/cs2/watch/team/:slug/:team` | public |
+| `GET` | `/api/game/cs2/library` | public |
+| `GET` | `/api/game/cs2/watch/stats` | public |
+| `POST` | `/api/game/cs2/watch/view` | public |
+| `PUT` | `/api/game/cs2/watch/like` | public |
+| `GET` | `/api/game/cs2/watch/comments` | public |
+| `POST` | `/api/game/cs2/watch/comments` | public |
+| `PUT` | `/api/game/cs2/watch/comments/:id` | public |
+| `DELETE` | `/api/game/cs2/watch/comments/:id` | public |
 | `GET` | `/api/game/cs2/watch/related` | public |
 | `GET` | `/api/game/cs2/highlights/:file` | public |
 | `GET` | `/api/game/cs2/highlights/:file/music/:track` | public |
@@ -348,6 +376,16 @@ A team's CS2 results per map, and the maps it bans and picks most in the veto.
 | Method | Path | Auth |
 | --- | --- | --- |
 | `GET` | `/api/game/cs2/teams/:teamId/profile` | public |
+
+### Manage a match
+
+The admin match page: a match's live state, server and event log, and the Ready Up commands it sends (logged with who sent them).
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `GET` | `/api/game/cs2/matches/:slug/manage` | admin |
+| `POST` | `/api/game/cs2/matches/:slug/manage/command` | admin |
+| `POST` | `/api/game/cs2/matches/:slug/manage/restart-server` | admin |
 
 ### Round backups
 
@@ -468,10 +506,12 @@ E2E helpers that stand in for a CS2 server. Disabled in production unless ENABLE
 | Method | Path | Auth |
 | --- | --- | --- |
 | `POST` | `/api/test/server-status` | admin |
+| `POST` | `/api/test/highlights/status` | admin |
 | `POST` | `/api/test/fleet/reset-enroll-rate-limit` | admin |
 | `POST` | `/api/test/fleet/age-token` | admin |
 | `POST` | `/api/test/fleet/expire-key` | admin |
 | `POST` | `/api/test/fleet/assign` | admin |
+| `POST` | `/api/test/fleet/stattrak` | admin |
 | `POST` | `/api/test/fleet/send` | admin |
 | `GET` | `/api/test/fleet/live-state/:slug` | admin |
 | `GET` | `/api/test/fleet/events/:serverId` | admin |
@@ -581,6 +621,7 @@ The tournament itself — setup, bracket, rounds, standings.
 | `POST` | `/api/tournament/pause` | admin |
 | `POST` | `/api/tournament/resume` | admin |
 | `POST` | `/api/tournament/start` | admin |
+| `POST` | `/api/tournament/cancel` | admin |
 | `POST` | `/api/tournament/restart` | admin |
 | `POST` | `/api/tournament/wipe-database` | admin |
 | `POST` | `/api/tournament/wipe-table/:table` | admin |
@@ -619,6 +660,7 @@ Your match (both teams and the admins), your team and your party.
 | `GET` | `/api/chat/channels` | public |
 | `GET` | `/api/chat/:channel/messages` | public |
 | `POST` | `/api/chat/:channel/messages` | public |
+| `POST` | `/api/chat/:channel/typing` | public |
 | `POST` | `/api/chat/:channel/call-admin` | public |
 | `POST` | `/api/chat/:channel/read` | public |
 
@@ -678,6 +720,8 @@ Friends, friend requests, finding players, and the signed-in player's notificati
 | `GET` | `/api/social/settings` | public |
 | `PUT` | `/api/social/settings` | public |
 | `GET` | `/api/social/notifications` | public |
+| `GET` | `/api/social/notifications/settings` | public |
+| `PUT` | `/api/social/notifications/settings` | public |
 | `POST` | `/api/social/notifications/read` | public |
 | `POST` | `/api/social/news` | admin |
 
@@ -803,6 +847,7 @@ Player records, ratings, match history and profiles.
 | `GET` | `/api/players/public-selection` | public |
 | `GET` | `/api/players/selection` | admin |
 | `GET` | `/api/players/:playerId/team` | public |
+| `GET` | `/api/players/me/match-now` | public |
 | `GET` | `/api/players/me/match-status` | public |
 | `GET` | `/api/players/me/discord-id` | public |
 | `PUT` | `/api/players/me/discord-id` | public |
@@ -812,6 +857,7 @@ Player records, ratings, match history and profiles.
 | `GET` | `/api/players/:playerId` | public |
 | `GET` | `/api/players/:playerId/rating-history` | public |
 | `GET` | `/api/players/:playerId/matches` | public |
+| `GET` | `/api/players/:playerId/accounts` | admin |
 | `GET` | `/api/players` | admin |
 | `GET` | `/api/players/by-discord-id/:discordId` | admin |
 | `POST` | `/api/players` | admin |
@@ -850,6 +896,7 @@ The game catalogue players pick from (Wikidata-backed search, the built-in games
 | Method | Path | Auth |
 | --- | --- | --- |
 | `GET` | `/api/games/search` | public |
+| `GET` | `/api/games/accounts` | public |
 | `GET` | `/api/games/popular` | public |
 | `GET` | `/api/games/playable` | public |
 | `GET` | `/api/games/icons/:file` | public |
@@ -977,6 +1024,18 @@ Ready Up compatibility with the latest CS2 build: the runs its CI reports (token
 | `GET` | `/api/compat/runs` | public |
 | `GET` | `/api/compat/badge.json` | public |
 
+### Admin notices
+
+The admins' bell: what needs an admin (a match stuck without a server, a crashed server, a failing recorder, a new beta). One feed for every admin, each with their own seen mark; repeats count up. Admin only. Live updates go to signed-in admins as the Socket.IO events admin:notice and admin:notice:resolved.
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `GET` | `/api/admin-notices` | admin |
+| `POST` | `/api/admin-notices/seen` | admin |
+| `POST` | `/api/admin-notices/:id/dismiss` | admin |
+| `GET` | `/api/admin-notices/settings` | admin |
+| `PUT` | `/api/admin-notices/settings` | admin |
+
 ### Admin calls
 
 Players calling for an admin from a game server (CS2: `.admin [message]` in Ready Up, sent as the admin_called event): list open and recently resolved calls, resolve one or all. Admin only. Live updates go to signed-in admins as the Socket.IO events admin:call and admin:call:resolved.
@@ -987,6 +1046,8 @@ Players calling for an admin from a game server (CS2: `.admin [message]` in Read
 | `POST` | `/api/admin-calls/resolve-all` | admin |
 | `GET` | `/api/admin-calls/:id` | admin |
 | `POST` | `/api/admin-calls/:id/resolve` | admin |
+| `POST` | `/api/admin-calls/:id/claim` | admin |
+| `POST` | `/api/admin-calls/:id/release` | admin |
 
 ### License
 
@@ -1047,6 +1108,7 @@ Parties, the queue, matches and the matchmaking leaderboard (docs/design/matchma
 | Method | Path | Auth |
 | --- | --- | --- |
 | `GET` | `/api/matchmaking/status` | admin |
+| `GET` | `/api/matchmaking/queue` | public |
 | `GET` | `/api/matchmaking/me` | public |
 | `POST` | `/api/matchmaking/party` | public |
 | `POST` | `/api/matchmaking/party/join` | public |
@@ -1078,11 +1140,13 @@ E2E helpers. Disabled in production unless ENABLE_TEST_ENDPOINTS is set.
 
 | Method | Path | Auth |
 | --- | --- | --- |
+| `POST` | `/api/test/admin-notice` | admin |
 | `POST` | `/api/test/marker` | admin |
 | `POST` | `/api/test/reset-database` | admin |
 | `POST` | `/api/test/match-state` | admin |
 | `POST` | `/api/test/match-report` | admin |
 | `POST` | `/api/test/series-result` | admin |
+| `POST` | `/api/test/passkey-verifier` | admin |
 | `POST` | `/api/test/login-admin` | public |
 | `POST` | `/api/test/login-player` | public |
 | `POST` | `/api/test/pending-steam-link` | admin |
@@ -1197,7 +1261,14 @@ Username + password (+ TOTP) sign-in for local admin accounts, and TOTP enrolmen
 | `GET` | `/api/auth/local/me` | admin |
 | `POST` | `/api/auth/local/totp/start` | admin |
 | `POST` | `/api/auth/local/totp/confirm` | admin |
+| `POST` | `/api/auth/local/totp/disable` | public |
 | `POST` | `/api/auth/local/reauth` | public |
+| `GET` | `/api/auth/local/passkeys` | public |
+| `POST` | `/api/auth/local/passkeys/register/options` | public |
+| `POST` | `/api/auth/local/passkeys/register/verify` | public |
+| `DELETE` | `/api/auth/local/passkeys/:id` | public |
+| `POST` | `/api/auth/local/passkeys/login/options` | public |
+| `POST` | `/api/auth/local/passkeys/login/verify` | public |
 | `POST` | `/api/auth/local/password` | public |
 | `POST` | `/api/auth/local/forgot` | public |
 | `POST` | `/api/auth/local/reset` | public |
@@ -1230,6 +1301,7 @@ Sign-in flows, admin identity, impersonation.
 | `POST` | `/api/auth/epic/link` | public |
 | `GET` | `/api/auth/epic/callback` | public |
 | `POST` | `/api/auth/steam/link` | public |
+| `GET` | `/api/auth/oidc/logo` | public |
 | `GET` | `/api/auth/providers` | public |
 | `GET` | `/api/auth/me` | public |
 | `POST` | `/api/auth/self-register` | public |

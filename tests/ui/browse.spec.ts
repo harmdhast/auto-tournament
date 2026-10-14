@@ -3,7 +3,7 @@ import { signInViaRequest } from '../helpers/auth';
 import { setupTournament } from '../helpers/tournamentSetup';
 
 /**
- * Browse ("/browse"): every tournament this instance runs, with search and
+ * Tournaments ("/tournaments", was /browse): every tournament this instance runs, with search and
  * filters. Public route — this suite drives it as an admin session simply
  * because that's the easiest way to also set up the tournament fixture; the
  * page itself does not require sign-in.
@@ -38,7 +38,7 @@ test.describe.serial('Browse', () => {
       expect(setup).toBeTruthy();
       if (!setup) return;
 
-      await page.goto('/browse', { waitUntil: 'domcontentloaded' });
+      await page.goto('/tournaments', { waitUntil: 'domcontentloaded' });
       await expect(page.getByTestId('browse-page')).toBeVisible({ timeout: 15000 });
 
       const row = page.getByTestId(`browse-tournament-${setup.tournament.id}`);
@@ -50,8 +50,11 @@ test.describe.serial('Browse', () => {
       const id = setup.tournament.id;
       await expect(page.getByTestId(`browse-entries-${id}`)).toContainText('2 teams');
       await expect(page.getByTestId(`browse-when-${id}`)).toContainText(/live/i);
-      await expect(page.getByTestId(`browse-action-${id}`)).toHaveText(/watch/i);
-      await expect(page.getByTestId(`browse-action-${id}`)).toHaveAttribute('href', `/tournament/${id}`);
+      await expect(page.getByTestId(`browse-action-${id}`)).toHaveText(/open/i);
+      await expect(page.getByTestId(`browse-action-${id}`)).toHaveAttribute(
+        'href',
+        `/tournament/${id}`
+      );
       // One tournament per site in 3.0: no "Create tournament" while it exists.
       await expect(page.getByTestId('browse-create-tournament')).toHaveCount(0);
 

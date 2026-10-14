@@ -95,6 +95,10 @@ type doneClip struct {
 
 type recorder struct {
 	jobContext context.Context // current platform attempt; nil for local commands
+	// link: the live link to the platform (link.go); nil for local commands.
+	link *recorderLink
+	// job: what the current platform job is, for its progress reports.
+	job jobProgress
 	*client
 	gameDir string
 	sniper  string
@@ -180,6 +184,18 @@ func (r *recorder) look() []string {
 		}
 	}
 	return look
+}
+
+// lookPredict is the session's TrueView setting: the last cl_demo_predict
+// of the look (AT_CS2_EXTRA can change the recorder's own).
+func (r *recorder) lookPredict() string {
+	setting := "cl_demo_predict 2"
+	for _, c := range r.look() {
+		if strings.HasPrefix(c, "cl_demo_predict ") {
+			setting = c
+		}
+	}
+	return setting
 }
 
 // claimRecording asks the platform for work: a player's moments to record
@@ -512,8 +528,9 @@ func (r *recorder) recordMoments(ctx context.Context, demoPath string, shots []s
 		close(queue)
 		<-finished
 	}
-	for _, sh := range shots {
+	for idx, sh := range shots {
 		m, name, look := sh.m, sh.name, sh.look
+		r.report("recording", look.name+" · "+m.Title, idx, len(shots))
 		if ctx.Err() != nil {
 			drain()
 			err = ctx.Err()
@@ -624,6 +641,17 @@ func (r *recorder) capturePicture(g *game, name string, from int, phases []playP
 // clip at out (finish: encoding and joining its pieces, no CS2 needed), so
 // the next moment can be captured while this one is finished.
 func (r *recorder) recordMoment(g *game, look clipLook, name string, m moment, out string) (clipMarkers, func() error, error) {
+	// A moment whose weapon went missing with TrueView (an admin's "weapon
+	// missing") is recorded without it; the session's own setting (the look,
+	// AT_CS2_EXTRA included) comes back for the next moment. Each pass seeks,
+	// and a seek restarts the prediction with the new setting.
+	if m.TrueView != nil && !*m.TrueView {
+		log.Printf("recording %q without TrueView (weapon missing in review)", m.Title)
+		if err := g.con.send("cl_demo_predict 0"); err != nil {
+			return clipMarkers{}, nil, err
+		}
+		defer func() { _ = g.con.send(r.lookPredict()) }()
+	}
 	dir, err := os.MkdirTemp(r.scratch, "moment-")
 	if err != nil {
 		return clipMarkers{}, nil, err
@@ -688,6 +716,8 @@ func (r *recorder) recordMoment(g *game, look clipLook, name string, m moment, o
 		kills = []int{m.SlowmoTick}
 	}
 	markers := momentMarkers(windows, edits, kills)
+	// On its own the clip starts after its card's opening (standalone.go).
+	markers.Start = standaloneStart(overlayRecipe{Parts: parts})
 	markers.Reactions = cheerTimes(m.KillTicks, markers.Kills, cheerTicks(look.replay, look.playerID, m))
 	if t := deathTick(look.replay, look.playerID, m); t >= 0 {
 		markers.Reactions = withAww(markers.Reactions, tickAt(windows, edits, t))
@@ -720,18 +750,23 @@ func (r *recorder) recordMoment(g *game, look clipLook, name string, m moment, o
 			if err := os.Rename(cleans[0], cleanPathOf(out)); err != nil {
 				return err
 			}
-			return os.Rename(pieces[0], out)
+		} else {
+			// The jump cuts between a player's kills blend (reelCrossfade).
+			fades := make([]join, len(pieces)-1)
+			for i := range fades {
+				fades[i] = joinFade
+			}
+			if _, err := r.buildReel(cleans, fades, nil, cleanPathOf(out)); err != nil {
+				return err
+			}
 		}
-		// The jump cuts between a player's kills blend (reelCrossfade).
-		fades := make([]join, len(pieces)-1)
-		for i := range fades {
-			fades[i] = joinFade
-		}
-		if _, err := r.buildReel(pieces, fades, nil, out); err != nil {
+		// The clip itself: its clean twin from markers.Start, with the kill
+		// feed and logo and no caption card (standalone.go).
+		alone := out + ".alone.mp4"
+		if _, err := r.redressClip(cleanPathOf(out), overlayPathOf(out), alone); err != nil {
 			return err
 		}
-		_, err := r.buildReel(cleans, fades, nil, cleanPathOf(out))
-		return err
+		return os.Rename(alone, out)
 	}
 	return markers, finish, nil
 }
@@ -754,6 +789,12 @@ func (r *recorder) recordWindow(g *game, look clipLook, card *cardRender, name s
 		slowFrom = w.slowmo - int(slowBeforeSec*tickrate)
 	}
 	main := prefix + "-picture.yuv"
+	// The camera is checked against where the demo has the player (capture.go checkFollow).
+	if look.replay != nil && look.playerID != "" {
+		rp, id := look.replay, look.playerID
+		g.follow = func(tick int) ([3]float64, bool) { return rp.PositionAt(id, tick) }
+		defer func() { g.follow = nil }()
+	}
 	mainTicks, err := r.capturePicture(g, name, w.from-lead, picturePhases(w, introEnd, slowFrom, speedsFor(r.rate.fps)), main)
 	if err != nil {
 		return nil, nil, fmt.Errorf("picture: %w", err)
@@ -1146,12 +1187,12 @@ func (r *recorder) lookFor(ctx context.Context, j *recordJob) clipLook {
 
 // recordMap records a map's moments, every player's, in one CS2 session,
 // then uploads each clip and each player's reel of the map.
-func (r *recorder) recordMap(ctx context.Context, mj *mapJob) (kept, rejected int, err error) {
+func (r *recorder) recordMap(ctx context.Context, mj *mapJob) (kept, rejected, failedN int, err error) {
 	r.useQuality(mj.Quality)
 	applySettings(mj.Settings)
 	dir, err := os.MkdirTemp(r.scratch, "highlights-")
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	defer os.RemoveAll(dir)
 	// The map's demo: the one CS2 has loaded, or downloaded now (kept with
@@ -1166,7 +1207,7 @@ func (r *recorder) recordMap(ctx context.Context, mj *mapJob) (kept, rejected in
 		demoPath = filepath.Join(r.scratch, fmt.Sprintf("live-%d.dem", os.Getpid()))
 		if err := r.download(ctx, mj.MatchSlug, mj.MapNumber, demoPath); err != nil {
 			os.Remove(demoPath)
-			return 0, 0, err
+			return 0, 0, 0, err
 		}
 	}
 	var shots []shot
@@ -1175,6 +1216,9 @@ func (r *recorder) recordMap(ctx context.Context, mj *mapJob) (kept, rejected in
 	for i := range mj.Players {
 		p := &mj.Players[i]
 		name, err := demoName(demoPath, p.PlayerID)
+		if err == nil {
+			rememberAccount(name, p.PlayerID)
+		}
 		if err != nil {
 			// Not in this demo: their moments fail, the others go on.
 			for _, m := range p.Moments {
@@ -1211,7 +1255,8 @@ func (r *recorder) recordMap(ctx context.Context, mj *mapJob) (kept, rejected in
 	// (too many repeated frames) is recorded again later, maybe elsewhere,
 	// and stays out of the reels made here.
 	var clips []clipResult
-	for _, c := range recorded {
+	for i, c := range recorded {
+		r.report("uploading", c.moment.Title, i, len(recorded))
 		markers, _ := json.Marshal(c.markers)
 		headers := map[string]string{"X-AT-Markers": string(markers)}
 		if c.seconds > 0 {
@@ -1220,7 +1265,7 @@ func (r *recorder) recordMap(ctx context.Context, mj *mapJob) (kept, rejected in
 		route := fmt.Sprintf("/api/game/cs2/recorder/jobs/%d/clip", c.moment.ID)
 		turnedDown, uerr := r.uploadClip(ctx, c.path, route, headers)
 		if uerr != nil {
-			return kept, rejected, uerr
+			return kept, rejected, len(failed), uerr
 		}
 		if turnedDown {
 			rejected++
@@ -1234,7 +1279,7 @@ func (r *recorder) recordMap(ctx context.Context, mj *mapJob) (kept, rejected in
 		}
 	}
 	if err != nil {
-		return kept, rejected, err
+		return kept, rejected, len(failed), err
 	}
 	for i := range mj.Players {
 		var own []clipResult
@@ -1244,7 +1289,7 @@ func (r *recorder) recordMap(ctx context.Context, mj *mapJob) (kept, rejected in
 			}
 		}
 		if err := r.uploadReel(ctx, dir, &mj.Players[i], own); err != nil {
-			return kept, rejected, err
+			return kept, rejected, len(failed), err
 		}
 	}
 	// The moments that failed twice go back to the platform, which tries them
@@ -1252,7 +1297,7 @@ func (r *recorder) recordMap(ctx context.Context, mj *mapJob) (kept, rejected in
 	if len(failed) > 0 {
 		r.failMoments(failed)
 	}
-	return kept, rejected, nil
+	return kept, rejected, len(failed), nil
 }
 
 // uploadClip sends a clip and says whether the platform turned it down.
@@ -1456,6 +1501,17 @@ func runRecorder(ctx context.Context, c *client, poll time.Duration) error {
 		return err
 	}
 	defer r.endLive()
+	// The live link (link.go): woken when there is work, progress out. With
+	// it up, the poll is only a fallback.
+	r.link = newRecorderLink(c)
+	go r.link.run(ctx)
+	waitForWork := func() {
+		d := poll
+		if r.link.Linked() {
+			d = 2 * time.Minute
+		}
+		r.link.Wait(ctx, d)
+	}
 	// Each job's log goes to the platform with its run report (runlog.go).
 	log.SetOutput(io.MultiWriter(os.Stderr, currentJobLog))
 	log.Printf("recorder: %dx%d, %s, sound from %s, %s, %s", r.width, r.height, r.encoder, r.sink, recorderGPU(), platformName())
@@ -1524,8 +1580,11 @@ func runRecorder(ctx context.Context, c *client, poll time.Duration) error {
 		started := time.Now()
 		jobCtx, cancelJob := context.WithTimeout(ctx, 45*time.Minute)
 		r.jobContext = jobCtx
+		r.link.Job(cancelJob)
+		r.job = jobProgress{started: started}
 		stopHeartbeat := c.heartbeat(jobCtx, cancelJob)
 		stopBeat := func() {
+			r.link.Job(nil)
 			stopHeartbeat()
 			if jobCtx.Err() != nil {
 				r.endLive()
@@ -1533,6 +1592,7 @@ func runRecorder(ctx context.Context, c *client, poll time.Duration) error {
 			cancelJob()
 		}
 		if redress != nil {
+			r.report("redressing", "", 0, len(redress.Files))
 			r.runRedress(jobCtx, redress)
 			stopBeat()
 			c.reportRun(jobRun{Kind: "redress", OK: true, Clips: len(redress.Files)}, started)
@@ -1540,6 +1600,8 @@ func runRecorder(ctx context.Context, c *client, poll time.Duration) error {
 		}
 		if reel != nil {
 			run := jobRun{Kind: reel.Kind, MatchSlug: reel.MatchSlug, MapNumber: intPtr(reel.MapNumber), Clips: len(reel.Clips)}
+			r.job.matchSlug, r.job.mapNumber = reel.MatchSlug, intPtr(reel.MapNumber)
+			r.report("joining", reel.label(), 0, 0)
 			err := r.makeMatchReel(jobCtx, reel)
 			stopBeat()
 			if err != nil {
@@ -1559,32 +1621,67 @@ func runRecorder(ctx context.Context, c *client, poll time.Duration) error {
 			}
 			stopBeat()
 			keep.release()
-			select {
-			case <-ctx.Done():
-			case <-time.After(poll):
-			}
+			r.job = jobProgress{}
+			r.link.Idle()
+			waitForWork()
 			continue
 		}
 		if j.Kind == "benchmark" {
+			r.report("benchmark", "", 0, 0)
 			r.runBenchmark(jobCtx, j)
 			stopBeat()
 			continue
 		}
 		run := jobRun{Kind: "map", MatchSlug: j.MatchSlug, MapNumber: intPtr(j.MapNumber)}
-		kept, rejected, err := r.recordMap(jobCtx, j)
+		r.job.matchSlug, r.job.mapNumber = j.MatchSlug, intPtr(j.MapNumber)
+		r.report("starting", "", 0, j.moments())
+		kept, rejected, failedN, err := r.recordMap(jobCtx, j)
 		stopBeat()
-		run.Clips, run.Rejected = kept, rejected
+		run.Clips, run.Rejected, run.Failed = kept, rejected, failedN
 		if err != nil {
 			r.failRecording(j, err)
 			run.Error = err.Error()
 			c.reportRun(run, started)
 			continue
 		}
-		log.Printf("highlights of %s map %d: %d moment(s) of %d player(s) in %s (%d kept, %d turned down)", j.MatchSlug, j.MapNumber, j.moments(), len(j.Players), time.Since(started).Round(time.Second), kept, rejected)
-		run.OK = true
+		log.Printf("highlights of %s map %d: %d moment(s) of %d player(s) in %s (%d kept, %d turned down, %d failed)", j.MatchSlug, j.MapNumber, j.moments(), len(j.Players), time.Since(started).Round(time.Second), kept, rejected, failedN)
+		// OK only when every moment came out: a run whose clips all (or some)
+		// failed is not a success (each failure is in the log and on its clip).
+		run.OK = failedN == 0
+		if failedN > 0 {
+			run.Error = fmt.Sprintf("%d of %d moment(s) could not be recorded", failedN, j.moments())
+		}
 		c.reportRun(run, started)
 	}
 	return nil
+}
+
+// jobProgress is the current job, as its progress reports name it.
+type jobProgress struct {
+	matchSlug string
+	mapNumber *int
+	started   time.Time
+}
+
+// report tells the platform what this recorder is doing (link.go), with the
+// job's time so far and, from the clips done, an estimate of the rest.
+func (r *recorder) report(step, detail string, done, total int) {
+	if r.link == nil {
+		return
+	}
+	p := Progress{Step: step, Detail: detail, MatchSlug: r.job.matchSlug, MapNumber: r.job.mapNumber}
+	if total > 0 {
+		p.Done, p.Total = ptrInt(done), ptrInt(total)
+		p.Percent = ptrFloat(float64(done) * 100 / float64(total))
+	}
+	if !r.job.started.IsZero() {
+		el := time.Since(r.job.started).Seconds()
+		p.Elapsed = ptrFloat(el)
+		if done > 0 && total > done {
+			p.ETA = ptrFloat(el / float64(done) * float64(total-done))
+		}
+	}
+	r.link.Report(p)
 }
 
 // All render commands inherit the platform attempt deadline and cancellation.
@@ -1662,6 +1759,9 @@ func recordDemo(args []string) error {
 	for _, f := range failed {
 		log.Printf("could not record %q: %v", f.moment.Title, f.err)
 	}
+	if len(clips) == 0 {
+		return fmt.Errorf("no clip came out (%d moment(s) failed)", len(failed))
+	}
 	for _, c := range clips {
 		b, _ := json.MarshalIndent(c.markers, "", "  ")
 		if err := os.WriteFile(strings.TrimSuffix(c.path, ".mp4")+".json", b, 0o644); err != nil {
@@ -1729,6 +1829,9 @@ func recordFile(args []string) error {
 	}
 	for _, f := range failed {
 		log.Printf("could not record %q: %v", f.moment.Title, f.err)
+	}
+	if len(clips) == 0 {
+		return fmt.Errorf("no clip came out (%d moment(s) failed)", len(failed))
 	}
 	for _, c := range clips {
 		b, _ := json.MarshalIndent(c.markers, "", "  ")

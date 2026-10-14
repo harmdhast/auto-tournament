@@ -1,25 +1,51 @@
 /**
- * A match's own page, the link people share (the drafts' match page): the
- * result, each map's score, and under it whatever the match's game recorded
- * (its `matchPanels.publicView`; CS2: the team reels, the scoreboard and the
- * highlight clips).
+ * The match room (`/match/:slug`): the one page for a match, and the link
+ * people share. Everyone sees the result, each map's score, and whatever the
+ * match's game recorded (its `matchPanels.publicView`; CS2: the team reels,
+ * the scoreboard and the highlight clips).
+ *
+ * A player in the match, while it is not over, gets their part first: the
+ * steps of the match with the pre-match phase (CS2: the map veto), the server
+ * and connect, and the live score (`YourMatchCard`), then reporting the result
+ * where the game cannot (`matchPanels.reportView`). Nowhere else draws the
+ * veto: other pages link here.
  */
 
 import { useEffect, useState } from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
-import { Alert, Box, Chip, CircularProgress, Container, Stack, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Container,
+  Stack,
+  Typography,
+} from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { api } from '../utils/api';
 import { useIntegrationFor } from '../integrations/registry';
 import type { PublicMatch } from '../integrations/types';
 import { fontDisplay, mono, radii, tokens } from '../theme/tokens';
+import { useSocket } from '../hooks/useSocket';
+import { useAuth } from '../contexts/AuthContext';
+import { getStatusLabel } from '../utils/matchUtils';
+import { manageMatchPath, teamProfilePath } from '../paths';
+import { YourMatchCard } from '../components/tournament/match/YourMatchCard';
+import { SpectatorRoom, type SpectatorRoomMatch } from '../components/match/SpectatorRoom';
 
-type MatchResponse = PublicMatch & {
-  game?: string | null;
-  team1SeriesScore?: number;
-  team2SeriesScore?: number;
-};
+type MatchResponse = PublicMatch &
+  Omit<SpectatorRoomMatch, 'team1' | 'team2' | 'status'> & {
+    game?: string | null;
+    /** The signed-in viewer's team in this match (its live roster), or null. */
+    viewerTeamId?: string | null;
+    team1LogoUrl?: string | null;
+    team2LogoUrl?: string | null;
+    team1SeriesScore?: number;
+    team2SeriesScore?: number;
+  };
 
 /** "de_inferno" → "Inferno". */
 function mapName(map: string | null, n: number, t: TFunction): string {
@@ -38,16 +64,37 @@ export default function MatchPage() {
   // The answer for the slug it was asked for (a new slug shows loading again).
   const [loaded, setLoaded] = useState<{ slug: string; match: MatchResponse | null } | null>(null);
 
+  // A live match moves on (maps, scores, the result): the server says so and
+  // the page reads it again.
+  const socket = useSocket();
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    // The veto moves the match on too (maps, then a server).
+    const events = [`match:update:${slug}`, `veto:update:${slug}`];
+    const changed = () => setVersion((v) => v + 1);
+    for (const event of events) socket.on(event, changed);
+    return () => {
+      for (const event of events) socket.off(event, changed);
+    };
+  }, [socket, slug]);
+
   useEffect(() => {
     let cancelled = false;
     api
       .get<{ match: MatchResponse }>(`/api/matches/${encodeURIComponent(slug)}`)
       .then((res) => !cancelled && setLoaded({ slug, match: res.match }))
-      .catch(() => !cancelled && setLoaded({ slug, match: null }));
+      .catch(
+        () =>
+          !cancelled &&
+          setLoaded((prev) => (prev?.slug === slug && prev.match ? prev : { slug, match: null }))
+      );
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, version]);
+
+  // Admins run the match from here too (MatchAdminPanel).
+  const { isAuthenticated: isAdmin } = useAuth();
 
   const current = loaded?.slug === slug ? loaded : null;
   const match = current?.match ?? null;
@@ -55,6 +102,11 @@ export default function MatchPage() {
 
   const integration = useIntegrationFor(match ?? { game: null });
   const Panel = integration.matchPanels.publicView;
+  // The game's controls on each map (CS2: its analysis with the 2D replay, and its reel).
+  const MapAction = integration.matchMapAction;
+  // The player's part for games without servers (manual reporting: the result).
+  const ReportPanel = integration.matchPanels.reportView;
+  const PreMatchView = integration.preMatchView;
 
   if (failed) {
     return (
@@ -72,9 +124,14 @@ export default function MatchPage() {
   }
 
   const maps = match.mapScores ?? [];
+  // A map's recorded winner counts when the rounds are level (the damage tiebreak).
   const won = (side: 'team1' | 'team2') =>
     maps.filter((m) =>
-      side === 'team1' ? m.team1Score > m.team2Score : m.team2Score > m.team1Score
+      m.winner === 'team1' || m.winner === 'team2'
+        ? m.winner === side
+        : side === 'team1'
+          ? m.team1Score > m.team2Score
+          : m.team2Score > m.team1Score
     ).length;
   const score1 = maps.length ? won('team1') : (match.team1SeriesScore ?? 0);
   const score2 = maps.length ? won('team2') : (match.team2SeriesScore ?? 0);
@@ -114,9 +171,19 @@ export default function MatchPage() {
             color: win ? tokens.color.accent : 'text.secondary',
             fontFamily: fontDisplay,
             fontWeight: 700,
+            overflow: 'hidden',
           }}
         >
-          {crest(team?.name, team?.tag)}
+          {match[`${key}LogoUrl`] ? (
+            <Box
+              component="img"
+              src={match[`${key}LogoUrl`]!}
+              alt=""
+              sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          ) : (
+            crest(team?.name, team?.tag)
+          )}
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Typography
@@ -137,7 +204,7 @@ export default function MatchPage() {
     return team?.id ? (
       <Box
         component={RouterLink}
-        to={`/t/team/${encodeURIComponent(team.id)}`}
+        to={teamProfilePath(encodeURIComponent(team.id))}
         sx={{ color: 'inherit', textDecoration: 'none', minWidth: 0 }}
       >
         {body}
@@ -147,8 +214,9 @@ export default function MatchPage() {
     );
   };
 
-  return (
-    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }} data-testid="match-page">
+  // The public header: both teams, the score, and what the match is.
+  const publicHeader = (
+    <>
       <Box
         sx={{
           display: 'grid',
@@ -188,12 +256,78 @@ export default function MatchPage() {
         useFlexGap
         sx={{ mt: 2 }}
       >
+        {match.status !== 'completed' && (
+          <Chip
+            size="small"
+            label={getStatusLabel(match.status)}
+            data-testid="match-page-status"
+            sx={
+              match.status === 'live'
+                ? { bgcolor: tokens.color.live, color: tokens.color.accentInk, fontWeight: 700 }
+                : undefined
+            }
+          />
+        )}
         {match.tournament && <Chip size="small" label={match.tournament} />}
         {date && <Chip size="small" label={date} sx={{ ...mono }} />}
         {maps.length > 0 && (
           <Chip size="small" label={maps.map((m) => mapName(m.map, m.mapNumber, t)).join(' · ')} />
         )}
       </Stack>
+    </>
+  );
+
+  // The viewer plays in this match: their part comes first while it is on.
+  const viewerTeamId = match.viewerTeamId ?? null;
+  const matchIsOn = match.status !== 'completed' && match.status !== 'cancelled';
+  // The steps, veto and server are for a game played on servers through its
+  // module; a manually reported game has only the report panel.
+  const playsThroughModule = Boolean(integration.preMatchView || integration.matchPanels.teamView);
+
+  return (
+    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }} data-testid="match-page">
+      {viewerTeamId ? (
+        <Box data-testid="match-room-player" sx={{ display: 'grid', gap: 3 }}>
+          {matchIsOn && playsThroughModule ? (
+            <YourMatchCard teamId={viewerTeamId} matchSlug={match.slug} fallback={publicHeader} />
+          ) : (
+            publicHeader
+          )}
+          {ReportPanel && <ReportPanel matchSlug={match.slug} matchStatus={match.status} />}
+        </Box>
+      ) : (
+        publicHeader
+      )}
+
+      {!viewerTeamId && matchIsOn && playsThroughModule && (
+        <SpectatorRoom match={match} hasVeto={integration.capabilities.veto} />
+      )}
+
+      {/* Everyone who does not play in it sees the pre-match phase (the veto)
+          as it happens, read-only (the MatchRoom board). */}
+      {!viewerTeamId && matchIsOn && PreMatchView && (
+        <Box sx={{ mt: 4 }} data-testid="match-admin-prematch">
+          <PreMatchView
+            matchSlug={match.slug}
+            team1Name={match.team1?.name ?? undefined}
+            team2Name={match.team2?.name ?? undefined}
+            onComplete={() => setVersion((v) => v + 1)}
+          />
+        </Box>
+      )}
+
+      {isAdmin && (
+        <Box sx={{ mt: 4 }}>
+          <Button
+            component={RouterLink}
+            to={manageMatchPath(match.slug)}
+            variant="contained"
+            data-testid="match-page-manage"
+          >
+            Manage this match
+          </Button>
+        </Box>
+      )}
 
       {Panel && (
         <Box sx={{ mt: 4 }}>
@@ -270,6 +404,11 @@ export default function MatchPage() {
                     {t('matchPage.mapN', { n: m.mapNumber + 1 })}
                     {m.team1Score + m.team2Score > 24 ? ` · ${t('matchPage.overtime')}` : ''}
                   </Typography>
+                  {MapAction && (
+                    <Stack direction="row" sx={{ mt: 2, gap: 1, flexWrap: 'wrap' }}>
+                      <MapAction matchSlug={match.slug} mapNumber={m.mapNumber} />
+                    </Stack>
+                  )}
                 </Box>
               );
             })}

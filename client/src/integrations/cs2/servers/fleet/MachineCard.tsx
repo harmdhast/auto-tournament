@@ -318,11 +318,12 @@ export function MachineCard({
             {statusText}
           </Box>
           {(host.hostname || host.csmVersion) && (
+            // ink2, not muted: muted on the card's surface is under 4.5:1 (axe, 2026-10-12).
             <Box
               component="span"
               sx={{
                 ...mono,
-                color: color.muted,
+                color: color.ink2,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',

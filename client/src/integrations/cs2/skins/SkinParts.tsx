@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Box, Button, ButtonBase, Dialog, IconButton, Link, Typography } from '@mui/material';
 import {
-  CheckIcon,
   InfoIcon,
   EyeIcon,
   PlayCircleIcon,
@@ -21,6 +20,7 @@ import {
 } from '../../../module-sdk';
 import { wearKey, type OwnedSkin } from './useSkins';
 import { rarityColor } from './rarity';
+import { formatOdds } from './odds';
 import { playerInventoryPath } from './paths';
 import { getMapDisplayName } from '../maps/mapData';
 
@@ -38,12 +38,17 @@ export function VirtualNotice({ compact = false }: { compact?: boolean }) {
     <Box
       data-testid="skins-notice"
       sx={{
+        // Wraps on a narrow inventory instead of being cut off (a pill can't hold two lines).
         display: 'inline-flex',
+        flexWrap: 'wrap',
         alignItems: 'center',
+        maxWidth: '100%',
+        minWidth: 0,
+        boxSizing: 'border-box',
         gap: 1.25,
         px: compact ? 0 : 2,
         py: compact ? 0 : 1.25,
-        borderRadius: radii.pill,
+        borderRadius: radii.lg,
         bgcolor: compact ? 'transparent' : color.paper2,
         border: compact ? 'none' : `1px solid ${color.rule}`,
         fontSize: '0.8125rem',
@@ -153,25 +158,47 @@ export function SkinCard({
   onEquip,
   onInspect,
   showNew = false,
+  pick,
+  onDragSkin,
 }: {
   skin: OwnedSkin;
   onEquip?: (skin: OwnedSkin) => void;
+  /** Dragging onto a loadout slot equips it there: called with the skin, then null when the drag ends. */
+  onDragSkin?: (skin: OwnedSkin | null) => void;
   onInspect: (skin: OwnedSkin) => void;
   showNew?: boolean;
+  /** Trade-up picking: a click picks or unpicks instead of equipping. */
+  pick?: { picked: boolean; disabled: boolean; onToggle: (skin: OwnedSkin) => void };
 }) {
   const { t } = useModuleTranslation('cs2');
   return (
     <Box sx={{ position: 'relative', display: 'flex' }}>
       <ButtonBase
-        onClick={() => (onEquip ? onEquip(skin) : onInspect(skin))}
-        aria-label={
-          onEquip
-            ? skin.equipped
-              ? t('skins.unequipLabel', { name: skin.name })
-              : t('skins.equipLabel', { name: skin.name })
-            : skin.name
+        onClick={() => (pick ? pick.onToggle(skin) : onEquip ? onEquip(skin) : onInspect(skin))}
+        disabled={pick?.disabled}
+        draggable={!!onDragSkin && !pick}
+        onDragStart={
+          onDragSkin && !pick
+            ? (e: DragEvent) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', String(skin.id));
+                onDragSkin(skin);
+              }
+            : undefined
         }
-        aria-pressed={onEquip ? skin.equipped : undefined}
+        onDragEnd={onDragSkin ? () => onDragSkin(null) : undefined}
+        aria-label={
+          pick
+            ? t(pick.picked ? 'skins.tradeUp.unpickLabel' : 'skins.tradeUp.pickLabel', {
+                name: skin.name,
+              })
+            : onEquip
+              ? skin.equipped
+                ? t('skins.unequipLabel', { name: skin.name })
+                : t('skins.equipLabel', { name: skin.name })
+              : skin.name
+        }
+        aria-pressed={pick ? pick.picked : onEquip ? skin.equipped : undefined}
         data-testid="skin-card"
         data-equipped={skin.equipped ? 'true' : 'false'}
         sx={{
@@ -185,7 +212,8 @@ export function SkinCard({
           overflow: 'hidden',
           bgcolor: color.paper2,
           border: `1px solid ${color.rule}`,
-          ...(skin.equipped && { outline: `2px solid ${color.accent}`, outlineOffset: '3px' }),
+          ...(pick?.picked && { outline: `3px solid ${color.accent}`, outlineOffset: '2px' }),
+          ...(pick?.disabled && { opacity: 0.35 }),
           '&:hover': { borderColor: color.muted },
           '&:focus-visible': { outline: `2px solid ${color.focus}`, outlineOffset: '3px' },
         }}
@@ -202,6 +230,11 @@ export function SkinCard({
             textOverflow: 'ellipsis',
           }}
         >
+          {skin.stattrak !== null && skin.stattrak !== undefined && (
+            <Box component="span" data-testid="skin-card-stattrak" sx={{ color: color.accent }}>
+              {t('skins.stattrak')}{' '}
+            </Box>
+          )}
           {skin.weaponName}
         </Typography>
         <Typography
@@ -222,21 +255,39 @@ export function SkinCard({
       </ButtonBase>
       {skin.equipped && (
         <Box
-          aria-hidden
+          data-testid="skin-card-sides"
           sx={{
             position: 'absolute',
             top: 8,
             right: 8,
-            width: 24,
             height: 24,
-            borderRadius: '50%',
-            bgcolor: color.accent,
-            color: color.accentInk,
-            display: 'grid',
-            placeItems: 'center',
+            px: 1,
+            borderRadius: radii.pill,
+            bgcolor: withAlpha(color.paper, 0.85),
+            border: `1px solid ${color.rule}`,
+            color: color.ink,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.75,
+            fontSize: '0.6875rem',
+            fontWeight: 600,
           }}
         >
-          <CheckIcon size={14} weight="bold" />
+          {/* A dot per side it is on (CT blue, T amber), then the words. */}
+          {equippedOn(skin).map((team) => (
+            <Box
+              key={team}
+              aria-hidden
+              data-testid={`skin-card-side-${team === 3 ? 'ct' : 't'}`}
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: team === 3 ? color.sideCt : color.sideT,
+              }}
+            />
+          ))}
+          {sidesLabel(skin, t)}
         </Box>
       )}
       {showNew && !skin.seen && (
@@ -279,22 +330,67 @@ export function SkinCard({
   );
 }
 
+/** The sides a skin is on, CT first: a one-side weapon its side, "both" as CT and T. */
+export function equippedOn(skin: Pick<OwnedSkin, 'equippedSides' | 'side'>): Array<2 | 3> {
+  if (skin.side !== null) return [skin.side];
+  if (skin.equippedSides.includes(0)) return [3, 2];
+  return ([3, 2] as const).filter((s) => skin.equippedSides.includes(s));
+}
+
+/** Where a skin is on: "Both", "CT", "T", or "CT · T"; a one-side weapon names its side. */
+export function sidesLabel(
+  skin: Pick<OwnedSkin, 'equippedSides' | 'side'>,
+  t: (key: string) => string
+): string {
+  const name = (team: 2 | 3) => (team === 3 ? t('skins.side.ct') : t('skins.side.t'));
+  if (skin.side !== null) return name(skin.side);
+  if (skin.equippedSides.includes(0)) return t('skins.side.both');
+  return ([3, 2] as const)
+    .filter((s) => skin.equippedSides.includes(s))
+    .map(name)
+    .join(' · ');
+}
+
 /** A loadout slot: the equipped skin's picture, or a plus when empty. */
 export function SlotTile({
   label,
   skin,
   onClick,
+  onDrop,
 }: {
   label: string;
   skin: OwnedSkin | null;
   onClick?: () => void;
+  /** Set while a skin that fits this slot is being dragged: dropping equips it here. */
+  onDrop?: () => void;
 }) {
+  const [over, setOver] = useState(false);
   return (
     <Box
       data-testid="loadout-slot"
+      data-drop-target={onDrop ? 'true' : undefined}
       component={onClick ? 'button' : 'div'}
       type={onClick ? 'button' : undefined}
       onClick={onClick}
+      onDragOver={
+        onDrop
+          ? (e: DragEvent) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              setOver(true);
+            }
+          : undefined
+      }
+      onDragLeave={onDrop ? () => setOver(false) : undefined}
+      onDrop={
+        onDrop
+          ? (e: DragEvent) => {
+              e.preventDefault();
+              setOver(false);
+              onDrop();
+            }
+          : undefined
+      }
       aria-label={
         onClick ? (skin ? `${label}: ${skin.weaponName} ${skin.name}` : label) : undefined
       }
@@ -314,6 +410,10 @@ export function SlotTile({
         border: `1px ${skin ? 'solid' : 'dashed'} ${skin ? rarityColor[skin.rarity] : color.rule}`,
         display: 'flex',
         flexDirection: 'column',
+        ...(onDrop && {
+          outline: `2px dashed ${over ? color.accent : color.muted}`,
+          outlineOffset: 2,
+        }),
       }}
     >
       {skin ? (
@@ -364,6 +464,8 @@ export function SlotTile({
 interface InspectData {
   skin: OwnedSkin;
   owner: { steamId: string; name: string; avatar: string | null };
+  /** Percent of drop options that are this rarity, and this exact skin. */
+  odds?: { rarity: number; skin: number; skins: number } | null;
 }
 
 /**
@@ -479,6 +581,15 @@ export function InspectSkinDialog({
               {[
                 [t('skins.float'), skin.float.toFixed(4)],
                 [t('skins.pattern'), String(skin.pattern)],
+                ...(skin.stattrak !== null && skin.stattrak !== undefined
+                  ? [[t('skins.stattrakKills'), String(skin.stattrak)]]
+                  : []),
+                ...(data.odds
+                  ? [
+                      [t('skins.drops.rarityOdds'), formatOdds(data.odds.rarity)],
+                      [t('skins.drops.skinOdds'), formatOdds(data.odds.skin)],
+                    ]
+                  : []),
               ].map(([label, value]) => (
                 <Box
                   key={label}
@@ -499,7 +610,7 @@ export function InspectSkinDialog({
                 bgcolor: color.paper3,
               }}
             >
-              {skin.source === 'tournament' ? (
+              {skin.source === 'tournament' && skin.place ? (
                 <TrophyIcon size={22} color={color.medalGold} aria-hidden />
               ) : (
                 <PlayCircleIcon size={22} color={color.accent} aria-hidden />
@@ -508,12 +619,20 @@ export function InspectSkinDialog({
                 <Typography
                   sx={{
                     fontWeight: 600,
-                    color: skin.source === 'tournament' ? color.medalGold : color.ink,
+                    color: skin.source === 'tournament' && skin.place ? color.medalGold : color.ink,
                   }}
                 >
                   {skin.source === 'tournament'
-                    ? t('skins.place', { n: skin.place ?? 1 })
-                    : t('skins.wonMatchmaking')}
+                    ? skin.place
+                      ? t('skins.place', { n: skin.place })
+                      : t('skins.tournamentMatch')
+                    : skin.source === 'level'
+                      ? t('skins.levelUp')
+                      : skin.source === 'tradeup'
+                        ? t('skins.tradeUp.origin')
+                        : skin.source === 'admin'
+                          ? t('skins.givenByAdmin')
+                          : t('skins.wonMatchmaking')}
                 </Typography>
                 <Typography sx={{ fontSize: '0.8125rem', color: color.ink2 }}>
                   {[skin.sourceLabel ? sourceLabel(skin.sourceLabel) : null, date]

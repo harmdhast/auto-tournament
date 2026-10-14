@@ -17,10 +17,13 @@
       "emptyHint": "Party invites, friend requests, tournament news, new skins and ready highlights show up here.",
       "loading": "Loading…",
       "seeAll": "See all notifications",
-      "loadOlder": "Load older"
+      "loadOlder": "Load older",
+      "settings": "Notification settings"
     },
     "notice": {
       "partyInvite": "invited you to their party",
+      "teamInvite": "te invitó a",
+      "joinedTeam": "Te uniste al equipo",
       "partyDetail": "{{mode}} · {{size}} in the party",
       "join": "Join",
       "decline": "Decline",
@@ -30,6 +33,9 @@
       "friendAccepted": "accepted your friend request",
       "skin": "New skin:",
       "highlight": "Your highlight is ready:",
+      "highlightVictim": "{{name}} te eliminó en su clip:",
+      "highlightAssist": "Asististe a {{name}} en su clip:",
+      "highlightKiller": "Eliminaste a {{name}} en su clip:",
       "tournamentStarted": "has started. Your first match is up.",
       "checkInOpen": "check-in is open. Check in before it closes.",
       "joined": "You joined the party",
@@ -143,6 +149,7 @@
     "setup": {
       "title": "Finish setting up before searching",
       "youGame": "Add CS2 to your games on your profile.",
+      "youGameAuto": "Finding a match adds this game to your games.",
       "youAccount": "Connect your Steam account.",
       "theyGame": "{{name}} has not added CS2 to their games.",
       "theyAccount": "{{name}} has not connected their Steam account.",
@@ -163,6 +170,39 @@
       "sent_one": "Sent to {{count}} player",
       "sent_other": "Sent to {{count}} players",
       "failed": "Could not send the news"
+    },
+    "noticeSettings": {
+      "title": "Settings",
+      "alerts": "Alerts",
+      "browser": "Browser notifications",
+      "browserHint": "While this tab is in the background. On for this browser only.",
+      "browserDenied": "Blocked in this browser's site settings. Allow notifications there to turn them on.",
+      "browserUnsupported": "This browser has no notifications.",
+      "sound": "Sound",
+      "test": "Test",
+      "volume": "Volume {{percent}}%",
+      "group": {
+        "you": "You",
+        "tournaments": "Tournaments",
+        "drops": "Drops",
+        "other": "Other"
+      },
+      "kind": {
+        "party_invite": "Party invites",
+        "team_invite": "Team invites",
+        "friend_request": "Friend requests",
+        "friend_accepted": "Accepted friend requests",
+        "tournament": "Check-ins and starts",
+        "skin": "Skin drops",
+        "highlight": "Your highlights",
+        "news": "News",
+        "report": "Reports"
+      },
+      "delivery": {
+        "off": "Off",
+        "bell": "Bell",
+        "sound": "Bell and sound"
+      }
     }
   }
 }

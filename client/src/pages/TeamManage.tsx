@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { CheckIcon, CopyIcon, XIcon } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
+import { useGameAccounts } from '../hooks/useGameAccounts';
 import { TopNavBar } from '../components/layout/TopNavBar';
 import { PageHead, Panel, SectionHead } from '../components/common/ui';
 import ConfirmDialog from '../components/modals/ConfirmDialog';
@@ -64,13 +65,15 @@ function teamJoinPath(code: string): string {
 }
 
 /**
- * Running your team (`/t/team/:teamId/manage`), for its owner and captains:
+ * Running your team (`/team/:teamId/manage`), for its owner and captains:
  * name, tag and logo; the roster and its roles; the invite link and the
  * players asking to join; handing the team over and disbanding it (owner).
  */
 export default function TeamManage() {
   const { teamId = '' } = useParams<{ teamId: string }>();
   const { t } = useTranslation();
+  // Steam wording only when a game here identifies players by Steam (CS2).
+  const steamContext = useGameAccounts().steam ? 'steam' : undefined;
   const navigate = useNavigate();
   const [view, setView] = useState<ManageView | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -569,7 +572,7 @@ export default function TeamManage() {
                   fullWidth
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={t('teamManage.findPlaceholder')}
+                  placeholder={t('teamManage.findPlaceholder', { context: steamContext })}
                   inputProps={{
                     'aria-label': t('teamManage.findPlayer'),
                     'data-testid': 'team-manage-find',
@@ -793,7 +796,7 @@ export default function TeamManage() {
           if (which === 'disband') {
             try {
               await api.delete(base);
-              navigate(paths.browseTeams);
+              navigate(paths.communityTeams);
             } catch (err) {
               setError(apiErrorMessage(err, t('teamManage.actionFailed')));
             }

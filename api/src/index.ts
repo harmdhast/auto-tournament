@@ -3,6 +3,8 @@
 import { startModuleUpdateNotices } from './services/platform/moduleUpdates';
 import { socialService } from './services/socialService';
 import { startTournamentNotices } from './services/tournamentNotices';
+import { startAdminNoticeSweep } from './services/adminNoticeSweep';
+import { backfillPlayedGames } from './services/gameReadiness';
 import { startHoldTimer } from './services/matchHolds';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -46,6 +48,7 @@ import { registerShutdown } from './utils/restart';
 import { routeTable } from './routes/routeTable';
 import { listIntegrations } from './integrations/registry';
 import { diskModuleRoutes, scanDiskModules } from './modules/loader';
+import shareRoutes from './routes/share';
 import {
   autoInstallCs2ForExistingData,
   autoUpdateModulesFromSnapshot,
@@ -446,6 +449,10 @@ for (const { prefix, router } of routeTable) {
 // be in place before the SPA and the 404 handler below.
 app.use(diskModuleRoutes);
 
+// Link previews: /og/<kind>/<key>.png cards, and the shareable pages' HTML
+// with their own Open Graph tags (Caddy sends those paths here).
+app.use(shareRoutes);
+
 // Serve frontend at /app (built client lives under api/public)
 app.use('/app', express.static(PUBLIC_DIR));
 
@@ -657,6 +664,13 @@ process.on('uncaughtException', (err) => {
       // Friends see each other come and go; tournament check-ins reach the bell.
       socialService.start();
       startTournamentNotices();
+      startAdminNoticeSweep();
+      // Players with played matches and no games get those matches' game.
+      backfillPlayedGames()
+        .then((n) => n > 0 && log.info(`Added the played game to ${n} player(s)`))
+        .catch((error) => log.warn('Could not add played games', { error }));
+      // The admins' Steam warning follows the key (the `steam-health` topic).
+      steamService.startHealthWatch();
       // Admins' holds and bracket pauses that end by themselves (services/matchHolds.ts).
       startHoldTimer();
       // Matchmaking's 2-second loop (services/matchmaking). Cancels lobbies a restart left open.

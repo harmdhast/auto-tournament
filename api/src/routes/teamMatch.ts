@@ -1,3 +1,4 @@
+import { logoUrl } from '../services/teamSelfService';
 import { Router, Request, Response } from 'express';
 import { RATING_ELO, ratingGame, ratingJoin } from '../services/gameRatings';
 import { db } from '../config/database';
@@ -5,7 +6,7 @@ import { playerConnectionService } from '../services/playerConnectionService';
 import { integrationForMatch } from '../integrations/registry';
 import { DEFAULT_GAME } from '../integrations/types';
 import { describeMatch, describedPlayers } from '../utils/matchIntegration';
-import { normalizeConfigPlayers } from '../utils/playerTransform';
+import { teamPlayers } from '../services/matchViewer';
 import { teamService } from '../services/teamService';
 import { teamMembers, type TeamMemberRole } from '../services/teamMembers';
 import { matchLiveStatsService, type MatchLiveStats } from '../services/matchLiveStatsService';
@@ -37,10 +38,13 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
     const { teamId } = req.params;
 
     // Check if team exists and get players
-    const team = await db.queryOneAsync<{ id: string; name: string; tag: string; players: string; game: string | null }>(
-      'SELECT id, name, tag, players, game FROM teams WHERE id = ?',
-      [teamId]
-    );
+    const team = await db.queryOneAsync<{
+      id: string;
+      name: string;
+      tag: string;
+      players: string;
+      game: string | null;
+    }>('SELECT id, name, tag, players, game FROM teams WHERE id = ?', [teamId]);
 
     if (!team) {
       return res.status(404).json({
@@ -100,7 +104,9 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
       const eloById = new Map(ratings.map((r) => [r.id, r.current_elo]));
       // The member's role (captain or member) from `team_members`, which is
       // keyed on the account, for the team page's roster.
-      const roleByUid = new Map((await teamMembers.list(teamId)).map((m) => [m.accountUid, m.role]));
+      const roleByUid = new Map(
+        (await teamMembers.list(teamId)).map((m) => [m.accountUid, m.role])
+      );
       const roleById = new Map(
         ratings
           .filter((r) => roleByUid.has(String(r.uid)))
@@ -133,6 +139,8 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
         team1_tag?: string;
         team2_name?: string;
         team2_tag?: string;
+        team1_logo?: number | null;
+        team2_logo?: number | null;
         server_name?: string;
         server_host?: string;
         server_port?: number;
@@ -142,6 +150,7 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
         m.*,
         t1.name as team1_name, t1.tag as team1_tag,
         t2.name as team2_name, t2.tag as team2_tag,
+        t1.logo_updated_at as team1_logo, t2.logo_updated_at as team2_logo,
         s.name as server_name, s.host as server_host, s.port as server_port
       FROM matches m
       LEFT JOIN teams t1 ON m.team1_id = t1.id
@@ -162,6 +171,8 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
           team1_tag?: string;
           team2_name?: string;
           team2_tag?: string;
+          team1_logo?: number | null;
+          team2_logo?: number | null;
           server_name?: string;
           server_host?: string;
           server_port?: number;
@@ -171,6 +182,7 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
           m.*,
           t1.name as team1_name, t1.tag as team1_tag,
           t2.name as team2_name, t2.tag as team2_tag,
+        t1.logo_updated_at as team1_logo, t2.logo_updated_at as team2_logo,
           s.name as server_name, s.host as server_host, s.port as server_port
         FROM matches m
         LEFT JOIN teams t1 ON m.team1_id = t1.id
@@ -182,7 +194,6 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
         LIMIT 1`,
         [teamId, teamId]
       );
-
     }
 
     if (!match) {
@@ -329,10 +340,10 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
       winner: isTeam1
         ? result.winnerTeam
         : result.winnerTeam === 'team1'
-        ? 'team2'
-        : result.winnerTeam === 'team2'
-        ? 'team1'
-        : result.winnerTeam,
+          ? 'team2'
+          : result.winnerTeam === 'team2'
+            ? 'team1'
+            : result.winnerTeam,
       demoFilePath: result.demoFilePath,
       completedAt: result.completedAt,
     }));
@@ -360,18 +371,10 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
     // an admin correcting a roster should take effect immediately. The snapshot
     // is still the fallback for a team row that has no usable roster.
     const viewerSteamId = await getViewerSteamId(req);
-    const rosterForThisTeam = normalizeConfigPlayers(
-      (() => {
-        try {
-          return team.players ? JSON.parse(team.players) : [];
-        } catch {
-          return [];
-        }
-      })()
+    const playersForThisTeam = teamPlayers(
+      team.players,
+      isTeam1 ? normalizedTeam1Players : normalizedTeam2Players
     );
-    const snapshotForThisTeam = isTeam1 ? normalizedTeam1Players : normalizedTeam2Players;
-    const playersForThisTeam =
-      rosterForThisTeam.length > 0 ? rosterForThisTeam : snapshotForThisTeam;
     const viewerIsTeamMember =
       !!viewerSteamId && playersForThisTeam.some((p) => p.steamid === viewerSteamId);
 
@@ -407,6 +410,12 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
       enrichPlayers(normalizedTeam2Players, description.team2.id),
     ]);
 
+    // Both crests for the match room's header (it showed initials only).
+    const ourLogoUrl = logoUrl(team.id, isTeam1 ? match.team1_logo : match.team2_logo);
+    const theirLogoUrl = opponent.id
+      ? logoUrl(opponent.id, isTeam1 ? match.team2_logo : match.team1_logo)
+      : null;
+
     return res.json({
       success: true,
       team: {
@@ -417,7 +426,7 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
       },
       hasMatch: true,
       tournamentStatus: tournament?.status || 'setup',
-        match: {
+      match: {
         slug: match.slug,
         game: match.game || DEFAULT_GAME,
         round: match.round,
@@ -427,20 +436,21 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
         currentMap: match.current_map ?? null,
         mapNumber: match.map_number ?? null,
         team1: isTeam1
-          ? { id: team.id, name: team.name, tag: team.tag }
+          ? { id: team.id, name: team.name, tag: team.tag, logoUrl: ourLogoUrl }
           : opponent.id
-          ? { id: opponent.id, name: opponent.name, tag: opponent.tag }
-          : null,
+            ? { id: opponent.id, name: opponent.name, tag: opponent.tag, logoUrl: theirLogoUrl }
+            : null,
         team2: !isTeam1
-          ? { id: team.id, name: team.name, tag: team.tag }
+          ? { id: team.id, name: team.name, tag: team.tag, logoUrl: ourLogoUrl }
           : opponent.id
-          ? { id: opponent.id, name: opponent.name, tag: opponent.tag }
-          : null,
+            ? { id: opponent.id, name: opponent.name, tag: opponent.tag, logoUrl: theirLogoUrl }
+            : null,
         opponent: opponent.id
           ? {
               id: opponent.id,
               name: opponent.name,
               tag: opponent.tag,
+              logoUrl: theirLogoUrl,
             }
           : null,
         server:

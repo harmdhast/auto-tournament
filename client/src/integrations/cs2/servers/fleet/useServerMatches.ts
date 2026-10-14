@@ -5,74 +5,14 @@
  * again when the socket says it changed.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, useSocket } from '../../../../module-sdk';
+import { api, useSocket, useTopic } from '../../../../module-sdk';
+import { toServerMatch, type MatchResponse, type ServerMatch } from './serverMatchPhase';
 
-export interface ServerMatch {
-  slug: string;
-  team1: string;
-  team2: string;
-  score: [number, number] | null;
-  series: [number, number] | null;
-  map: string | null;
-  mapNumber: number | null;
-  maps: number;
-  phase: 'veto' | 'warmup' | 'knife' | 'live' | 'post' | null;
-}
-
-interface MatchResponse {
-  success: boolean;
-  match?: {
-    slug: string;
-    status?: string;
-    team1?: { name?: string } | null;
-    team2?: { name?: string } | null;
-    team1MapScore?: number | null;
-    team2MapScore?: number | null;
-    team1SeriesScore?: number | null;
-    team2SeriesScore?: number | null;
-    currentMap?: string | null;
-    mapNumber?: number | null;
-    maps?: string[];
-    liveStatus?: string | null;
-    vetoing?: boolean;
-    vetoCompleted?: boolean;
-  };
-}
+export type { ServerMatch };
 
 interface Availability {
   success: boolean;
   servers?: Array<{ id: string; matchSlug: string | null; allocatable?: boolean }>;
-}
-
-const REFRESH_MS = 30_000;
-
-function toServerMatch(m: NonNullable<MatchResponse['match']>): ServerMatch {
-  const phase =
-    m.vetoing || m.vetoCompleted === false
-      ? 'veto'
-      : m.liveStatus === 'warmup' || m.liveStatus === 'knife' || m.liveStatus === 'live'
-        ? m.liveStatus
-        : m.liveStatus === 'halftime'
-          ? 'live'
-          : m.liveStatus === 'postgame'
-            ? 'post'
-            : null;
-  const s1 = m.team1MapScore;
-  const s2 = m.team2MapScore;
-  const w1 = m.team1SeriesScore;
-  const w2 = m.team2SeriesScore;
-  return {
-    slug: m.slug,
-    team1: m.team1?.name ?? '',
-    team2: m.team2?.name ?? '',
-    score: typeof s1 === 'number' && typeof s2 === 'number' ? [s1, s2] : null,
-    series: typeof w1 === 'number' && typeof w2 === 'number' ? [w1, w2] : null,
-    map:
-      m.currentMap ?? (typeof m.mapNumber === 'number' ? m.maps?.[m.mapNumber] : undefined) ?? null,
-    mapNumber: typeof m.mapNumber === 'number' ? m.mapNumber : null,
-    maps: m.maps?.length ?? 0,
-    phase,
-  };
 }
 
 /** Fleet server id → the match on it. */
@@ -108,12 +48,10 @@ export function useServerMatches(): Record<string, ServerMatch> {
 
   useEffect(() => {
     const first = setTimeout(() => void loadAvailability(), 0);
-    const timer = setInterval(() => void loadAvailability(), REFRESH_MS);
-    return () => {
-      clearTimeout(first);
-      clearInterval(timer);
-    };
+    return () => clearTimeout(first);
   }, [loadAvailability]);
+  // Which match is on which server changes with the fleet and the matches.
+  useTopic('fleet', loadAvailability, { admin: true, events: ['match:update', 'bracket:update'] });
 
   useEffect(() => {
     const slugs = new Set(Object.values(slugByServer));

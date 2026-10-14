@@ -10,8 +10,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { useAdminCalls } from '../../hooks/useAdminCalls';
-import { openMatchDetails } from '../modals/matchDetailsOpener';
-import { paths } from '../../paths';
+import { openChat } from '../chat/chatStore';
+import { manageMatchPath, paths } from '../../paths';
 import type { AdminCall } from '../../types/adminCall';
 
 type TFunction = ReturnType<typeof useTranslation>['t'];
@@ -39,6 +39,10 @@ function timeAgo(iso: string, now: number, t: TFunction): string {
   return t('adminCalls.hoursAgo', { count: Math.floor(minutes / 60) });
 }
 
+function chatTitle(call: AdminCall): string | undefined {
+  return call.team1Name && call.team2Name ? `${call.team1Name} vs ${call.team2Name}` : undefined;
+}
+
 function playerLine(call: AdminCall, t: TFunction): string {
   const parts: string[] = [];
   const { team, teamName, side } = call.player;
@@ -53,7 +57,7 @@ function playerLine(call: AdminCall, t: TFunction): string {
 function AdminCallsStack() {
   const { t } = useTranslation();
   const { showError } = useSnackbar();
-  const { calls, resolve, resolveAll, muted, setMuted, soundBlocked, enableSound } =
+  const { calls, resolve, resolveAll, claim, muted, setMuted, soundBlocked, enableSound } =
     useAdminCalls();
   const [minimized, setMinimized] = useState(false);
   const [busy, setBusy] = useState<Set<number | 'all'>>(new Set());
@@ -154,7 +158,11 @@ function AdminCallsStack() {
       {!minimized && (
         <Stack
           spacing={1}
-          sx={{ maxHeight: 'calc(100vh - 120px)', overflowY: 'auto', overscrollBehavior: 'contain' }}
+          sx={{
+            maxHeight: 'calc(100vh - 120px)',
+            overflowY: 'auto',
+            overscrollBehavior: 'contain',
+          }}
         >
           {calls.map((call) => (
             <AdminCallCard
@@ -163,6 +171,7 @@ function AdminCallsStack() {
               now={now}
               busy={busy.has(call.id) || busy.has('all')}
               onResolve={() => run(call.id, () => resolve(call.id))}
+              onClaim={(release) => run(call.id, () => claim(call.id, release))}
             />
           ))}
           {calls.length > 1 && (
@@ -189,15 +198,18 @@ function AdminCallCard({
   now,
   busy,
   onResolve,
+  onClaim,
 }: {
   call: AdminCall;
   now: number;
   busy: boolean;
   onResolve: () => void;
+  onClaim: (release: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const { playerSteamId } = useAuth();
+  const claimedByMe = !!call.claimedBy && call.claimedBy === playerSteamId;
   const navigate = useNavigate();
-  const { showError } = useSnackbar();
   const name = call.player.name || t('adminCalls.unknownPlayer');
   const team = playerLine(call, t);
   const where = [
@@ -213,7 +225,7 @@ function AdminCallCard({
 
   const openMatch = () => {
     if (!call.matchSlug) return;
-    openMatchDetails(call.matchSlug).catch(() => showError(t('adminCalls.matchUnavailable')));
+    navigate(manageMatchPath(call.matchSlug));
   };
 
   return (
@@ -274,12 +286,39 @@ function AdminCallCard({
             {t('adminCalls.openMatch')}
           </Button>
         )}
+        {call.matchSlug && (
+          <Button
+            size="small"
+            onClick={() => openChat(`match:${call.matchSlug}`, chatTitle(call))}
+            data-testid="admin-call-open-chat"
+          >
+            {t('adminCalls.openChat')}
+          </Button>
+        )}
         {call.serverId && (
           <Button size="small" onClick={() => navigate(paths.servers)}>
             {t('adminCalls.openServers')}
           </Button>
         )}
         <Box sx={{ flex: 1 }} />
+        {call.claimedBy ? (
+          <Typography variant="caption" color="text.secondary" data-testid="admin-call-claimed">
+            {claimedByMe
+              ? t('adminCalls.claimedByYou')
+              : t('adminCalls.claimedBy', { name: call.claimedByName || t('adminCalls.anAdmin') })}
+          </Typography>
+        ) : null}
+        {(!call.claimedBy || claimedByMe) && (
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={busy}
+            onClick={() => onClaim(claimedByMe)}
+            data-testid={claimedByMe ? 'admin-call-release' : 'admin-call-claim'}
+          >
+            {claimedByMe ? t('adminCalls.release') : t('adminCalls.claim')}
+          </Button>
+        )}
         <Button
           size="small"
           variant="contained"

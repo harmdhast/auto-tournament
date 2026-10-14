@@ -5,6 +5,7 @@ import { log } from '../utils/logger';
 import { getAuthProvidersConfig } from '../config/authProviders';
 import { steamService } from '../services/steamService';
 import { playerService } from '../services/playerService';
+import { presetAccounts } from '../services/gameAccounts';
 import { passport, isStrategyConfigured } from '../config/passport';
 import { settingsService } from '../services/settingsService';
 import { authIdentityService, AuthProvider } from '../services/authIdentityService';
@@ -40,6 +41,7 @@ import {
 } from '../services/localAccountSteamLink';
 import { isLocalReauthFresh, markLocalReauth } from '../utils/localReauth';
 import { viewerIsRoot } from '../utils/rootAccess';
+import { effectiveProviderSettings, parseLogoDataUrl } from '../config/signInProviders';
 
 const router = Router();
 
@@ -832,6 +834,36 @@ export function ssoCallbackHandler(expectedProvider: AuthProvider) {
         }
       }
 
+      // An admin entered this account for a player (a game's account, such as
+      // Epic Games for Rocket League; services/gameAccounts.ts): sign in as
+      // that player, link it, and the account counts as proven from now on.
+      const preset = await presetAccounts.findPreset(provider, providerUserId);
+      if (preset) {
+        const outcome = await authIdentityService.linkIdentityUnlessOwnedElsewhere(
+          provider,
+          providerUserId,
+          preset
+        );
+        if (outcome === 'linked') {
+          await presetAccounts.markVerified(provider, providerUserId);
+          user.steamId = preset;
+          await rememberIdentityProfile(provider, providerUserId, user);
+          await grantAdminForVerifiedEmail(preset, provider, verifiedEmail);
+          await applyProviderAvatar(preset, user.avatarUrl);
+          setPlayerSteamCookie(req, res, preset);
+          log.success(`${label} login matched a player an admin added`, {
+            provider,
+            steamId: preset,
+          });
+          return res.redirect(302, `${baseUrl}/`);
+        }
+        log.warn(`${label} login matched a player an admin added, but it could not be linked`, {
+          provider,
+          steamId: preset,
+          outcome,
+        });
+      }
+
       // No existing link: a new account of its own (Steam is optional), when
       // registration is open or this is the very first admin. Otherwise fall
       // back to "sign in with Steam to finish" as before.
@@ -1389,6 +1421,33 @@ router.post('/steam/link', async (req: Request, res: Response, next: NextFunctio
     log.error('Steam account link start failed', error as Error);
     return linkResultRedirect(req, res, 'steam', 'failed');
   }
+});
+
+/**
+ * @openapi
+ * /api/auth/oidc/logo:
+ *   get:
+ *     tags: [Auth]
+ *     summary: The OpenID Connect button's logo (public)
+ *     description: The image the admin uploaded under Settings > Sign-in, as PNG, JPEG, WebP or SVG. An SVG cannot run scripts here (sandboxed). 404 without one.
+ *     responses:
+ *       200: { description: The image }
+ *       404: { description: No logo set }
+ */
+router.get('/oidc/logo', (_req: Request, res: Response) => {
+  const logo = effectiveProviderSettings('oidc').logo;
+  const parsed = logo ? parseLogoDataUrl(logo) : null;
+  if (!parsed) return res.status(404).json({ success: false, error: 'No logo set' });
+  res.setHeader('Content-Type', parsed.type);
+  // An SVG opened on its own runs nothing: no scripts, no requests out.
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+  );
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // The URL carries ?v=<saved at>: a new logo is a new URL.
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  return res.send(parsed.bytes);
 });
 
 /**

@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { openMatchRoom } from '../helpers/matchRoom';
 import { ensureSignedIn, signInAsPlayer, signInViaRequest } from '../helpers/auth';
 
 /**
@@ -167,11 +168,13 @@ test.describe.serial('Manual reporting on the team page', () => {
       try {
         const reporter: Page = await reporterContext.newPage();
         expect(await signInAsPlayer(reporter, one.captainSteamId)).toBe(true);
-        await reporter.goto(`/team/${one.id}`);
+        await openMatchRoom(reporter, one.id);
 
         const reporterState = reporter.getByTestId('manual-report-state');
         await expect(reporter.getByTestId('manual-report-panel')).toBeVisible();
         await expect(reporterState).toHaveAttribute('data-state', 'nothing');
+        // A game without a veto never gets the map selection card.
+        await expect(reporter.getByText('Map Selection')).toHaveCount(0);
 
         await reporter.getByTestId('manual-report-open-form').click();
         await reporter.getByTestId('manual-report-game-1-team1').fill('3');
@@ -186,7 +189,7 @@ test.describe.serial('Manual reporting on the team page', () => {
         // --- the opponent is not a captain yet, so there is nothing to answer -
         const opponent: Page = await opponentContext.newPage();
         expect(await signInAsPlayer(opponent, two.captainSteamId)).toBe(true);
-        await opponent.goto(`/team/${two.id}`);
+        await openMatchRoom(opponent, two.id);
         await expect(opponent.getByTestId('manual-report-panel')).toHaveCount(0);
 
         const promoted = await request.post(`/api/game/manual/teams/${two.id}/captain`, {
@@ -210,7 +213,9 @@ test.describe.serial('Manual reporting on the team page', () => {
         // And the result really was applied, not just drawn.
         const detail = await request.get(`/api/game/manual/matches/${match.slug}`);
         expect(detail.ok(), `reading ${match.slug}: ${await detail.text()}`).toBe(true);
-        const body = (await detail.json()) as { match: { status: string; winnerId: string | null } };
+        const body = (await detail.json()) as {
+          match: { status: string; winnerId: string | null };
+        };
         expect(body.match.status).toBe('completed');
         expect(body.match.winnerId).toBe(one.id);
       } finally {

@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { ensureSignedIn, signInViaRequest, impersonatePlayer, stopImpersonating } from '../helpers/auth';
+import {
+  ensureSignedIn,
+  signInViaRequest,
+  impersonatePlayer,
+  stopImpersonating,
+} from '../helpers/auth';
 import { setupTournament } from '../helpers/tournamentSetup';
 import { findMatchByTeams } from '../helpers/matches';
 import { performVetoActionsUI, getCSMajorBO1UIActions, viewVetoPageAs } from '../helpers/vetoUI';
@@ -67,7 +72,7 @@ test.describe.serial('Veto UI', () => {
   });
 
   test(
-    'should show the veto board on your own player page, with every map rendered',
+    'should show the veto board in your match room, with every map rendered',
     { tag: ['@ui', '@veto'] },
     async ({ page }) => {
       await viewVetoPageAs(page, actingSteamIdFor(team1));
@@ -140,8 +145,7 @@ test.describe.serial('Veto UI', () => {
       const actions = getCSMajorBO1UIActions(team1, team2);
       await performVetoActionsUI(page, actions);
 
-      // Read the authoritative state back as a team member – spectators get a
-      // redacted view without step/ban details.
+      // Read the authoritative state back as a team member.
       const vetoState = await getVetoState(request, matchSlug, actingSteamIdFor(team1));
       expect(vetoState).toBeTruthy();
       expect(vetoState.status).toBe('completed');

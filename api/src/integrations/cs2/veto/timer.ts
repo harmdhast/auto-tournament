@@ -46,7 +46,11 @@ function parseVeto(raw: string | null | undefined): StoredVeto | null {
  * When the current turn started (epoch ms), or null when the veto is over.
  * Records the first sighting of a match still on step 1.
  */
-export function turnStartedAt(slug: string, rawVeto: string | null | undefined, now = Date.now()): number | null {
+export function turnStartedAt(
+  slug: string,
+  rawVeto: string | null | undefined,
+  now = Date.now()
+): number | null {
   const veto = parseVeto(rawVeto);
   if (veto?.status === 'completed') {
     firstSeen.delete(slug);
@@ -86,11 +90,12 @@ async function openVetoMatches(): Promise<DbMatchRow[]> {
       WHERE t.status = 'in_progress'
         AND t.type <> 'shuffle'
         AND LOWER(t.format) IN ('bo1', 'bo3', 'bo5')
+        AND COALESCE(t.settings::jsonb #>> '{cs2,veto}', 'true') <> 'false'
         AND m.team1_id IS NOT NULL
         AND m.team2_id IS NOT NULL
         AND (m.server_id IS NULL OR m.server_id = '')
         AND (
-          (m.veto_state IS NULL AND m.status = 'pending')
+          (m.veto_state IS NULL AND m.status IN ('pending', 'ready'))
           OR (m.veto_state IS NOT NULL AND m.status IN ('pending', 'ready') AND m.veto_state NOT LIKE '%"status":"completed"%')
         )`
   );
@@ -134,7 +139,9 @@ async function tick(): Promise<void> {
 export function startVetoTimer(): void {
   if (timer) return;
   timer = setInterval(() => {
-    tick().catch((error: unknown) => log.warn('[VETO-TIMER] tick failed', { error: String(error) }));
+    tick().catch((error: unknown) =>
+      log.warn('[VETO-TIMER] tick failed', { error: String(error) })
+    );
   }, TICK_MS);
   timer.unref?.();
 }

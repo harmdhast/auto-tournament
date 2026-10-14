@@ -24,6 +24,7 @@ import {
   useSnackbar,
 } from '../../../module-sdk';
 import { ServerSection } from './ServerSection';
+import { useTopic } from '../../../module-sdk';
 
 interface AutoscaleSettings {
   enabled: boolean;
@@ -33,7 +34,7 @@ interface AutoscaleSettings {
 }
 
 type ServerState =
-  'busy' | 'idle' | 'starting' | 'stopping' | 'stopped' | 'updating' | 'unreachable';
+  'busy' | 'idle' | 'starting' | 'stopping' | 'stopped' | 'updating' | 'unreachable' | 'practice';
 
 interface AutoscaleEvent {
   id: number;
@@ -65,7 +66,6 @@ interface AutoscaleResponse {
   activity: AutoscaleEvent[];
 }
 
-const POLL_MS = 15_000;
 const LEAD_CHOICES = [0, 60, 120, 300, 600];
 const COOLDOWN_CHOICES = [120, 300, 600, 900, 1800, 3600];
 const MAX_CHOICES = [1, 2, 3, 4, 6, 8, 12, 16];
@@ -78,6 +78,7 @@ const STATE_COLOR: Record<ServerState, 'success' | 'info' | 'default' | 'warning
   stopped: 'default',
   updating: 'warning',
   unreachable: 'error',
+  practice: 'default',
 };
 
 function minutes(seconds: number): string {
@@ -104,9 +105,9 @@ export default function AutoScalePanel() {
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => void load(), POLL_MS);
-    return () => clearInterval(timer);
   }, [load]);
+  // Re-read when the fleet changes (the `fleet` topic), not on a timer.
+  useTopic('fleet', load, { admin: true });
 
   const save = async (patch: Partial<AutoscaleSettings>) => {
     setBusy(true);

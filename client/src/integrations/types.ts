@@ -1248,6 +1248,21 @@ export interface ClientGameIntegration {
   /** Rendered once above every page, for anyone (CS2: the "new skin" reveal). */
   globalOverlay?: ComponentType<Record<string, never>>;
 
+  /**
+   * Links in the site's main navigation, for everyone (client API 0.2.20;
+   * CS2: Highlights, its library of clips and reels). `labelKey` is in the
+   * module's own namespace; `path` is one of the module's `site` routes.
+   */
+  siteNavLinks?: Array<{ path: string; labelKey: string }>;
+
+  /**
+   * The Leaderboards page, under the rating ranking: this game's own
+   * category rankings (client API 0.2.21; CS2: performance, ADR, K/D,
+   * headshots, opening duels, clutches and KAST), shown while the page is on
+   * this game. It fetches its own numbers.
+   */
+  leaderboardView?: ComponentType<Record<string, never>>;
+
   /** A section on every player's profile, below the stats (CS2: the skin loadout). */
   playerProfileSection?: ComponentType<PlayerProfileSectionProps>;
 

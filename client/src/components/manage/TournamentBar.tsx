@@ -1,6 +1,5 @@
-import { Box, MenuItem, TextField } from '@mui/material';
+import { Box } from '@mui/material';
 import {
-  BellIcon,
   GlobeIcon,
   ScalesIcon,
   SwordIcon,
@@ -10,27 +9,28 @@ import {
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useOptionalAdminTournament } from '../../contexts/AdminTournamentContext';
-import { useManageRailCounts } from '../../contexts/ManageRailContext';
 import { useDisputesEntry } from '../../hooks/useDisputesEntry';
 import { useShellIntegrations } from '../../hooks/useShellIntegrations';
-import { paths } from '../../paths';
-import { tokens, fontMono, radii, textSize } from '../../theme/tokens';
+import { manageTournamentPath, paths, type ManageTournamentTab } from '../../paths';
+import { tokens, textSize } from '../../theme/tokens';
 import { ICON_SIZE } from '../../theme/icons';
 
 const { color } = tokens;
 
-/** The pages that run one tournament: the bar shows over each of them. */
-export const TOURNAMENT_PAGES = [paths.manage, paths.matches, paths.bracket, paths.disputes];
+/** One tournament's pages in Manage: `/manage/tournaments/<id>/<tab>`. */
+const SCOPED = /^\/manage\/tournaments\/(new|\d+)\/(matches|bracket|disputes|setup)\/?$/;
 
+/** The pages that run one tournament: the bar shows over each of them. */
 export function isTournamentPage(pathname: string): boolean {
-  return TOURNAMENT_PAGES.some((to) => pathname === to || pathname.startsWith(`${to}/`));
+  return SCOPED.test(pathname);
 }
 
 /**
- * Running one tournament: which one (several can exist), and its pages as
- * tabs: Needs you, Matches, Bracket, Disputes (where a result can be argued
- * about), its setup and its public page. Over those pages, in place of the
- * rail, which is about the platform or a game.
+ * Running one tournament (the Manage and ManageMatches boards): a crumb back
+ * to all tournaments with this one's name, then its pages as tabs: Matches,
+ * Bracket, Disputes (where a result can be argued about), Setup and its
+ * public page. Which tournament is in the address; the rail lists the ones
+ * being run, All tournaments the rest.
  */
 export function TournamentBar() {
   const { t } = useTranslation();
@@ -38,21 +38,30 @@ export function TournamentBar() {
   const admin = useOptionalAdminTournament();
   const { tournamentId } = useShellIntegrations();
   const { show: showDisputes } = useDisputesEntry();
-  const { needsYouCount } = useManageRailCounts();
+  const scoped = SCOPED.exec(pathname);
+  const scopeId: number | 'new' | null = scoped
+    ? scoped[1] === 'new'
+      ? 'new'
+      : Number(scoped[1])
+    : tournamentId;
+  const tabPath = (tab: ManageTournamentTab) =>
+    scopeId === null ? paths.tournaments : manageTournamentPath(scopeId, tab);
+  const name =
+    scopeId === 'new'
+      ? t('managePage.rail.newTournament')
+      : (admin?.tournaments.find((x) => x.id === scopeId)?.name ?? '');
 
   const tabs = [
     {
-      key: 'needsYou',
-      label: t('managePage.rail.needsYou'),
-      to: paths.manage,
-      icon: BellIcon,
-      count: needsYouCount,
+      key: 'matches',
+      label: t('managePage.rail.matches'),
+      to: tabPath('matches'),
+      icon: SwordIcon,
     },
-    { key: 'matches', label: t('managePage.rail.matches'), to: paths.matches, icon: SwordIcon },
     {
       key: 'bracket',
       label: t('managePage.rail.bracket'),
-      to: paths.bracket,
+      to: tabPath('bracket'),
       icon: TreeStructureIcon,
     },
     ...(showDisputes
@@ -60,79 +69,68 @@ export function TournamentBar() {
           {
             key: 'disputes',
             label: t('managePage.rail.disputes'),
-            to: paths.disputes,
+            to: tabPath('disputes'),
             icon: ScalesIcon,
           },
         ]
       : []),
     {
       key: 'tournament',
-      label: t('managePage.rail.tournament'),
-      to: paths.tournament,
+      label: t('managePage.rail.setupTab'),
+      to: tabPath('setup'),
       icon: TrophyIcon,
     },
-    ...(tournamentId !== null
+    ...(typeof scopeId === 'number'
       ? [
           {
             key: 'publicPage',
             label: t('managePage.rail.publicPage'),
-            to: paths.tournamentOverview.replace(':id', String(tournamentId)),
+            to: paths.tournamentOverview.replace(':id', String(scopeId)),
             icon: GlobeIcon,
           },
         ]
       : []),
   ];
 
-  const switcher =
-    admin && (admin.tournaments.length > 0 || admin.selectedId !== null)
-      ? (() => {
-          const { tournaments, selectedId, nextId, select } = admin;
-          const isNew =
-            selectedId !== null &&
-            selectedId === nextId &&
-            !tournaments.some((x) => x.id === selectedId);
-          return (
-            <TextField
-              select
-              size="small"
-              label={t('managePage.rail.switcher')}
-              value={selectedId ?? ''}
-              onChange={(e) => select(Number(e.target.value))}
-              inputProps={{ 'data-testid': 'tournament-switcher' }}
-              SelectProps={{ MenuProps: { PaperProps: { sx: { maxHeight: 420 } } } }}
-              sx={{ minWidth: 220, maxWidth: '100%' }}
-            >
-              {tournaments
-                .filter((x) => !x.archived || x.id === selectedId)
-                .map((x) => (
-                  <MenuItem key={x.id} value={x.id}>
-                    {x.name}
-                  </MenuItem>
-                ))}
-              {isNew && (
-                <MenuItem value={selectedId}>{t('managePage.rail.newTournament')}</MenuItem>
-              )}
-            </TextField>
-          );
-        })()
-      : null;
-
   return (
     <Box
       component="nav"
       aria-label={t('managePage.rail.tournamentBar')}
       data-testid="tournament-bar"
-      sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5, mb: 3 }}
+      sx={{ display: 'grid', gap: 1.5, mb: 3 }}
     >
-      {switcher}
+      <Box
+        data-testid="tournament-bar-crumb"
+        sx={{ fontSize: textSize.sm, color: color.muted, display: 'flex', gap: 0.75, minWidth: 0 }}
+      >
+        <Box
+          component={RouterLink}
+          to={paths.tournaments}
+          sx={{ color: 'inherit', '&:hover': { color: color.ink } }}
+        >
+          {t('managePage.rail.allTournaments')}
+        </Box>
+        <span aria-hidden>/</span>
+        <Box
+          component="span"
+          sx={{
+            color: color.ink2,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {name}
+        </Box>
+      </Box>
       <Box
         sx={{
           display: 'flex',
           gap: 0.5,
           overflowX: 'auto',
+          overflowY: 'hidden',
           minWidth: 0,
-          flex: '1 1 auto',
-          py: 0.5,
+          borderBottom: `1px solid ${color.rule}`,
         }}
       >
         {tabs.map((tab) => {
@@ -150,30 +148,21 @@ export function TournamentBar() {
                 alignItems: 'center',
                 gap: 1,
                 flex: 'none',
-                px: 1.5,
-                py: 0.75,
-                borderRadius: radii.pill,
-                border: `1px solid ${selected ? color.ink2 : color.rule}`,
-                bgcolor: selected ? color.paper2 : 'transparent',
+                px: 2,
+                py: 1.5,
+                mb: '-1px',
+                borderBottom: `2px solid ${selected ? color.accent : 'transparent'}`,
                 color: selected ? color.ink : color.ink2,
                 textDecoration: 'none',
                 whiteSpace: 'nowrap',
-                fontSize: textSize.sm,
-                '&:hover': { color: color.ink, bgcolor: color.paper2 },
+                fontSize: textSize.md,
+                fontWeight: 500,
+                '&:hover': { color: color.ink },
                 '&:focus-visible': { outline: `2px solid ${color.focus}`, outlineOffset: 2 },
               }}
             >
               <Icon aria-hidden size={ICON_SIZE.sm} weight={selected ? 'fill' : 'regular'} />
               {tab.label}
-              {typeof tab.count === 'number' && tab.count > 0 && (
-                <Box
-                  component="span"
-                  data-testid={`tournament-bar-${tab.key}-count`}
-                  sx={{ fontFamily: fontMono, fontSize: textSize.xs, color: color.accent }}
-                >
-                  {tab.count}
-                </Box>
-              )}
             </Box>
           );
         })}

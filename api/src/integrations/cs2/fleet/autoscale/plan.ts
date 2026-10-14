@@ -111,6 +111,23 @@ export const RATE_WINDOW_SECONDS = 60;
 export const MAX_STARTS_PER_PASS = 8;
 export const MAX_STOPS_PER_PASS = 2;
 
+/** How long new servers wait after the license refused one (it is full). */
+export const LICENSE_FULL_BACKOFF_SECONDS = 10 * 60;
+
+/**
+ * While the license is full (`fullUntil`, unix s, from a refused create)
+ * creates wait; starts and stops go on. `held`: a create was held back.
+ */
+export function holdCreatesWhileLicenseFull<T extends { kind: string }>(
+  actions: T[],
+  now: number,
+  fullUntil: number
+): { actions: T[]; held: boolean } {
+  if (now >= fullUntil) return { actions, held: false };
+  const kept = actions.filter((a) => a.kind !== 'create');
+  return { actions: kept, held: kept.length < actions.length };
+}
+
 /**
  * The actions a pass may send: per pass at most MAX_STARTS_PER_PASS starts
  * and MAX_STOPS_PER_PASS stops, and per machine at most
@@ -348,6 +365,12 @@ export interface ScalerServer {
    * one of the warm servers the scaler counts (unset: false).
    */
   occupied?: boolean;
+  /**
+   * A practice server (its plugin set turns match off): never handed a match,
+   * so the scaler leaves it alone: not capacity, not started, not stopped as
+   * idle while people practise (unset: false).
+   */
+  practice?: boolean;
   /** An update (CS2, Ready Up) or restart is in progress. */
   updating: boolean;
   /** An open failover points at it. */
@@ -356,6 +379,12 @@ export interface ScalerServer {
   pending: 'start' | 'stop' | null;
   /** Unix s it has been idle since (warm servers). */
   idleSince: number | null;
+  /**
+   * Idle because its match just ended (the demo is uploaded): a server starts
+   * in seconds, so one not needed now stops without the cool-down, which is
+   * for servers warmed ahead of a match (unset: false).
+   */
+  afterMatch?: boolean;
 }
 
 export interface ScalerHost {
@@ -437,7 +466,9 @@ export function describeNeed(demand: Demand, reserve: number): string {
  * for one new server. More than the need: stop the servers idle longest,
  * once idle past the cool-down, never a busy, updating, failover or spare one.
  */
-export function planScaling(input: PlanInput): ScalePlan {
+export function planScaling(planInput: PlanInput): ScalePlan {
+  // Practice servers are not the scaler's: they take no matches.
+  const input = { ...planInput, servers: planInput.servers.filter((s) => !s.practice) };
   const { now, settings, demand } = input;
   const reserve = scalerReserve(input.reserveConfigured, input.servers.length);
   const desired = demand.total > 0 ? demand.total + reserve : 0;
@@ -521,19 +552,20 @@ export function planScaling(input: PlanInput): ScalePlan {
         (s) =>
           !spare.has(s.fleetServerId) &&
           s.idleSince !== null &&
-          now - s.idleSince >= settings.cooldownSeconds
+          (s.afterMatch || now - s.idleSince >= settings.cooldownSeconds)
       )
       .sort((a, b) => (a.idleSince ?? 0) - (b.idleSince ?? 0) || a.name.localeCompare(b.name));
     const surplus = warm - desired;
     for (const s of stoppable.slice(0, surplus)) {
       const idleMin = Math.floor((now - (s.idleSince ?? now)) / 60);
+      const why = s.afterMatch ? 'Match over, demo uploaded' : `Idle ${idleMin} min`;
       plan.actions.push({
         kind: 'stop',
         hostId: s.hostId,
         server: s.hostServer,
         fleetServerId: s.fleetServerId,
         name: s.name,
-        reason: `Idle ${idleMin} min and not needed (${need}; ${warm - plan.actions.length} warm, ${desired} needed)`,
+        reason: `${why} and not needed (${need}; ${warm - plan.actions.length} warm, ${desired} needed)`,
       });
     }
   }

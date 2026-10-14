@@ -68,6 +68,7 @@ import { effectiveBusyReason } from './busyReason';
 import { heldFleetSpares } from './failover';
 import { matchDisabledServerIds } from './push/pluginSets';
 import { enrollHostHandler } from './hosts/routes';
+import { fleetChangedOnWrite } from './adminTopics';
 
 // ---------------------------------------------------------------------------
 // Enrollment (public)
@@ -178,6 +179,8 @@ fleetEnrollRouter.post('/enroll', enrollRateLimit, async (req: Request, res: Res
 // ---------------------------------------------------------------------------
 
 export const fleetAdminRouter = Router();
+// Changes here reach the Servers page at once (the `fleet` topic).
+fleetAdminRouter.use(fleetChangedOnWrite);
 fleetAdminRouter.use(requireAuth);
 
 /** An admin handler whose failure is a JSON 500 rather than a hung request. */

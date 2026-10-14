@@ -502,6 +502,18 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
         </Paper>
       )}
 
+      {/* The turn's time, for everyone (both teams and spectators), every
+          step including the side pick: a bar that drains as the clock runs. */}
+      {vetoState.turnDeadline && (
+        <TurnBar
+          deadline={vetoState.turnDeadline}
+          seconds={typeof vetoState.turnSeconds === 'number' ? vetoState.turnSeconds : undefined}
+          mine={isMyTurn}
+          tone={actionColor}
+          label={isMyTurn ? t('vetoInterface.yourTurnClock') : t('vetoInterface.theirTurnClock')}
+        />
+      )}
+
       {/* Progress Header */}
       <Paper
         sx={{
@@ -884,6 +896,68 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     </Box>
   );
 };
+
+/** The turn's time as a bar that drains to empty, with the seconds left; red in the last ten. */
+function TurnBar({
+  deadline,
+  seconds,
+  mine,
+  tone,
+  label,
+}: {
+  deadline: string;
+  seconds?: number;
+  mine: boolean;
+  tone: string;
+  label: string;
+}) {
+  const end = Date.parse(deadline);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, []);
+  const leftMs = Math.max(0, end - now);
+  const total = seconds && seconds > 0 ? seconds * 1000 : Math.max(leftMs, 1);
+  const pct = Math.max(0, Math.min(100, (leftMs / total) * 100));
+  const left = Math.ceil(leftMs / 1000);
+  const urgent = left <= 10;
+  const fill = urgent ? color.ban : mine ? tone : color.ink2;
+  return (
+    <Box data-testid="veto-turn-bar" sx={{ mb: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          mb: 0.5,
+          fontSize: '0.875rem',
+          fontWeight: 600,
+          color: fill,
+          ...mono,
+        }}
+      >
+        <span>{label}</span>
+        <span role="timer">{`${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`}</span>
+      </Box>
+      <Box
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(pct)}
+        sx={{ height: 6, borderRadius: 999, bgcolor: color.paper2, overflow: 'hidden' }}
+      >
+        <Box
+          sx={{
+            height: '100%',
+            width: `${pct}%`,
+            bgcolor: fill,
+            transition: 'width 250ms linear, background-color 200ms',
+          }}
+        />
+      </Box>
+    </Box>
+  );
+}
 
 /** The turn's countdown: "0:24", red in the last ten seconds, "Time's up" at zero. */
 function TurnClock({ deadline, mine, tone }: { deadline: string; mine: boolean; tone: string }) {

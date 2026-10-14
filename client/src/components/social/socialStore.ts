@@ -7,6 +7,7 @@
  * puts a notice at the top of the bell (and a party invite in the toast);
  * `social:changed` reads the friends again. A slow poll is the fallback.
  */
+import { soundNotification } from '../../utils/soundNotification';
 import { useEffect, useSyncExternalStore } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { apiErrorMessage } from '../../utils/api';
@@ -18,7 +19,10 @@ export interface Person {
   avatarUrl: string | null;
 }
 
-export type Activity = { kind: 'searching'; mode: string } | { kind: 'playing'; matchSlug: string; label: string } | null;
+export type Activity =
+  | { kind: 'searching'; mode: string }
+  | { kind: 'playing'; matchSlug: string; label: string }
+  | null;
 
 /** Whether you can invite them to a CS2 party: true, or why not. */
 export type Invitable = true | 'nobody' | 'friends' | 'no_game';
@@ -41,11 +45,21 @@ export interface Found extends Person {
 
 export interface Notice {
   id: number;
-  kind: 'party_invite' | 'friend_request' | 'friend_accepted' | 'skin' | 'highlight' | 'tournament' | 'news'
+  kind:
+    | 'party_invite'
+    | 'team_invite'
+    | 'friend_request'
+    | 'friend_accepted'
+    | 'skin'
+    | 'highlight'
+    | 'tournament'
+    | 'news'
     | 'report';
   data: Record<string, unknown>;
   createdAt: number;
   read: boolean;
+  /** On a new one only: the player's settings ring this kind. */
+  sound?: boolean;
 }
 
 interface State {
@@ -61,8 +75,24 @@ interface State {
   toasts: Notice[];
 }
 
-const EMPTY: State = { ready: false, friends: [], incoming: [], sent: [], notices: [], unread: 0, more: false, toasts: [] };
+const EMPTY: State = {
+  ready: false,
+  friends: [],
+  incoming: [],
+  sent: [],
+  notices: [],
+  unread: 0,
+  more: false,
+  toasts: [],
+};
 let state: State = EMPTY;
+const newNoticeListeners = new Set<(notice: Notice) => void>();
+
+/** Hear each new notice as it arrives (browser notifications). Returns the unsubscribe. */
+export function onNewNotice(listener: (notice: Notice) => void): () => void {
+  newNoticeListeners.add(listener);
+  return () => newNoticeListeners.delete(listener);
+}
 const listeners = new Set<() => void>();
 let users = 0;
 let socket: Socket | null = null;
@@ -82,7 +112,8 @@ async function get<T>(url: string): Promise<T | null> {
 export async function refreshFriends(): Promise<void> {
   try {
     const body = await get<Pick<State, 'friends' | 'incoming' | 'sent'>>('/api/social/friends');
-    if (body) emit({ ready: true, friends: body.friends, incoming: body.incoming, sent: body.sent });
+    if (body)
+      emit({ ready: true, friends: body.friends, incoming: body.incoming, sent: body.sent });
   } catch {
     // Network blip: keep what we had.
   }
@@ -90,7 +121,9 @@ export async function refreshFriends(): Promise<void> {
 
 export async function refreshNotices(): Promise<void> {
   try {
-    const body = await get<{ items: Notice[]; unread: number; more: boolean }>('/api/social/notifications');
+    const body = await get<{ items: Notice[]; unread: number; more: boolean }>(
+      '/api/social/notifications'
+    );
     if (body) emit({ ready: true, notices: body.items, unread: body.unread, more: body.more });
   } catch {
     // Keep what we had.
@@ -100,8 +133,11 @@ export async function refreshNotices(): Promise<void> {
 export async function loadOlderNotices(): Promise<void> {
   const last = state.notices[state.notices.length - 1];
   if (!last) return;
-  const body = await get<{ items: Notice[]; unread: number; more: boolean }>(`/api/social/notifications?before=${last.id}`);
-  if (body) emit({ notices: [...state.notices, ...body.items], unread: body.unread, more: body.more });
+  const body = await get<{ items: Notice[]; unread: number; more: boolean }>(
+    `/api/social/notifications?before=${last.id}`
+  );
+  if (body)
+    emit({ notices: [...state.notices, ...body.items], unread: body.unread, more: body.more });
 }
 
 function openSocket() {
@@ -114,9 +150,14 @@ function openSocket() {
   });
   socket.on('notify:new', (notice: Notice) => {
     const notices = [notice, ...state.notices.filter((n) => n.id !== notice.id)];
-    const toasts = notice.kind === 'party_invite' ? [...state.toasts.filter((n) => n.data.partyId !== notice.data.partyId), notice] : state.toasts;
+    const toasts =
+      notice.kind === 'party_invite'
+        ? [...state.toasts.filter((n) => n.data.partyId !== notice.data.partyId), notice]
+        : state.toasts;
     emit({ notices, unread: state.unread + 1, toasts });
     if (notice.kind === 'party_invite') void refreshMatchmaking();
+    if (notice.sound) soundNotification.playNotification();
+    newNoticeListeners.forEach((l) => l(notice));
   });
   socket.on('social:changed', () => void refreshFriends());
 }
@@ -168,7 +209,11 @@ export function useSocial(enabled = true): State {
 }
 
 /** A social write: same-site JSON; reads friends and notices again after. */
-export async function socialAction<T = unknown>(method: 'POST' | 'DELETE', path: string, body: unknown = {}): Promise<T> {
+export async function socialAction<T = unknown>(
+  method: 'POST' | 'DELETE',
+  path: string,
+  body: unknown = {}
+): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
     credentials: 'same-origin',
@@ -183,20 +228,39 @@ export async function socialAction<T = unknown>(method: 'POST' | 'DELETE', path:
   return (text ? JSON.parse(text) : {}) as T;
 }
 
-export const friendRequest = (playerId: string) => socialAction<{ relation: Relation }>('POST', '/social/friends/requests', { playerId });
-export const acceptFriend = (playerId: string) => socialAction('POST', `/social/friends/requests/${playerId}/accept`);
-export const declineFriend = (playerId: string) => socialAction('POST', `/social/friends/requests/${playerId}/decline`);
-export const cancelFriendRequest = (playerId: string) => socialAction('DELETE', `/social/friends/requests/${playerId}`);
-export const removeFriend = (playerId: string) => socialAction('DELETE', `/social/friends/${playerId}`);
-export const inviteToParty = (playerId: string) => socialAction('POST', '/matchmaking/party/invites', { playerId });
-export const cancelPartyInvite = (playerId: string) => socialAction('DELETE', `/matchmaking/party/invites/${playerId}`);
+export const friendRequest = (playerId: string) =>
+  socialAction<{ relation: Relation }>('POST', '/social/friends/requests', { playerId });
+export const acceptFriend = (playerId: string) =>
+  socialAction('POST', `/social/friends/requests/${playerId}/accept`);
+export const declineFriend = (playerId: string) =>
+  socialAction('POST', `/social/friends/requests/${playerId}/decline`);
+export const cancelFriendRequest = (playerId: string) =>
+  socialAction('DELETE', `/social/friends/requests/${playerId}`);
+export const removeFriend = (playerId: string) =>
+  socialAction('DELETE', `/social/friends/${playerId}`);
+export const inviteToParty = (playerId: string) =>
+  socialAction('POST', '/matchmaking/party/invites', { playerId });
+export const cancelPartyInvite = (playerId: string) =>
+  socialAction('DELETE', `/matchmaking/party/invites/${playerId}`);
+/** The invited player answers a team's invite (joins its roster, or not). */
+export const answerTeamInvite = (teamId: string, accept: boolean) =>
+  socialAction('POST', `/team-directory/${encodeURIComponent(teamId)}/invites/answer`, { accept });
 export const answerPartyInvite = (partyId: string, accept: boolean) =>
   socialAction('POST', `/matchmaking/invites/${partyId}/${accept ? 'accept' : 'decline'}`);
 
 /** Mark notices read (all with no ids); the badge follows at once. */
 export async function markNoticesRead(ids?: number[]): Promise<void> {
   const notices = state.notices.map((n) => (!ids || ids.includes(n.id) ? { ...n, read: true } : n));
-  emit({ notices, unread: ids ? Math.max(0, state.unread - ids.filter((id) => state.notices.some((n) => n.id === id && !n.read)).length) : 0 });
+  emit({
+    notices,
+    unread: ids
+      ? Math.max(
+          0,
+          state.unread -
+            ids.filter((id) => state.notices.some((n) => n.id === id && !n.read)).length
+        )
+      : 0,
+  });
   try {
     const res = await fetch('/api/social/notifications/read', {
       method: 'POST',
@@ -217,7 +281,9 @@ export function dismissToast(id: number): void {
 
 /** Find players to add or invite: by name, or (empty query) people played with lately. */
 export async function findPeople(q: string): Promise<Found[]> {
-  const body = await get<{ people: Found[] }>(`/api/social/people${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`);
+  const body = await get<{ people: Found[] }>(
+    `/api/social/people${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`
+  );
   return body?.people ?? [];
 }
 

@@ -1,7 +1,17 @@
 import { pageTitle } from '../utils/pageTitle';
 import { useEffect, useMemo, useState } from 'react';
-import { Box, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions, LinearProgress, Link } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import {
+  Box,
+  Button,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  LinearProgress,
+  Link,
+} from '@mui/material';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useManageData } from '../hooks/useManageData';
@@ -12,20 +22,19 @@ import {
   computeRecentEvents,
   manageMatchRefs,
 } from '../utils/manageSelectors';
-import { getGlobalMatchNumber, getRoundLabel } from '../utils/matchUtils';
 import { usePublishNeedsYouCount } from '../contexts/ManageRailContext';
 import { StatusStrip } from '../components/manage/StatusStrip';
 import { NeedsYouQueue } from '../components/manage/NeedsYouQueue';
+import { AdminNoticesPanel } from '../components/admin/AdminNoticesPanel';
 import { useIntegrationFor } from '../integrations/registry';
 import { useShellIntegrations, shellModule } from '../hooks/useShellIntegrations';
 import { RecentLog } from '../components/manage/RecentLog';
-import MatchDetailsModal from '../components/modals/MatchDetailsModal';
 import { useModuleTranslation } from '../module-sdk';
 import { PageHead } from '../components/common/ui';
 import { GameMark } from '../components/common/GameMark';
 import { DEFAULT_SETUP_GAME, useSetupGames } from '../components/tournament/setup/games';
-import { paths } from '../paths';
-import type { Match } from '../types/match.types';
+import { manageMatchPath, paths } from '../paths';
+import { SiteOverview } from '../components/adminHome/SiteOverview';
 import type { Tournament } from '../types/tournament.types';
 
 /**
@@ -35,7 +44,8 @@ import type { Tournament } from '../types/tournament.types';
 function ManageEyebrow({ tournament }: { tournament: Tournament }) {
   const { games } = useSetupGames();
   const wanted = tournament.game || DEFAULT_SETUP_GAME.id;
-  const game = games.find((entry) => entry.id === wanted) ??
+  const game =
+    games.find((entry) => entry.id === wanted) ??
     (wanted === DEFAULT_SETUP_GAME.id ? DEFAULT_SETUP_GAME : null);
   const gameName = game?.name ?? wanted;
   return (
@@ -61,12 +71,13 @@ export default function Manage() {
   // module the tournament runs (3.0 phase E). A game with no resources has no
   // grid, and the console shows only the work.
   const { shell } = useShellIntegrations();
-  const ServerGrid = shellModule(shell, (i) => i.dashboardWidgets.manageResources)
-    ?.dashboardWidgets.manageResources;
+  const ServerGrid = shellModule(shell, (i) => i.dashboardWidgets.manageResources)?.dashboardWidgets
+    .manageResources;
   // The module whose resources the strip counts: the tournament's, or before
   // there is one, the first the shell shows that has a tile (CS2's servers,
   // which an admin sets up before the tournament that needs them).
   const resourceModule = shellModule(shell, (i) => i.manageStatusTile) ?? null;
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { showSuccess, showError } = useSnackbar();
   const { loading, tournament, matches, availability, refresh } = useManageData(resourceModule);
@@ -85,7 +96,6 @@ export default function Manage() {
     () => (availability && summarizeAvailability ? summarizeAvailability(availability) : null),
     [availability, summarizeAvailability]
   );
-  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [announceOpen, setAnnounceOpen] = useState(false);
   const [announceText, setAnnounceText] = useState('');
   const [announcing, setAnnouncing] = useState(false);
@@ -95,8 +105,8 @@ export default function Manage() {
   }, [t]);
 
   const statusCounts = useMemo(
-    () => computeStatusCounts(matches, summary?.waitingMatches ?? 0),
-    [matches, summary]
+    () => computeStatusCounts(matches, summary?.waitingMatches ?? 0, tournament?.type),
+    [matches, summary, tournament?.type]
   );
   const needsYouItems = useMemo(
     () =>
@@ -132,6 +142,7 @@ export default function Manage() {
   if (loading) {
     return (
       <Box>
+        <SiteOverview />
         <LinearProgress />
       </Box>
     );
@@ -139,8 +150,12 @@ export default function Manage() {
 
   return (
     <Box data-testid="manage-page" sx={{ width: '100%' }}>
+      {/* The whole site first (it was the admin home at "/"), then the tournament's queue. */}
+      <SiteOverview />
       <PageHead
-        eyebrow={tournament ? <ManageEyebrow tournament={tournament} /> : t('managePage.noTournament')}
+        eyebrow={
+          tournament ? <ManageEyebrow tournament={tournament} /> : t('managePage.noTournament')
+        }
         title={t('managePage.needsYouHeading')}
         actions={
           <Button
@@ -158,20 +173,17 @@ export default function Manage() {
           admin page; this page hands it the "Needs you" count. */}
       <StatusStrip
         counts={statusCounts}
-        showVeto={tournamentIntegration.capabilities.veto}
+        showVeto={tournamentIntegration.capabilities.veto && tournament?.type !== 'shuffle'}
         resourceTile={
-          ResourceStatusTile ? (
-            <ResourceStatusTile availability={availability} />
-          ) : null
+          ResourceStatusTile ? <ResourceStatusTile availability={availability} /> : null
         }
       />
 
+      <AdminNoticesPanel />
+
       <NeedsYouQueue
         items={needsYouItems}
-        onDecide={(slug) => {
-          const match = matches.find((m) => m.slug === slug);
-          if (match) setSelectedMatch(match);
-        }}
+        onDecide={(slug) => navigate(manageMatchPath(slug, tournament?.id ?? null))}
         onActionDone={refresh}
       />
 
@@ -179,22 +191,6 @@ export default function Manage() {
       {ServerGrid && <ServerGrid tournamentId={tournament?.id ?? null} />}
 
       <RecentLog events={recentEvents} />
-
-      {selectedMatch && (
-        <MatchDetailsModal
-          match={selectedMatch}
-          matchNumber={getGlobalMatchNumber(selectedMatch, matches)}
-          roundLabel={getRoundLabel(selectedMatch.round)}
-          onClose={() => {
-            setSelectedMatch(null);
-            refresh();
-          }}
-          onDeleted={() => {
-            setSelectedMatch(null);
-            refresh();
-          }}
-        />
-      )}
 
       <Dialog open={announceOpen} onClose={() => setAnnounceOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t('managePage.announce.title')}</DialogTitle>

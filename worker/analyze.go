@@ -266,6 +266,7 @@ func Analyze(r io.Reader, mapName string) (*Analysis, *Replay, error) {
 		equipCT   int
 		equipT    int
 		frames    = map[int]map[string][6]float64{}
+		botNames  = map[string]string{} // replay ids of bots (bot:<name>) -> name
 		lastFrame = -FrameStep
 		clans     = map[int]map[string]string{} // round -> side -> the team's in-game name
 	)
@@ -292,6 +293,7 @@ func Analyze(r io.Reader, mapName string) (*Analysis, *Replay, error) {
 		clans = map[int]map[string]string{}
 		shots, hitTicks = map[string][]Shot{}, map[string][]int{}
 		frames = map[int]map[string][6]float64{}
+		botNames = map[string]string{}
 		spotted = map[[2]uint64]bool{}
 		spotTick = map[[2]uint64]int{}
 		seenFrom = map[[2]uint64]int{}
@@ -366,14 +368,25 @@ func Analyze(r io.Reader, mapName string) (*Analysis, *Replay, error) {
 	roundNow := func() int { return len(rounds) + 1 }
 
 	p.RegisterEventHandler(func(e events.Kill) {
-		if !live || gs.IsWarmupPeriod() || !human(e.Victim) {
+		if !live || gs.IsWarmupPeriod() || e.Victim == nil {
 			return
 		}
-		named(e.Victim)
+		// A bot's death counts only as a human's kill (bot-filled matches):
+		// without it, the humans' frags on bots made no highlights at all.
+		victimBot := !human(e.Victim)
+		if victimBot && !human(e.Killer) {
+			return
+		}
+		victim := "bot:" + e.Victim.Name
+		if !victimBot {
+			named(e.Victim)
+			victim = id(e.Victim)
+		}
 		k := Kill{
 			Tick:         gs.IngameTick(),
 			Round:        roundNow(),
-			Victim:       id(e.Victim),
+			Victim:       victim,
+			VictimBot:    victimBot,
 			Headshot:     e.IsHeadshot,
 			Penetrated:   e.PenetratedObjects > 0,
 			ThroughSmoke: e.ThroughSmoke,
@@ -592,11 +605,21 @@ func Analyze(r io.Reader, mapName string) (*Analysis, *Replay, error) {
 			lastFrame = tick
 			f := map[string][6]float64{}
 			for _, pl := range playing {
-				if !human(pl) || !pl.IsAlive() {
+				if pl == nil || !pl.IsAlive() {
 					continue
 				}
+				// Bots are on the replay too (bot-filled matches), as
+				// "bot:<name>", never in the stats.
+				key := id(pl)
+				if !human(pl) {
+					if !pl.IsBot || pl.Name == "" {
+						continue
+					}
+					key = "bot:" + pl.Name
+					botNames[key] = pl.Name
+				}
 				pos := pl.Position()
-				f[id(pl)] = [6]float64{math.Round(pos.X), math.Round(pos.Y), math.Round(float64(pl.ViewDirectionX())), float64(pl.Health()), float64(pl.Team), math.Round(pos.Z)}
+				f[key] = [6]float64{math.Round(pos.X), math.Round(pos.Y), math.Round(float64(pl.ViewDirectionX())), float64(pl.Health()), float64(pl.Team), math.Round(pos.Z)}
 			}
 			frames[tick] = f
 		}
@@ -637,9 +660,21 @@ func Analyze(r io.Reader, mapName string) (*Analysis, *Replay, error) {
 		ids = append(ids, sid)
 	}
 	sort.Strings(ids)
+	botIDs := make([]string, 0, len(botNames))
+	for key := range botNames {
+		botIDs = append(botIDs, key)
+	}
+	sort.Strings(botIDs)
+	ids = append(ids, botIDs...)
 	replay := &Replay{Map: mapName, Tickrate: p.TickRate(), Step: FrameStep, Rounds: rounds}
 	for _, sid := range ids {
-		replay.Players = append(replay.Players, ReplayPlayer{ID: sid, Name: players[sid].Name})
+		var name string
+		if bot, ok := botNames[sid]; ok {
+			name = "BOT " + bot
+		} else if ps := players[sid]; ps != nil {
+			name = ps.Name
+		}
+		replay.Players = append(replay.Players, ReplayPlayer{ID: sid, Name: name})
 	}
 	ticks := make([]int, 0, len(frames))
 	for t := range frames {
@@ -811,4 +846,54 @@ func teamsOf(rounds []Round, sides map[int]map[string]string, clans map[int]map[
 		out = append(out, t)
 	}
 	return out
+}
+
+// PositionAt is where the player (their replay id) stood at the replay frame
+// nearest before `tick`, within two frames; false when the replay has no frame
+// with them there (dead, not yet spawned, another tick base).
+func (r *Replay) PositionAt(playerID string, tick int) ([3]float64, bool) {
+	if r == nil || playerID == "" {
+		return [3]float64{}, false
+	}
+	idx := -1
+	for i, p := range r.Players {
+		if p.ID == playerID {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return [3]float64{}, false
+	}
+	// Frames are in tick order: the last one at or before `tick`.
+	j := sort.Search(len(r.Frames), func(i int) bool { return frameTick(r.Frames[i]) > tick }) - 1
+	if j < 0 || tick-frameTick(r.Frames[j]) > 2*r.Step {
+		return [3]float64{}, false
+	}
+	row, ok := r.Frames[j][1].([]any)
+	if !ok || idx >= len(row) {
+		return [3]float64{}, false
+	}
+	switch v := row[idx].(type) {
+	case [6]float64:
+		return [3]float64{v[0], v[1], v[5]}, true
+	case []any:
+		if len(v) >= 6 {
+			x, _ := v[0].(float64)
+			y, _ := v[1].(float64)
+			z, _ := v[5].(float64)
+			return [3]float64{x, y, z}, true
+		}
+	}
+	return [3]float64{}, false
+}
+
+func frameTick(f [2]any) int {
+	switch t := f[0].(type) {
+	case int:
+		return t
+	case float64:
+		return int(t)
+	}
+	return 0
 }

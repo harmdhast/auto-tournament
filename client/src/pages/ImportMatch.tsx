@@ -6,7 +6,7 @@
  * players and each map's score appear as the demos are read
  * (api: integrations/cs2/demos/demoImport.ts).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -26,6 +26,8 @@ import { PageHead, Panel, Row, RowList } from '../components/common/ui';
 import { api, apiErrorMessage } from '../utils/api';
 import { pageTitle } from '../utils/pageTitle';
 import { paths } from '../paths';
+import { useTopic } from '../hooks/useTopic';
+import { PageTabs } from '../components/manage/PageTabs';
 
 const MAX_MAPS = 5;
 /** Under Cloudflare's 100 MB request limit with room to spare. */
@@ -76,18 +78,18 @@ export default function ImportMatch() {
   // Follow the demo worker until every map is read.
   const allDone =
     !!status && status.maps.every((m) => m.analysis === 'done' || m.analysis === 'failed');
-  useEffect(() => {
-    if (!status || allDone || busy) return;
-    const id = setInterval(() => {
-      api
-        .get<{ import: ImportStatus }>(`/api/game/cs2/imports/${encodeURIComponent(status.slug)}`)
-        .then((res) => setStatus(res.import))
-        .catch(() => null);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [status, allDone, busy]);
+  const followSlug = status && !allDone && !busy ? status.slug : null;
+  const follow = useCallback(() => {
+    if (!followSlug) return;
+    api
+      .get<{ import: ImportStatus }>(`/api/game/cs2/imports/${encodeURIComponent(followSlug)}`)
+      .then((res) => setStatus(res.import))
+      .catch(() => null);
+  }, [followSlug]);
+  // The demo worker's progress (the `demo-analysis` topic), not a timer.
+  useTopic('demo-analysis', follow, { admin: true, enabled: !!followSlug });
 
-  const add = (list: ArrayLike<File> | null) => {
+  const add = async (list: ArrayLike<File> | null) => {
     if (!list) return;
     // Picked or dropped together: in name order (m1-…, m2-… or map1, map2), the order they were played as a rule.
     const picked = Array.from(list).sort((a, b) =>
@@ -97,6 +99,15 @@ export default function ImportMatch() {
     if (bad) {
       setError(t('importMatch.notDemo', { name: bad.name }));
       return;
+    }
+    // A CS2 demo starts with "PBDEMS2\0" (a CS:GO one does not): say so
+    // now, not after the upload starts.
+    for (const f of picked) {
+      const head = new Uint8Array(await f.slice(0, 8).arrayBuffer());
+      if (String.fromCharCode(...head) !== 'PBDEMS2\0') {
+        setError(t('importMatch.notCs2Demo', { name: f.name }));
+        return;
+      }
     }
     const next = [...files, ...picked].slice(0, MAX_MAPS);
     if (files.length + picked.length > MAX_MAPS)
@@ -167,6 +178,13 @@ export default function ImportMatch() {
   return (
     <Box data-testid="import-match-page" sx={{ width: '100%', maxWidth: 760 }}>
       <PageHead title={t('importMatch.title')} subtitle={t('importMatch.subtitle')} />
+      <PageTabs
+        label={t('managePage.rail.groups.history')}
+        tabs={[
+          { key: 'played', label: t('managePage.rail.playedMatches'), to: paths.playedMatches },
+          { key: 'import', label: t('importMatch.title'), to: paths.importMatch },
+        ]}
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} data-testid="import-error">
@@ -175,7 +193,7 @@ export default function ImportMatch() {
       )}
 
       {!status ? (
-        <Panel sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        <Panel sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: { xs: 2, md: 3 } }}>
           <TextField
             label={t('importMatch.event')}
             helperText={t('importMatch.eventHelp')}
@@ -214,7 +232,7 @@ export default function ImportMatch() {
             onDrop={(e) => {
               e.preventDefault();
               setDragging(false);
-              if (!busy) add(e.dataTransfer.files);
+              if (!busy) void add(e.dataTransfer.files);
             }}
             sx={{
               p: 2,
@@ -278,7 +296,7 @@ export default function ImportMatch() {
               hidden
               data-testid="import-files"
               onChange={(e) => {
-                add(e.target.files);
+                void add(e.target.files);
                 e.target.value = '';
               }}
             />
@@ -315,7 +333,7 @@ export default function ImportMatch() {
         </Panel>
       ) : (
         <Panel
-          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: { xs: 2, md: 3 } }}
           data-testid="import-status"
         >
           <Typography variant="h6" component="h2">

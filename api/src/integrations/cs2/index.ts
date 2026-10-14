@@ -44,9 +44,14 @@ import type { TournamentResponse } from '../../types/tournament.types';
 import type { DbTournamentRow } from '../../types/database.types';
 import type { MatchReport } from './events/connectionSnapshotService';
 import { normalizeConfigPlayers } from '../../utils/playerTransform';
-import { cs2TournamentSettings, validateCs2TournamentSettings } from './tournamentSettings';
+import {
+  cs2TournamentSettings,
+  storedCs2Settings,
+  validateCs2TournamentSettings,
+} from './tournamentSettings';
 import { CS2_INSTANCE_SCHEMA, CS2_INSTANCE_SETTINGS } from './settings';
 import { CS2_MIGRATIONS } from './migrations';
+import { cs2SiteSearch } from './siteSearch';
 import type { ServerActionResult, ServerAllocationResult } from './allocation';
 import type {
   AllocateResult,
@@ -57,6 +62,7 @@ import type {
   MatchDescriptionTeam,
   ResourceActionResult,
 } from '../types';
+import { cs2ShareCards } from './shareCards';
 import {
   CS2_STATS_SCHEMA,
   cs2PlayerStatsColumns,
@@ -156,6 +162,21 @@ function toResourceActionResult(result: ServerActionResult): ResourceActionResul
   return { ...rest, ...(serverId ? { resourceId: serverId } : {}) };
 }
 
+/** The tournament runs the map veto (`settings.cs2.veto` is not false). */
+function vetoOn(settings: unknown): boolean {
+  return storedCs2Settings(settings)?.veto !== false;
+}
+
+/** The stored veto (`matches.veto_state`) is finished. */
+function vetoCompleted(raw: string | null | undefined): boolean {
+  if (!raw) return false;
+  try {
+    return (JSON.parse(raw) as { status?: string } | null)?.status === 'completed';
+  } catch {
+    return false;
+  }
+}
+
 /** Series formats that run a map veto (case-sensitive, as the veto has always checked). */
 function usesVeto(format: string | undefined): boolean {
   return format === 'bo1' || format === 'bo3' || format === 'bo5';
@@ -237,22 +258,53 @@ export const cs2Integration: GameIntegration = {
    * Hold a newly ready BO match for the automated veto in simulation mode.
    * The same check `makeMatchReady` made inline before the veto moved here.
    */
+  /**
+   * A BO1/3/5 match is ready only once its veto is done: before that it has no
+   * maps, and loading it fails ("no maps yet"). Both teams are known now, so
+   * the veto opens (onMatchReady); finishing it readies and allocates the
+   * match (veto/routes.ts, veto/simulation.ts).
+   */
   async isReadyToAllocate(ctx: MatchContext) {
-    const { settingsService } = await import('../../services/settingsService');
-    if (!(await settingsService.isSimulationModeEnabled())) return true;
-    return !usesVeto(ctx.tournament?.format);
+    if (!usesVeto(ctx.tournament?.format) || !vetoOn(ctx.tournament?.settings)) return true;
+    const { db } = await import('../../config/database');
+    const row = await db.queryOneAsync<{ veto_state: string | null }>(
+      'SELECT veto_state FROM matches WHERE slug = ?',
+      [ctx.slug]
+    );
+    return vetoCompleted(row?.veto_state);
   },
 
-  /** Simulation mode: run the automated veto; it allocates the match when done. */
+  /** The map veto runs unless the tournament turned it off (`settings.cs2.veto: false`). */
+  usesPreMatchPhase(tournament) {
+    return vetoOn(tournament.settings);
+  },
+
+  /**
+   * The veto opens: the match stays `pending` so the players' veto page and
+   * the turn timer (veto/timer.ts) pick it up; in simulation mode the
+   * automated veto runs it at once.
+   */
   async onMatchReady(ctx: MatchContext) {
-    const [{ log }, { autoCompleteVetoForMatch }] = await Promise.all([
+    const [{ log }, { db }, { settingsService }, { emitBracketUpdate }] = await Promise.all([
       import('../../utils/logger'),
-      import('./veto/simulation'),
+      import('../../config/database'),
+      import('../../services/settingsService'),
+      import('../../services/socketService'),
     ]);
-    log.info(
-      `[VETO-SIM] Simulation mode active – auto-completing veto for newly ready match ${ctx.slug}`
+    await db.runAsync(
+      "UPDATE matches SET status = 'pending' WHERE slug = ? AND (server_id IS NULL OR server_id = '') AND status IN ('pending', 'ready')",
+      [ctx.slug]
     );
-    await autoCompleteVetoForMatch(ctx.slug);
+    emitBracketUpdate({ action: 'match_ready', matchSlug: ctx.slug });
+    if (await settingsService.isSimulationModeEnabled()) {
+      const { autoCompleteVetoForMatch } = await import('./veto/simulation');
+      log.info(
+        `[VETO-SIM] Simulation mode active – auto-completing veto for newly ready match ${ctx.slug}`
+      );
+      await autoCompleteVetoForMatch(ctx.slug);
+      return;
+    }
+    log.info(`[VETO] Both teams known for ${ctx.slug}: the veto is open`);
   },
 
   /** The map pool, the shuffle map sequence and max rounds, and the custom veto order. */
@@ -651,10 +703,41 @@ export const cs2Integration: GameIntegration = {
     return { team1: steamIds(cfg.team1?.players), team2: steamIds(cfg.team2?.players) };
   },
 
-  /** A finished matchmaking game can drop a virtual skin for each player, likelier for winners (skins/skinService). */
-  async onMatchmakingResult({ matchSlug, winners, others, map }) {
+  /**
+   * A finished matchmaking or tournament game can drop a virtual skin for each
+   * player, likelier for winners (skins/skinService). Not in a tournament that
+   * plays in esports mode or turned its skin rewards off.
+   */
+  async onMatchmakingResult({ matchSlug, winners, others, map, source, teamSize }) {
     const { skinService } = await import('./skins/skinService');
-    await skinService.rollMatchDrops(matchSlug, winners, others, map);
+    if (source === 'tournament') {
+      const { db } = await import('../../config/database');
+      const row = await db.queryOneAsync<{ settings: string | null }>(
+        'SELECT t.settings FROM matches m JOIN tournament t ON t.id = m.tournament_id WHERE m.slug = ?',
+        [matchSlug]
+      );
+      let settings: Record<string, unknown> = {};
+      try {
+        settings = row?.settings ? (JSON.parse(row.settings) as Record<string, unknown>) : {};
+      } catch {
+        settings = {};
+      }
+      const own = storedCs2Settings(settings) as
+        { esportsMode?: boolean; skinRewards?: boolean } | undefined;
+      if (own?.esportsMode === true || own?.skinRewards === false || settings.skinRewards === false)
+        return;
+    }
+    await skinService.rollMatchDrops(matchSlug, winners, others, map, { source, teamSize });
+  },
+
+  /** Every new matchmaking level is a skin drop to pick from (skins/skinService). */
+  siteSearch(ctx) {
+    return cs2SiteSearch(ctx);
+  },
+
+  async onLevelUp({ playerId, level }) {
+    const { skinService } = await import('./skins/skinService');
+    await skinService.levelUpDrop(playerId, level);
   },
 
   /** The top three of a finished tournament get its skin rewards, unless the tournament turned them off. */
@@ -764,6 +847,9 @@ export const cs2Integration: GameIntegration = {
   },
 
   clientSlots: ['MatchPanel', 'SetupStep', 'StatsPanel'],
+
+  // Link previews for clips and reels (services/shareCards).
+  shareCards: cs2ShareCards,
 };
 
 /**

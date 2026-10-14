@@ -73,6 +73,15 @@ var recorderLook = []string{
 	// Nothing muted when gamescope's window is not focused.
 	"snd_mixahead 0.05",
 	"snd_mute_losefocus 0",
+	// Keep game effects, but remove the profile's music kit and event music.
+	"snd_menumusic_volume 0",
+	"snd_roundstart_volume 0",
+	"snd_roundaction_volume 0",
+	"snd_roundend_volume 0",
+	"snd_mvp_volume 0",
+	"snd_deathcamera_volume 0",
+	"snd_mapobjective_volume 0",
+	"snd_tensecondwarning_volume 0",
 	"fps_max 0",
 	// A static cross with a dot, green-cyan, no outline.
 	"cl_crosshairstyle 4", "cl_crosshairdot 1", "cl_crosshair_recoil 0", "cl_crosshair_t 0",
@@ -84,8 +93,10 @@ var recorderLook = []string{
 }
 
 var (
-	reUnpaused  = regexp.MustCompile(`unpaused on tick (\d+)`)
-	rePaused    = regexp.MustCompile(`(?:^|[^n])paused on tick (\d+)`)
+	reUnpaused = regexp.MustCompile(`unpaused on tick (\d+)`)
+	rePaused   = regexp.MustCompile(`(?:^|[^n])paused on tick (\d+)`)
+	// getpos: "setpos 1234.000000 -56.000000 89.031250;setang ...".
+	reSetpos    = regexp.MustCompile(`setpos (-?[\d.]+ -?[\d.]+ -?[\d.]+)`)
 	reStartTick = regexp.MustCompile(`server_start_tick: (\d+)`)
 	reLastTick  = regexp.MustCompile(`playback_ticks: (\d+)`)
 	reMapLoaded = regexp.MustCompile(`OnSwitchLoopModeFinished\( (game) : success \)`)
@@ -186,10 +197,26 @@ type game struct {
 	startTick int // the demo's first tick: the console's ticks count from it
 	lastTick  int // the demo's length in ticks (the analyzer's last tick)
 	logPath   string
+	// follow, when set, is where the followed player stands at a tick (the
+	// demo's replay frames): the capture checks the camera is with them.
+	follow func(tick int) ([3]float64, bool)
 }
 
 // launchGame starts gamescope with CS2 and waits for its console and stream.
 func (r *recorder) launchGame(ctx context.Context, logPath string) (*game, error) {
+	g, err := r.launchGameOnce(ctx, logPath)
+	if err != nil {
+		// The log is in the job's folder, which goes when the job ends: its
+		// last lines go with the error (into the run report and the job log).
+		if tail := logTail(logPath, 40, 3000); tail != "" {
+			log.Printf("gamescope log, last lines:\n%s", tail)
+			err = fmt.Errorf("%w\n--- gamescope log, last lines ---\n%s", err, tail)
+		}
+	}
+	return g, err
+}
+
+func (r *recorder) launchGameOnce(ctx context.Context, logPath string) (*game, error) {
 	// Another CS2 on the console port would answer in this one's place.
 	if conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", netconPort), time.Second); err == nil {
 		conn.Close()
@@ -250,7 +277,7 @@ func (r *recorder) launchGame(ctx context.Context, logPath string) (*game, error
 		return nil, ctx.Err()
 	case <-time.After(90 * time.Second):
 		g.stop()
-		return nil, errors.New("gamescope never offered its video stream (see " + logPath + ")")
+		return nil, errors.New("gamescope never offered its video stream")
 	}
 	if g.con, err = dialConsole(ctx, 3*time.Minute, strings.TrimSuffix(logPath, filepath.Ext(logPath))+"-console.log"); err != nil {
 		g.stop()
@@ -309,15 +336,86 @@ func (g *game) loadDemo(demo string, look []string) error {
 			}
 			// The demo carries the server's host_timescale (4 when its match was
 			// simulated); play it at its own speed.
-			return g.con.send("demo_pause", "host_timescale 1")
+			// sv_cheats for getpos (the follow check); a demo's own setting.
+			return g.con.send("demo_pause", "host_timescale 1", "sv_cheats 1")
 		}
 	}
 	return errors.New("the demo never reported its first tick")
 }
 
-// spectate follows the player by their name in the demo.
+// followAccounts maps a player's demo name to their Steam account id, so the
+// camera can follow them by account: a name with characters the console
+// mangles never matched, and the camera sat under the map for the whole clip
+// (2026-10-12, every clip of one player).
+var followAccounts sync.Map // name -> uint32 account id
+
+// rememberAccount notes the account behind a demo name (steamID is a SteamID64).
+func rememberAccount(name, steamID string) {
+	if id, err := strconv.ParseUint(steamID, 10, 64); err == nil && id > 76561197960265728 {
+		followAccounts.Store(name, uint32(id-76561197960265728))
+	}
+}
+
+// spectate follows the player: by account id when it is known, and by their
+// name in the demo as well (whichever the game takes).
 func (g *game) spectate(name string) error {
+	if v, ok := followAccounts.Load(name); ok {
+		if err := g.con.send(fmt.Sprintf("spec_player_by_accountid %d", v.(uint32))); err != nil {
+			return err
+		}
+	}
 	return g.con.send(fmt.Sprintf("spec_player \"%s\"", strings.ReplaceAll(name, `"`, "")))
+}
+
+// followTolerance is how far (game units, about a player's height times 3)
+// the camera may be from where the demo has the player.
+const followTolerance = 250.0
+
+// errNotFollowing: the camera would not follow the player.
+var errNotFollowing = errors.New("could not follow the player: the camera stayed away from them")
+
+// checkFollow asks for the camera's position and compares it with where the
+// demo has the player around `from`; off, it follows again (up to three times)
+// and then gives up, so the clip fails instead of shipping a view from under
+// the map. Without a replay or an answer from getpos it cannot tell, and lets
+// the capture go on.
+func (g *game) checkFollow(name string, from int) error {
+	if g.follow == nil {
+		return nil
+	}
+	want, ok := g.follow(from)
+	if !ok {
+		return nil
+	}
+	for attempt := 0; attempt < 3; attempt++ {
+		g.con.drain()
+		if err := g.con.send("getpos"); err != nil {
+			return err
+		}
+		v, _, err := g.con.expect(reSetpos, 2*time.Second)
+		if err != nil {
+			log.Printf("follow check: no getpos answer (%v); not checked", err)
+			return nil
+		}
+		f := strings.Fields(v)
+		x, _ := strconv.ParseFloat(f[0], 64)
+		y, _ := strconv.ParseFloat(f[1], 64)
+		z, _ := strconv.ParseFloat(f[2], 64)
+		d := math.Sqrt((x-want[0])*(x-want[0]) + (y-want[1])*(y-want[1]) + (z-want[2])*(z-want[2]))
+		if d <= followTolerance {
+			if attempt > 0 {
+				log.Printf("follow check: with %s after %d retries", name, attempt)
+			}
+			return nil
+		}
+		log.Printf("follow check: camera at (%.0f %.0f %.0f), %s at (%.0f %.0f %.0f), %.0f apart; following again",
+			x, y, z, name, want[0], want[1], want[2], d)
+		if err := g.spectate(name); err != nil {
+			return err
+		}
+		time.Sleep(time.Duration(500*(attempt+1)) * time.Millisecond)
+	}
+	return errNotFollowing
 }
 
 // pause pauses the demo. CS2 says "paused on tick" when it pauses and
@@ -337,7 +435,7 @@ const seekTimeout = 45 * time.Second
 // awaitSeek waits for a demo_gototick to land: a seek plays on by itself once
 // it has, so pausing it answers with a tick near the target (analyzer ticks).
 // While it still loads, CS2 does not answer at all.
-func (g *game) awaitSeek(target int) error {
+func (g *game) awaitSeek(target int) (int, error) {
 	// A seek back within the moment lands at once; one far into the demo is
 	// polled until it has.
 	time.Sleep(seekPoll)
@@ -345,20 +443,46 @@ func (g *game) awaitSeek(target int) error {
 	for {
 		g.con.drain()
 		if err := g.con.send("demo_pause"); err != nil {
-			return err
+			return 0, err
 		}
 		if v, _, err := g.con.expect(rePaused, 2*time.Second); err == nil {
 			if tick, err := strconv.Atoi(v); err == nil && seekLanded(tick-g.startTick, target) {
-				return nil
+				return tick - g.startTick, nil
 			}
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("the seek to tick %d did not land in %s", target, seekTimeout)
+			return 0, fmt.Errorf("the seek to tick %d did not land in %s", target, seekTimeout)
 		}
 		// Not there yet (or still paused where it was): let it go on.
 		_ = g.con.send("demo_resume")
 		time.Sleep(seekPoll)
 	}
+}
+
+// seekForCapture ensures the paused demo still has the clip's run-up ahead
+// of it. CS2 can land several seconds after demo_gototick; awaitSeek's broad
+// loading tolerance is not enough to guarantee the opening was captured.
+func (g *game) seekForCapture(from int, scale float64) error {
+	target := from
+	for attempt := 0; attempt < 3; attempt++ {
+		if err := g.con.send(fmt.Sprintf("demo_timescale %g", scale), fmt.Sprintf("demo_gototick %d", target), "demo_resume"); err != nil {
+			return err
+		}
+		landed, err := g.awaitSeek(target)
+		if err != nil {
+			return err
+		}
+		if landed <= from+lead/2 {
+			return nil
+		}
+		if target == 0 {
+			return fmt.Errorf("seek resumed at tick %d, past capture run-up at %d", landed, from)
+		}
+		next := max(0, target-(landed-from)-lead)
+		log.Printf("seek landed at tick %d past capture run-up %d; seeking back to %d", landed, from, next)
+		target = next
+	}
+	return fmt.Errorf("seek could not preserve capture run-up at tick %d after 3 attempts", from)
 }
 
 // resume plays the demo on and returns the tick it resumed at; if it was
@@ -409,14 +533,13 @@ func (g *game) playPhases(from int, phases []playPhase, name string, started fun
 	// Resumed straight after, so a demo the last pass left paused plays on
 	// too and answers the first poll (paused, it said nothing and each seek
 	// waited out a 2 s timeout).
-	if err := g.con.send("host_timescale 1", "host_framerate 0", "fps_max 0",
-		fmt.Sprintf("demo_timescale %g", phases[0].scale), fmt.Sprintf("demo_gototick %d", from), "demo_resume"); err != nil {
+	if err := g.con.send("host_timescale 1", "host_framerate 0", "fps_max 0"); err != nil {
 		return nil, err
 	}
 	// A seek far into the demo (round 19 straight after loading) takes CS2
 	// longer than a few seconds: wait until it has landed near `from`.
 	seekStart := time.Now()
-	if err := g.awaitSeek(from); err != nil {
+	if err := g.seekForCapture(from, phases[0].scale); err != nil {
 		return nil, err
 	}
 	seekTook := time.Since(seekStart)
@@ -435,6 +558,12 @@ func (g *game) playPhases(from int, phases []playPhase, name string, started fun
 		}
 	}
 	if err := g.spectate(name); err != nil {
+		return nil, err
+	}
+	// The camera must be with the player: a follow that never took left it
+	// parked under the map for the whole clip, and the clip still shipped
+	// (2026-10-12/13, clips 243, 244, 505).
+	if err := g.checkFollow(name, from); err != nil {
 		return nil, err
 	}
 	// The capture starts (and links up) while the view settles.

@@ -465,6 +465,7 @@ export class Cs2ServerPool {
     const enabledServers = (await serverService.getAllServers(true)).filter(
       (s) => s.tournamentUse !== false
     );
+    await serverAllocationTracker.releaseFinished();
 
     // Filter out unconfigured servers (never sent server_configured event)
     // These servers cannot be used for matches until they've been initialized
@@ -778,11 +779,14 @@ export class Cs2ServerPool {
       available.push(server);
       serverAllocationTracker.markIdle(server.id);
     }
-    if (includeReserve || available.length === 0) return available;
+    // The reserve is there to fail a live match over to; with no match live
+    // there is nothing to fail over, and it never takes the last free server
+    // (the 2026-10-12 final waited behind a reserve of one).
+    if (includeReserve || available.length <= 1 || dbBusyServers.size === 0) return available;
     const { effective } = await reserveCount();
     const held = pickReserved(
       available.filter((s) => s.failoverUse !== false),
-      effective
+      Math.min(effective, available.length - 1)
     );
     if (held.size > 0)
       log.debug(`Fleet servers held in reserve for failover: ${[...held].join(', ')}`);

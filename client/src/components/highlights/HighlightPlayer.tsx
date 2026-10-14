@@ -149,12 +149,18 @@ function follow(
     if (loop || !a.duration || v.currentTime < a.duration) void a.play().catch(() => undefined);
   };
   const stop = () => a.pause();
+  // While the video buffers its time stands still: the song and crowd wait
+  // with it (pulling them back to it every frame made them stutter in a loop).
+  const buffering = () => {
+    if (!v.paused) a.pause();
+  };
   const rate = () => tapeSpeed(a, v.playbackRate);
   let frame = 0;
   const tick = () => {
     a.volume = Math.max(0, Math.min(1, level()));
     if (
       !v.paused &&
+      v.readyState > 2 &&
       a.readyState > 1 &&
       Math.abs(a.currentTime - at()) > 0.25 &&
       (loop || at() < a.duration)
@@ -164,6 +170,8 @@ function follow(
   };
   frame = requestAnimationFrame(tick);
   v.addEventListener('play', start);
+  v.addEventListener('playing', start);
+  v.addEventListener('waiting', buffering);
   v.addEventListener('pause', stop);
   v.addEventListener('ended', stop);
   v.addEventListener('seeked', sync);
@@ -174,6 +182,8 @@ function follow(
   return () => {
     cancelAnimationFrame(frame);
     v.removeEventListener('play', start);
+    v.removeEventListener('playing', start);
+    v.removeEventListener('waiting', buffering);
     v.removeEventListener('pause', stop);
     v.removeEventListener('ended', stop);
     v.removeEventListener('seeked', sync);
@@ -200,6 +210,8 @@ const LAST_TRACK = 'at.reelMusic.last';
 const CROWD_OFF = 'at.reelCrowd.off';
 /** The viewer's overall level, kept between visits (also the admin's music samples). */
 export const PLAYER_VOLUME_KEY = 'at.player.volume';
+/** Muted or not, remembered like the volume: one setting for every player on the site. */
+export const PLAYER_MUTED_KEY = 'at.player.muted';
 /** The level until the viewer sets one. */
 export const PLAYER_VOLUME_DEFAULT = 1;
 const MUSIC_OFF = 'at.reelMusic.off';
@@ -322,7 +334,7 @@ export const HighlightPlayer = forwardRef<HighlightPlayerHandle, HighlightPlayer
     const [playing, setPlaying] = useState(false);
     const [time, setTime] = useState(0);
     const [duration, setDuration] = useState(markers?.duration ?? 0);
-    const [muted, setMuted] = useState(false);
+    const [muted, setMuted] = useState(() => stored(PLAYER_MUTED_KEY) === '1');
     // The overall level: the game's sound and the music together.
     const [volume, setVolume] = useState(() => {
       const v = Number(stored(PLAYER_VOLUME_KEY));
@@ -430,6 +442,10 @@ export const HighlightPlayer = forwardRef<HighlightPlayerHandle, HighlightPlayer
       if (video.current) video.current.volume = volume;
       store(PLAYER_VOLUME_KEY, String(volume));
     }, [volume]);
+
+    useEffect(() => {
+      store(PLAYER_MUTED_KEY, muted ? '1' : null);
+    }, [muted]);
 
     const fullscreen = () => {
       if (document.fullscreenElement) void document.exitFullscreen();

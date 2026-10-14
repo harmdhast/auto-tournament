@@ -173,6 +173,37 @@
       "notifyOn": "You'll get an email when sign-up opens",
       "notifyOff": "No more tournament emails",
       "siteCannotSend": "This site doesn't send email right now."
+    },
+    "twoStep": {
+      "turnOn": "Turn on two-step",
+      "turnOff": "Turn off two-step",
+      "isOn": "Two-step verification on",
+      "isOff": "Two-step verification off",
+      "onTitle": "Turn on two-step verification",
+      "offTitle": "Turn off two-step verification",
+      "offWarning": "Without it, your password alone signs in to this admin account.",
+      "password": "Password",
+      "code": "Authenticator code",
+      "codeNeeded": "Enter the code from your authenticator app.",
+      "failed": "Could not turn it off",
+      "cancel": "Cancel",
+      "turnedOn": "Two-step verification is on",
+      "turnedOff": "Two-step verification is off"
+    },
+    "passkeys": {
+      "title": "Passkeys",
+      "description": "Sign in on the admin sign-in page with your fingerprint, face or device PIN instead of the password and code.",
+      "add": "Add a passkey",
+      "name": "Name",
+      "nameHelp": "A name to tell it apart, like \"MacBook\" or \"Phone\". Your browser asks for your fingerprint, face or PIN next.",
+      "continue": "Continue",
+      "added": "Passkey added",
+      "addFailed": "Could not add the passkey",
+      "removed": "{{name}} removed",
+      "removeFailed": "Could not remove the passkey",
+      "lastUsed": "Last used {{date}}",
+      "addedOn": "Added {{date}}, not used yet",
+      "needsHttps": "Passkeys need the site on https (or localhost). Ask whoever runs it to put it behind https."
     }
   },
   "home": {
@@ -327,7 +358,7 @@
     },
     "actions": {
       "signUp": "Sign up",
-      "watch": "Watch",
+      "watch": "Abrir",
       "results": "Results",
       "youreIn": "Estás dentro"
     },
@@ -474,6 +505,10 @@
         "idTaken": "“{{id}}” is already a built-in module",
         "render": "its “{{slot}}” slot failed while rendering: {{error}}"
       }
+    },
+    "signInNeed": {
+      "body": "{{game}} players sign in with {{provider}}, and {{provider}} sign-in is turned off. They can't link the account the game needs.",
+      "action": "Turn it on"
     }
   },
   "catalog": {
@@ -637,7 +672,11 @@
         "5v5": "Active Duty",
         "2v2": "Wingman maps",
         "1v1": "Active Duty"
-      }
+      },
+      "searchAnyone": "Few players searching: you'll be matched with anyone available ({{count}} searching, {{total}} needed)",
+      "searchRating": "Finding a close match for your rating · {{count}} searching",
+      "botFill": "Rellenar plazas vacías con bots",
+      "botFillUnrated": "Los bots ocupan las plazas vacías · sin clasificar: sin rating, XP ni drops"
     },
     "queue": {
       "searching": "Searching {{mode}}",
@@ -769,6 +808,7 @@
       "draw": "Draw"
     },
     "leaderboard": {
+      "toLadder": "Matchmaking ladder →",
       "title": "Leaderboard",
       "subtitle_one": "Players with {{count}} or more matches in the last 30 days.",
       "subtitle_other": "Players with {{count}} or more matches in the last 30 days.",
@@ -846,7 +886,10 @@
       "adminCalled": "{{name}} llamó a un admin",
       "timedOut": "sin tiempo",
       "remindAccount": "{{name}}: inicia sesión una vez con Steam para jugar en {{tournament}}.",
-      "remindGame": "{{name}}: añade el juego a tu perfil (Juegos a los que juegas) antes del check-in de {{tournament}}."
+      "remindGame": "{{name}}: añade el juego a tu perfil (Juegos a los que juegas) antes del check-in de {{tournament}}.",
+      "serverDown": "The match server crashed. Bringing it back…",
+      "serverBack": "The match is back: map {{map}}, round {{round}}. Reconnect.",
+      "vetoReset": "An admin restarted the veto"
     },
     "party": {
       "inviteCopied": "Enlace de invitación copiado",
@@ -858,7 +901,34 @@
       "searching": "Buscando partida",
       "leaderQueues": "El líder inicia la búsqueda"
     },
-    "back": "Atrás"
+    "back": "Atrás",
+    "typing": {
+      "one": "{{name}} está escribiendo…",
+      "two": "{{first}} y {{second}} están escribiendo…",
+      "many": "{{count}} personas están escribiendo…"
+    },
+    "emoji": {
+      "open": "Emoji",
+      "title": "Elige un emoji",
+      "search": "Buscar emoji",
+      "none": "No se encontraron emoji",
+      "categories": {
+        "results": "Resultados",
+        "recent": "Recientes",
+        "smileys": "Caras",
+        "gestures": "Manos",
+        "people": "Personas",
+        "animals": "Naturaleza",
+        "food": "Comida y bebida",
+        "activity": "Juegos y deporte",
+        "travel": "Lugares",
+        "objects": "Objetos",
+        "symbols": "Símbolos"
+      }
+    },
+    "callAdminConfirmTitle": "Call an admin?",
+    "callAdminConfirmBody": "An admin gets a notification and joins this chat. Call one only when you need help with the match.",
+    "adminCallOpen": "An admin call is open here"
   },
   "search": {
     "open": "Search",
@@ -872,7 +942,11 @@
       "players": "Players",
       "teams": "Teams",
       "tournaments": "Tournaments",
-      "matches": "Matches"
+      "matches": "Matches",
+      "highlights": "Highlights",
+      "maps": "Mapas",
+      "servers": "Servidores y máquinas",
+      "recorders": "Grabadores"
     },
     "status": {
       "setup": "Being set up",
@@ -905,7 +979,10 @@
       "settingsLicense": "Settings: license",
       "settingsMatchmaking": "Settings: matchmaking",
       "settingsAdvanced": "Settings: advanced"
-    }
+    },
+    "clips_one": "{{count}} clip",
+    "clips_other": "{{count}} clips",
+    "fieldLabel": "Search"
   },
   "highlightsPage": {
     "title": "Highlights",
@@ -1012,5 +1089,13 @@
     "openConsole": "Open the console ↗",
     "pasteKey": "Paste the new key",
     "replacedSoon": "A new key was made for this license in the console. Paste it in the license settings: this key stops on {{date}}."
+  },
+  "matchAdmin": {
+    "openChat": "Open chat",
+    "resetVeto": "Restart veto",
+    "resetVetoTitle": "Restart the veto?",
+    "resetVetoBody": "Every ban, pick and side so far is cleared and the teams start the veto again. Both teams see it in the match chat.",
+    "vetoReset": "The veto starts over",
+    "vetoResetFailed": "Could not restart the veto"
   }
 }

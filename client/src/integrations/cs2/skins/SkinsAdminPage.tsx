@@ -22,6 +22,7 @@ import {
   MenuItem,
   Select,
   Stack,
+  FormControlLabel,
   Switch,
   TextField,
   ToggleButton,
@@ -43,6 +44,7 @@ import {
 } from '../../../module-sdk';
 import { rarityColor } from './rarity';
 import { SkinsInventoryAdmin } from './SkinsInventoryAdmin';
+import { GiveDropsAdmin } from './GiveDropsAdmin';
 
 const { color } = tokens;
 const RARITIES = [
@@ -72,9 +74,14 @@ interface Config {
   matchmakingDrops: boolean;
   dropChance: number;
   playDropChance: number;
+  modeChances: Record<'2v2' | '1v1', { win: number; play: number }>;
+  tournamentMatchDrops: boolean;
+  levelUpDrops: boolean;
   rarityWeights: Record<Rarity, number>;
   tournamentRewards: boolean;
   rewards: Reward[];
+  tradeUp?: { enabled: boolean; count: number };
+  statTrakChance?: number;
 }
 
 interface CatalogSkin {
@@ -528,6 +535,46 @@ function ChanceTile({
   );
 }
 
+/** A small number box (a percent or a count) inside a sentence. */
+function SmallNumber({
+  value,
+  max,
+  label,
+  onChange,
+  testId,
+}: {
+  value: number;
+  max: number;
+  label: string;
+  onChange: (n: number) => void;
+  testId?: string;
+}) {
+  return (
+    <InputBase
+      type="number"
+      value={value}
+      onChange={(e) =>
+        onChange(Math.max(0, Math.min(max, Math.round(Number(e.target.value) || 0))))
+      }
+      inputProps={{ min: 0, max, 'aria-label': label, 'data-testid': testId }}
+      sx={{
+        width: '4.5ch',
+        mx: 0.5,
+        px: 0.75,
+        borderRadius: '8px',
+        border: `1px solid ${color.rule}`,
+        bgcolor: color.paper,
+        fontWeight: 600,
+        '& input': { p: '2px 0', textAlign: 'right', MozAppearance: 'textfield' },
+        '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+          WebkitAppearance: 'none',
+          m: 0,
+        },
+      }}
+    />
+  );
+}
+
 /** A card on the Skins page: a title with its own switch. */
 function SkinsCard({
   id,
@@ -814,6 +861,135 @@ export function SkinsAdminPage() {
               testId="skins-play-drop-chance"
             />
           </Box>
+          <Typography sx={{ fontSize: '0.75rem', color: color.muted, mt: -0.5 }}>
+            {t('skins.admin.fiveVsFive')}
+          </Typography>
+          <Box
+            sx={{ display: 'grid', gap: 0.75, fontSize: '0.875rem', color: color.ink2 }}
+            data-testid="skins-mode-chances"
+          >
+            {(['2v2', '1v1'] as const).map((mode) => (
+              <Box
+                key={mode}
+                sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}
+              >
+                <Box component="span" sx={{ fontWeight: 600, minWidth: '3.5ch', mr: 1 }}>
+                  {mode}
+                </Box>
+                {t('skins.admin.win')}
+                <SmallNumber
+                  value={config.modeChances[mode].win}
+                  max={100}
+                  label={`${mode} ${t('skins.admin.win')}`}
+                  onChange={(n) =>
+                    set({
+                      modeChances: {
+                        ...config.modeChances,
+                        [mode]: { ...config.modeChances[mode], win: n },
+                      },
+                    })
+                  }
+                  testId={`skins-mode-${mode}-win`}
+                />
+                % · {t('skins.admin.lose')}
+                <SmallNumber
+                  value={config.modeChances[mode].play}
+                  max={100}
+                  label={`${mode} ${t('skins.admin.lose')}`}
+                  onChange={(n) =>
+                    set({
+                      modeChances: {
+                        ...config.modeChances,
+                        [mode]: { ...config.modeChances[mode], play: n },
+                      },
+                    })
+                  }
+                  testId={`skins-mode-${mode}-play`}
+                />
+                %
+              </Box>
+            ))}
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={config.tournamentMatchDrops}
+                  onChange={(e) => set({ tournamentMatchDrops: e.target.checked })}
+                />
+              }
+              label={t('skins.admin.tournamentMatchDrops')}
+              data-testid="skins-tournament-match-drops"
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={config.levelUpDrops}
+                  onChange={(e) => set({ levelUpDrops: e.target.checked })}
+                />
+              }
+              label={t('skins.admin.levelUpDrops')}
+              data-testid="skins-level-up-drops"
+            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={config.tradeUp?.enabled !== false}
+                    onChange={(e) =>
+                      set({
+                        tradeUp: { count: config.tradeUp?.count ?? 5, enabled: e.target.checked },
+                      })
+                    }
+                  />
+                }
+                label={t('skins.admin.tradeUp')}
+                data-testid="skins-trade-up"
+              />
+              <TextField
+                size="small"
+                type="number"
+                label={t('skins.admin.tradeUpCount')}
+                value={config.tradeUp?.count ?? 5}
+                disabled={config.tradeUp?.enabled === false}
+                onChange={(e) =>
+                  set({
+                    tradeUp: {
+                      enabled: config.tradeUp?.enabled !== false,
+                      count: Math.max(3, Math.min(10, Math.round(Number(e.target.value) || 5))),
+                    },
+                  })
+                }
+                slotProps={{
+                  htmlInput: { min: 3, max: 10, 'data-testid': 'skins-trade-up-count' },
+                }}
+                sx={{ width: 140 }}
+              />
+            </Box>
+            <TextField
+              size="small"
+              type="number"
+              label={t('skins.admin.statTrakChance')}
+              helperText={t('skins.admin.statTrakHelp')}
+              value={config.statTrakChance ?? 10}
+              onChange={(e) =>
+                set({
+                  statTrakChance: Math.max(
+                    0,
+                    Math.min(100, Math.round(Number(e.target.value) || 0))
+                  ),
+                })
+              }
+              slotProps={{
+                htmlInput: { min: 0, max: 100, 'data-testid': 'skins-stattrak-chance' },
+              }}
+              sx={{ maxWidth: 260 }}
+            />
+            <Typography sx={{ fontSize: '0.75rem', color: color.muted }}>
+              {t('skins.admin.fairRules')}
+            </Typography>
+          </Box>
           <Box>
             <Typography sx={{ fontSize: '0.8125rem', color: color.muted, mb: 1 }}>
               {t('skins.admin.whatDrops')}
@@ -894,6 +1070,8 @@ export function SkinsAdminPage() {
           </Typography>
         </SkinsCard>
       </Box>
+
+      <GiveDropsAdmin onGiven={() => setStatsVersion((v) => v + 1)} />
 
       <SkinsInventoryAdmin onChanged={() => setStatsVersion((v) => v + 1)} />
 

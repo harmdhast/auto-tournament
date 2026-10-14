@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, useAuth } from '../../../module-sdk';
 import type { AccountMenuItem } from '../../types';
 import { skinPaths } from './paths';
+import { applyStep, equipOnStep, equipStep, type LoadoutTeam } from './loadoutSides';
 
 export type Rarity =
   'common' | 'uncommon' | 'rare' | 'mythical' | 'legendary' | 'ancient' | 'immortal';
@@ -17,13 +18,38 @@ export interface OwnedSkin {
   slot: string;
   float: number;
   pattern: number;
-  source: 'matchmaking' | 'tournament' | 'admin';
+  source: 'matchmaking' | 'tournament' | 'admin' | 'level' | 'tradeup';
   sourceLabel: string | null;
   sourceRef: string | null;
   place: number | null;
   createdAt: number;
   seen: boolean;
   equipped: boolean;
+  /** Where it is equipped: 0 both sides, 2 T, 3 CT. */
+  equippedSides: LoadoutTeam[];
+  /** The one side that buys this weapon (2 T, 3 CT), or null when both do. */
+  side: 2 | 3 | null;
+  /** A StatTrak skin's kill count; null for a plain one. */
+  stattrak: number | null;
+}
+
+/** A drop waiting for the player to keep one of its options (api: skinService.openChoices). */
+export interface SkinChoice {
+  id: number;
+  source: OwnedSkin['source'];
+  sourceLabel: string | null;
+  place: number | null;
+  createdAt: number;
+  options: Array<{
+    weapon: string;
+    weaponName: string;
+    name: string;
+    rarity: Rarity;
+    image: string;
+    float: number;
+    pattern: number;
+    stattrak?: boolean;
+  }>;
 }
 
 export interface ShowcaseItem {
@@ -68,6 +94,7 @@ export function useMySkins() {
   const [inventory, setInventory] = useState<OwnedSkin[]>([]);
   const [showcase, setShowcase] = useState<ShowcaseItem[]>([]);
   const [unseen, setUnseen] = useState<number[]>([]);
+  const [choices, setChoices] = useState<SkinChoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [available, setAvailable] = useState(false);
 
@@ -82,10 +109,12 @@ export function useMySkins() {
         inventory: OwnedSkin[];
         showcase: ShowcaseItem[];
         unseen: number[];
+        choices?: SkinChoice[];
       }>('/api/skins/me');
       setInventory(data.inventory ?? []);
       setShowcase(data.showcase ?? []);
       setUnseen(data.unseen ?? []);
+      setChoices(data.choices ?? []);
       setAvailable(true);
     } catch {
       setAvailable(false);
@@ -102,21 +131,27 @@ export function useMySkins() {
   }, [reload]);
 
   /**
-   * Equips at once (the grid shows it before the server answers), or, for
-   * the skin already equipped, empties its slot: the game's default is back.
+   * Equips for a side (0 both, 2 T, 3 CT) at once (the grid shows it before
+   * the server answers), or, for a skin already on that side, takes it off
+   * that side: the game's default is back there.
    */
-  const equip = useCallback(async (skin: OwnedSkin) => {
-    const off = skin.equipped;
+  const equip = useCallback(async (skin: OwnedSkin, wanted: LoadoutTeam = 0) => {
+    const step = equipStep(skin, wanted);
+    const off = (team: LoadoutTeam) =>
+      api.delete(`/api/skins/me/equip/${encodeURIComponent(skin.slot)}?team=${team}`);
     let before: OwnedSkin[] = [];
     setInventory((list) => {
       before = list;
-      return list.map((s) =>
-        s.slot === skin.slot ? { ...s, equipped: !off && s.id === skin.id } : s
-      );
+      return applyStep(list, skin, step);
     });
     try {
-      if (off) await api.delete(`/api/skins/me/equip/${encodeURIComponent(skin.slot)}`);
-      else await api.post('/api/skins/me/equip', { skinId: skin.id });
+      if (step.kind === 'unequip') await off(step.team);
+      else if (step.kind === 'equip')
+        await api.post('/api/skins/me/equip', { skinId: skin.id, team: step.team });
+      else {
+        await off(0);
+        await api.post('/api/skins/me/equip', { skinId: skin.id, team: step.keep });
+      }
     } catch (error) {
       // A refused equip used to vanish (the grid showed it equipped, the
       // server never stored it): put the grid back and tell the caller.
@@ -125,6 +160,33 @@ export function useMySkins() {
     } finally {
       announceChange();
     }
+  }, []);
+
+  /** Put a skin on a side (0 both, 2 T, 3 CT); nothing when it is already there. */
+  const equipOn = useCallback(async (skin: OwnedSkin, wanted: LoadoutTeam = 0) => {
+    const step = equipOnStep(skin, wanted);
+    if (!step) return;
+    let before: OwnedSkin[] = [];
+    setInventory((list) => {
+      before = list;
+      return applyStep(list, skin, step);
+    });
+    try {
+      if (step.kind === 'equip')
+        await api.post('/api/skins/me/equip', { skinId: skin.id, team: step.team });
+    } catch (error) {
+      setInventory(before);
+      throw error;
+    } finally {
+      announceChange();
+    }
+  }, []);
+
+  /** Keep option `index` of a choice; the kept skin then shows as new. */
+  const choose = useCallback(async (choiceId: number, index: number) => {
+    await api.post<{ skinId: number }>(`/api/skins/me/choices/${choiceId}`, { index });
+    setChoices((list) => list.filter((c) => c.id !== choiceId));
+    announceChange();
   }, []);
 
   const markSeen = useCallback(async (ids: number[]) => {
@@ -139,7 +201,20 @@ export function useMySkins() {
     announceChange();
   }, []);
 
-  return { inventory, showcase, unseen, loading, available, reload, equip, markSeen, saveShowcase };
+  return {
+    inventory,
+    showcase,
+    unseen,
+    choices,
+    choose,
+    loading,
+    available,
+    reload,
+    equip,
+    equipOn,
+    markSeen,
+    saveShowcase,
+  };
 }
 
 /** The slots a loadout shows: knife and gloves always, then each weapon with a skin owned. */

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../../../config/database';
 import { log } from '../../../utils/logger';
-import { emitVetoUpdate } from '../../../services/socketService';
+import { emitVetoUpdate, postMatchChatLine } from '../../../services/socketService';
 import { isQueuedAllocationResult, scheduler } from '../../../core/scheduler';
 import type { DbMatchRow, DbTournamentRow } from '../../../types/database.types';
 import type { TournamentResponse } from '../../../types/tournament.types';
@@ -102,9 +102,10 @@ export async function resolveViewerTeamForMatch(
 
   if (shouldTryRegenerateConfig) {
     try {
-      const tournament = await db.queryOneAsync<DbTournamentRow>('SELECT * FROM tournament WHERE id = ?', [
-        match.tournament_id,
-      ]);
+      const tournament = await db.queryOneAsync<DbTournamentRow>(
+        'SELECT * FROM tournament WHERE id = ?',
+        [match.tournament_id]
+      );
 
       if (tournament) {
         const tournamentResponse: TournamentResponse = tournamentRowToResponse(tournament);
@@ -124,9 +125,12 @@ export async function resolveViewerTeamForMatch(
         description = describeMatch({ game: match.game, config: generatedConfig });
       }
     } catch (error) {
-      log.warn(`Failed to regenerate match config while resolving veto viewer team for ${match.slug}`, {
-        error,
-      });
+      log.warn(
+        `Failed to regenerate match config while resolving veto viewer team for ${match.slug}`,
+        {
+          error,
+        }
+      );
     }
   }
 
@@ -184,10 +188,9 @@ export async function resolveViewerTeamForMatch(
  * GET /api/veto/:matchSlug
  * Get current veto state for a match.
  *
- * NOTE: This endpoint is intentionally public so spectators can still see
- * high‑level veto results (picked maps, status and, once the veto is over,
- * its actions) via pages like the player profile or bracket. Security‑sensitive operations (choosing bans/picks)
- * are protected at the /action endpoint and via the team view UI.
+ * Public: spectators see the whole veto live (bans, picks, the turn and the
+ * step) on the match page, read-only. Choosing bans and picks is protected
+ * at the /action endpoint.
  */
 router.get('/:matchSlug', async (req: Request, res: Response) => {
   try {
@@ -294,40 +297,21 @@ router.get('/:matchSlug', async (req: Request, res: Response) => {
     // A player on both teams cannot represent either side, so they see the same
     // redacted view as a spectator. The /action endpoint explains why.
     // The current turn's time limit (./timer.ts), for both views.
-    const turnClock = vetoState.status === 'completed' ? null : await vetoTurnDeadline(matchSlug, match.veto_state);
+    const turnClock =
+      vetoState.status === 'completed' ? null : await vetoTurnDeadline(matchSlug, match.veto_state);
     if (turnClock) {
       vetoState.turnDeadline = turnClock.deadline;
       vetoState.turnSeconds = turnClock.seconds;
     }
 
+    // Everyone sees the veto as it happens (the MatchRoom board): which maps
+    // are banned and picked, whose turn it is and the step. Nothing in it is
+    // secret; both teams see each other's bans anyway. Only the two teams'
+    // players can act (the /action endpoint).
     if (!viewerTeam || viewerTeam === 'both') {
-      const publicVeto = {
-        matchSlug: vetoState.matchSlug,
-        format: vetoState.format,
-        status: vetoState.status,
-        team1Name: vetoState.team1Name,
-        team2Name: vetoState.team2Name,
-        currentTurn: vetoState.status === 'completed' ? undefined : vetoState.currentTurn,
-        turnDeadline: vetoState.turnDeadline,
-        turnSeconds: vetoState.turnSeconds,
-        vetoOrder,
-        pickedMaps: Array.isArray(vetoState.pickedMaps)
-          ? vetoState.pickedMaps.map((p: { mapNumber?: number; mapName: string }) => ({
-              mapNumber: p.mapNumber,
-              mapName: p.mapName,
-            }))
-          : [],
-        // Once the veto is over its record is public: the team and player
-        // pages already show it to anyone, and the match page's veto history
-        // reads it from here.
-        ...(vetoState.status === 'completed' && Array.isArray(vetoState.actions)
-          ? { actions: vetoState.actions }
-          : {}),
-      };
-
       return res.json({
         success: true,
-        veto: publicVeto,
+        veto: { ...vetoState, vetoOrder, viewer: 'spectator' },
         maps: await vetoMapInfo(vetoState.allMaps ?? tournamentMaps),
       });
     }
@@ -452,7 +436,7 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
       vetoState.team2Id = team2Id;
       vetoState.team1Name = team1Name;
       vetoState.team2Name = team2Name;
-      
+
       // Ensure allMaps exists for backward compatibility (reconstruct from current state)
       if (!vetoState.allMaps) {
         // Reconstruct original order by combining all maps
@@ -534,7 +518,14 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
         timestamp: new Date().toISOString(),
       });
     } else if (currentAction === 'side_pick') {
-      log.debug('Processing side pick', { side, currentAction, teamSlug, format, currentStep: vetoState.currentStep, totalSteps: vetoState.totalSteps });
+      log.debug('Processing side pick', {
+        side,
+        currentAction,
+        teamSlug,
+        format,
+        currentStep: vetoState.currentStep,
+        totalSteps: vetoState.totalSteps,
+      });
 
       if (!side || !['CT', 'T'].includes(side)) {
         log.warn('Invalid side selection', { side });
@@ -546,7 +537,11 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
 
       // For BO1 and BO3, if this is the last step and there's exactly one map remaining, it's the decider map
       // We need to add it to pickedMaps before setting the side
-      if ((format === 'bo1' || format === 'bo3') && vetoState.currentStep === vetoState.totalSteps && vetoState.availableMaps.length === 1) {
+      if (
+        (format === 'bo1' || format === 'bo3') &&
+        vetoState.currentStep === vetoState.totalSteps &&
+        vetoState.availableMaps.length === 1
+      ) {
         const deciderMap = vetoState.availableMaps[0];
         vetoState.pickedMaps.push({
           mapNumber: vetoState.pickedMaps.length + 1,
@@ -656,7 +651,8 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
         try {
           const existingConfig = match.config ? JSON.parse(match.config) : {};
           const orderedPickedMaps = [...vetoState.pickedMaps].sort(
-            (a: { mapNumber?: number }, b: { mapNumber?: number }) => (a.mapNumber || 0) - (b.mapNumber || 0)
+            (a: { mapNumber?: number }, b: { mapNumber?: number }) =>
+              (a.mapNumber || 0) - (b.mapNumber || 0)
           );
           const pickedMapNames = orderedPickedMaps
             .map((m: { mapName: string }) => m.mapName)
@@ -673,7 +669,9 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
             }),
           };
 
-          await db.updateAsync('matches', { config: JSON.stringify(updatedConfig) }, 'slug = ?', [matchSlug]);
+          await db.updateAsync('matches', { config: JSON.stringify(updatedConfig) }, 'slug = ?', [
+            matchSlug,
+          ]);
           log.success(`Updated config maplist for manual match ${matchSlug} after veto completion`);
         } catch (e) {
           log.error(`Failed to update config for manual match ${matchSlug} after veto`, e as Error);
@@ -698,12 +696,18 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
             const result = await scheduler.allocateSingleMatch(matchSlug, baseUrl);
 
             if (result.success) {
-              log.success(`[VETO] Match ${matchSlug} loaded on server ${result.serverId} after veto`);
+              log.success(
+                `[VETO] Match ${matchSlug} loaded on server ${result.serverId} after veto`
+              );
             } else {
               if (isQueuedAllocationResult(result.error)) {
-                log.info(`[VETO] Match ${matchSlug} queued for a server after veto: ${result.error}`);
+                log.info(
+                  `[VETO] Match ${matchSlug} queued for a server after veto: ${result.error}`
+                );
               } else {
-                log.warn(`[VETO] Failed to allocate server for match ${matchSlug} after veto: ${result.error}`);
+                log.warn(
+                  `[VETO] Failed to allocate server for match ${matchSlug} after veto: ${result.error}`
+                );
               }
 
               // Start polling for available servers (checks every 10 seconds)
@@ -761,18 +765,36 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
 /**
  * POST /api/veto/:matchSlug/reset
  *
- * Wipes a match's veto so it can be redone. Admin only: without the guard any
- * anonymous caller could reset a live tournament's veto.
+ * An admin wipes a match's veto so the teams do it again (a wrong pick, a bug). Allowed until
+ * the match is on a server: a finished veto that is still waiting for a server stops waiting.
+ * Admin only: without the guard any anonymous caller could reset a live tournament's veto.
  */
 router.post('/:matchSlug/reset', requireAuth, async (req: Request, res: Response) => {
   try {
     const { matchSlug } = req.params;
+    const match = await db.queryOneAsync<{ status: string; server_id: string | null }>(
+      'SELECT status, server_id FROM matches WHERE slug = ?',
+      [matchSlug]
+    );
+    if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
+    if ((match.status !== 'pending' && match.status !== 'ready') || match.server_id) {
+      return res.status(409).json({
+        success: false,
+        error:
+          'The match is already on a server. Restart or reallocate it from the admin controls instead.',
+      });
+    }
 
-    await db.updateAsync('matches', { veto_state: null }, 'slug = ?', [matchSlug]);
+    // A finished veto made the match `ready` (waiting for a server); back to waiting for the veto.
+    scheduler.stopPollingForServer(matchSlug);
+    await db.updateAsync('matches', { veto_state: null, status: 'pending' }, 'slug = ?', [
+      matchSlug,
+    ]);
 
     log.info(`Veto reset for match ${matchSlug}`);
 
     emitVetoUpdate(matchSlug, null);
+    await postMatchChatLine(matchSlug, 'vetoReset');
 
     return res.json({
       success: true,

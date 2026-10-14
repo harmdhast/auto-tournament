@@ -10,26 +10,22 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { PlayerAvatar } from '../player/PlayerAvatar';
 import { AtIcon } from '../common/AtIcon';
+import { VideoThumb } from '../highlights/HighlightCard';
 import { useSnackbar } from '../../contexts/SnackbarContext';
-import { paths, playerProfilePath } from '../../paths';
+import { paths, teamProfilePath } from '../../paths';
 import { tokens, withAlpha } from '../../theme/tokens';
 import {
   acceptFriend,
   answerPartyInvite,
+  answerTeamInvite,
   declineFriend,
   markNoticesRead,
   type Notice,
-  type Person,
 } from './socialStore';
+import { asPerson, describeNotice } from './noticeText';
 import { useTimeAgo } from './timeAgo';
 
 const { color } = tokens;
-
-function asPerson(value: unknown): Person | null {
-  if (!value || typeof value !== 'object') return null;
-  const p = value as Partial<Person>;
-  return typeof p.id === 'string' ? { id: p.id, name: p.name || p.id, avatarUrl: p.avatarUrl ?? null } : null;
-}
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 
@@ -62,123 +58,121 @@ export function NoticeItem({ notice, viewerId, onNavigate }: Props) {
     }
   };
 
-  let icon: React.ReactNode = null;
-  let text: React.ReactNode = null;
-  let detail = '';
-  let to: string | null = null;
-  let actions: React.ReactNode = null;
-
-  const name = (who: Person | null) => (
-    <Box component="b" sx={{ color: color.ink, fontWeight: 600 }}>
-      {who?.name ?? ''}
-    </Box>
+  const said = describeNotice(notice, t, viewerId);
+  const { detail, to, thumb } = said;
+  const bold = (value: string) =>
+    value ? (
+      <Box component="b" sx={{ color: color.ink, fontWeight: 600 }}>
+        {value}
+      </Box>
+    ) : null;
+  const text = (
+    <>
+      {bold(said.lead)}
+      {said.lead && said.text ? ' ' : null}
+      {said.text}
+      {said.tail ? ' ' : null}
+      {bold(said.tail)}
+    </>
   );
+  const icon: React.ReactNode =
+    notice.kind === 'skin' ? (
+      <SparkleIcon size={16} weight="fill" />
+    ) : notice.kind === 'highlight' ? (
+      <PlayIcon size={16} weight="fill" />
+    ) : notice.kind === 'tournament' ? (
+      <TrophyIcon size={16} />
+    ) : notice.kind === 'report' ? (
+      <FlagIcon size={16} />
+    ) : notice.kind === 'news' ? (
+      <AtIcon size={18} />
+    ) : null;
 
-  switch (notice.kind) {
-    case 'party_invite': {
-      text = <>{name(person)} {t('social.notice.partyInvite')}</>;
-      detail = t('social.notice.partyDetail', { mode: str(d.mode), size: Number(d.size ?? 1) });
-      if (!answer) {
-        actions = (
-          <>
-            <Button size="small" variant="contained" disabled={busy} onClick={() => void act(() => answerPartyInvite(str(d.partyId), true).then(() => navigate(paths.play)))}>
-              {t('social.notice.join')}
-            </Button>
-            <Button size="small" variant="outlined" disabled={busy} onClick={() => void act(() => answerPartyInvite(str(d.partyId), false))}>
-              {t('social.notice.decline')}
-            </Button>
-          </>
-        );
-      }
-      break;
-    }
-    case 'friend_request':
-      text = <>{name(person)} {t('social.notice.friendRequest')}</>;
-      to = person ? playerProfilePath(person.id) : null;
-      if (!answer && person) {
-        actions = (
-          <>
-            <Button size="small" variant="contained" disabled={busy} onClick={() => void act(() => acceptFriend(person.id))}>
-              {t('social.notice.accept')}
-            </Button>
-            <Button size="small" variant="outlined" disabled={busy} onClick={() => void act(() => declineFriend(person.id))}>
-              {t('social.notice.ignore')}
-            </Button>
-          </>
-        );
-      }
-      break;
-    case 'friend_accepted':
-      text = <>{name(person)} {t('social.notice.friendAccepted')}</>;
-      to = person ? playerProfilePath(person.id) : null;
-      break;
-    case 'skin':
-      icon = <SparkleIcon size={16} weight="fill" />;
-      text = (
-        <>
-          {t('social.notice.skin')} <Box component="b" sx={{ color: color.ink, fontWeight: 600 }}>{str(d.name)}</Box>
-        </>
-      );
-      detail = [str(d.rarity), str(d.source)].filter(Boolean).join(' · ');
-      to = viewerId ? playerProfilePath(viewerId) : null;
-      break;
-    case 'highlight':
-      icon = <PlayIcon size={16} weight="fill" />;
-      text = (
-        <>
-          {t('social.notice.highlight')} <Box component="b" sx={{ color: color.ink, fontWeight: 600 }}>{str(d.title)}</Box>
-        </>
-      );
-      to = viewerId ? playerProfilePath(viewerId) : null;
-      break;
-    case 'tournament':
-      icon = <TrophyIcon size={16} />;
-      text = (
-        <>
-          <Box component="b" sx={{ color: color.ink, fontWeight: 600 }}>{str(d.name)}</Box>{' '}
-          {d.event === 'started'
-            ? t('social.notice.tournamentStarted')
-            : d.event === 'lineupGap'
-              ? t('social.notice.lineupGap', { minutes: Number(d.minutes) || 15 })
-              : t('social.notice.checkInOpen')}
-        </>
-      );
-      // A lineup gap: the captain picks a sub on the sign-up page.
-      to = d.tournamentId ? `/tournament/${Number(d.tournamentId)}${d.event === 'started' ? '/match' : '/signup'}` : null;
-      break;
-    case 'report':
-      icon = <FlagIcon size={16} />;
-      if (d.event === 'reviewed') {
-        text = <>{t('social.notice.reportReviewed', { name: str(d.name) })}</>;
-        to = null;
-      } else {
-        text = (
-          <>
-            <Box component="b" sx={{ color: color.ink, fontWeight: 600 }}>{str(d.name)}</Box>{' '}
-            {t('social.notice.reportNew', { reason: t(`report.reasons.${str(d.reason) || 'other'}`) })}
-          </>
-        );
-        to = '/manage/reports';
-      }
-      break;
-    case 'news':
-      icon = <AtIcon size={18} />;
-      text = <Box component="b" sx={{ color: color.ink, fontWeight: 600 }}>{str(d.title)}</Box>;
-      detail = str(d.body);
-      to = str(d.url) || null;
-      break;
+  let actions: React.ReactNode = null;
+  if (!answer && notice.kind === 'party_invite') {
+    actions = (
+      <>
+        <Button
+          size="small"
+          variant="contained"
+          disabled={busy}
+          onClick={() =>
+            void act(() => answerPartyInvite(str(d.partyId), true).then(() => navigate(paths.play)))
+          }
+        >
+          {t('social.notice.join')}
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
+          disabled={busy}
+          onClick={() => void act(() => answerPartyInvite(str(d.partyId), false))}
+        >
+          {t('social.notice.decline')}
+        </Button>
+      </>
+    );
+  } else if (!answer && notice.kind === 'team_invite') {
+    const teamId = str(d.teamId);
+    actions = (
+      <>
+        <Button
+          size="small"
+          variant="contained"
+          disabled={busy}
+          onClick={() =>
+            void act(() =>
+              answerTeamInvite(teamId, true).then(() => navigate(teamProfilePath(teamId)))
+            )
+          }
+        >
+          {t('social.notice.accept')}
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
+          disabled={busy}
+          onClick={() => void act(() => answerTeamInvite(teamId, false))}
+        >
+          {t('social.notice.decline')}
+        </Button>
+      </>
+    );
+  } else if (!answer && notice.kind === 'friend_request' && person) {
+    actions = (
+      <>
+        <Button
+          size="small"
+          variant="contained"
+          disabled={busy}
+          onClick={() => void act(() => acceptFriend(person.id))}
+        >
+          {t('social.notice.accept')}
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
+          disabled={busy}
+          onClick={() => void act(() => declineFriend(person.id))}
+        >
+          {t('social.notice.ignore')}
+        </Button>
+      </>
+    );
   }
 
   const answered =
     answer === 'joined'
       ? t('social.notice.joined')
-      : answer === 'accepted'
-        ? t('social.notice.nowFriends')
-        : answer === 'declined'
-          ? t('social.notice.declined')
-          : answer === 'expired'
-            ? t('social.notice.expired')
-            : '';
+      : answer === 'joinedTeam'
+        ? t('social.notice.joinedTeam')
+        : answer === 'accepted'
+          ? t('social.notice.nowFriends')
+          : answer === 'declined'
+            ? t('social.notice.declined')
+            : answer === 'expired'
+              ? t('social.notice.expired')
+              : '';
 
   const open = () => {
     if (!notice.read) void markNoticesRead([notice.id]);
@@ -191,7 +185,12 @@ export function NoticeItem({ notice, viewerId, onNavigate }: Props) {
   const body = (
     <>
       {person ? (
-        <PlayerAvatar id={person.id} name={person.name} avatarUrl={person.avatarUrl ?? undefined} size={34} />
+        <PlayerAvatar
+          id={person.id}
+          name={person.name}
+          avatarUrl={person.avatarUrl ?? undefined}
+          size={34}
+        />
       ) : (
         <Box
           sx={{
@@ -209,7 +208,10 @@ export function NoticeItem({ notice, viewerId, onNavigate }: Props) {
         </Box>
       )}
       <Box sx={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-        <Typography component="div" sx={{ fontSize: '0.8125rem', color: color.ink2, lineHeight: 1.45 }}>
+        <Typography
+          component="div"
+          sx={{ fontSize: '0.8125rem', color: color.ink2, lineHeight: 1.45 }}
+        >
           {text}
         </Typography>
         {detail && (
@@ -221,34 +223,83 @@ export function NoticeItem({ notice, viewerId, onNavigate }: Props) {
           {timeAgo(notice.createdAt)}
         </Typography>
       </Box>
+      {thumb && (
+        <Box
+          aria-hidden
+          sx={{
+            position: 'relative',
+            flex: 'none',
+            width: 88,
+            aspectRatio: '16 / 9',
+            borderRadius: '6px',
+            overflow: 'hidden',
+            bgcolor: color.paper3,
+          }}
+          data-testid="notice-thumb"
+        >
+          <VideoThumb src={thumb} at={4} />
+        </Box>
+      )}
     </>
   );
 
   return (
     <Box
       data-testid={`notice-${notice.kind}`}
-      sx={{ position: 'relative', borderTop: 1, borderColor: 'divider', '&:first-of-type': { borderTop: 0 } }}
+      sx={{
+        position: 'relative',
+        borderTop: 1,
+        borderColor: 'divider',
+        '&:first-of-type': { borderTop: 0 },
+      }}
     >
       {!notice.read && (
         <Box
           aria-hidden
-          sx={{ position: 'absolute', left: 9, top: 24, width: 6, height: 6, borderRadius: '50%', bgcolor: color.accent }}
+          sx={{
+            position: 'absolute',
+            left: 9,
+            top: 24,
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            bgcolor: color.accent,
+          }}
         />
       )}
       {to || !notice.read ? (
         <ButtonBase
           onClick={open}
-          sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.375, width: '100%', py: 1.375, pl: 3, pr: 1.75, '&:hover': { bgcolor: 'action.hover' } }}
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 1.375,
+            width: '100%',
+            py: 1.375,
+            pl: 3,
+            pr: 1.75,
+            '&:hover': { bgcolor: 'action.hover' },
+          }}
         >
           {body}
         </ButtonBase>
       ) : (
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.375, py: 1.375, pl: 3, pr: 1.75 }}>{body}</Box>
+        <Box
+          sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.375, py: 1.375, pl: 3, pr: 1.75 }}
+        >
+          {body}
+        </Box>
       )}
       {(actions || answered) && (
         <Box sx={{ display: 'flex', gap: 0.75, pl: '78px', pr: 1.75, pb: 1.375, mt: -0.5 }}>
           {actions ?? (
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: answer === 'expired' ? color.muted : color.live }}>
+            <Typography
+              sx={{
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: answer === 'expired' ? color.muted : color.live,
+              }}
+            >
               {answered}
             </Typography>
           )}

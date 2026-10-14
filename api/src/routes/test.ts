@@ -39,11 +39,7 @@ import {
   moduleNamespace,
   runModuleMigrations,
 } from '../config/moduleMigrations';
-import {
-  CS2_MODULE_ID,
-  LEGACY_CS2_TABLES,
-  handOverCs2Tables,
-} from '../config/cs2TableHandover';
+import { CS2_MODULE_ID, LEGACY_CS2_TABLES, handOverCs2Tables } from '../config/cs2TableHandover';
 import { foldCs2TournamentColumns } from '../config/cs2SettingsFold';
 import { playerIdentity } from '../services/playerIdentity';
 import { teamMembers } from '../services/teamMembers';
@@ -51,10 +47,7 @@ import { forgetModuleEnabled, listModules, modulesDir, scanDiskModules } from '.
 import { isValidModuleId } from '../modules/manifest';
 import { registerCatalogTestRoutes } from './testCatalog';
 import { registerWebhookTestRoutes } from './testWebhooks';
-import {
-  licenseConsentService,
-  parseConsentRecord,
-} from '../services/license/consent';
+import { licenseConsentService, parseConsentRecord } from '../services/license/consent';
 import { localAdminService } from '../services/localAdminService';
 import { adminAccessSettings } from '../services/adminAccessSettings';
 import { authProviderSettingsService } from '../services/authProviderSettingsService';
@@ -82,6 +75,56 @@ async function setGamesPromptForTest(steamId: string, body: unknown): Promise<vo
     steamId,
   ]);
 }
+
+/**
+ * @openapi
+ * /api/test/admin-notice:
+ *   post:
+ *     tags: [Test]
+ *     summary: Raise or resolve an admins' bell notice (tests only)
+ *     security: [{ BearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               kind: { type: string }
+ *               data: { type: object }
+ *               dedupeKey: { type: string }
+ *               resolve: { type: boolean }
+ *               ongoing: { type: boolean, description: Raise the way a sweep does (quiet while open or dismissed) }
+ *     responses:
+ *       200: { description: Raised (the notice) or resolved }
+ *       400: { description: Unknown kind }
+ */
+router.post('/admin-notice', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const { ADMIN_NOTICE_KINDS, adminNoticeService } = await import('../services/adminNoticeService');
+  const body = (req.body ?? {}) as {
+    kind?: string;
+    data?: Record<string, unknown>;
+    dedupeKey?: string;
+    resolve?: boolean;
+    ongoing?: boolean;
+  };
+  if (body.resolve && body.dedupeKey) {
+    await adminNoticeService.resolve(body.dedupeKey);
+    res.json({ success: true });
+    return;
+  }
+  if (!body.kind || !(body.kind in ADMIN_NOTICE_KINDS)) {
+    res.status(400).json({ success: false, error: 'Unknown kind' });
+    return;
+  }
+  const notice = await adminNoticeService.raise(
+    body.kind as keyof typeof ADMIN_NOTICE_KINDS,
+    body.data ?? {},
+    body.dedupeKey ?? body.kind,
+    undefined,
+    { ongoing: body.ongoing === true }
+  );
+  res.json({ success: true, notice });
+});
 
 /**
  * @openapi
@@ -334,6 +377,70 @@ router.post('/series-result', requireAuth, async (req: Request, res: Response): 
 });
 
 /**
+ * Test-only: swap the passkey verifier for a fake authenticator, or back
+ * (`{ fake: false }`). The fake accepts a browser answer whose
+ * `response.clientDataJSON` is the challenge it was given and whose
+ * `response.signature` (sign-in) or `response.attestationObject` (adding) is
+ * "fake-ok"; the credential id is the answer's `id`. That exercises the
+ * routes (challenges, sessions, owners, counters, sign-in) without a browser.
+ *
+ * POST /api/test/passkey-verifier
+ */
+router.post(
+  '/passkey-verifier',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (process.env.NODE_ENV === 'production' && !isE2eTestHelperEnabled()) {
+      res.status(403).json({ success: false, error: 'disabled in production' });
+      return;
+    }
+    const { setPasskeyVerifier } = await import('../services/localAdminPasskeys');
+    if ((req.body ?? {}).fake === false) {
+      setPasskeyVerifier(null);
+      res.json({ success: true, fake: false });
+      return;
+    }
+    const { randomBytes } = await import('crypto');
+    const challenge = () => randomBytes(16).toString('base64url');
+    type Answer = { id?: string; response?: Record<string, unknown> };
+    setPasskeyVerifier({
+      registrationOptions: async ({ rp, userName }) =>
+        ({
+          challenge: challenge(),
+          rp: { id: rp.id, name: rp.name },
+          user: { name: userName },
+        }) as never,
+      verifyRegistration: async ({ response, challenge: expected }) => {
+        const a = response as unknown as Answer;
+        if (
+          a.response?.clientDataJSON !== expected ||
+          a.response?.attestationObject !== 'fake-ok' ||
+          !a.id
+        ) {
+          return { verified: false };
+        }
+        return {
+          verified: true,
+          credential: {
+            id: a.id,
+            publicKey: new Uint8Array([1, 2, 3]),
+            counter: 0,
+            transports: ['internal'],
+          },
+        };
+      },
+      authenticationOptions: async () => ({ challenge: challenge() }) as never,
+      verifyAuthentication: async ({ response, challenge: expected, credential }) => {
+        const a = response as unknown as Answer;
+        const ok = a.response?.clientDataJSON === expected && a.response?.signature === 'fake-ok';
+        return { verified: ok, newCounter: credential.counter + 1 };
+      },
+    });
+    res.json({ success: true, fake: true });
+  }
+);
+
+/**
  * Test-only helper: create an admin session for Playwright tests.
  *
  * POST /api/test/login-admin
@@ -436,8 +543,7 @@ router.post('/login-player', async (req: Request, res: Response): Promise<void> 
     // `name` is only used when the player is first created (getOrCreatePlayer
     // does not rename an existing player), so it is safe to pass on every
     // call without affecting an existing test player's name.
-    const name =
-      rawName && rawName.trim().length > 0 ? rawName.trim() : `Test Player ${steamId}`;
+    const name = rawName && rawName.trim().length > 0 ? rawName.trim() : `Test Player ${steamId}`;
 
     await playerService.getOrCreatePlayer(steamId, name);
     await playerService.updatePlayer(steamId, { isAdmin: false });
@@ -767,18 +873,22 @@ router.post(
   }
 );
 
-router.get('/schema-migrations', requireAuth, async (_req: Request, res: Response): Promise<void> => {
-  if (isTestHelperDisabled(res)) return;
-  try {
-    const rows = await db.queryAsync<{ id: string }>(
-      'SELECT id FROM schema_migrations ORDER BY applied_at, id'
-    );
-    res.json({ success: true, applied: rows.map((r) => r.id) });
-  } catch (err) {
-    log.error('Error in GET /api/test/schema-migrations', err as Error);
-    res.status(500).json({ success: false, error: 'Failed to read schema migrations' });
+router.get(
+  '/schema-migrations',
+  requireAuth,
+  async (_req: Request, res: Response): Promise<void> => {
+    if (isTestHelperDisabled(res)) return;
+    try {
+      const rows = await db.queryAsync<{ id: string }>(
+        'SELECT id FROM schema_migrations ORDER BY applied_at, id'
+      );
+      res.json({ success: true, applied: rows.map((r) => r.id) });
+    } catch (err) {
+      log.error('Error in GET /api/test/schema-migrations', err as Error);
+      res.status(500).json({ success: false, error: 'Failed to read schema migrations' });
+    }
   }
-});
+);
 
 router.post(
   '/schema-migrations/run',
@@ -829,7 +939,10 @@ const MIGRATION_FIXTURES: Record<string, ModuleMigration[]> = {
   v2: [...FIXTURE_BASE, FIXTURE_NOTE],
   // 001 as shipped, then edited: must be refused, and 003 not applied.
   edited: [
-    { id: '001-items', up: 'CREATE TABLE migration_fixture_items (id SERIAL PRIMARY KEY, label TEXT);' },
+    {
+      id: '001-items',
+      up: 'CREATE TABLE migration_fixture_items (id SERIAL PRIMARY KEY, label TEXT);',
+    },
     FIXTURE_BASE[1],
     FIXTURE_NOTE,
   ],
@@ -854,37 +967,42 @@ const MIGRATION_FIXTURES: Record<string, ModuleMigration[]> = {
   ],
 };
 
-router.get('/module-migrations', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (isTestHelperDisabled(res)) return;
-  const moduleId = typeof req.query.moduleId === 'string' ? req.query.moduleId : FIXTURE_MODULE_ID;
-  try {
-    const rows = await db.queryAsync<{ migration_id: string; checksum: string }>(
-      'SELECT migration_id, checksum FROM module_migrations WHERE module_id = ? ORDER BY migration_id',
-      [moduleId]
-    );
-    const tables = await db.queryAsync<{ table_name: string }>(
-      `SELECT table_name FROM information_schema.tables
+router.get(
+  '/module-migrations',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (isTestHelperDisabled(res)) return;
+    const moduleId =
+      typeof req.query.moduleId === 'string' ? req.query.moduleId : FIXTURE_MODULE_ID;
+    try {
+      const rows = await db.queryAsync<{ migration_id: string; checksum: string }>(
+        'SELECT migration_id, checksum FROM module_migrations WHERE module_id = ? ORDER BY migration_id',
+        [moduleId]
+      );
+      const tables = await db.queryAsync<{ table_name: string }>(
+        `SELECT table_name FROM information_schema.tables
         WHERE table_schema = current_schema() AND table_name LIKE ?
         ORDER BY table_name`,
-      [`${moduleNamespace(moduleId).replace(/_/g, '\\_')}%`]
-    );
-    const coreColumns = await db.queryAsync<{ column_name: string }>(
-      `SELECT column_name FROM information_schema.columns
+        [`${moduleNamespace(moduleId).replace(/_/g, '\\_')}%`]
+      );
+      const coreColumns = await db.queryAsync<{ column_name: string }>(
+        `SELECT column_name FROM information_schema.columns
         WHERE table_schema = current_schema() AND table_name = 'matches'
           AND column_name LIKE 'migration\\_fixture\\_%'`
-    );
-    res.json({
-      success: true,
-      applied: rows.map((r) => ({ id: r.migration_id, checksum: r.checksum })),
-      tables: tables.map((t) => t.table_name),
-      coreColumns: coreColumns.map((c) => c.column_name),
-      state: getModuleMigrationState(moduleId) ?? null,
-    });
-  } catch (err) {
-    log.error('Error in GET /api/test/module-migrations', err as Error);
-    res.status(500).json({ success: false, error: 'Failed to read module migrations' });
+      );
+      res.json({
+        success: true,
+        applied: rows.map((r) => ({ id: r.migration_id, checksum: r.checksum })),
+        tables: tables.map((t) => t.table_name),
+        coreColumns: coreColumns.map((c) => c.column_name),
+        state: getModuleMigrationState(moduleId) ?? null,
+      });
+    } catch (err) {
+      log.error('Error in GET /api/test/module-migrations', err as Error);
+      res.status(500).json({ success: false, error: 'Failed to read module migrations' });
+    }
   }
-});
+);
 
 router.post(
   '/module-migrations/run',
@@ -893,7 +1011,8 @@ router.post(
     if (isTestHelperDisabled(res)) return;
     const { fixture } = (req.body ?? {}) as { fixture?: unknown };
     const migrations =
-      typeof fixture === 'string' && Object.prototype.hasOwnProperty.call(MIGRATION_FIXTURES, fixture)
+      typeof fixture === 'string' &&
+      Object.prototype.hasOwnProperty.call(MIGRATION_FIXTURES, fixture)
         ? MIGRATION_FIXTURES[fixture]
         : null;
     if (!migrations) {
@@ -973,14 +1092,22 @@ async function describeCs2Schema(client: SqlClient) {
       ORDER BY table_name, column_name`,
     [tables]
   );
-  const { rows: indexes } = await client.query<{ tablename: string; indexname: string; indexdef: string }>(
+  const { rows: indexes } = await client.query<{
+    tablename: string;
+    indexname: string;
+    indexdef: string;
+  }>(
     `SELECT tablename, indexname, replace(indexdef, current_schema() || '.', '') AS indexdef
        FROM pg_indexes
       WHERE schemaname = current_schema() AND tablename = ANY($1::text[])
       ORDER BY tablename, indexname`,
     [tables]
   );
-  const { rows: constraints } = await client.query<{ table_name: string; conname: string; def: string }>(
+  const { rows: constraints } = await client.query<{
+    table_name: string;
+    conname: string;
+    def: string;
+  }>(
     `SELECT cl.relname AS table_name, c.conname, pg_get_constraintdef(c.oid) AS def
        FROM pg_constraint c
        JOIN pg_class cl ON cl.oid = c.conrelid
@@ -1000,7 +1127,11 @@ async function describeCs2Schema(client: SqlClient) {
       ORDER BY c.relname, s.relname`,
     [tables]
   );
-  const { rows: foreignKeys } = await client.query<{ table_name: string; conname: string; def: string }>(
+  const { rows: foreignKeys } = await client.query<{
+    table_name: string;
+    conname: string;
+    def: string;
+  }>(
     `SELECT cl.relname AS table_name, c.conname, pg_get_constraintdef(c.oid) AS def
        FROM pg_constraint c
        JOIN pg_class cl ON cl.oid = c.conrelid
@@ -1033,11 +1164,18 @@ async function describeCs2Schema(client: SqlClient) {
   }
   return {
     tables: schema,
-    foreignKeys: foreignKeys.map((f) => ({ table: f.table_name, name: f.conname, definition: f.def })),
+    foreignKeys: foreignKeys.map((f) => ({
+      table: f.table_name,
+      name: f.conname,
+      definition: f.def,
+    })),
   };
 }
 
-async function existingTables(client: SqlClient, names: string[]): Promise<Record<string, boolean>> {
+async function existingTables(
+  client: SqlClient,
+  names: string[]
+): Promise<Record<string, boolean>> {
   const { rows } = await client.query<{ relname: string }>(
     `SELECT c.relname
        FROM pg_class c
@@ -1069,13 +1207,15 @@ router.get('/cs2-tables', requireAuth, async (_req: Request, res: Response): Pro
       const counts: Record<string, number> = {};
       for (const table of CS2_TABLES) {
         if (!tables[table]) continue;
-        const { rows } = await client.query<{ n: string }>(`SELECT COUNT(*)::text AS n FROM ${table}`);
+        const { rows } = await client.query<{ n: string }>(
+          `SELECT COUNT(*)::text AS n FROM ${table}`
+        );
         counts[table] = Number(rows[0]?.n ?? 0);
       }
       const mapPoolNames = tables.cs2_map_pools
-        ? (await client.query<{ name: string }>('SELECT name FROM cs2_map_pools ORDER BY name')).rows.map(
-            (r) => r.name
-          )
+        ? (
+            await client.query<{ name: string }>('SELECT name FROM cs2_map_pools ORDER BY name')
+          ).rows.map((r) => r.name)
         : [];
       const first = cs2Module()?.migrations?.[0];
       return {
@@ -1354,6 +1494,16 @@ const HANDOVER_PROBE_SCENARIOS: Record<string, string> = {
                   DROP INDEX idx_servers_enabled;`,
   'renamed-by-hand': 'ALTER TABLE servers RENAME TO cs2_servers;',
   both: `CREATE TABLE cs2_maps (id TEXT PRIMARY KEY, display_name TEXT NOT NULL);`,
+  // Skins made before the cs2_ names: the keys keep their old names after the
+  // rename (player_loadout_pkey), which migration 052 has to find.
+  'old-skins': `CREATE TABLE player_skins (id SERIAL PRIMARY KEY, player_uid UUID NOT NULL, weapon TEXT NOT NULL,
+                  weapon_name TEXT NOT NULL, paint_kit INTEGER NOT NULL, name TEXT NOT NULL, rarity TEXT NOT NULL,
+                  image TEXT NOT NULL, float_value REAL NOT NULL, pattern INTEGER NOT NULL, source TEXT NOT NULL,
+                  source_label TEXT, source_ref TEXT, place INTEGER, seen BOOLEAN NOT NULL DEFAULT FALSE,
+                  created_at INTEGER NOT NULL DEFAULT 0);
+                CREATE TABLE player_loadout (player_uid UUID NOT NULL, slot TEXT NOT NULL,
+                  skin_id INTEGER NOT NULL REFERENCES player_skins(id) ON DELETE CASCADE,
+                  PRIMARY KEY (player_uid, slot));`,
 };
 
 router.post(
@@ -1362,7 +1512,10 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     if (isTestHelperDisabled(res)) return;
     const { scenario } = (req.body ?? {}) as { scenario?: unknown };
-    if (typeof scenario !== 'string' || !Object.prototype.hasOwnProperty.call(HANDOVER_PROBE_SCENARIOS, scenario)) {
+    if (
+      typeof scenario !== 'string' ||
+      !Object.prototype.hasOwnProperty.call(HANDOVER_PROBE_SCENARIOS, scenario)
+    ) {
       res.status(400).json({
         success: false,
         error: `Field "scenario" must be one of ${Object.keys(HANDOVER_PROBE_SCENARIOS).join(', ')}`,
@@ -1750,7 +1903,9 @@ router.get('/oauth/:provider/callback', (req: Request, res: Response, next: Next
   if (!provider) return;
   const name = testOAuthStrategyName(provider);
   // The strategy's state cookie is namespaced by the strategy name.
-  requireStrategy(name, provider)(req, res, () => ssoCallbackRoute(name, name, provider)(req, res, next));
+  requireStrategy(name, provider)(req, res, () =>
+    ssoCallbackRoute(name, name, provider)(req, res, next)
+  );
 });
 
 /*
@@ -2001,10 +2156,9 @@ router.get('/fake-wikidata', (req: Request, res: Response): void => {
       return;
     }
     const limit = Number(req.query.limit ?? 20) || 20;
-    const hits = FAKE_WIKIDATA_ITEMS.filter((item) => item.label.toLowerCase().includes(term)).slice(
-      0,
-      limit
-    );
+    const hits = FAKE_WIKIDATA_ITEMS.filter((item) =>
+      item.label.toLowerCase().includes(term)
+    ).slice(0, limit);
     res.json({ search: hits.map((item) => ({ id: item.id, label: item.label })) });
     return;
   }
@@ -2020,16 +2174,18 @@ router.get('/fake-wikidata', (req: Request, res: Response): void => {
           id: item.id,
           labels: { en: { language: 'en', value: item.label } },
           claims: {
-            P31: item.instanceOf.map((qid) => ({ mainsnak: { datavalue: { value: { id: qid } } } })),
+            P31: item.instanceOf.map((qid) => ({
+              mainsnak: { datavalue: { value: { id: qid } } },
+            })),
             P577: item.pubDates.map((time) => ({ mainsnak: { datavalue: { value: { time } } } })),
-            ...(item.logo
-              ? { P154: [{ mainsnak: { datavalue: { value: item.logo } } }] }
-              : {}),
-            ...(item.image
-              ? { P18: [{ mainsnak: { datavalue: { value: item.image } } }] }
-              : {}),
+            ...(item.logo ? { P154: [{ mainsnak: { datavalue: { value: item.logo } } }] } : {}),
+            ...(item.image ? { P18: [{ mainsnak: { datavalue: { value: item.image } } }] } : {}),
             ...(item.genreIds
-              ? { P136: item.genreIds.map((qid) => ({ mainsnak: { datavalue: { value: { id: qid } } } })) }
+              ? {
+                  P136: item.genreIds.map((qid) => ({
+                    mainsnak: { datavalue: { value: { id: qid } } },
+                  })),
+                }
               : {}),
             ...(item.steamAppId
               ? { P1733: [{ mainsnak: { datavalue: { value: item.steamAppId } } }] }
@@ -2122,7 +2278,10 @@ router.post('/game-icons', requireAuth, (req: Request, res: Response): void => {
   setGameIconEndpointOverride(
     fake === false
       ? null
-      : { steamInfoBase: `${self}/info`, steamIconBases: [`${self}/icons-new`, `${self}/icons-old`] }
+      : {
+          steamInfoBase: `${self}/info`,
+          steamIconBases: [`${self}/icons-new`, `${self}/icons-old`],
+        }
   );
   fakeSteamCounters.info = 0;
   fakeSteamCounters.icons = 0;
@@ -2156,7 +2315,10 @@ router.get('/fake-steam/info/:appId', (req: Request, res: Response): void => {
     status: 'success',
     data: {
       [req.params.appId]: {
-        common: { name: `Fake app ${req.params.appId}`, ...(app.clientIcon ? { clienticon: app.clientIcon } : {}) },
+        common: {
+          name: `Fake app ${req.params.appId}`,
+          ...(app.clientIcon ? { clienticon: app.clientIcon } : {}),
+        },
       },
     },
   });
@@ -2488,7 +2650,11 @@ router.post('/packs/reseed', requireAuth, async (req: Request, res: Response): P
     preinstall === 'all'
       ? { preinstall: 'all' as const }
       : Array.isArray(preinstall)
-        ? { preinstall: new Set(preinstall.filter((slug): slug is string => typeof slug === 'string')) }
+        ? {
+            preinstall: new Set(
+              preinstall.filter((slug): slug is string => typeof slug === 'string')
+            ),
+          }
         : {};
   res.json({ success: true, report: await seedBundledPacks(options) });
 });
@@ -2755,16 +2921,22 @@ router.post('/modules/fixture', requireAuth, async (req: Request, res: Response)
   if (!testHelperEnabled(res)) return;
   const { id, kind } = (req.body ?? {}) as { id?: unknown; kind?: unknown };
   if (typeof id !== 'string' || !isValidModuleId(id) || !id.startsWith('fixture-')) {
-    res.status(400).json({ success: false, error: "id must be a valid module id starting with 'fixture-'" });
+    res
+      .status(400)
+      .json({ success: false, error: "id must be a valid module id starting with 'fixture-'" });
     return;
   }
   if (!MODULE_FIXTURE_KINDS.includes(kind as ModuleFixtureKind)) {
-    res.status(400).json({ success: false, error: `kind must be one of ${MODULE_FIXTURE_KINDS.join(', ')}` });
+    res
+      .status(400)
+      .json({ success: false, error: `kind must be one of ${MODULE_FIXTURE_KINDS.join(', ')}` });
     return;
   }
   try {
     const dir = path.join(modulesDir(), id);
-    for (const [file, contents] of Object.entries(moduleFixtureFiles(id, kind as ModuleFixtureKind))) {
+    for (const [file, contents] of Object.entries(
+      moduleFixtureFiles(id, kind as ModuleFixtureKind)
+    )) {
       await fs.promises.mkdir(path.dirname(path.join(dir, file)), { recursive: true });
       await fs.promises.writeFile(path.join(dir, file), contents);
     }
@@ -2781,29 +2953,35 @@ router.post('/modules/fixture', requireAuth, async (req: Request, res: Response)
  * table exists — the proof a loaded code module got its schema and a refused
  * one got none of it.
  */
-router.get('/modules/:id/migrations', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (!testHelperEnabled(res)) return;
-  const { id } = req.params;
-  if (!isValidModuleId(id) || !id.startsWith('fixture-')) {
-    res.status(400).json({ success: false, error: "id must be a valid module id starting with 'fixture-'" });
-    return;
+router.get(
+  '/modules/:id/migrations',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!testHelperEnabled(res)) return;
+    const { id } = req.params;
+    if (!isValidModuleId(id) || !id.startsWith('fixture-')) {
+      res
+        .status(400)
+        .json({ success: false, error: "id must be a valid module id starting with 'fixture-'" });
+      return;
+    }
+    try {
+      const table = `${fixtureTablePrefix(id)}_probe`;
+      const row = await db.queryOneAsync<{ exists: string | null }>(
+        'SELECT to_regclass(?)::text AS exists',
+        [`public.${table}`]
+      );
+      res.json({
+        success: true,
+        state: getModuleMigrationState(id) ?? null,
+        probeTableExists: Boolean(row?.exists),
+      });
+    } catch (err) {
+      log.error('Error in GET /api/test/modules/:id/migrations', err);
+      res.status(500).json({ success: false, error: (err as Error).message });
+    }
   }
-  try {
-    const table = `${fixtureTablePrefix(id)}_probe`;
-    const row = await db.queryOneAsync<{ exists: string | null }>(
-      'SELECT to_regclass(?)::text AS exists',
-      [`public.${table}`]
-    );
-    res.json({
-      success: true,
-      state: getModuleMigrationState(id) ?? null,
-      probeTableExists: Boolean(row?.exists),
-    });
-  } catch (err) {
-    log.error('Error in GET /api/test/modules/:id/migrations', err);
-    res.status(500).json({ success: false, error: (err as Error).message });
-  }
-});
+);
 
 router.post('/modules/rescan', requireAuth, async (_req: Request, res: Response): Promise<void> => {
   if (!testHelperEnabled(res)) return;
@@ -2819,39 +2997,40 @@ router.post('/modules/rescan', requireAuth, async (_req: Request, res: Response)
   }
 });
 
-router.delete('/modules/fixtures', requireAuth, async (_req: Request, res: Response): Promise<void> => {
-  if (!testHelperEnabled(res)) return;
-  try {
-    const entries = await fs.promises.readdir(modulesDir()).catch(() => [] as string[]);
-    const removed: string[] = [];
-    for (const name of entries) {
-      if (!name.startsWith('fixture-') || !isValidModuleId(name)) continue;
-      await fs.promises.rm(path.join(modulesDir(), name), { recursive: true, force: true });
-      await forgetModuleEnabled(name);
-      removed.push(name);
+router.delete(
+  '/modules/fixtures',
+  requireAuth,
+  async (_req: Request, res: Response): Promise<void> => {
+    if (!testHelperEnabled(res)) return;
+    try {
+      const entries = await fs.promises.readdir(modulesDir()).catch(() => [] as string[]);
+      const removed: string[] = [];
+      for (const name of entries) {
+        if (!name.startsWith('fixture-') || !isValidModuleId(name)) continue;
+        await fs.promises.rm(path.join(modulesDir(), name), { recursive: true, force: true });
+        await forgetModuleEnabled(name);
+        removed.push(name);
+      }
+      // What a catalog install leaves beside the folder: the version an update
+      // replaced, and the install and removal records.
+      const previous = path.join(modulesDir(), '.previous');
+      for (const name of await fs.promises.readdir(previous).catch(() => [] as string[])) {
+        if (name.startsWith('fixture-'))
+          await fs.promises.rm(path.join(previous, name), { recursive: true, force: true });
+      }
+      await db.runAsync("DELETE FROM app_settings WHERE key LIKE 'module\\_%:fixture-%'");
+      res.json({ success: true, removed });
+    } catch (err) {
+      log.error('Error in DELETE /api/test/modules/fixtures', err);
+      res.status(500).json({ success: false, error: (err as Error).message });
     }
-    // What a catalog install leaves beside the folder: the version an update
-    // replaced, and the install and removal records.
-    const previous = path.join(modulesDir(), '.previous');
-    for (const name of await fs.promises.readdir(previous).catch(() => [] as string[])) {
-      if (name.startsWith('fixture-')) await fs.promises.rm(path.join(previous, name), { recursive: true, force: true });
-    }
-    await db.runAsync(
-      "DELETE FROM app_settings WHERE key LIKE 'module\\_%:fixture-%'"
-    );
-    res.json({ success: true, removed });
-  } catch (err) {
-    log.error('Error in DELETE /api/test/modules/fixtures', err);
-    res.status(500).json({ success: false, error: (err as Error).message });
   }
-});
-
-registerCatalogTestRoutes(
-  router,
-  testHelperEnabled,
-  (id, kind) => moduleFixtureFiles(id, kind),
-  { pack: (slug) => FAKE_INDEX_PACKS[slug], tile: FAKE_INDEX_TILE }
 );
+
+registerCatalogTestRoutes(router, testHelperEnabled, (id, kind) => moduleFixtureFiles(id, kind), {
+  pack: (slug) => FAKE_INDEX_PACKS[slug],
+  tile: FAKE_INDEX_TILE,
+});
 
 registerWebhookTestRoutes(router, testHelperEnabled);
 
@@ -2965,7 +3144,6 @@ router.post('/env-import', async (req: Request, res: Response) => {
   await adminAccessSettings.importFromEnvironmentAndSeed(env);
   res.json({ success: true, imported: [...(await envImportedNames())] });
 });
-
 
 /**
  * A fake OpenID Connect issuer's discovery document, so the OIDC specs can

@@ -3,13 +3,15 @@
  * and the admin settings. Every player route answers 404 while skins are off.
  *
  * GET    /status                   public: on or off
+ * GET    /odds                     public: drop odds per rarity and per skin, and when drops happen
  * GET    /me                       signed in: your inventory, showcase and new skins
- * POST   /me/equip                 equip a skin ({ skinId })
- * DELETE /me/equip/:slot           empty a slot
+ * POST   /me/equip                 equip a skin ({ skinId, team?: 0 both | 2 T | 3 CT })
+ * DELETE /me/equip/:slot           empty a slot (?team= one side)
  * POST   /me/seen                  the "new skin" reveal was shown ({ ids })
  * PUT    /me/showcase              the profile showcase ({ items: [{ skinId, big }] })
  * GET    /players/:steamId         public: a player's skins
  * GET    /skin/:id                 public: one skin and its owner
+ * GET    /tournaments/:id/rewards  public: what a tournament's top three got
  * GET    /admin/config, PUT        admin: the settings
  * GET    /admin/catalog?q=         admin: search the catalogue (for picking a reward)
  */
@@ -20,7 +22,15 @@ import { requireAuth } from '../../../middleware/auth';
 import { log } from '../../../utils/logger';
 import { resolveViewerAccount } from '../../../utils/viewerIdentity';
 import { skinImageUrls } from '../assets/localAssets';
-import { SkinError, skinService, variantOf, type SkinsConfig } from './skinService';
+import {
+  RARITIES,
+  SkinError,
+  type Rarity,
+  skinService,
+  variantOf,
+  type SkinsConfig,
+  type DropTarget,
+} from './skinService';
 
 const router = Router();
 
@@ -68,9 +78,62 @@ async function playerOrStop(req: Request, res: Response): Promise<string | null>
  */
 router.get('/status', async (_req, res) => {
   try {
-    return res.json({ success: true, enabled: (await skinService.config()).enabled });
+    const config = await skinService.config();
+    return res.json({
+      success: true,
+      enabled: config.enabled,
+      tradeUp: config.enabled && config.tradeUp.enabled ? { count: config.tradeUp.count } : null,
+    });
   } catch (error) {
     return fail(res, error, 'Reading the skins status');
+  }
+});
+
+/**
+ * @openapi
+ * /api/skins/odds:
+ *   get:
+ *     tags: [Skins]
+ *     summary: Drop odds per rarity and per skin, and when drops happen (public)
+ *     responses:
+ *       200: { description: The odds }
+ *       404: { description: Skins are off }
+ */
+router.get('/odds', async (_req, res) => {
+  try {
+    const odds = await skinService.odds();
+    if (!odds.enabled) return res.status(404).json({ success: false, error: 'Skins are off' });
+    return res.json({ success: true, ...odds });
+  } catch (error) {
+    return fail(res, error, 'Reading the drop odds');
+  }
+});
+
+/**
+ * @openapi
+ * /api/skins/tryout:
+ *   get:
+ *     tags: [Skins]
+ *     summary: Servers where you can try your skins in game
+ *     description: >-
+ *       Online Ready Up servers on the Skin tryout plugin set (practice and
+ *       skins, no match plugin). Signed-in players, while skins are on.
+ *     responses:
+ *       200: { description: "`servers`: name, address (host:port), connectIp, port" }
+ *       401: { description: Not signed in }
+ *       404: { description: Skins are off }
+ */
+router.get('/tryout', async (req, res) => {
+  try {
+    if (!(await skinService.config()).enabled) {
+      return res.status(404).json({ success: false, error: 'Skins are off' });
+    }
+    const viewer = await resolveViewerAccount(req);
+    if (!viewer.uid) return res.status(401).json({ success: false, error: 'Sign in first' });
+    const { tryoutServers } = await import('./tryout');
+    return res.json({ success: true, servers: await tryoutServers() });
+  } catch (error) {
+    return fail(res, error, 'Listing the tryout servers');
   }
 });
 
@@ -95,9 +158,101 @@ router.get('/me', async (req, res) => {
       inventory,
       showcase: await skinService.showcase(uid),
       unseen: inventory.filter((s) => !s.seen).map((s) => s.id),
+      choices: await skinService.openChoices(uid),
     });
   } catch (error) {
     return fail(res, error, 'Reading the inventory');
+  }
+});
+
+/**
+ * @openapi
+ * /api/skins/me/trade-up:
+ *   get:
+ *     tags: [Skins]
+ *     summary: How trade-ups work here, and what one of a grade can give
+ *     parameters:
+ *       - { in: query, name: rarity, schema: { type: string }, description: 'The grade to trade up (common … legendary)' }
+ *     responses:
+ *       200: { description: "{ enabled, count, to, skins }: the skins of the next grade, each equally likely" }
+ *   post:
+ *     tags: [Skins]
+ *     summary: Trade up skins of one grade for one random skin of the next
+ *     description: Exactly `count` of the player's weapon skins (no knives or gloves) of one grade below ancient. They leave the inventory, loadout and showcase; the new skin has their average wear.
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema: { type: object, properties: { skinIds: { type: array, items: { type: integer } } } }
+ *     responses:
+ *       200: { description: "{ skinId, skin }" }
+ *       400: { description: Not a valid contract (count, grade, knives or gloves, not yours) }
+ *       404: { description: Skins or trade-ups are off }
+ */
+router.get('/me/trade-up', async (req, res) => {
+  try {
+    const uid = await playerOrStop(req, res);
+    if (!uid) return;
+    const { tradeUp } = await skinService.config();
+    const rarity = String(req.query.rarity ?? '');
+    const outcomes = RARITIES.includes(rarity as Rarity)
+      ? await skinService.tradeUpOutcomes(rarity as Rarity)
+      : { to: null, skins: [] };
+    return res.json({
+      success: true,
+      enabled: tradeUp.enabled,
+      count: tradeUp.count,
+      to: outcomes.to,
+      skins: outcomes.skins.map((s) => ({
+        weapon: s.weapon,
+        weaponName: s.weaponName,
+        name: s.name,
+        rarity: s.rarity,
+        ...skinImageUrls(s.image),
+      })),
+    });
+  } catch (error) {
+    return fail(res, error, 'Reading the trade-up');
+  }
+});
+
+router.post('/me/trade-up', async (req, res) => {
+  try {
+    const uid = await playerOrStop(req, res);
+    if (!uid) return;
+    const result = await skinService.tradeUp(uid, req.body?.skinIds);
+    void loadoutChanged(uid);
+    return res.json({ success: true, skinId: result.skinId });
+  } catch (error) {
+    return fail(res, error, 'Trading up');
+  }
+});
+
+/**
+ * @openapi
+ * /api/skins/me/choices/{id}:
+ *   post:
+ *     tags: [Skins]
+ *     summary: Keep one option of a drop
+ *     description: A drop offers three skins; the player keeps one (`index` 0-2), the others are gone.
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema: { type: object, properties: { index: { type: integer } } }
+ *     responses:
+ *       200: { description: "{ skinId }" }
+ *       404: { description: Not a waiting choice of yours }
+ *       409: { description: Already chosen }
+ */
+router.post('/me/choices/:id', async (req, res) => {
+  try {
+    const uid = await playerOrStop(req, res);
+    if (!uid) return;
+    const skinId = await skinService.choose(uid, Number(req.params.id), Number(req.body?.index));
+    return res.json({ success: true, skinId });
+  } catch (error) {
+    return fail(res, error, 'Choosing a skin');
   }
 });
 
@@ -110,7 +265,7 @@ router.get('/me', async (req, res) => {
  *     requestBody:
  *       content:
  *         application/json:
- *           schema: { type: object, properties: { skinId: { type: integer } } }
+ *           schema: { type: object, properties: { skinId: { type: integer }, team: { type: integer, enum: [0, 2, 3], description: '0 both sides (default), 2 T, 3 CT' } } }
  *     responses:
  *       200: { description: Equipped }
  *       404: { description: Not in your inventory, or skins are off }
@@ -119,7 +274,8 @@ router.post('/me/equip', async (req, res) => {
   try {
     const uid = await playerOrStop(req, res);
     if (!uid) return;
-    await skinService.equip(uid, Number(req.body?.skinId));
+    const team = Number(req.body?.team ?? 0);
+    await skinService.equip(uid, Number(req.body?.skinId), team);
     void loadoutChanged(uid);
     return res.json({ success: true });
   } catch (error) {
@@ -135,6 +291,7 @@ router.post('/me/equip', async (req, res) => {
  *     summary: Empty a loadout slot
  *     parameters:
  *       - { in: path, name: slot, required: true, schema: { type: string } }
+ *       - { in: query, name: team, schema: { type: integer, enum: [0, 2, 3] }, description: 'One side only (default: every side)' }
  *     responses:
  *       200: { description: Emptied }
  */
@@ -142,7 +299,8 @@ router.delete('/me/equip/:slot', async (req, res) => {
   try {
     const uid = await playerOrStop(req, res);
     if (!uid) return;
-    await skinService.unequip(uid, req.params.slot);
+    const team = req.query.team === undefined ? undefined : Number(req.query.team);
+    await skinService.unequip(uid, req.params.slot, team);
     void loadoutChanged(uid);
     return res.json({ success: true });
   } catch (error) {
@@ -246,9 +404,41 @@ router.get('/skin/:id', async (req, res) => {
   try {
     if (!(await skinService.config()).enabled)
       return res.status(404).json({ success: false, error: 'Skins are off' });
-    return res.json({ success: true, ...(await skinService.one(Number(req.params.id))) });
+    const skin = await skinService.one(Number(req.params.id));
+    // The odds a drop option is this rarity, and this exact skin.
+    const rarity = (await skinService.odds()).rarities.find((r) => r.rarity === skin.skin.rarity);
+    return res.json({
+      success: true,
+      ...skin,
+      odds: rarity ? { rarity: rarity.chance, skin: rarity.perSkin, skins: rarity.skins } : null,
+    });
   } catch (error) {
     return fail(res, error, 'Reading a skin');
+  }
+});
+
+/**
+ * @openapi
+ * /api/skins/tournaments/{id}/rewards:
+ *   get:
+ *     tags: [Skins]
+ *     summary: What a finished tournament's top three got (public)
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200: { description: The rewards, by place }
+ *       404: { description: Skins are off }
+ */
+router.get('/tournaments/:id/rewards', async (req, res) => {
+  try {
+    if (!(await skinService.config()).enabled)
+      return res.status(404).json({ success: false, error: 'Skins are off' });
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0)
+      return res.status(400).json({ success: false, error: 'Bad tournament id' });
+    return res.json({ success: true, rewards: await skinService.tournamentRewards(id) });
+  } catch (error) {
+    return fail(res, error, 'Reading the tournament rewards');
   }
 });
 
@@ -319,7 +509,11 @@ router.get('/admin/catalog', requireAuth, async (req, res) => {
     const all = req.query.all === '1';
     const seen = new Set<string>();
     const skins = (await skinService.catalog())
-      .map((s) => ({ ...s, variant: variantOf(s.paintKitName), ...skinImageUrls(s.image) }))
+      .map((s) => ({
+        ...s,
+        variant: variantOf(s.paintKitName),
+        ...skinImageUrls(s.image),
+      }))
       .filter((s) => {
         const text = `${s.weaponName} ${s.name} ${s.variant ?? ''}`.toLowerCase();
         return words.every((w) => text.includes(w));
@@ -453,6 +647,63 @@ router.post('/admin/players/:steamId/skins', requireAuth, async (req, res) => {
     return res.json({ success: true, id });
   } catch (error) {
     return fail(res, error, 'Giving a skin');
+  }
+});
+
+/**
+ * @openapi
+ * /api/skins/admin/drops:
+ *   post:
+ *     tags: [Skins]
+ *     summary: Give a drop (a choice of three) to a player or a group
+ *     description: With `preview` true, nothing is given; the answer names who would get one.
+ *     security: [{ BearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               target:
+ *                 type: object
+ *                 properties:
+ *                   kind: { type: string, enum: [player, online, team, match] }
+ *                   id: { type: string, description: 'Steam ID, team id or match slug' }
+ *               preview: { type: boolean }
+ *               label: { type: string, description: 'Shown on the drop, e.g. "From the admins"' }
+ *     responses:
+ *       200: { description: 'Who gets one (preview), or how many were given' }
+ *       400: { description: Not a target }
+ */
+router.post('/admin/drops', requireAuth, async (req, res) => {
+  try {
+    const body = (req.body ?? {}) as {
+      target?: { kind?: string; id?: unknown };
+      preview?: boolean;
+      label?: unknown;
+    };
+    const kind = body.target?.kind;
+    const id = typeof body.target?.id === 'string' ? body.target.id.trim() : '';
+    let target: DropTarget;
+    if (kind === 'online') target = { kind };
+    else if ((kind === 'player' || kind === 'team' || kind === 'match') && id)
+      target = { kind, id };
+    else
+      return res.status(400).json({ success: false, error: 'target.kind (and id) are required.' });
+    const players = await skinService.dropTargets(target);
+    if (body.preview) {
+      return res.json({ success: true, count: players.length, names: players.map((p) => p.name) });
+    }
+    const label =
+      typeof body.label === 'string' && body.label.trim() ? body.label.trim().slice(0, 80) : null;
+    const given = await skinService.adminDrop(
+      players.map((p) => p.uid),
+      label
+    );
+    return res.json({ success: true, given });
+  } catch (error) {
+    return fail(res, error, 'Giving drops');
   }
 });
 

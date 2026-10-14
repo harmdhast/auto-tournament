@@ -1,13 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
-import { Alert, Box, CircularProgress, Container, MenuItem, Select, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  CircularProgress,
+  Container,
+  MenuItem,
+  Select,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { TopNavBar } from '../components/layout/TopNavBar';
 import { EmptyPanel, PageHead, Row, RowList } from '../components/common/ui';
 import { PlayerAvatar } from '../components/player/PlayerAvatar';
 import { api } from '../utils/api';
+import { useIntegration } from '../integrations/registry';
 import { pageTitle } from '../utils/pageTitle';
 import { playerProfilePath } from '../paths';
+import { MatchmakingLeaderboard } from '../components/leaderboard/MatchmakingLeaderboard';
+import { useMatchmaking } from '../components/matchmaking/matchmakingStore';
 import { tokens, fontMono, radii, textSize } from '../theme/tokens';
 
 const { color } = tokens;
@@ -37,8 +50,10 @@ interface Board {
 
 /**
  * The platform's leaderboard (`/leaderboards`): players ranked by their
- * rating in one game, picked from a dropdown (ratings are per game). A
- * tournament's own standings are on its page.
+ * rating in one game, picked from a dropdown (ratings are per game). With
+ * matchmaking on, a second mode (`?mode=matchmaking`) shows the matchmaking
+ * ladder, which had its own page before. A tournament's own standings are on
+ * its page.
  */
 export default function Leaderboard() {
   const { t } = useTranslation();
@@ -47,6 +62,19 @@ export default function Leaderboard() {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState(false);
 
+  // The game's own category rankings, under its rating ranking.
+  // The matchmaking ladder is its own ranking (by queue rating): the second mode.
+  const { available: matchmaking } = useMatchmaking();
+  const ladder = matchmaking && params.get('mode') === 'matchmaking';
+  const setMode = (mode: 'tournament' | 'matchmaking') => {
+    const next = new URLSearchParams(params);
+    if (mode === 'matchmaking') next.set('mode', 'matchmaking');
+    else next.delete('mode');
+    setParams(next);
+  };
+  const gameIntegration = useIntegration(board?.game ?? null);
+  const GameBoard = board?.game ? gameIntegration.leaderboardView : undefined;
+
   useEffect(() => {
     document.title = pageTitle(t('leaderboard.title'));
   }, [t]);
@@ -54,7 +82,9 @@ export default function Leaderboard() {
   useEffect(() => {
     let cancelled = false;
     api
-      .get<{ success: boolean } & Board>(`/api/leaderboard${asked ? `?game=${encodeURIComponent(asked)}` : ''}`)
+      .get<{ success: boolean } & Board>(
+        `/api/leaderboard${asked ? `?game=${encodeURIComponent(asked)}` : ''}`
+      )
       .then((res) => {
         if (cancelled) return;
         setError(false);
@@ -70,7 +100,14 @@ export default function Leaderboard() {
 
   const columns = '3ch minmax(0, 1fr) 5.5rem 4.5rem 5.5rem';
   const head = (label: string, right = true) => (
-    <Typography sx={{ fontFamily: fontMono, fontSize: textSize.xs, color: color.muted, textAlign: right ? 'right' : 'left' }}>
+    <Typography
+      sx={{
+        fontFamily: fontMono,
+        fontSize: textSize.xs,
+        color: color.muted,
+        textAlign: right ? 'right' : 'left',
+      }}
+    >
       {label}
     </Typography>
   );
@@ -79,9 +116,41 @@ export default function Leaderboard() {
     <Box minHeight="100vh" bgcolor="transparent" data-testid="leaderboard-page">
       <TopNavBar />
       <Container maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 3 }}>
-          <PageHead title={t('leaderboard.title')} subtitle={t('leaderboard.subtitle')} sx={{ mb: 0 }} />
-          {board && board.games.length > 0 && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: 2,
+            flexWrap: 'wrap',
+            mb: 3,
+          }}
+        >
+          <PageHead
+            title={t('leaderboard.title')}
+            subtitle={t('leaderboard.subtitle')}
+            actions={
+              matchmaking ? (
+                <ToggleButtonGroup
+                  exclusive
+                  size="small"
+                  value={ladder ? 'matchmaking' : 'tournament'}
+                  onChange={(_, value) => value && setMode(value)}
+                  aria-label={t('leaderboard.mode')}
+                  data-testid="leaderboard-mode"
+                >
+                  <ToggleButton value="tournament" data-testid="leaderboard-mode-tournament">
+                    {t('leaderboard.modeTournament')}
+                  </ToggleButton>
+                  <ToggleButton value="matchmaking" data-testid="leaderboard-mode-matchmaking">
+                    {t('leaderboard.modeMatchmaking')}
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              ) : undefined
+            }
+            sx={{ mb: 0 }}
+          />
+          {!ladder && board && board.games.length > 0 && (
             <Select
               size="small"
               value={board.game ?? ''}
@@ -99,7 +168,9 @@ export default function Leaderboard() {
           )}
         </Box>
 
-        {error ? (
+        {ladder ? (
+          <MatchmakingLeaderboard />
+        ) : error ? (
           <Alert severity="error">{t('leaderboard.loadError')}</Alert>
         ) : !board ? (
           <Box display="flex" justifyContent="center" py={6}>
@@ -122,27 +193,53 @@ export default function Leaderboard() {
             </Row>
             {board.players.map((p) => (
               <Row key={p.id} columns={columns} data-testid="leaderboard-row">
-                <Typography sx={{ fontFamily: fontMono, fontSize: textSize.sm, color: p.rank <= 3 ? color.accent : color.muted }}>
+                <Typography
+                  sx={{
+                    fontFamily: fontMono,
+                    fontSize: textSize.sm,
+                    color: p.rank <= 3 ? color.accent : color.muted,
+                  }}
+                >
                   {p.rank}
                 </Typography>
                 <Box
                   component={RouterLink}
                   to={playerProfilePath(p.id)}
-                  sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0, color: 'text.primary', textDecoration: 'none', '&:hover .name': { textDecoration: 'underline' } }}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    minWidth: 0,
+                    color: 'text.primary',
+                    textDecoration: 'none',
+                    '&:hover .name': { textDecoration: 'underline' },
+                  }}
                 >
                   <PlayerAvatar id={p.id} name={p.name} avatarUrl={p.avatar} size={32} />
                   <Typography className="name" noWrap sx={{ fontWeight: 600, minWidth: 0 }}>
                     {p.name}
                   </Typography>
                 </Box>
-                <Typography sx={{ fontFamily: fontMono, textAlign: 'right' }}>{p.rating}</Typography>
-                <Typography sx={{ fontFamily: fontMono, textAlign: 'right', color: color.ink2 }}>{p.matches}</Typography>
+                <Typography sx={{ fontFamily: fontMono, textAlign: 'right' }}>
+                  {p.rating}
+                </Typography>
                 <Typography sx={{ fontFamily: fontMono, textAlign: 'right', color: color.ink2 }}>
-                  {p.wins + p.losses > 0 ? `${Math.round((p.wins / (p.wins + p.losses)) * 100)}%` : '—'}
+                  {p.matches}
+                </Typography>
+                <Typography sx={{ fontFamily: fontMono, textAlign: 'right', color: color.ink2 }}>
+                  {p.wins + p.losses > 0
+                    ? `${Math.round((p.wins / (p.wins + p.losses)) * 100)}%`
+                    : '—'}
                 </Typography>
               </Row>
             ))}
           </RowList>
+        )}
+
+        {!ladder && GameBoard && (
+          <Box sx={{ mt: 6 }}>
+            <GameBoard />
+          </Box>
         )}
       </Container>
     </Box>

@@ -42,6 +42,7 @@ import { useAuth as useAuthInternal } from '../contexts/AuthContext';
 export { api, apiErrorMessage } from '../utils/api';
 export { onSocketReconnect } from '../utils/socketResync';
 export { useSocket } from '../hooks/useSocket';
+export { useTopic, type TopicOptions } from '../hooks/useTopic';
 
 // Host contexts
 export { useSnackbar } from '../contexts/SnackbarContext';

@@ -10,6 +10,9 @@
 import { startRecorderRecovery, stopRecorderRecovery } from './demos/recorderRecovery';
 import { startAutoStart } from './fleet/autoStart';
 import { startVetoTimer, stopVetoTimer } from './veto/timer';
+import { startWaitingSweep, stopWaitingSweep } from './waitingSweep';
+import { startCs2AdminNotices, stopCs2AdminNotices } from './adminNotices';
+import { startGameMessages, stopGameMessages } from './fleet/gameMessages';
 import { log } from '../../utils/logger';
 import { settingsService } from '../../services/settingsService';
 import { serverService } from './services/serverService';
@@ -26,12 +29,14 @@ import { startRoundBackups, stopRoundBackups } from './fleet/backups';
 import { startRestoreAudit, stopRestoreAudit } from './fleet/restore';
 import { startDemoStreams, stopDemoStreams } from './fleet/demoStream';
 import { startFleetHosts, stopFleetHosts } from './fleet/hosts/service';
+import { recorderLink, startRecorderLink } from './demos/recorderLink';
 import { startServerNotices, stopServerNotices } from './fleet/serverNotices';
 import { startLogRelay, stopLogRelay } from './fleet/logRelay';
 import { startFleetPush, stopFleetPush } from './fleet/push';
 import { startFleetFailover, stopFleetFailover } from './fleet/failover';
 import { startAutoscaler, stopAutoscaler } from './fleet/autoscale/scaler';
 import { serverTurnoverTracker } from './utils/serverTurnover';
+import { startFleetTopics } from './fleet/adminTopics';
 
 let stopTurnoverRetry: (() => void) | null = null;
 
@@ -71,6 +76,14 @@ export async function startCs2(): Promise<void> {
   startAutoStart();
   // A veto step a team does not take in time is taken for them (veto_turn_seconds).
   startVetoTimer();
+  // Ready matches still without a server get another try every 15 s.
+  startWaitingSweep();
+  // The admins' bell: crashed servers, failed updates, recorders, failing clips.
+  startCs2AdminNotices();
+  // The Servers page and match panels re-read on fleet changes (the `fleet` topic).
+  startFleetTopics();
+  // What the platform does to a match, told in game (next map, pauses, a crash recovered).
+  startGameMessages();
 
   // The Ready Up fleet gateway (/api/fleet/ws) first: it only attaches to the
   // HTTP server, and servers reconnecting after a restart should not wait on
@@ -87,6 +100,9 @@ export async function startCs2(): Promise<void> {
   await startFleetHosts().catch((error) => {
     log.warn('Failed to start the fleet host gateway', { error });
   });
+  // Recorders' live link (/api/game/cs2/recorder/link): work is pushed to
+  // them the moment it is queued, and they stream their progress.
+  startRecorderLink();
   // Failover proposals for Ready Up servers that die mid-match (FLEET.md §11).
   startFleetFailover();
   // Automatic scaling of Ready Up servers on those machines (fleet/autoscale/).
@@ -118,6 +134,9 @@ export function stopCs2(): void {
   stopRecorderRecovery();
   healthMonitoringService.stop();
   stopVetoTimer();
+  stopCs2AdminNotices();
+  stopGameMessages();
+  stopWaitingSweep();
   stopMapAutoSync();
   stopFleet();
   stopTurnoverRetry?.();
@@ -126,6 +145,7 @@ export function stopCs2(): void {
   stopRestoreAudit();
   stopDemoStreams();
   stopFleetHosts();
+  recorderLink.shutdown();
   stopFleetFailover();
   stopServerNotices();
   stopLogRelay();

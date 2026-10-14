@@ -496,6 +496,10 @@
       "description": "Players calling for an admin from a game server (CS2: `.admin [message]` in Ready Up, sent as the admin_called event): list open and recently resolved calls, resolve one or all. Admin only. Live updates go to signed-in admins as the Socket.IO events admin:call and admin:call:resolved."
     },
     {
+      "name": "Admin notices",
+      "description": "The admins' bell: what needs an admin (a match stuck without a server, a crashed server, a failing recorder, a new beta). One feed for every admin, each with their own seen mark; repeats count up. Admin only. Live updates go to signed-in admins as the Socket.IO events admin:notice and admin:notice:resolved."
+    },
+    {
       "name": "Auth",
       "description": "Sign-in flows, admin identity, impersonation."
     },
@@ -596,6 +600,10 @@
       "description": "Players ranked by their rating in one game. Public."
     },
     {
+      "name": "Leaderboards",
+      "description": "Players ranked by rating, ADR, K/D, headshots, opening duels, clutches and KAST."
+    },
+    {
       "name": "License",
       "description": "The Auto Tournament license key: save, remove and read its status, checked offline; and the one-time acceptance of the license terms (non-commercial or commercial use) that the admin UI waits for. Admin only, except the public badge. Nothing else is ever blocked: a missing or problematic key is a notice for admins."
     },
@@ -610,6 +618,10 @@
     {
       "name": "Logs",
       "description": "Server-side event logs."
+    },
+    {
+      "name": "Manage a match",
+      "description": "The admin match page: a match's live state, server and event log, and the Ready Up commands it sends (logged with who sent them)."
     },
     {
       "name": "Manual match templates",
@@ -917,6 +929,74 @@
         ]
       }
     },
+    "/api/admin-calls/{id}/claim": {
+      "post": {
+        "tags": [
+          "Admin calls"
+        ],
+        "summary": "Take an open call on, so the other admins see who has it",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ call, claimed }: claimed false when another admin has it or it is resolved"
+          },
+          "404": {
+            "description": "No such call"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/admin-calls/{id}/release": {
+      "post": {
+        "tags": [
+          "Admin calls"
+        ],
+        "summary": "Give back a call you claimed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ call, released }"
+          },
+          "404": {
+            "description": "No such call"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
     "/api/admin-calls/{id}/resolve": {
       "post": {
         "tags": [
@@ -965,6 +1045,139 @@
             "apiToken": []
           }
         ]
+      }
+    },
+    "/api/admin-notices": {
+      "get": {
+        "tags": [
+          "Admin notices"
+        ],
+        "summary": "Open notices (newest change first) and recently resolved ones, with this admin's unread count",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The notices"
+          }
+        }
+      }
+    },
+    "/api/admin-notices/seen": {
+      "post": {
+        "tags": [
+          "Admin notices"
+        ],
+        "summary": "This admin has seen every notice so far",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved"
+          }
+        }
+      }
+    },
+    "/api/admin-notices/settings": {
+      "get": {
+        "tags": [
+          "Admin notices"
+        ],
+        "summary": "Per kind, off, bell, or bell with a sound",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The settings"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Admin notices"
+        ],
+        "summary": "Change how a kind of notice reaches the admins",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "enum": [
+                    "off",
+                    "bell",
+                    "sound"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The saved settings"
+          }
+        }
+      }
+    },
+    "/api/admin-notices/{id}/dismiss": {
+      "post": {
+        "tags": [
+          "Admin notices"
+        ],
+        "summary": "Close an open notice",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Closed"
+          },
+          "404": {
+            "description": "No open notice with that id"
+          }
+        }
       }
     },
     "/api/auth/admin-status": {
@@ -1363,6 +1576,127 @@
         ]
       }
     },
+    "/api/auth/local/passkeys": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Your passkeys",
+        "description": "The signed-in account's passkeys (name, added, last used), for an account with an admin login.",
+        "responses": {
+          "200": {
+            "description": "`passkeys` and `available` (whether this address allows passkeys)"
+          }
+        }
+      }
+    },
+    "/api/auth/local/passkeys/login/options": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Start signing in with a passkey",
+        "description": "Same-site JSON. No username needed; the browser offers the passkeys it has for this site.",
+        "responses": {
+          "200": {
+            "description": "`options`"
+          },
+          "403": {
+            "description": "Local admin login is turned off"
+          },
+          "409": {
+            "description": "Passkeys don't work on this address"
+          }
+        }
+      }
+    },
+    "/api/auth/local/passkeys/login/verify": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Sign in with a passkey",
+        "description": "Same-site JSON: `response` from the browser. Signs the passkey's\naccount in, instead of its password and two-step code. Failures are\nthrottled per IP like password sign-in.\n",
+        "responses": {
+          "200": {
+            "description": "Signed in"
+          },
+          "401": {
+            "description": "Not a passkey for this site, or it did not check out"
+          },
+          "429": {
+            "description": "Too many attempts"
+          }
+        }
+      }
+    },
+    "/api/auth/local/passkeys/register/options": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Start adding a passkey",
+        "description": "Same-site JSON. Needs your password confirmed in the last 10 minutes\n(POST /api/auth/local/reauth; `reauthRequired` otherwise). Answers the\nWebAuthn creation options for the browser.\n",
+        "responses": {
+          "200": {
+            "description": "`options`"
+          },
+          "401": {
+            "description": "`reauthRequired`: confirm your password first"
+          },
+          "409": {
+            "description": "Passkeys don't work on this address (not https)"
+          }
+        }
+      }
+    },
+    "/api/auth/local/passkeys/register/verify": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Finish adding a passkey",
+        "description": "Same-site JSON. `response` from the browser and an optional `name` (\"MacBook\", \"Phone\").",
+        "responses": {
+          "200": {
+            "description": "`passkey`: the one added"
+          },
+          "400": {
+            "description": "The browser's answer did not check out"
+          }
+        }
+      }
+    },
+    "/api/auth/local/passkeys/{id}": {
+      "delete": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Remove one of your passkeys",
+        "description": "Same-site. Needs your password confirmed in the last 10 minutes (`reauthRequired` otherwise).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "`reauthRequired`"
+          },
+          "404": {
+            "description": "Not one of yours"
+          }
+        }
+      }
+    },
     "/api/auth/local/password": {
       "post": {
         "tags": [
@@ -1540,6 +1874,40 @@
         ]
       }
     },
+    "/api/auth/local/totp/disable": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Turn TOTP off for the signed-in local admin",
+        "description": "Same-site JSON. Needs the password and a current code. Throttled like sign-in.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  },
+                  "totp": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "TOTP is off; sign-in asks for the password only"
+          },
+          "401": {
+            "description": "Wrong password or code (`totpRequired` when the code is missing)"
+          }
+        }
+      }
+    },
     "/api/auth/local/totp/start": {
       "post": {
         "tags": [
@@ -1628,6 +1996,23 @@
         "responses": {
           "200": {
             "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/auth/oidc/logo": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "The OpenID Connect button's logo (public)",
+        "description": "The image the admin uploaded under Settings > Sign-in, as PNG, JPEG, WebP or SVG. An SVG cannot run scripts here (sandboxed). 404 without one.",
+        "responses": {
+          "200": {
+            "description": "The image"
+          },
+          "404": {
+            "description": "No logo set"
           }
         }
       }
@@ -2438,6 +2823,29 @@
         "responses": {
           "200": {
             "description": "Saved"
+          }
+        },
+        "parameters": [
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/chat/{channel}/typing": {
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "Say you are typing (the channel's other players see it for a few seconds)",
+        "responses": {
+          "200": {
+            "description": "Sent"
           }
         },
         "parameters": [
@@ -4831,7 +5239,7 @@
           "Highlights"
         ],
         "summary": "An admin's verdict on a recorded clip",
-        "description": "`verdict`: `approved`; `redo` (it stutters or looks broken: recorded\nagain, preferably by another recorder); or `drop` (not worth showing:\nnot recorded again, left out of every reel, its reels made again).\n`note` is optional. 404 when the clip is not recorded.\n",
+        "description": "`verdict`: `approved`; `redo` (it stutters or looks broken: recorded\nagain, preferably by another recorder); `weapon` (the weapon and hands\nare missing for a stretch: recorded again without TrueView); or `drop` (not worth showing:\nnot recorded again, left out of every reel, its reels made again).\n`note` is optional. 404 when the clip is not recorded.\n",
         "responses": {
           "200": {
             "description": "How many clips and reels were queued"
@@ -5199,6 +5607,34 @@
         ]
       }
     },
+    "/api/game/cs2/leaderboards": {
+      "get": {
+        "tags": [
+          "Leaderboards"
+        ],
+        "summary": "GET /api/game/cs2/leaderboards",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/game/cs2/library": {
+      "get": {
+        "tags": [
+          "Highlights"
+        ],
+        "summary": "GET /api/game/cs2/library",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/game/cs2/matches/{slug}/connect": {
       "get": {
         "tags": [
@@ -5387,6 +5823,150 @@
             "schema": {
               "type": "string"
             }
+          }
+        ]
+      }
+    },
+    "/api/game/cs2/matches/{slug}/manage": {
+      "get": {
+        "tags": [
+          "Manage a match"
+        ],
+        "summary": "The admin match page's data (match, live state, server, event log)",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ match, server, live, log }"
+          },
+          "401": {
+            "description": "Not an admin"
+          },
+          "404": {
+            "description": "No such match"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/game/cs2/matches/{slug}/manage/command": {
+      "post": {
+        "tags": [
+          "Manage a match"
+        ],
+        "summary": "Send one Ready Up command to the match's server (logged with the admin)",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "enum": [
+                      "pause",
+                      "unpause",
+                      "force_ready",
+                      "start",
+                      "restore_round",
+                      "restart_round",
+                      "restart_map",
+                      "change_map",
+                      "swap_teams",
+                      "kick",
+                      "say",
+                      "end",
+                      "exec"
+                    ]
+                  },
+                  "args": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The server ran it"
+          },
+          "400": {
+            "description": "Unknown command"
+          },
+          "409": {
+            "description": "The match is not on a Ready Up server"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/game/cs2/matches/{slug}/manage/restart-server": {
+      "post": {
+        "tags": [
+          "Manage a match"
+        ],
+        "summary": "Ask csm to restart the match's server (Ready Up restores the last round after)",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ commandId }: csm took the command"
+          },
+          "409": {
+            "description": "Not on a csm-managed Ready Up server"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -5654,6 +6234,20 @@
         }
       }
     },
+    "/api/game/cs2/players/me/role": {
+      "put": {
+        "tags": [
+          "Player profile"
+        ],
+        "summary": "PUT /api/game/cs2/players/me/role",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/game/cs2/players/{playerId}/highlights": {
       "get": {
         "tags": [
@@ -5684,6 +6278,30 @@
           "Player profile"
         ],
         "summary": "GET /api/game/cs2/players/:playerId/profile",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/game/cs2/players/{playerId}/role": {
+      "get": {
+        "tags": [
+          "Player profile"
+        ],
+        "summary": "GET /api/game/cs2/players/:playerId/role",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
         "responses": {
           "200": {
@@ -6622,6 +7240,34 @@
         }
       }
     },
+    "/api/game/cs2/recorder/update/available": {
+      "get": {
+        "tags": [
+          "Highlights"
+        ],
+        "summary": "GET /api/game/cs2/recorder/update/available",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/game/cs2/recorder/update/request": {
+      "post": {
+        "tags": [
+          "Highlights"
+        ],
+        "summary": "POST /api/game/cs2/recorder/update/request",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/game/cs2/recorder/uploads": {
       "post": {
         "tags": [
@@ -7004,6 +7650,30 @@
         ]
       }
     },
+    "/api/game/cs2/teams/{teamId}/roles": {
+      "get": {
+        "tags": [
+          "Player profile"
+        ],
+        "summary": "GET /api/game/cs2/teams/:teamId/roles",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/game/cs2/tournaments/{id}/highlights": {
       "get": {
         "tags": [
@@ -7050,6 +7720,92 @@
             }
           }
         ]
+      }
+    },
+    "/api/game/cs2/watch/comments": {
+      "get": {
+        "tags": [
+          "Highlights"
+        ],
+        "summary": "GET /api/game/cs2/watch/comments",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Highlights"
+        ],
+        "summary": "POST /api/game/cs2/watch/comments",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/game/cs2/watch/comments/{id}": {
+      "put": {
+        "tags": [
+          "Highlights"
+        ],
+        "summary": "PUT /api/game/cs2/watch/comments/:id",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Highlights"
+        ],
+        "summary": "DELETE /api/game/cs2/watch/comments/:id",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/game/cs2/watch/like": {
+      "put": {
+        "tags": [
+          "Highlights"
+        ],
+        "summary": "PUT /api/game/cs2/watch/like",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
       }
     },
     "/api/game/cs2/watch/match/{slug}/{map}": {
@@ -7138,6 +7894,20 @@
         }
       }
     },
+    "/api/game/cs2/watch/stats": {
+      "get": {
+        "tags": [
+          "Highlights"
+        ],
+        "summary": "GET /api/game/cs2/watch/stats",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/game/cs2/watch/team/{slug}/{team}": {
       "get": {
         "tags": [
@@ -7192,6 +7962,20 @@
             }
           }
         ]
+      }
+    },
+    "/api/game/cs2/watch/view": {
+      "post": {
+        "tags": [
+          "Highlights"
+        ],
+        "summary": "POST /api/game/cs2/watch/view",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
       }
     },
     "/api/game/manual/disputes": {
@@ -7548,6 +8332,20 @@
             }
           }
         ]
+      }
+    },
+    "/api/games/accounts": {
+      "get": {
+        "tags": [
+          "Games"
+        ],
+        "summary": "The accounts the installed games need",
+        "description": "Which sign-in provider identifies each installed game's players: a\nmodule's (CS2: Steam) or a pack's (Rocket League: Epic Games).\nGames that need none are left out. The admin's player and team forms\nask for these accounts.\n",
+        "responses": {
+          "200": {
+            "description": "`accounts`: [{ provider, label, games: [{ id, name }] }]"
+          }
+        }
       }
     },
     "/api/games/icons/{file}": {
@@ -10243,6 +11041,21 @@
       }
     },
     "/api/matchmaking/queue": {
+      "get": {
+        "tags": [
+          "Matchmaking"
+        ],
+        "summary": "Queue counts per mode",
+        "description": "Public, for bots and overlays (\"3 more for a 2v2\"). Per enabled mode:\nplayers and parties searching, players a match needs, how many are\nmissing, the longest wait in seconds, and players in a lobby being\naccepted or playing. Counts only: no names or ids. Poll it (every\n30-60 s is plenty); 404 while matchmaking is closed to players.\n",
+        "responses": {
+          "200": {
+            "description": "The counts"
+          },
+          "404": {
+            "description": "Matchmaking is closed to players"
+          }
+        }
+      },
       "post": {
         "tags": [
           "Matchmaking"
@@ -10258,6 +11071,10 @@
                   "mode": {
                     "type": "string",
                     "example": "5v5"
+                  },
+                  "botFill": {
+                    "type": "boolean",
+                    "description": "Bots take the empty seats (2v2 and 5v5). The game is unrated: no rating, XP or drops."
                   }
                 }
               }
@@ -10609,7 +11426,7 @@
           "Modules"
         ],
         "summary": "Every module, built-in and on disk, with its status",
-        "description": "`platform` is the client and server API versions this instance\nprovides. Each module has a `status`: `ok` (loaded), `disabled`\n(found, not loaded), `incompatible` (its API ranges exclude this\nplatform) or `broken` (it failed to validate or load), with the\n`reason`. `enabled` is the stored switch, which takes effect on the\nnext restart. Built-in modules are always on.\n",
+        "description": "`platform` is the client and server API versions this instance\nprovides. Each module has a `status`: `ok` (loaded), `disabled`\n(found, not loaded), `incompatible` (its API ranges exclude this\nplatform) or `broken` (it failed to validate or load), with the\n`reason`. `enabled` is the stored switch, which takes effect on the\nnext restart. Built-in modules are always on. `accountProvider` is\nthe sign-in a loaded module's players need (CS2: steam), or null.\n",
         "security": [
           {
             "bearerAuth": []
@@ -11369,6 +12186,20 @@
         }
       }
     },
+    "/api/players/me/match-now": {
+      "get": {
+        "tags": [
+          "Players"
+        ],
+        "summary": "GET /api/players/me/match-now",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/players/me/match-status": {
       "get": {
         "tags": [
@@ -11493,6 +12324,38 @@
             }
           }
         ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/players/{playerId}/accounts": {
+      "get": {
+        "tags": [
+          "Players"
+        ],
+        "summary": "A player's game accounts other than Steam",
+        "description": "Admin. Accounts the games need (Epic Games for Rocket League, ...):\nentered by an admin (`verified: false`, the player lands on this\nplayer when they first sign in with it) or proven by signing in.\n",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`accounts`: [{ provider, externalId, verified }]"
+          }
+        },
         "security": [
           {
             "bearerAuth": []
@@ -12639,8 +13502,8 @@
         "tags": [
           "Search"
         ],
-        "summary": "Search players, teams, tournaments and played matches by name",
-        "description": "Public. `q` (2 to 100 characters) matches anywhere in a name, case\ninsensitive; a SteamID64 finds that player. Up to 6 of each kind, the\nclosest first. Banned and deleted players are left out, and a\ntournament still being set up is only found by an admin.\n",
+        "summary": "Search players, teams, tournaments, played matches and what each game adds",
+        "description": "Public. `q` (2 to 100 characters) is matched fuzzily: every word has\nto match a word of the name (exactly, its start, inside it, or with a\ntypo), in any order, ignoring case and diacritics; a SteamID64 finds\nthat player. Up to 6 of each kind, the best match first. `modules` is\nwhat the installed games add (CS2: highlights, maps; for admins\nservers and recorders), up to 12. Banned and deleted players are left\nout, and a tournament still being set up is only found by an admin.\n",
         "parameters": [
           {
             "in": "query",
@@ -12652,7 +13515,7 @@
         ],
         "responses": {
           "200": {
-            "description": "`players`, `teams`, `tournaments`, `matches`"
+            "description": "`players`, `teams`, `tournaments`, `matches`, `modules`"
           }
         }
       }
@@ -13734,6 +14597,28 @@
         ]
       }
     },
+    "/api/skins/admin/drops": {
+      "post": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "POST /api/skins/admin/drops",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
     "/api/skins/admin/players": {
       "get": {
         "tags": [
@@ -13888,6 +14773,30 @@
         }
       }
     },
+    "/api/skins/me/choices/{id}": {
+      "post": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "POST /api/skins/me/choices/:id",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/skins/me/equip": {
       "post": {
         "tags": [
@@ -13954,6 +14863,46 @@
         }
       }
     },
+    "/api/skins/me/trade-up": {
+      "get": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "GET /api/skins/me/trade-up",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "POST /api/skins/me/trade-up",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/skins/odds": {
+      "get": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "GET /api/skins/odds",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/skins/players/{steamId}": {
       "get": {
         "tags": [
@@ -14008,6 +14957,44 @@
           "Skins"
         ],
         "summary": "GET /api/skins/status",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/skins/tournaments/{id}/rewards": {
+      "get": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "GET /api/skins/tournaments/:id/rewards",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/skins/tryout": {
+      "get": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "GET /api/skins/tryout",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
         "responses": {
           "200": {
@@ -14265,6 +15252,32 @@
         "responses": {
           "200": {
             "description": "`unread`"
+          }
+        }
+      }
+    },
+    "/api/social/notifications/settings": {
+      "get": {
+        "tags": [
+          "Social"
+        ],
+        "summary": "GET /api/social/notifications/settings",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Social"
+        ],
+        "summary": "PUT /api/social/notifications/settings",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
           }
         }
       }
@@ -15542,6 +16555,57 @@
         ]
       }
     },
+    "/api/test/admin-notice": {
+      "post": {
+        "tags": [
+          "Test"
+        ],
+        "summary": "Raise or resolve an admins' bell notice (tests only)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string"
+                  },
+                  "data": {
+                    "type": "object"
+                  },
+                  "dedupeKey": {
+                    "type": "string"
+                  },
+                  "resolve": {
+                    "type": "boolean"
+                  },
+                  "ongoing": {
+                    "type": "boolean",
+                    "description": "Raise the way a sweep does (quiet while open or dismissed)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Raised (the notice) or resolved"
+          },
+          "400": {
+            "description": "Unknown kind"
+          }
+        }
+      }
+    },
     "/api/test/auth-identities": {
       "get": {
         "tags": [
@@ -16360,6 +17424,28 @@
         ]
       }
     },
+    "/api/test/fleet/stattrak": {
+      "post": {
+        "tags": [
+          "Test helpers (CS2)"
+        ],
+        "summary": "POST /api/test/fleet/stattrak",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
     "/api/test/game-icons": {
       "post": {
         "tags": [
@@ -16388,6 +17474,28 @@
           "Test helpers"
         ],
         "summary": "POST /api/test/game-icons/run",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/test/highlights/status": {
+      "post": {
+        "tags": [
+          "Test helpers (CS2)"
+        ],
+        "summary": "POST /api/test/highlights/status",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
         "responses": {
           "200": {
@@ -17157,6 +18265,28 @@
           "Test helpers"
         ],
         "summary": "POST /api/test/packs/reseed",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/test/passkey-verifier": {
+      "post": {
+        "tags": [
+          "Test helpers"
+        ],
+        "summary": "POST /api/test/passkey-verifier",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
         "responses": {
           "200": {
@@ -18497,6 +19627,48 @@
             "description": "Cannot regenerate bracket without force flag"
           }
         }
+      }
+    },
+    "/api/tournament/cancel": {
+      "post": {
+        "tags": [
+          "Tournament"
+        ],
+        "summary": "End a running tournament without a result",
+        "description": "Ends the matches on their servers, cancels every match not finished\nand marks the tournament `cancelled` (no winner, no placement\nrewards). It can be archived afterwards. `confirm` must be the\ntournament's name.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "confirm": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ ended, cancelled }"
+          },
+          "400": {
+            "description": "The name does not match"
+          },
+          "409": {
+            "description": "Not running"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/tournament/current-id": {

@@ -7,7 +7,12 @@ import {
 } from '../demos/recorderLeases';
 import { db } from '../../../config/database';
 import { recorderFleetRouter } from './recorderFleet';
-import { recorderAcceptsWork } from '../demos/recorderFleet';
+import {
+  acknowledgeRecorderUpdate,
+  newerRecorderAgent,
+  refreshRecorderRelease,
+} from '../demos/recorderUpdates';
+import { recorderAcceptsWork, requestRecorderUpdate } from '../demos/recorderFleet';
 /**
  * Highlights (../demos/highlights.ts).
  *
@@ -27,7 +32,8 @@ import { recorderAcceptsWork } from '../demos/recorderFleet';
  *   PUT  …/jobs/:id/clip/<twin>, …/reels/:slug/:map/:player/<twin>, …/match-reels/:slug/:map/<twin>,
  *        …/team-reels/:slug/:team/<twin>, …/tournament-reels/:id/<twin>   after the video: a reel's crowd
  *        track (`crowd`, audio/mp4), the clean twin (`clean`, video/mp4) or the overlay's recipe (`overlay`, JSON)
- *   PUT  /api/game/cs2/recorder/redress/:file          a video dressed again from its clean twin (video/mp4 body)
+ *   PUT  /api/game/cs2/recorder/redress/:file          a video dressed again from its clean twin (video/mp4 body);
+ *                                                     a clip's carries `X-AT-Start`: where it starts in its twin (no caption card)
  *   POST /api/game/cs2/recorder/redress/:file/fail     { error }: it could not
  *   GET  /api/game/cs2/redress                         admin: the redress queue ({ queued, working, failed, available })
  *   POST /api/game/cs2/redress                         admin: { files? }: dress these (default: every video with a clean twin) again
@@ -52,6 +58,14 @@ import { recorderAcceptsWork } from '../demos/recorderFleet';
  *   GET  /api/game/cs2/watch/match/:slug/:map         a map's match reel
  *   GET  /api/game/cs2/watch/tournament/:id           a tournament's reel
  *   GET  /api/game/cs2/watch/team/:slug/:team         a team's reel of a match
+ *   GET  /api/game/cs2/library                        every clip and reel: ?sort=new|views|likes&kind=all|clips|reels&player&team&match&tournament&map&page&limit
+ *   GET  /api/game/cs2/watch/stats                    ?video=<key>: its views and likes, and whether the viewer liked it
+ *   POST /api/game/cs2/watch/view                     { video, browser? }: a view (once per viewer every 12 hours)
+ *   PUT  /api/game/cs2/watch/like                     { video, liked }: a signed-in player's like
+ *   GET  /api/game/cs2/watch/comments                 ?video=<key>: its comments, oldest first
+ *   POST /api/game/cs2/watch/comments                 { video, body }: a signed-in player comments (rate limited)
+ *   PUT  /api/game/cs2/watch/comments/:id             { body }: its author edits it
+ *   DELETE /api/game/cs2/watch/comments/:id           its author or an admin removes it
  *   GET  /api/game/cs2/watch/related                  ?match&map | ?tournament: the players on that map and more reels
  *   GET  /api/game/cs2/highlights/:file               a clip (`<id>.mp4`) or reel (`reel-…`, `match-…`, `tournament-…`), with range requests;
  *                                                     ?crowd=1, ?music=<track>&intro=<s>[&level=<0–2>]: a download with its crowd track and/or that music mixed in (../demos/music.ts)
@@ -71,7 +85,7 @@ import fs from 'fs';
 import path from 'path';
 import { URLSearchParams } from 'url';
 import { Router, type Request, type Response } from 'express';
-import { requestActorId, requireAuth } from '../../../middleware/auth';
+import { checkAdminAccess, requestActorId, requireAuth } from '../../../middleware/auth';
 import {
   createRecorderKey,
   listRecorderKeys,
@@ -81,6 +95,18 @@ import {
 import { appendPart, bodyOf, startUpload, UploadError } from '../demos/uploadParts';
 import { log } from '../../../utils/logger';
 import { resolveViewerAccount } from '../../../utils/viewerIdentity';
+import { countView, libraryPage, setLike, videoKey, videoStats } from '../demos/library';
+import { recorderLink } from '../demos/recorderLink';
+import {
+  addComment,
+  cleanBody,
+  COMMENT_MAX,
+  commentById,
+  deleteComment,
+  editComment,
+  listComments,
+  postLimit,
+} from '../demos/comments';
 import {
   claimTournamentReel,
   clipView,
@@ -173,6 +199,21 @@ import {
 import { dropOrphanJobs } from '../demos/jobs';
 
 const router = Router();
+// The Recorders page follows changes live instead of polling: any change to
+// a recorder, its group, key or job (not heartbeats or upload chunks) tells
+// it to read the list again (../demos/recorderLink.ts).
+router.use((req, res, next) => {
+  if (
+    req.method !== 'GET' &&
+    /^\/(recorder|recorders|recorder-groups|recorder-keys|clips|redress)(\/|$)/.test(req.path) &&
+    !/\/(heartbeat|uploads)(\/|$)/.test(req.path)
+  ) {
+    res.on('finish', () => {
+      if (res.statusCode < 400) recorderLink.changed();
+    });
+  }
+  next();
+});
 router.use(recorderFleetRouter);
 
 // Updated workers identify writes, so a late upload/failure cannot change a
@@ -253,7 +294,7 @@ const read =
   };
 
 router.post('/recorder/hello', requireRecorder, async (req, res) => {
-  const { name, hostname, hostId, agentVersion } = req.body ?? {};
+  const { name, hostname, hostId, agentVersion, image, revision } = req.body ?? {};
   if (
     typeof name !== 'string' ||
     !name.trim() ||
@@ -264,7 +305,11 @@ router.post('/recorder/hello', requireRecorder, async (req, res) => {
     typeof hostId !== 'string' ||
     !/^[0-9a-f-]{36}$/.test(hostId) ||
     typeof agentVersion !== 'string' ||
-    agentVersion.length > 80
+    agentVersion.length > 80 ||
+    (image != null &&
+      (typeof image !== 'string' ||
+        !/^sivertio\/auto-tournament-recorder@sha256:[0-9a-f]{64}$/.test(image))) ||
+    (revision != null && (typeof revision !== 'string' || revision.length > 80))
   )
     return res.status(400).json({ error: 'A hostname, machine ID and agent version are required' });
   try {
@@ -274,16 +319,16 @@ router.post('/recorder/hello', requireRecorder, async (req, res) => {
     );
     if (existing) {
       await db.runAsync(
-        'UPDATE cs2_recorders SET host_name = ?, agent_version = ?, agent_seen = EXTRACT(EPOCH FROM NOW())::INTEGER WHERE host_id = ?',
-        [hostname, agentVersion, hostId]
+        'UPDATE cs2_recorders SET host_name = ?, agent_version = ?, recorder_image = COALESCE(?, recorder_image), recorder_revision = COALESCE(?, recorder_revision), agent_seen = EXTRACT(EPOCH FROM NOW())::INTEGER WHERE host_id = ?',
+        [hostname, agentVersion, image ?? null, revision ?? null, hostId]
       );
       return res.json({ success: true, name: existing.name });
     }
     const row = await db.queryOneAsync<{ name: string }>(
-      `INSERT INTO cs2_recorders (name, enabled, host_id, host_name, agent_version, agent_seen) VALUES (?, 0, ?, ?, ?, EXTRACT(EPOCH FROM NOW())::INTEGER)
-      ON CONFLICT (name) DO UPDATE SET host_id = EXCLUDED.host_id, host_name = EXCLUDED.host_name, agent_version = EXCLUDED.agent_version, agent_seen = EXCLUDED.agent_seen
+      `INSERT INTO cs2_recorders (name, enabled, host_id, host_name, agent_version, recorder_image, recorder_revision, agent_seen) VALUES (?, 0, ?, ?, ?, ?, ?, EXTRACT(EPOCH FROM NOW())::INTEGER)
+      ON CONFLICT (name) DO UPDATE SET host_id = EXCLUDED.host_id, host_name = EXCLUDED.host_name, agent_version = EXCLUDED.agent_version, recorder_image = COALESCE(EXCLUDED.recorder_image, cs2_recorders.recorder_image), recorder_revision = COALESCE(EXCLUDED.recorder_revision, cs2_recorders.recorder_revision), agent_seen = EXCLUDED.agent_seen
       WHERE cs2_recorders.host_id IS NULL OR cs2_recorders.host_id = EXCLUDED.host_id RETURNING name`,
-      [name, hostId, hostname, agentVersion]
+      [name, hostId, hostname, agentVersion, image ?? null, revision ?? null]
     );
     if (!row)
       return res.status(409).json({ error: 'This recorder name belongs to another installation' });
@@ -294,22 +339,36 @@ router.post('/recorder/hello', requireRecorder, async (req, res) => {
   }
 });
 
-/** Host-side updates use the recorder key; no Docker socket is exposed to the worker. */
+/** Protocol 1 updates carry a durable request ID; stale acknowledgements cannot finish a newer request. */
 router.get('/recorder/update', requireRecorder, async (req, res) => {
   const name = req.header('X-AT-Recorder');
   if (!name) return res.status(400).json({ error: 'Recorder name required' });
   try {
-    const row = await db.queryOneAsync<{ update_status: string; update_target: string | null }>(
-      'SELECT update_status, update_target FROM cs2_recorders WHERE name = ?',
-      [name]
-    );
+    const protocol = req.query.protocol === '1' ? 1 : 0;
     await db.runAsync(
-      'UPDATE cs2_recorders SET update_agent_seen = EXTRACT(EPOCH FROM NOW())::INTEGER WHERE name = ?',
+      'UPDATE cs2_recorders SET update_agent_seen = EXTRACT(EPOCH FROM NOW())::INTEGER, update_protocol = ? WHERE name = ?',
+      [protocol, name]
+    );
+    const row = await db.queryOneAsync<{
+      update_status: string;
+      update_target: string | null;
+      update_id: string | null;
+      update_agent_version: string | null;
+      update_agent_url: string | null;
+      update_agent_sha: string | null;
+      busy: boolean;
+    }>(
+      `SELECT update_status, update_target, update_id, update_agent_version, update_agent_url, update_agent_sha, EXISTS (SELECT 1 FROM cs2_recorder_claims WHERE recorder = r.name) AS busy FROM cs2_recorders r WHERE name = ?`,
       [name]
     );
     return res.json({
       status: row?.update_status ?? 'current',
       image: row?.update_target ?? null,
+      id: row?.update_id ?? null,
+      busy: row?.busy ?? false,
+      agentVersion: row?.update_agent_version ?? null,
+      agentURL: row?.update_agent_url ?? null,
+      agentSHA: row?.update_agent_sha ?? null,
     });
   } catch (error) {
     log.error('[RECORDER UPDATE] poll failed', { error });
@@ -318,41 +377,121 @@ router.get('/recorder/update', requireRecorder, async (req, res) => {
 });
 router.post('/recorder/update', requireRecorder, async (req, res) => {
   const name = req.header('X-AT-Recorder');
-  const status = req.body?.status;
+  const { status, id, image, revision, agentVersion, error: updateError } = req.body ?? {};
   if (!name || !['check', 'updating', 'current', 'failed'].includes(status))
     return res.status(400).json({ error: 'Valid recorder and update status required' });
+  if (
+    image != null &&
+    (typeof image !== 'string' ||
+      !/^sivertio\/auto-tournament-recorder@sha256:[0-9a-f]{64}$/.test(image))
+  )
+    return res.status(400).json({ error: 'Official recorder image digest required' });
   try {
-    const image = req.body?.image;
-    const imagePattern = /^sivertio\/auto-tournament-recorder@sha256:[0-9a-f]{64}$/;
-    if (image != null && !imagePattern.test(image))
-      return res.status(400).json({ error: 'Official recorder image digest required' });
     if (status === 'check') {
       await db.runAsync(
         `UPDATE cs2_recorders SET recorder_image = ?, recorder_revision = ?, update_agent_seen = EXTRACT(EPOCH FROM NOW())::INTEGER WHERE name = ?`,
-        [
-          image ?? null,
-          typeof req.body?.revision === 'string' ? req.body.revision.slice(0, 80) : null,
-          name,
-        ]
+        [image ?? null, typeof revision === 'string' ? revision.slice(0, 80) : null, name]
       );
-    } else {
-      await db.runAsync(
-        `UPDATE cs2_recorders SET update_status = ?, update_error = ?, recorder_image = COALESCE(?, recorder_image), recorder_revision = COALESCE(?, recorder_revision), updated_at = CASE WHEN ? = 'current' THEN EXTRACT(EPOCH FROM NOW())::INTEGER ELSE updated_at END
-        WHERE name = ? AND update_status IN ('queued', 'updating')`,
-        [
-          status,
-          typeof req.body?.error === 'string' ? req.body.error.slice(0, 1000) : null,
-          image ?? null,
-          typeof req.body?.revision === 'string' ? req.body.revision.slice(0, 80) : null,
-          status,
-          name,
-        ]
-      );
+      return res.json({ success: true });
     }
+    if (id != null && (typeof id !== 'string' || id.length > 80))
+      return res.status(400).json({ error: 'Update request ID required' });
+    const accepted = await acknowledgeRecorderUpdate(name, {
+      id: typeof id === 'string' ? id : '',
+      status,
+      image,
+      revision,
+      agentVersion,
+      error: updateError,
+    });
+    if (!accepted)
+      return res
+        .status(409)
+        .json({ error: 'Stale request or installed image differs from the requested build' });
+    // The Recorders page follows the update live: its step while it runs
+    // (draining, pulling, restarting, checking), the result when done.
+    const step = req.body?.step;
+    recorderLink.updateProgress(
+      name,
+      status === 'updating' && typeof step === 'string' && /^[a-z-]{1,24}$/.test(step)
+        ? step
+        : null,
+      status
+    );
     return res.json({ success: true });
   } catch (error) {
     log.error('[RECORDER UPDATE] acknowledgement failed', { error });
     return res.status(500).json({ error: 'Could not save update result' });
+  }
+});
+
+/**
+ * What a host's own `at-recorder update --check` asks: whether a newer
+ * recorder image or host agent is out for it, and whether the platform can
+ * update it (a host agent with managed updates seen in the last 5 minutes).
+ */
+router.get('/recorder/update/available', requireRecorder, async (req, res) => {
+  const name = req.header('X-AT-Recorder');
+  if (!name) return res.status(400).json({ error: 'Recorder name required' });
+  try {
+    await refreshRecorderRelease();
+    const row = await db.queryOneAsync<{
+      recorder_image: string | null;
+      latest_image: string | null;
+      agent_version: string | null;
+      latest_agent_version: string | null;
+      update_status: string | null;
+      update_error: string | null;
+      managed: boolean;
+    }>(
+      `SELECT recorder_image, latest_image, agent_version, latest_agent_version, update_status, update_error,
+              (update_protocol = 1 AND update_agent_seen > EXTRACT(EPOCH FROM NOW()) - 300) AS managed
+         FROM cs2_recorders WHERE name = ?`,
+      [name]
+    );
+    if (!row) return res.status(404).json({ error: 'No such recorder' });
+    return res.json({
+      success: true,
+      managed: row.managed === true,
+      status: row.update_status ?? 'current',
+      error: row.update_error,
+      image: {
+        installed: row.recorder_image,
+        latest: row.latest_image,
+        newer: !!(
+          row.latest_image &&
+          row.recorder_image &&
+          row.latest_image !== row.recorder_image
+        ),
+      },
+      agent: {
+        installed: row.agent_version,
+        latest: row.latest_agent_version,
+        newer: newerRecorderAgent(row.latest_agent_version, row.agent_version),
+      },
+    });
+  } catch (error) {
+    log.error('[RECORDER UPDATE] availability failed', { error });
+    return res.status(500).json({ error: 'Could not check for updates' });
+  }
+});
+
+/**
+ * A host's own `at-recorder update`: the same request as the platform's
+ * Update button (pinned release, drained before it runs, rolled back when it
+ * fails). `queued` is 0 when nothing is newer, it is already queued or the
+ * host agent cannot take managed updates.
+ */
+router.post('/recorder/update/request', requireRecorder, async (req, res) => {
+  const name = req.header('X-AT-Recorder');
+  if (!name) return res.status(400).json({ error: 'Recorder name required' });
+  try {
+    return res.json({ success: true, queued: await requestRecorderUpdate(name) });
+  } catch (error) {
+    const status = (error as { status?: number }).status;
+    if (status === 404) return res.status(404).json({ error: 'No such recorder' });
+    log.error('[RECORDER UPDATE] self request failed', { error });
+    return res.status(500).json({ error: 'Could not request the update' });
   }
 });
 
@@ -721,7 +860,16 @@ router.put('/recorder/redress/:file', requireRecorder, async (req: Request, res:
     return res.status(400).json({ success: false, error: 'A video/mp4 body for a clip or reel' });
   }
   try {
-    return res.json({ success: true, bytes: await saveRedressed(req.params.file, bodyOf(req)) });
+    // A clip dressed to be watched on its own says where it starts in its clean twin.
+    const start = Number(req.headers['x-at-start']);
+    const at =
+      req.headers['x-at-start'] !== undefined && Number.isFinite(start) && start >= 0
+        ? start
+        : null;
+    return res.json({
+      success: true,
+      bytes: await saveRedressed(req.params.file, bodyOf(req), at),
+    });
   } catch (error) {
     log.error('[HIGHLIGHTS] redressed video save failed', { error, file: req.params.file });
     return res.status(500).json({ success: false, error: 'Could not store the video' });
@@ -905,6 +1053,151 @@ router.get(
     const reel = await teamReelView(req.params.slug, req.params.team);
     if (!reel) return res.status(404).json({ success: false, error: 'No such reel' });
     return res.json({ success: true, reel });
+  })
+);
+
+// The highlights library (../demos/library.ts): every clip and reel, sorted and filtered.
+router.get(
+  '/library',
+  read('library', async (req: Request, res: Response) => {
+    const q = req.query;
+    const str = (v: unknown) =>
+      typeof v === 'string' && v.trim() && v.length <= 200 ? v : undefined;
+    const sort = q.sort === 'views' || q.sort === 'likes' ? q.sort : 'new';
+    const kind = q.kind === 'clips' || q.kind === 'reels' ? q.kind : 'all';
+    const page = Math.max(1, Math.min(1000, Number(q.page) || 1));
+    const limit = Math.max(1, Math.min(48, Number(q.limit) || 24));
+    const tournament = Number(q.tournament);
+    const viewer = await resolveViewerAccount(req);
+    const { items, total } = await libraryPage({
+      sort,
+      kind,
+      player: str(q.player),
+      team: str(q.team),
+      match: str(q.match),
+      tournament: Number.isInteger(tournament) && tournament > 0 ? tournament : undefined,
+      map: str(q.map),
+      page,
+      limit,
+      viewer: viewer.playerId,
+    });
+    return res.json({ success: true, items, total, page, limit });
+  })
+);
+
+// One video's views and likes (`?video=clip/185`), and whether the viewer liked it.
+router.get(
+  '/watch/stats',
+  read('video stats', async (req: Request, res: Response) => {
+    const key = videoKey(req.query.video);
+    if (!key) return res.status(400).json({ success: false, error: 'Which video?' });
+    const viewer = await resolveViewerAccount(req);
+    return res.json({ success: true, ...(await videoStats(key, viewer.playerId)) });
+  })
+);
+
+// A view: { video, browser? } (browser: the anonymous viewer's own id).
+router.post(
+  '/watch/view',
+  read('view', async (req: Request, res: Response) => {
+    const key = videoKey(req.body?.video);
+    if (!key) return res.status(400).json({ success: false, error: 'Which video?' });
+    const viewer = await resolveViewerAccount(req);
+    const browser = req.body?.browser;
+    const who = viewer.playerId
+      ? viewer.playerId
+      : typeof browser === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(browser)
+        ? `anon:${browser}`
+        : null;
+    if (!who) return res.status(400).json({ success: false, error: 'Who is watching?' });
+    const counted = await countView(key, who);
+    return res.json({ success: true, counted });
+  })
+);
+
+// A signed-in player's like: { video, liked }.
+router.put(
+  '/watch/like',
+  read('like', async (req: Request, res: Response) => {
+    const key = videoKey(req.body?.video);
+    if (!key || typeof req.body?.liked !== 'boolean')
+      return res.status(400).json({ success: false, error: '{ video, liked }' });
+    const viewer = await resolveViewerAccount(req);
+    if (!viewer.playerId) return res.status(401).json({ success: false, error: 'Sign in first' });
+    if (viewer.isImpersonating)
+      return res.status(403).json({ success: false, error: 'Stop impersonating to like videos.' });
+    await setLike(key, viewer.playerId, req.body.liked);
+    return res.json({ success: true, ...(await videoStats(key, viewer.playerId)) });
+  })
+);
+
+// Comments on a video (../demos/comments.ts).
+router.get(
+  '/watch/comments',
+  read('comments', async (req: Request, res: Response) => {
+    const key = videoKey(req.query.video);
+    if (!key) return res.status(400).json({ success: false, error: 'Which video?' });
+    return res.json({ success: true, comments: await listComments(key) });
+  })
+);
+
+router.post(
+  '/watch/comments',
+  read('comment', async (req: Request, res: Response) => {
+    const key = videoKey(req.body?.video);
+    const body = cleanBody(req.body?.body);
+    if (!key || !body)
+      return res
+        .status(400)
+        .json({ success: false, error: `{ video, body } (at most ${COMMENT_MAX} characters)` });
+    const viewer = await resolveViewerAccount(req);
+    if (!viewer.playerId) return res.status(401).json({ success: false, error: 'Sign in first' });
+    if (viewer.isImpersonating)
+      return res.status(403).json({ success: false, error: 'Stop impersonating to comment.' });
+    const limit = await postLimit(viewer.playerId);
+    if (limit)
+      return res.status(429).json({
+        success: false,
+        error: limit === 'slow' ? 'Wait a few seconds' : 'Too many comments this hour',
+      });
+    return res.json({ success: true, comment: await addComment(key, viewer.playerId, body) });
+  })
+);
+
+router.put(
+  '/watch/comments/:id',
+  read('comment', async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const body = cleanBody(req.body?.body);
+    if (!Number.isInteger(id) || !body)
+      return res.status(400).json({ success: false, error: '{ body }' });
+    const viewer = await resolveViewerAccount(req);
+    const comment = await commentById(id);
+    if (!comment) return res.status(404).json({ success: false, error: 'No such comment' });
+    if (!viewer.playerId || viewer.isImpersonating || comment.playerId !== viewer.playerId)
+      return res.status(403).json({ success: false, error: 'Only its author can edit it' });
+    return res.json({ success: true, comment: await editComment(id, body) });
+  })
+);
+
+router.delete(
+  '/watch/comments/:id',
+  read('comment', async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id))
+      return res.status(400).json({ success: false, error: 'Which comment?' });
+    const comment = await commentById(id);
+    if (!comment) return res.status(404).json({ success: false, error: 'No such comment' });
+    const viewer = await resolveViewerAccount(req);
+    const own =
+      !!viewer.playerId && !viewer.isImpersonating && comment.playerId === viewer.playerId;
+    const admin = !own && (await checkAdminAccess(req)).ok;
+    if (!own && !admin)
+      return res
+        .status(403)
+        .json({ success: false, error: 'Only its author or an admin can delete it' });
+    await deleteComment(id, own ? viewer.playerId! : `admin:${requestActorId(req) ?? 'admin'}`);
+    return res.json({ success: true });
   })
 );
 
@@ -1233,7 +1526,8 @@ router.post('/clips/redo', requireAuth, async (req: Request, res: Response) => {
  *     summary: An admin's verdict on a recorded clip
  *     description: |
  *       `verdict`: `approved`; `redo` (it stutters or looks broken: recorded
- *       again, preferably by another recorder); or `drop` (not worth showing:
+ *       again, preferably by another recorder); `weapon` (the weapon and hands
+ *       are missing for a stretch: recorded again without TrueView); or `drop` (not worth showing:
  *       not recorded again, left out of every reel, its reels made again).
  *       `note` is optional. 404 when the clip is not recorded.
  *     responses:
@@ -1243,10 +1537,10 @@ router.post('/clips/redo', requireAuth, async (req: Request, res: Response) => {
 router.post('/clips/:id/review', requireAuth, async (req: Request, res: Response) => {
   const id = idOf(req);
   const verdict = req.body?.verdict as ReviewVerdict;
-  if (!id || !['approved', 'redo', 'drop'].includes(verdict)) {
+  if (!id || !['approved', 'redo', 'weapon', 'drop'].includes(verdict)) {
     return res
       .status(400)
-      .json({ success: false, error: 'A clip and a verdict: approved, redo or drop' });
+      .json({ success: false, error: 'A clip and a verdict: approved, redo, weapon or drop' });
   }
   try {
     const note = typeof req.body?.note === 'string' ? req.body.note : null;

@@ -1422,6 +1422,152 @@ export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
     `,
   },
   {
+    id: '044-recorder-update-requests',
+    up: `
+      ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS update_id TEXT;
+      ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS update_requested_at INTEGER;
+      ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS update_seen INTEGER;
+      ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS update_protocol INTEGER;
+      ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS latest_agent_version TEXT;
+      ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS latest_agent_url TEXT;
+      ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS latest_agent_sha TEXT;
+      ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS update_agent_version TEXT;
+      ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS update_agent_url TEXT;
+      ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS update_agent_sha TEXT;
+      UPDATE cs2_recorders SET update_status='failed',update_error='Upgrade the host agent before requesting another update' WHERE update_status='queued' AND update_id IS NULL;
+    `,
+  },
+  {
+    // A clip an admin marked "weapon missing" in review (demos/clipsAdmin.ts
+    // reviewClip): CS2's TrueView rebuild can drop the viewmodel for a stretch
+    // of a demo, the same on every try, so its redo records without TrueView.
+    id: '045-clip-true-view',
+    up: `
+      ALTER TABLE cs2_highlights ADD COLUMN IF NOT EXISTS true_view INTEGER NOT NULL DEFAULT 1;
+    `,
+  },
+  {
+    // How many of a run's clips failed (demos/recorders.ts saveRun): a run is
+    // OK only when none did, so a zero-success or partial run is not shown as
+    // a success.
+    id: '046-recorder-run-failed',
+    up: `
+      ALTER TABLE cs2_recorder_runs ADD COLUMN IF NOT EXISTS failed INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
+  {
+    // When a map/series reel was finished (demos/highlights.ts saveMatchReel):
+    // with claim_started_at it gives the reel's assembly time, and with its
+    // clips' claims the wall-clock time from the first clip to the reel.
+    id: '047-match-reel-done-at',
+    up: `
+      ALTER TABLE cs2_match_reels ADD COLUMN IF NOT EXISTS done_at INTEGER;
+    `,
+  },
+  {
+    // The highlights library (demos/library.ts): each video's views (one per
+    // viewer every 12 hours) and likes (one per signed-in player), by its
+    // watch key (`clip/185`, `match/<slug>/<map>`…).
+    id: '048-video-views-likes',
+    up: `
+      CREATE TABLE IF NOT EXISTS cs2_video_views (
+        video_key TEXT NOT NULL,
+        viewer TEXT NOT NULL, -- a player id, or 'anon:<browser id>'
+        views INTEGER NOT NULL DEFAULT 1,
+        viewed_at INTEGER NOT NULL,
+        PRIMARY KEY (video_key, viewer)
+      );
+      CREATE TABLE IF NOT EXISTS cs2_video_likes (
+        video_key TEXT NOT NULL,
+        player_id TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER,
+        PRIMARY KEY (video_key, player_id)
+      );
+      CREATE INDEX IF NOT EXISTS cs2_video_likes_player_idx ON cs2_video_likes(player_id);
+    `,
+  },
+  {
+    // Comments on a video's watch page (demos/comments.ts), by its library key.
+    id: '049-video-comments',
+    up: `
+      CREATE TABLE IF NOT EXISTS cs2_video_comments (
+        id SERIAL PRIMARY KEY,
+        video_key TEXT NOT NULL,
+        player_id TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER,
+        edited_at INTEGER,
+        deleted_at INTEGER, -- hidden, kept for moderation
+        deleted_by TEXT -- the author, or the admin who removed it
+      );
+      CREATE INDEX IF NOT EXISTS cs2_video_comments_video_idx ON cs2_video_comments(video_key, created_at);
+      CREATE INDEX IF NOT EXISTS cs2_video_comments_player_idx ON cs2_video_comments(player_id, created_at);
+    `,
+  },
+  {
+    // The role a player chose for themselves (roles.ts); suggestions from the
+    // demos are worked out when asked for and never stored over it.
+    id: '050-player-roles',
+    up: `
+      CREATE TABLE IF NOT EXISTS cs2_player_roles (
+        player_id TEXT PRIMARY KEY,
+        role TEXT NOT NULL, -- rifler | awper | igl | entry | support | lurker
+        updated_at INTEGER NOT NULL
+      );
+    `,
+  },
+  {
+    // A drop is a choice of three (skins/skinService.ts offerChoice): the
+    // options, rolled once (wear, pattern), until the player keeps one.
+    id: '051-skin-choices',
+    up: `
+      CREATE TABLE IF NOT EXISTS cs2_skin_choices (
+        id SERIAL PRIMARY KEY,
+        player_uid TEXT NOT NULL,
+        source TEXT NOT NULL,
+        source_label TEXT,
+        source_ref TEXT,
+        place INTEGER,
+        options TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        chosen_index INTEGER,
+        chosen_skin_id INTEGER,
+        chosen_at INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS cs2_skin_choices_player_idx ON cs2_skin_choices(player_uid, chosen_at);
+    `,
+  },
+  {
+    // Knives, gloves and every weapon both sides use can be equipped per
+    // side (skins/skinService.ts equip): team 0 both, 2 T, 3 CT.
+    id: '052-loadout-per-side',
+    up: `
+      ALTER TABLE cs2_player_loadout ADD COLUMN IF NOT EXISTS team INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE cs2_player_loadout DROP CONSTRAINT IF EXISTS cs2_player_loadout_pkey;
+      ALTER TABLE cs2_player_loadout ADD PRIMARY KEY (player_uid, slot, team);
+    `,
+  },
+  {
+    // A machine can run csm for more than one Unix user (fleet/hosts/registry.ts
+    // findByMachine): a host is a machine and the user csm runs as. Hosts
+    // enrolled before csm sent its user keep NULL until it next enrolls.
+    id: '053-host-csm-user',
+    up: `
+      ALTER TABLE cs2_fleet_hosts ADD COLUMN IF NOT EXISTS csm_user TEXT;
+      DROP INDEX IF EXISTS cs2_fleet_hosts_machine_idx;
+      CREATE UNIQUE INDEX IF NOT EXISTS cs2_fleet_hosts_machine_user_idx
+        ON cs2_fleet_hosts(tenant_id, machine_id, (COALESCE(csm_user, '')));
+    `,
+  },
+  {
+    // StatTrak (skins/skinService.ts): NULL is a plain skin, a number is a
+    // StatTrak one's kill count, kept up from Ready Up's skins.stattrak.
+    id: '054-skin-stattrak',
+    up: `
+      ALTER TABLE cs2_player_skins ADD COLUMN IF NOT EXISTS stattrak INTEGER;
+    `,
+  },
+  {
     // Why a Ready Up server is busy (fleet/busyReason.ts): the reason and its
     // detail from hello, state.snapshot and server.availability.
     id: CS2_FLEET_AVAILABILITY_REASON_MIGRATION_ID,

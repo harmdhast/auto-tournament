@@ -20,6 +20,7 @@ import {
  *   `docker run` that starts it (api: demos/recorderKeys.ts).
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Accordion,
   AccordionSummary,
@@ -33,6 +34,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  LinearProgress,
   Stack,
   Tab,
   Tabs,
@@ -40,8 +42,26 @@ import {
   Typography,
 } from '@mui/material';
 import { CaretDownIcon, FilmStripIcon } from '@phosphor-icons/react';
-import { api, useModuleTranslation, useSnackbar } from '../../../module-sdk';
+import {
+  api,
+  HighlightPlayer,
+  type MusicTrack,
+  onSocketReconnect,
+  useModuleTranslation,
+  useSnackbar,
+  useSocket,
+} from '../../../module-sdk';
+import { RecorderProgressBar, type RecorderProgress } from '../settings/RecorderProgressBar';
 import { HighlightOverlaySetting } from '../settings/HighlightOverlaySetting';
+import { updateBatch } from './recorderUpdateBatch';
+
+/** An image reference for people: its digest's first 12 characters, or its tag. */
+function shortImage(image: string): string {
+  const digest = image.match(/sha256:([0-9a-f]{12})/i);
+  if (digest) return digest[1];
+  const tag = image.split('/').pop() ?? image;
+  return tag.length > 24 ? `${tag.slice(0, 24)}…` : tag;
+}
 
 interface BenchmarkTry {
   gamescopeHz: number;
@@ -80,7 +100,12 @@ interface Recorder {
   updateSupported: boolean;
   updateAvailable: boolean;
   recorderRevision: string | null;
+  recorderImage?: string | null;
+  latestImage?: string | null;
+  latestAgentVersion?: string | null;
+  updatedAt?: number | null;
   updateStatus: string;
+  updateRequestedAt?: number | null;
   updateError: string | null;
   working: {
     playerName: string | null;
@@ -89,6 +114,10 @@ interface Recorder {
     mapNumber: number;
     since: number;
   } | null;
+  /** A live link to the platform (it is pushed work and reports progress). */
+  linked?: boolean;
+  /** What it is doing right now, over its link. */
+  progress?: RecorderProgress | null;
 }
 
 interface Run {
@@ -101,6 +130,8 @@ interface Run {
   ok: boolean;
   clips: number;
   rejected: number;
+  /** Clips of the run that could not be recorded. */
+  failed?: number;
   error: string | null;
 }
 
@@ -118,7 +149,15 @@ const duration = (s: number | null) =>
  */
 export default function Cs2HighlightsAdmin() {
   const { t } = useModuleTranslation('cs2');
-  const [tab, setTab] = useState<TabKey>('recorders');
+  // `?sub=` opens a tab (the site search links to Overlays, Clips, Recorders).
+  const [search, setSearch] = useSearchParams();
+  const sub = search.get('sub');
+  const tab: TabKey = sub === 'clips' || sub === 'overlays' ? sub : 'recorders';
+  const setTab = (value: TabKey) => {
+    const next = new URLSearchParams(search);
+    next.set('sub', value);
+    setSearch(next, { replace: true });
+  };
 
   return (
     <Box data-testid="cs2-highlights-admin">
@@ -169,14 +208,29 @@ function RecordersTab() {
     }
   }, [showError, t]);
 
+  // Live: the platform says when recorders change (a job, an update, a
+  // toggle) and streams what each is doing; no polling.
+  const socket = useSocket();
   useEffect(() => {
     const first = setTimeout(() => void load(), 0);
-    const id = setInterval(() => void load(), 30_000);
+    const join = () => socket.emit('admin:subscribe');
+    join();
+    const changed = () => void load();
+    const progress = ({ name, progress }: { name: string; progress: RecorderProgress | null }) =>
+      setRecorders((list) => list?.map((r) => (r.name === name ? { ...r, progress } : r)) ?? list);
+    socket.on('recorders:changed', changed);
+    socket.on('recorders:progress', progress);
+    const off = onSocketReconnect(socket, () => {
+      join();
+      void load();
+    });
     return () => {
       clearTimeout(first);
-      clearInterval(id);
+      socket.off('recorders:changed', changed);
+      socket.off('recorders:progress', progress);
+      off();
     };
-  }, [load]);
+  }, [load, socket]);
 
   const act = async (path: string, done: string) => {
     try {
@@ -242,6 +296,56 @@ function RecordersTab() {
           {t('highlightsAdmin.fleet.updateAll')}
         </Button>
       </Stack>
+      {(() => {
+        // Update all's progress: the recorders asked together, how many are on the new version.
+        const batch = updateBatch(recorders, Date.now() / 1000);
+        if (!batch) return null;
+        const finished = batch.done + batch.failed;
+        return (
+          <Box data-testid="recorders-update-batch">
+            <Typography variant="body2" color="text.secondary">
+              {t(
+                batch.running > 0
+                  ? 'highlightsAdmin.fleet.updateProgress'
+                  : 'highlightsAdmin.fleet.updateDone',
+                { done: batch.done, total: batch.total }
+              )}
+              {batch.failed > 0 &&
+                ` · ${t('highlightsAdmin.fleet.updateFailed', { count: batch.failed })}`}
+            </Typography>
+            {batch.running > 0 && (
+              <LinearProgress
+                variant="determinate"
+                value={(finished / batch.total) * 100}
+                aria-label={t('highlightsAdmin.fleet.updateProgress', {
+                  done: batch.done,
+                  total: batch.total,
+                })}
+                sx={{ mt: 0.5, maxWidth: 360 }}
+              />
+            )}
+          </Box>
+        );
+      })()}
+      {(() => {
+        // What "Update all" installs: the newest image and agent any recorder was told about.
+        const latestImage = recorders.find((r) => r.latestImage)?.latestImage ?? null;
+        const latestAgent = recorders.find((r) => r.latestAgentVersion)?.latestAgentVersion ?? null;
+        const behind = recorders.filter((r) => r.updateAvailable).length;
+        if (!recorders.length || (!latestImage && !latestAgent)) return null;
+        return (
+          <Typography variant="body2" color="text.secondary" data-testid="recorders-latest">
+            {t('highlightsAdmin.fleet.latest', {
+              image: latestImage ? shortImage(latestImage) : '—',
+              agent: latestAgent ?? '—',
+            })}
+            {' · '}
+            {behind
+              ? t('highlightsAdmin.fleet.behind', { count: behind })
+              : t('highlightsAdmin.fleet.allCurrent')}
+          </Typography>
+        );
+      })()}
       <RecorderGroups groups={groups} onChanged={load} showToggles={false} />
       {recorders.length === 0 && (
         <Box
@@ -314,7 +418,7 @@ function RecordersTab() {
                       <Typography
                         variant="subtitle1"
                         fontWeight={700}
-                        color={r.lastRunFailed ? 'error.main' : 'text.primary'}
+                        color={r.lastRunFailed || r.updateError ? 'error.main' : 'text.primary'}
                         sx={{ overflowWrap: 'anywhere' }}
                       >
                         {r.label || r.hostname || r.name}
@@ -332,6 +436,40 @@ function RecordersTab() {
                           r.online ? 'highlightsAdmin.fleet.connected' : 'highlightsAdmin.offline'
                         )}
                       />
+                      {['queued', 'updating'].includes(r.updateStatus) && (
+                        <Chip
+                          size="small"
+                          color="warning"
+                          label={
+                            r.progress?.step === 'updating' && r.progress.detail
+                              ? t(`recorderProgress.update.${r.progress.detail}`, {
+                                  defaultValue: r.progress.detail,
+                                })
+                              : t(
+                                  r.updateStatus === 'queued'
+                                    ? 'highlightsAdmin.fleet.updatePending'
+                                    : 'recorderProgress.step.updating'
+                                )
+                          }
+                        />
+                      )}
+                      {r.progress && r.progress.step !== 'updating' && (
+                        <Chip
+                          size="small"
+                          color="info"
+                          data-testid={`recorder-step-${r.name}`}
+                          label={[
+                            t(`recorderProgress.step.${r.progress.step}`, {
+                              defaultValue: r.progress.step,
+                            }),
+                            typeof r.progress.done === 'number' && r.progress.total
+                              ? `${Math.min(r.progress.done + 1, r.progress.total)}/${r.progress.total}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        />
+                      )}
                       {!r.effectiveEnabled ? (
                         <Chip
                           size="small"
@@ -396,7 +534,8 @@ function RecordersTab() {
                         {t('highlightsAdmin.fleet.drainHelp')}
                       </Typography>
                     )}
-                    {r.working && (
+                    {r.progress && <RecorderProgressBar name={r.name} progress={r.progress} />}
+                    {r.working && !r.progress && (
                       <Typography variant="body2" data-testid={`recorder-working-${r.name}`}>
                         {t('highlightsAdmin.workingOn', {
                           count: r.working.clips,
@@ -407,18 +546,49 @@ function RecordersTab() {
                         {r.working.playerName ? ` · ${r.working.playerName}` : null}
                       </Typography>
                     )}
-                    {r.agentVersion && (
+                    <Box
+                      sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}
+                      data-testid={`recorder-version-${r.name}`}
+                    >
+                      <Chip
+                        size="small"
+                        color={r.updateAvailable ? 'warning' : 'success'}
+                        variant="outlined"
+                        label={
+                          r.updateAvailable
+                            ? t('highlightsAdmin.fleet.updateAvailable')
+                            : t('highlightsAdmin.fleet.upToDate')
+                        }
+                      />
                       <Typography variant="caption" color="text.secondary">
-                        at-recorder {r.agentVersion}
+                        {[
+                          r.agentVersion
+                            ? `at-recorder ${r.agentVersion}${
+                                r.latestAgentVersion && r.latestAgentVersion !== r.agentVersion
+                                  ? ` → ${r.latestAgentVersion}`
+                                  : ''
+                              }`
+                            : null,
+                          r.recorderImage
+                            ? `${t('highlightsAdmin.fleet.image')} ${shortImage(r.recorderImage)}${
+                                r.latestImage && r.latestImage !== r.recorderImage
+                                  ? ` → ${shortImage(r.latestImage)}`
+                                  : ''
+                              }`
+                            : null,
+                          r.recorderRevision
+                            ? t('highlightsAdmin.fleet.build', {
+                                revision: r.recorderRevision.slice(0, 12),
+                              })
+                            : null,
+                          r.updatedAt
+                            ? t('highlightsAdmin.fleet.updatedAt', { time: when(r.updatedAt) })
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </Typography>
-                    )}
-                    {r.recorderRevision && (
-                      <Typography variant="caption" color="text.secondary">
-                        {t('highlightsAdmin.fleet.build', {
-                          revision: r.recorderRevision.slice(0, 12),
-                        })}
-                      </Typography>
-                    )}
+                    </Box>
                     {r.updateError && <Alert severity="error">{r.updateError}</Alert>}
                     {r.paused && r.pauseReason && (
                       <Alert severity="warning" sx={{ py: 0 }}>
@@ -504,6 +674,7 @@ function RecordersTab() {
                         size="small"
                         disabled={
                           !r.updateSupported ||
+                          !r.updateAvailable ||
                           r.updateStatus === 'queued' ||
                           r.updateStatus === 'updating'
                         }
@@ -683,6 +854,7 @@ function RunsDialog({ name, onClose }: { name: string | null; onClose: () => voi
                       when(run.startedAt),
                       duration(run.seconds),
                       t('highlightsAdmin.clips', { count: run.clips }),
+                      run.failed ? t('highlightsAdmin.runFailed', { count: run.failed }) : null,
                     ]
                       .filter(Boolean)
                       .join(' · ')}
@@ -994,7 +1166,7 @@ interface AdminClip {
   reviewNote: string | null;
 }
 
-type Verdict = 'approved' | 'redo' | 'drop';
+type Verdict = 'approved' | 'redo' | 'weapon' | 'drop';
 
 const clipUrl = (file: string) => `/api/game/cs2/highlights/${encodeURIComponent(file)}`;
 
@@ -1072,6 +1244,17 @@ function ClipReview({
   const { t } = useModuleTranslation('cs2');
   const clip = clips[index];
   const [note, setNote] = useState('');
+  const [tracks, setTracks] = useState<MusicTrack[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .get<{ tracks: MusicTrack[] }>('/api/highlights/music')
+      .then((r) => !cancelled && setTracks(r.tracks))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   // A new clip starts with an empty note.
   const [noteFor, setNoteFor] = useState(clip?.id);
   if (noteFor !== clip?.id) {
@@ -1079,7 +1262,8 @@ function ClipReview({
     setNote('');
   }
   useEffect(() => {
-    const onKey = (e: { key: string; target: unknown }) => {
+    const onKey = (e: { key: string; target: unknown; defaultPrevented: boolean }) => {
+      if (e.defaultPrevented) return;
       if ((e.target as HTMLElement | null)?.tagName === 'INPUT') return;
       if (e.key === 'ArrowRight' && index < clips.length - 1) onIndex(index + 1);
       if (e.key === 'ArrowLeft' && index > 0) onIndex(index - 1);
@@ -1087,6 +1271,7 @@ function ClipReview({
         const k = e.key.toLowerCase();
         if (k === 'a') onVerdict(clip, 'approved', note);
         if (k === 'r') onVerdict(clip, 'redo', note);
+        if (k === 'w') onVerdict(clip, 'weapon', note);
         if (k === 'd') onVerdict(clip, 'drop', note);
       }
     };
@@ -1111,20 +1296,12 @@ function ClipReview({
         </Typography>
       </DialogTitle>
       <DialogContent>
-        <Box
-          component="video"
+        <HighlightPlayer
           key={clip.id}
           src={clipUrl(clip.video)}
-          controls
+          label={`${clip.playerName} · ${clip.title}`}
+          music={tracks.length ? { tracks, introEnd: 0 } : null}
           autoPlay
-          playsInline
-          sx={{
-            width: '100%',
-            aspectRatio: '16 / 9',
-            bgcolor: 'common.black',
-            borderRadius: 1,
-            display: 'block',
-          }}
         />
       </DialogContent>
       {onVerdict && (
@@ -1154,6 +1331,15 @@ function ClipReview({
               data-testid="review-redo"
             >
               {t('highlightsAdmin.review.redo')}
+            </Button>
+            <Button
+              variant="outlined"
+              color="warning"
+              disabled={busy}
+              onClick={() => onVerdict(clip, 'weapon', note)}
+              data-testid="review-weapon"
+            >
+              {t('highlightsAdmin.review.weapon')}
             </Button>
             <Button
               variant="outlined"
@@ -1198,11 +1384,19 @@ interface AdminReel {
   clips: number | null;
   madeWith: string | null;
   outdated: boolean;
+  /** Claim to done: joining the reel. */
+  assemblySeconds?: number | null;
+  /** Its clips' render times added up (recorder time, not elapsed). */
+  clipRenderSeconds?: number | null;
+  /** Wall clock from its first clip's claim to the reel being done. */
+  elapsedSeconds?: number | null;
 }
 
 interface AdminMatch {
   slug: string;
   match: string;
+  /** Failed clips: the reels that would take them wait until each is redone or dropped. */
+  failedClips?: number;
   clips: AdminClip[];
   reels: AdminReel[];
 }
@@ -1237,14 +1431,24 @@ function ClipsTab() {
     }
   }, [onlyOutdated, showError, t]);
 
+  // Live: a clip recorded, redone or reviewed changes the recorders' work too
+  // (`recorders:changed`), so that is when the list is read again.
+  const socket = useSocket();
   useEffect(() => {
     const first = setTimeout(() => void load(), 0);
-    const id = setInterval(() => void load(), 30_000);
+    socket.emit('admin:subscribe');
+    const changed = () => void load();
+    socket.on('recorders:changed', changed);
+    const off = onSocketReconnect(socket, () => {
+      socket.emit('admin:subscribe');
+      void load();
+    });
     return () => {
       clearTimeout(first);
-      clearInterval(id);
+      socket.off('recorders:changed', changed);
+      off();
     };
-  }, [load]);
+  }, [load, socket]);
 
   const redo = async (body: object) => {
     setBusy(true);
@@ -1371,6 +1575,11 @@ function ClipsTab() {
           >
             {t('highlightsAdmin.clips.redoMatch')}
           </Button>
+          {(m.failedClips ?? 0) > 0 && (
+            <Alert severity="warning" sx={{ mb: 1.5 }} data-testid={`clips-held-${m.slug}`}>
+              {t('highlightsAdmin.clips.heldByFailed', { count: m.failedClips })}
+            </Alert>
+          )}
           {m.reels.length > 0 && (
             <Box sx={{ mb: 1.5 }}>
               <Typography variant="caption" color="text.secondary">
@@ -1398,7 +1607,23 @@ function ClipsTab() {
                     color="text.secondary"
                     sx={{ flex: 1, minWidth: 140 }}
                   >
-                    {made(r.madeWith)}
+                    {[
+                      made(r.madeWith),
+                      r.elapsedSeconds != null &&
+                        t('highlightsAdmin.clips.reelElapsed', {
+                          time: duration(r.elapsedSeconds),
+                        }),
+                      r.assemblySeconds != null &&
+                        t('highlightsAdmin.clips.reelAssembly', {
+                          time: duration(r.assemblySeconds),
+                        }),
+                      r.clipRenderSeconds != null &&
+                        t('highlightsAdmin.clips.reelRender', {
+                          time: duration(r.clipRenderSeconds),
+                        }),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </Typography>
                   <Button
                     size="small"

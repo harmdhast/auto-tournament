@@ -149,6 +149,12 @@ test.describe('Redesigned player profile', () => {
       const row = page.getByTestId(`profile-recent-match-${slug}`);
       await expect(row).toBeVisible();
       await expect(row).toContainText('20 / 10');
+      // The row is a link to the match; the opponent in it, to their team page.
+      await expect(row.getByRole('link', { name: 'Open match' })).toHaveAttribute(
+        'href',
+        `/match/${slug}`
+      );
+      await expect(row.getByTestId('match-row-opponent')).toHaveAttribute('href', /^\/team\//);
 
       // CS2 measures kills and damage, so its profile keeps those tiles. The
       // manually reported game's spec (manual-report-stats-pages.spec.ts)
@@ -163,11 +169,11 @@ test.describe('Redesigned player profile', () => {
       await expect(row).toContainText(/rating \d+/);
 
       // Profile header team chip links to that team's public profile page
-      // (/t/team/:teamId), not the in-match/server team page (/team/:teamId).
+      // (/team/:teamId).
       // It names the team, never "My team" / "Team:".
       const teamChip = page.getByTestId('public-player-team');
       await expect(teamChip).toBeVisible();
-      await expect(teamChip).toHaveAttribute('href', `/t/team/${team1.id}`);
+      await expect(teamChip).toHaveAttribute('href', `/team/${team1.id}`);
       await expect(teamChip).toContainText(team1.name);
       await expect(teamChip).not.toContainText(/my team|team:/i);
 

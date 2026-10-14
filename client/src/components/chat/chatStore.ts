@@ -6,14 +6,15 @@
  * Live: one socket joins the player's room (`player:subscribe`) and, for an
  * admin, the admins' room (`admin:subscribe`); every `chat:message` lands in
  * its chat at once. The chat list is read again on every connect, when a
- * message arrives for a chat it does not know, and once a minute (a new match
- * or party shows up without a message).
+ * message arrives for a chat it does not know, and when a match, party, team
+ * or tournament changes (a new match or party shows up without a message).
  *
  * Admins open a match's chat from anywhere with `openChat('match:<slug>')`
  * (or the `at:open-chat` window event with `{ channel, title }` as its detail).
  */
 import { useEffect, useSyncExternalStore } from 'react';
 import { io, type Socket } from 'socket.io-client';
+import { addTypist, removeTypist, shouldSendTyping, SHOW_MS, type Typing } from './typing';
 import { api } from '../../utils/api';
 
 export type ChatKind = 'match' | 'team' | 'party';
@@ -37,6 +38,10 @@ export interface ChatChannel {
   myTeam: string | null;
   unread: number;
   live?: boolean;
+  /** An admin's match chat (not their own match): an open call there, or one they opened. */
+  admin?: boolean;
+  /** The open admin call in it, and who claimed it. */
+  call?: { id: number; claimedBy: string | null; claimedByName: string | null } | null;
 }
 
 interface Thread {
@@ -55,16 +60,28 @@ interface State {
   active: string | null;
   /** The newest message from someone else that arrived while the dock was closed. */
   peek: ChatMessage | null;
+  /** Who is typing where (./typing.ts). */
+  typing: Typing;
 }
 
 const PAGE = 50;
-const LIST_MS = 60_000;
+/** Channel list re-reads after a burst of changes settle (ms). */
+const LIST_SETTLE_MS = 500;
 
-let state: State = { channels: [], threads: {}, open: false, active: null, peek: null };
+let state: State = { channels: [], threads: {}, open: false, active: null, peek: null, typing: {} };
 const listeners = new Set<() => void>();
 let socket: Socket | null = null;
 let users = 0;
-let timer: ReturnType<typeof setInterval> | null = null;
+let listTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Re-read the channel list soon, once for a burst of events. */
+function refreshChannelsSoon(): void {
+  if (listTimer) return;
+  listTimer = setTimeout(() => {
+    listTimer = null;
+    void refreshChannels();
+  }, LIST_SETTLE_MS);
+}
 let viewer: { steamId: string | null; isAdmin: boolean } = { steamId: null, isAdmin: false };
 
 function set(next: Partial<State>) {
@@ -177,6 +194,9 @@ export function markRead(channel: string): void {
 }
 
 function receive(message: ChatMessage) {
+  if (state.typing[message.channel]) {
+    set({ typing: removeTypist(state.typing, message.channel, message.senderId) });
+  }
   const thread = state.threads[message.channel];
   if (thread) setThread(message.channel, { messages: mergeById(thread.messages, [message]) });
   const mine = message.senderId !== null && message.senderId === viewer.steamId;
@@ -189,6 +209,12 @@ function receive(message: ChatMessage) {
   }
   const reading = state.open && state.active === message.channel;
   if (mine) return;
+  // Joins, leaves and other system lines show in the thread, quietly: no
+  // sound, no preview, no unread count (they made the chat ping all match).
+  if (message.senderKind === 'system') {
+    if (reading) markRead(message.channel);
+    return;
+  }
   if (reading) {
     markRead(message.channel);
     return;
@@ -234,6 +260,51 @@ function openSocket() {
     if (state.open && state.active) void loadMessages(state.active);
   });
   socket.on('chat:message', (message: ChatMessage) => receive(message));
+  // Channels come and go with matches, parties, teams and tournaments: the
+  // list is re-read when one of those changes, not on a timer.
+  for (const event of [
+    'match:update',
+    'bracket:update',
+    'tournament:update',
+    'mm:changed',
+    'social:changed',
+  ]) {
+    socket.on(event, refreshChannelsSoon);
+  }
+  // Admins: a call puts its match chat in the dock and opens it; a claim or resolve updates it.
+  socket.on(
+    'admin:call',
+    (call: { matchSlug?: string | null; team1Name?: string | null; team2Name?: string | null }) => {
+      if (!viewer.isAdmin || !call?.matchSlug) return;
+      const title =
+        call.team1Name && call.team2Name ? `${call.team1Name} vs ${call.team2Name}` : undefined;
+      void refreshChannels().then(() => openChat(`match:${call.matchSlug}`, title));
+    }
+  );
+  for (const event of ['admin:call:claimed', 'admin:call:resolved']) {
+    socket.on(event, () => {
+      if (viewer.isAdmin) refreshChannelsSoon();
+    });
+  }
+  socket.on('chat:typing', (who: { channel: string; playerId: string; name: string }) => {
+    if (!who?.channel || who.playerId === viewer.steamId) return;
+    set({ typing: addTypist(state.typing, who.channel, who, Date.now()) });
+    // Re-render once it has run out, so the line goes away.
+    setTimeout(() => set({ typing: { ...state.typing } }), SHOW_MS + 50);
+  });
+}
+
+let typingSentAt = 0;
+let typingChannel: string | null = null;
+
+/** The viewer typed in a channel: tell its others, at most every couple of seconds. */
+export function notifyTyping(channel: string): void {
+  if (!viewer.steamId) return;
+  const now = Date.now();
+  if (channel === typingChannel && !shouldSendTyping(typingSentAt, now)) return;
+  typingSentAt = now;
+  typingChannel = channel;
+  void api.post(`/api/chat/${encodeURIComponent(channel)}/typing`, {}).catch(() => undefined);
 }
 
 function closeSocket() {
@@ -289,7 +360,6 @@ export function useChat(who?: { steamId: string | null; isAdmin: boolean }): Sta
     users += 1;
     openSocket();
     void refreshChannels();
-    if (!timer) timer = setInterval(() => void refreshChannels(), LIST_MS);
     const onOpen = (event: Event) => {
       const detail = (event as CustomEvent<{ channel?: string; title?: string }>).detail;
       openChat(detail?.channel, detail?.title);
@@ -299,11 +369,11 @@ export function useChat(who?: { steamId: string | null; isAdmin: boolean }): Sta
       window.removeEventListener('at:open-chat', onOpen);
       users -= 1;
       if (users === 0) {
-        if (timer) clearInterval(timer);
-        timer = null;
+        if (listTimer) clearTimeout(listTimer);
+        listTimer = null;
         closeSocket();
         viewer = { steamId: null, isAdmin: false };
-        state = { channels: [], threads: {}, open: false, active: null, peek: null };
+        state = { channels: [], threads: {}, open: false, active: null, peek: null, typing: {} };
       }
     };
     // `who` itself changes every render; the ids are what matter.

@@ -69,15 +69,12 @@ test.describe.serial('The shell follows the tournament game', () => {
       });
       expect(created.status(), `creating: ${await created.text()}`).toBe(200);
 
-      // Admin home: no Servers link in the site grid, no fleet card. The
-      // Settings link is there to prove the grid itself rendered — an empty
-      // page would pass the two negatives on its own.
-      await page.goto('/');
+      // Manage's home: no fleet card, and the rail has no Servers or Maps.
+      // The Settings item is there to prove the rail itself rendered — an
+      // empty page would pass the negatives on its own.
+      await page.goto('/manage');
       await expect(page.getByTestId('dashboard-page')).toBeVisible({ timeout: 15000 });
-      await expect(page.getByTestId('admin-home-site-grid')).toBeVisible();
-      await expect(page.getByTestId('admin-home-site-link-settings')).toBeVisible();
-      await expect(page.getByTestId('admin-home-site-link-servers')).toHaveCount(0);
-      await expect(page.getByTestId('admin-home-site-link-maps')).toHaveCount(0);
+      await expect(page.getByTestId('manage-rail-settings')).toBeVisible();
       await expect(page.getByTestId('admin-home-servers-card')).toHaveCount(0);
 
       // Nothing on the page links to CS2's pages (the top bar included).
@@ -87,12 +84,14 @@ test.describe.serial('The shell follows the tournament game', () => {
       // Manage: no server grid under the queue, no Servers or Maps in the rail.
       await page.goto('/manage');
       await expect(page.getByTestId('manage-rail')).toBeVisible({ timeout: 15000 });
-      await expect(page.getByTestId('tournament-bar-matches')).toBeVisible();
+      // The tournament's own pages open from its name in the rail.
+      await page.locator('[data-testid^="manage-rail-tournament-"]').first().click();
+      await expect(page.getByTestId('tournament-bar-matches')).toBeVisible({ timeout: 15000 });
       await expect(page.getByTestId('manage-rail-servers')).toHaveCount(0);
       await expect(page.getByTestId('manage-rail-maps')).toHaveCount(0);
       // A game with no pages of its own leaves the rail's game group out; a
       // result that can be argued about brings Disputes in.
-      await expect(page.getByTestId('manage-rail-group-game')).toHaveCount(0);
+      await expect(page.locator('[data-testid^="manage-rail-group-game"]')).toHaveCount(0);
       await expect(page.getByTestId('tournament-bar-disputes')).toBeVisible();
       await expect(page.getByTestId('manage-servers')).toHaveCount(0);
 

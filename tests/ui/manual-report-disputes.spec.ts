@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { openMatchRoom } from '../helpers/matchRoom';
 import { ensureSignedIn, signInAsPlayer, signInViaRequest } from '../helpers/auth';
 
 /**
@@ -151,7 +152,13 @@ test.describe.serial('Disputes, from the team page to the admin queue', () => {
       const fields = await request.put(`${API}/tournaments/1/fields`, {
         data: {
           fields: [
-            { key: 'goals', label: 'Goals', valueType: 'integer', scope: 'player', required: false },
+            {
+              key: 'goals',
+              label: 'Goals',
+              valueType: 'integer',
+              scope: 'player',
+              required: false,
+            },
           ],
         },
       });
@@ -173,7 +180,7 @@ test.describe.serial('Disputes, from the team page to the admin queue', () => {
         // --- team 1's captain reports a score and a stat ---------------------
         const reporter: Page = await reporterContext.newPage();
         expect(await signInAsPlayer(reporter, one.captainSteamId)).toBe(true);
-        await reporter.goto(`/team/${one.id}`);
+        await openMatchRoom(reporter, one.id);
 
         const reporterState = reporter.getByTestId('manual-report-state');
         await expect(reporter.getByTestId('manual-report-panel')).toBeVisible();
@@ -193,7 +200,7 @@ test.describe.serial('Disputes, from the team page to the admin queue', () => {
         // --- team 2's captain reads it, including the stat, and disputes -----
         const opponent: Page = await opponentContext.newPage();
         expect(await signInAsPlayer(opponent, two.captainSteamId)).toBe(true);
-        await opponent.goto(`/team/${two.id}`);
+        await openMatchRoom(opponent, two.id);
 
         const opponentState = opponent.getByTestId('manual-report-state');
         await expect(opponentState).toHaveAttribute('data-state', 'needsAnswer');
@@ -210,9 +217,10 @@ test.describe.serial('Disputes, from the team page to the admin queue', () => {
 
         // --- the admin picks it up from the Disputes page --------------------
         await ensureSignedIn(page);
-        await page.goto('/');
-        // It is a sibling of the admin home, and linked from it.
-        const link = page.getByTestId('admin-home-site-link-disputes');
+        await page.goto('/manage');
+        // It is one of the tournament's tabs in Manage, opened from its name in the rail.
+        await page.locator('[data-testid^="manage-rail-tournament-"]').first().click();
+        const link = page.getByTestId('tournament-bar-disputes');
         await expect(link).toBeVisible({ timeout: 20_000 });
         await link.click();
 

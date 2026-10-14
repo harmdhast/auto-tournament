@@ -48,8 +48,12 @@ import {
   type ScalerAction,
   type ScalerHost,
   type ScalerServer,
+  holdCreatesWhileLicenseFull,
+  LICENSE_FULL_BACKOFF_SECONDS,
 } from './plan';
 import { configuredReserve, getAutoscaleSettings, type StoredAutoscaleSettings } from './settings';
+import { fleetChanged } from '../adminTopics';
+import { matchPluginDisabled } from '../push/pluginSets';
 
 /** `issued_by` on the scaler's host commands. */
 export const AUTOSCALE_ACTOR = 'autoscale';
@@ -74,9 +78,15 @@ const nowS = () => Math.floor(Date.now() / 1000);
 
 /** Unix s each managed server was first seen idle (in this process). */
 const idleSince = new Map<string, number>();
+/** Servers seen busy with one of our matches; idle after that = the match is over. */
+const busyWithMatch = new Set<string>();
+/** Servers idle since their match ended (the demo uploaded): they stop without the cool-down. */
+const idleAfterMatch = new Set<string>();
 const recentStarts = new Map<string, number>();
 const recentStops = new Map<string, number>();
 let lastNote: string | null = null;
+/** The license refused a create (full): no new create until then, so it isn't asked and logged every pass. */
+let licenseFullUntil = 0;
 /** Unix s of the scaler's commands per machine, for the rate limit. */
 const sentAt = new Map<string, number[]>();
 
@@ -115,6 +125,7 @@ interface EventRow {
 }
 
 async function recordEvent(e: Omit<AutoscaleEvent, 'id' | 'at'>): Promise<void> {
+  fleetChanged();
   await db.runAsync(
     `INSERT INTO cs2_fleet_autoscale_events (at, action, host_id, host_name, server, fleet_server_id, server_name, reason, command_id, outcome, error)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -329,6 +340,7 @@ export interface GatheredInputs {
 }
 
 export async function gatherInputs(settings: StoredAutoscaleSettings): Promise<GatheredInputs> {
+  await serverAllocationTracker.releaseFinished();
   const now = nowS();
   const bus = fleetBus();
   const [demand, reserveConfigured, targets] = await Promise.all([
@@ -407,12 +419,23 @@ export async function gatherInputs(settings: StoredAutoscaleSettings): Promise<G
       const busy = ours || v.matchInProgress;
       // csm reports a match in progress that none of ours is behind (a local match or scrim).
       const occupied = running && v.matchInProgress && !ours;
+      const practice = await matchPluginDisabled(fid);
       const idle =
-        running && linkUp && v.fleetServer?.availability === 'available' && !busy && !updating;
+        running &&
+        linkUp &&
+        v.fleetServer?.availability === 'available' &&
+        !busy &&
+        !updating &&
+        !practice;
       if (idle) {
-        if (!idleSince.has(fid)) idleSince.set(fid, now);
+        if (!idleSince.has(fid)) {
+          idleSince.set(fid, now);
+          if (busyWithMatch.delete(fid)) idleAfterMatch.add(fid);
+        }
       } else {
         idleSince.delete(fid);
+        idleAfterMatch.delete(fid);
+        if (ours) busyWithMatch.add(fid);
       }
       servers.push({
         fleetServerId: fid,
@@ -426,14 +449,18 @@ export async function gatherInputs(settings: StoredAutoscaleSettings): Promise<G
         idle,
         busy,
         occupied,
+        practice,
         updating,
         failoverTarget: targets.has(cs2Id),
         pending,
         idleSince: idleSince.get(fid) ?? null,
+        afterMatch: idleAfterMatch.has(fid),
       });
     }
   }
   for (const fid of [...idleSince.keys()]) if (!seen.has(fid)) idleSince.delete(fid);
+  for (const fid of [...busyWithMatch]) if (!seen.has(fid)) busyWithMatch.delete(fid);
+  for (const fid of [...idleAfterMatch]) if (!seen.has(fid)) idleAfterMatch.delete(fid);
   const inFlight = await createInFlight(now, seen);
 
   return {
@@ -535,7 +562,10 @@ async function execute(
       );
       commandId = sent.command.id;
       (action.kind === 'start' ? recentStarts : recentStops).set(action.fleetServerId, now);
-      if (action.kind === 'stop') idleSince.delete(action.fleetServerId);
+      if (action.kind === 'stop') {
+        idleSince.delete(action.fleetServerId);
+        idleAfterMatch.delete(action.fleetServerId);
+      }
     }
     await recordEvent({
       action: action.kind,
@@ -552,10 +582,26 @@ async function execute(
     log.info(
       `[AUTOSCALE] ${action.kind}${action.kind === 'create' ? '' : ` ${action.server}`} on ${hostName ?? action.hostId}: ${reason}`
     );
+    if (action.kind === 'create') {
+      licenseFullUntil = 0;
+      void import('../../../../services/adminNoticeService').then(({ adminNoticeService }) =>
+        adminNoticeService.resolve('autoscale_license')
+      );
+    }
     return { action, outcome: 'sent', commandId, error: null };
   } catch (error) {
     const refused = error instanceof HostCommandError;
     const message = (error as Error).message;
+    if (action.kind === 'create' && refused && error.status === 402) {
+      licenseFullUntil = now + LICENSE_FULL_BACKOFF_SECONDS;
+      void import('../../../../services/adminNoticeService').then(({ adminNoticeService }) =>
+        adminNoticeService.raise(
+          'autoscale_license',
+          { hostName: hostName ?? action.hostId, error: message },
+          'autoscale_license'
+        )
+      );
+    }
     await recordEvent({
       action: action.kind,
       hostId: action.hostId,
@@ -591,7 +637,13 @@ export function runScalerPass(): Promise<PassResult | null> {
         if (kept.length > 0) sentAt.set(hostId, kept);
         else sentAt.delete(hostId);
       }
-      const { allowed, deferred } = limitActions(plan.actions, sentAt, input.now);
+      // The license is full: creates wait out the back-off (starts and stops go on).
+      const { actions, held } = holdCreatesWhileLicenseFull(
+        plan.actions,
+        input.now,
+        licenseFullUntil
+      );
+      const { allowed, deferred } = limitActions(actions, sentAt, input.now);
       const outcomes: ActionOutcome[] = [];
       for (const action of allowed) {
         sentAt.set(action.hostId, [...(sentAt.get(action.hostId) ?? []), input.now]);
@@ -602,7 +654,13 @@ export function runScalerPass(): Promise<PassResult | null> {
           ? `${deferred.length} more action(s) wait for the rate limit (next pass)`
           : null;
       const note = settings.enabled
-        ? [plan.note, limited].filter(Boolean).join('; ') || null
+        ? [
+            plan.note,
+            limited,
+            held ? 'the license has no room for another server: no new server until it does' : null,
+          ]
+            .filter(Boolean)
+            .join('; ') || null
         : null;
       if (note && note !== lastNote) {
         await recordEvent({
@@ -633,7 +691,7 @@ export function runScalerPass(): Promise<PassResult | null> {
 // ---------------------------------------------------------------------------
 
 export type ScalerServerState =
-  'busy' | 'idle' | 'starting' | 'stopping' | 'stopped' | 'updating' | 'unreachable';
+  'busy' | 'idle' | 'starting' | 'stopping' | 'stopped' | 'updating' | 'unreachable' | 'practice';
 
 export interface AutoscaleStatus {
   settings: StoredAutoscaleSettings;
@@ -664,6 +722,8 @@ function stateOf(s: ScalerServer, now: number): ScalerServerState {
   if (s.pending === 'stop') return 'stopping';
   if (!s.running) return 'stopped';
   if (s.busy) return 'busy';
+  // Not the scaler's: it leaves a practice server running.
+  if (s.practice) return 'practice';
   if (s.idle) return 'idle';
   return isWarm(s, now) ? 'starting' : 'unreachable';
 }

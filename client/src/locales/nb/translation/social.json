@@ -17,10 +17,13 @@
       "emptyHint": "Gruppeinvitasjoner, venneforespørsler, turneringsnytt, nye skins og ferdige høydepunkter vises her.",
       "loading": "Laster …",
       "seeAll": "Se alle varsler",
-      "loadOlder": "Last eldre"
+      "loadOlder": "Last eldre",
+      "settings": "Varslingsinnstillinger"
     },
     "notice": {
       "partyInvite": "inviterte deg til gruppa si",
+      "teamInvite": "inviterte deg til",
+      "joinedTeam": "Du ble med på laget",
       "partyDetail": "{{mode}} · {{size}} i gruppa",
       "join": "Bli med",
       "decline": "Avslå",
@@ -30,6 +33,9 @@
       "friendAccepted": "godtok venneforespørselen din",
       "skin": "Nytt skin:",
       "highlight": "Høydepunktet ditt er klart:",
+      "highlightVictim": "{{name}} tok deg ut i klippet sitt:",
+      "highlightAssist": "Du assisterte {{name}} i klippet deres:",
+      "highlightKiller": "Du tok ut {{name}} i klippet deres:",
       "tournamentStarted": "har startet. Første kamp er klar.",
       "lineupGap": "· en starter forlot lagoppstillingen. Velg en reserve innen {{minutes}} minutter, ellers spiller dere med en mindre.",
       "checkInOpen": "innsjekking er åpen. Sjekk inn før den stenger.",
@@ -143,6 +149,7 @@
     "setup": {
       "title": "Gjør ferdig oppsettet før du søker",
       "youGame": "Legg til CS2 blant spillene på profilen din.",
+      "youGameAuto": "Når du søker etter en kamp, legges spillet til i spillene dine.",
       "youAccount": "Koble til Steam-kontoen din.",
       "theyGame": "{{name}} har ikke lagt til CS2 blant spillene sine.",
       "theyAccount": "{{name}} har ikke koblet til Steam-kontoen sin.",
@@ -163,6 +170,39 @@
       "sent_one": "Sendt til {{count}} spiller",
       "sent_other": "Sendt til {{count}} spillere",
       "failed": "Kunne ikke sende nyheten"
+    },
+    "noticeSettings": {
+      "title": "Innstillinger",
+      "alerts": "Varsler",
+      "browser": "Nettleservarsler",
+      "browserHint": "Mens fanen er i bakgrunnen. Gjelder bare denne nettleseren.",
+      "browserDenied": "Blokkert i nettleserens innstillinger for nettstedet. Tillat varsler der for å slå dem på.",
+      "browserUnsupported": "Denne nettleseren har ikke varsler.",
+      "sound": "Lyd",
+      "test": "Test",
+      "volume": "Volum {{percent}} %",
+      "group": {
+        "you": "Deg",
+        "tournaments": "Turneringer",
+        "drops": "Drops",
+        "other": "Annet"
+      },
+      "kind": {
+        "party_invite": "Gruppeinvitasjoner",
+        "team_invite": "Laginvitasjoner",
+        "friend_request": "Venneforespørsler",
+        "friend_accepted": "Godtatte venneforespørsler",
+        "tournament": "Innsjekking og start",
+        "skin": "Skin-drops",
+        "highlight": "Dine høydepunkter",
+        "news": "Nyheter",
+        "report": "Rapporter"
+      },
+      "delivery": {
+        "off": "Av",
+        "bell": "Bjelle",
+        "sound": "Bjelle og lyd"
+      }
     }
   }
 }

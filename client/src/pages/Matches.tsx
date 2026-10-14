@@ -1,33 +1,23 @@
 import { pageTitle } from '../utils/pageTitle';
+import { manageMatchPath } from '../paths';
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Box,
-  Typography,
-  LinearProgress,
-  Snackbar,
-  Alert,
-  Stack,
-  Button,
-  Chip,
-} from '@mui/material';
+import { Box, Typography, LinearProgress, Snackbar, Alert, Button } from '@mui/material';
 import { GameControllerIcon, PlusIcon } from '@phosphor-icons/react';
 import { io } from 'socket.io-client';
 import { onSocketReconnect } from '../utils/socketResync';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import MatchDetailsModal from '../components/modals/MatchDetailsModal';
 import { EmptyState } from '../components/shared/EmptyState';
-import { StatusLegend } from '../components/shared/StatusLegend';
-import { MatchCard } from '../components/shared/MatchCard';
+import { MatchesTable } from '../components/manage/MatchesTable';
 import { useShellIntegrations, shellModule } from '../hooks/useShellIntegrations';
 import { useResourceAvailability } from '../hooks/useResourceAvailability';
-import { getGlobalMatchNumber, getRoundLabel } from '../utils/matchUtils';
+import { getGlobalMatchNumber } from '../utils/matchUtils';
 import { isManualMatch as isManualMatchFlag } from '../utils/matchFlags';
 import { api } from '../utils/api';
 import type { Match, MatchEvent, MatchesResponse } from '../types';
 import ConfirmDialog from '../components/modals/ConfirmDialog';
 import { useTranslation } from 'react-i18next';
-import { PageHead, RowList, SectionHead } from '../components/common/ui';
+import { PageHead } from '../components/common/ui';
 import { tokens } from '../theme/tokens';
 
 export default function Matches() {
@@ -42,6 +32,9 @@ export default function Matches() {
     tournamentId,
     loading: tournamentIntegrationLoading,
   } = useShellIntegrations();
+  // The tournament in the address (/manage/tournaments/:id/matches), else the one loaded.
+  const { id: routeId } = useParams<{ id?: string }>();
+  const scopeId = routeId && routeId !== 'new' ? Number(routeId) : (tournamentId ?? null);
   const ServerAllocationWidget = shellModule(shell, (i) => i.matchPanels.adminView)?.matchPanels
     .adminView;
   // The "create match" dialog is the module's whole form (client API 0.2.0):
@@ -53,22 +46,14 @@ export default function Matches() {
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [matchHistory, setMatchHistory] = useState<Match[]>([]);
-  // `?match=<slug>`: the open match, so its link can be shared (paths.ts matchDetailsPath).
-  const [searchParams, setSearchParams] = useSearchParams();
+  // `?match=<slug>` (an old shared link, paths.ts matchDetailsPath) opens the match room.
+  const [searchParams] = useSearchParams();
   const linkedSlug = searchParams.get('match');
   const selectMatch = useCallback(
-    (match: Match | null) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (match?.slug) next.set('match', match.slug);
-          else next.delete('match');
-          return next;
-        },
-        { replace: true }
-      );
+    (match: Match) => {
+      if (match.slug) navigate(manageMatchPath(match.slug, scopeId));
     },
-    [setSearchParams]
+    [navigate, scopeId]
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +69,7 @@ export default function Matches() {
     ? null
     : (tournamentIntegration ?? shell[0] ?? null);
   const { availability: serverAllocationStatus, nextInSeconds: nextAllocationInSeconds } =
-    useResourceAvailability(matchIntegration, 5000);
+    useResourceAvailability(matchIntegration);
   // What the waiting matches are waiting for, said in the game's own words:
   // the pass countdown above the list, the same countdown in the toolbar, and
   // the per-match line on a card. A module with no resources fills none of
@@ -320,28 +305,12 @@ export default function Matches() {
     fetchMatches();
   }, [fetchMatches]);
 
-  // Legacy delete handler kept for reference; match deletion is currently wired
-  // through the MatchDetailsModal, which calls its own delete endpoint and then
-  // emits socket updates. We keep this here in case we reintroduce list-level
-  // delete actions in the future.
-  // const handleDeleteMatch = async (match: Match) => {
-  //   try {
-  //     await api.delete(`/api/matches/${match.slug}`);
-  //     showSuccess(`Match deleted: ${match.slug}`);
-  //     void fetchMatches();
-  //   } catch (err) {
-  //     const message =
-  //       err instanceof Error ? err.message : 'Failed to delete match. Please try again.';
-  //     showError(message);
-  //     console.error('Failed to delete match', err);
-  //   }
-  // };
-
   // Get all matches for numbering context
   const allMatches = [...upcomingMatches, ...liveMatches, ...matchHistory];
 
-  // The open match is the one the link names, once the lists have it.
-  const selectedMatch = linkedSlug ? (allMatches.find((m) => m.slug === linkedSlug) ?? null) : null;
+  useEffect(() => {
+    if (linkedSlug) navigate(manageMatchPath(linkedSlug, scopeId), { replace: true });
+  }, [linkedSlug, navigate, scopeId]);
 
   const toggleMatchSelected = (match: Match) => {
     if (!isManualMatchFlag(match)) {
@@ -531,13 +500,6 @@ export default function Matches() {
         <ServerAllocationWidget tournamentId={tournamentId} />
       )}
 
-      {/* Status Legend */}
-      {hasMatches && (
-        <Box mb={3}>
-          <StatusLegend />
-        </Box>
-      )}
-
       {!hasMatches && (
         <Box>
           <EmptyState
@@ -560,178 +522,25 @@ export default function Matches() {
       )}
 
       {hasMatches && (
-        <Stack spacing={6} data-testid="matches-list">
-          {/* Live Matches Section */}
-          {liveMatches.length > 0 && (
-            <Box component="section" aria-labelledby="matches-live-heading">
-              <SectionHead
-                id="matches-live-heading"
-                title={
-                  <Box
-                    component="span"
-                    sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}
-                  >
-                    <Box
-                      component="span"
-                      aria-hidden
-                      sx={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        bgcolor: tokens.color.live,
-                        animation: 'pulse 1.6s ease-in-out infinite',
-                        '@keyframes pulse': { '50%': { opacity: 0.35 } },
-                        '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
-                      }}
-                    />
-                    {t('matchesPage.sections.live', { count: liveMatches.length })}
-                  </Box>
-                }
-              />
-              <RowList>
-                {liveMatches.map((match) => {
-                  const event = liveEvents.get(match.slug);
-                  const matchNumber = getGlobalMatchNumber(match, allMatches);
-                  return (
-                    <MatchCard
-                      key={match.id}
-                      match={match}
-                      matchNumber={matchNumber}
-                      variant="live"
-                      selectable={selectionMode && isManualMatchFlag(match)}
-                      selected={selectedMatchSlugs.has(match.slug)}
-                      note={
-                        event && event.event ? (
-                          <Typography variant="body2" color="text.secondary">
-                            {t('matchesPage.latestEvent', {
-                              event: event.event.replace(/_/g, ' '),
-                            })}
-                          </Typography>
-                        ) : null
-                      }
-                      onClick={() => {
-                        if (selectionMode && isManualMatchFlag(match)) {
-                          toggleMatchSelected(match);
-                        } else {
-                          selectMatch(match);
-                        }
-                      }}
-                    />
-                  );
-                })}
-              </RowList>
-            </Box>
-          )}
-
-          {/* Upcoming Matches Section */}
-          {upcomingMatches.length > 0 && (
-            <Box component="section" aria-labelledby="matches-upcoming-heading">
-              <SectionHead
-                id="matches-upcoming-heading"
-                title={t('matchesPage.sections.upcoming', { count: upcomingMatches.length })}
-                action={
-                  waitingMatches > 0 ? (
-                    <Chip
-                      label={t('matchesPage.sections.inQueue', {
-                        count: waitingMatches,
-                      })}
-                      size="small"
-                      sx={{ color: tokens.color.accent }}
-                    />
-                  ) : undefined
-                }
-              />
-              <RowList>
-                {upcomingMatches.map((match, queueIndex) => {
-                  const matchNumber = getGlobalMatchNumber(match, allMatches);
-                  const isManualMatch = isManualMatchFlag(match);
-                  // Don't show "Manual match" text - the pill is more explanatory
-                  const manualRoundLabel = undefined;
-                  const tournamentStartedForCard = isManualMatch
-                    ? undefined
-                    : tournamentStatus === 'in_progress';
-
-                  // Use queue position from backend (calculated globally across all matches)
-                  const queuePosition = match.queuePosition;
-
-                  return (
-                    <MatchCard
-                      key={match.id}
-                      match={match}
-                      matchNumber={matchNumber}
-                      roundLabel={manualRoundLabel}
-                      variant="default"
-                      vetoCompleted={match.vetoCompleted}
-                      tournamentStarted={tournamentStartedForCard}
-                      selectable={selectionMode && isManualMatchFlag(match)}
-                      selected={selectedMatchSlugs.has(match.slug)}
-                      queuePosition={queuePosition}
-                      queueStatus={
-                        MatchQueueStatus ? (
-                          <MatchQueueStatus
-                            availability={serverAllocationStatus}
-                            queueIndex={queueIndex}
-                          />
-                        ) : null
-                      }
-                      onClick={() => {
-                        if (selectionMode && isManualMatchFlag(match)) {
-                          toggleMatchSelected(match);
-                        } else {
-                          selectMatch(match);
-                        }
-                      }}
-                    />
-                  );
-                })}
-              </RowList>
-            </Box>
-          )}
-
-          {/* Match History Section */}
-          {matchHistory.length > 0 && (
-            <Box component="section" aria-labelledby="matches-history-heading">
-              <SectionHead
-                id="matches-history-heading"
-                title={t('matchesPage.sections.history', { count: matchHistory.length })}
-              />
-              <RowList>
-                {matchHistory.map((match) => (
-                  <MatchCard
-                    key={match.id}
-                    match={match}
-                    matchNumber={getGlobalMatchNumber(match, allMatches)}
-                    variant="completed"
-                    selectable={selectionMode && isManualMatchFlag(match)}
-                    selected={selectedMatchSlugs.has(match.slug)}
-                    onClick={() => {
-                      if (selectionMode && isManualMatchFlag(match)) {
-                        toggleMatchSelected(match);
-                      } else {
-                        selectMatch(match);
-                      }
-                    }}
-                  />
-                ))}
-              </RowList>
-            </Box>
-          )}
-        </Stack>
-      )}
-
-      {/* Match Details Modal */}
-      {selectedMatch && (
-        <MatchDetailsModal
-          match={selectedMatch}
-          matchNumber={getGlobalMatchNumber(selectedMatch, allMatches)}
-          roundLabel={getRoundLabel(selectedMatch.round)}
-          onClose={() => selectMatch(null)}
-          onDeleted={(slug) => {
-            selectMatch(null);
-            setUpcomingMatches((prev) => prev.filter((m) => m.slug !== slug));
-            setLiveMatches((prev) => prev.filter((m) => m.slug !== slug));
-            setMatchHistory((prev) => prev.filter((m) => m.slug !== slug));
+        <MatchesTable
+          live={liveMatches}
+          upcoming={upcomingMatches}
+          history={matchHistory}
+          numberOf={(match) => getGlobalMatchNumber(match, allMatches)}
+          latestEvent={(match) => {
+            const event = liveEvents.get(match.slug);
+            return event?.event ? event.event.replace(/_/g, ' ') : null;
           }}
+          onOpen={selectMatch}
+          selection={
+            selectionMode
+              ? {
+                  can: (match) => isManualMatchFlag(match),
+                  has: (match) => selectedMatchSlugs.has(match.slug),
+                  toggle: toggleMatchSelected,
+                }
+              : null
+          }
         />
       )}
 

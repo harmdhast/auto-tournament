@@ -1,14 +1,7 @@
+import { SignInNeedsWarning } from '../../modules/SignInNeedsWarning';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Alert,
-  Box,
-  Button,
-  Menu,
-  MenuItem,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Menu, MenuItem, TextField, Typography } from '@mui/material';
 import { ArrowLeftIcon, ArrowRightIcon, FileTextIcon } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../utils/api';
@@ -245,8 +238,10 @@ export function TournamentSetup(props: TournamentSetupProps) {
     const removed = current.filter((id) => !next.includes(id));
     setChangingTeams(true);
     try {
-      for (const teamId of added) await api.post(`/api/tournaments/${tournament.id}/teams`, { teamId });
-      for (const teamId of removed) await api.delete(`/api/tournaments/${tournament.id}/teams/${encodeURIComponent(teamId)}`);
+      for (const teamId of added)
+        await api.post(`/api/tournaments/${tournament.id}/teams`, { teamId });
+      for (const teamId of removed)
+        await api.delete(`/api/tournaments/${tournament.id}/teams/${encodeURIComponent(teamId)}`);
     } catch (error) {
       toastError((error as Error).message);
     } finally {
@@ -254,7 +249,6 @@ export function TournamentSetup(props: TournamentSetupProps) {
       await props.onRefreshTeams();
     }
   };
-
 
   // ---- Templates ("Start from a template") ---------------------------------
   const [templates, setTemplates] = useState<TournamentTemplate[]>([]);
@@ -280,7 +274,9 @@ export function TournamentSetup(props: TournamentSetupProps) {
     format: form.format,
     teamCount: form.selectedTeams.length,
     teamSize: form.shuffleSettings.teamSize,
-    signupOpen: tournament ? tournament.settings?.registrationOpen === true : form.signup.registrationOpen,
+    signupOpen: tournament
+      ? tournament.settings?.registrationOpen === true
+      : form.signup.registrationOpen,
     // Only a step the game has: a game without match rules has nothing to check.
     moduleError: (step: 'rules' | 'content') =>
       (step === 'rules' ? RulesStep : ContentStep)
@@ -477,6 +473,15 @@ export function TournamentSetup(props: TournamentSetupProps) {
               disabled={locked || !!tournament}
               label={t('tournament.setup.game.label')}
             />
+            <Box sx={{ mt: 2 }}>
+              <SignInNeedsWarning
+                // While the catalogue loads, the default game (CS2) is the one picked.
+                moduleId={
+                  setupGames.find((g) => g.id === game)?.integrationId ??
+                  (game === DEFAULT_SETUP_GAME.id ? DEFAULT_SETUP_GAME.integrationId : null)
+                }
+              />
+            </Box>
           </Field>
         );
 
@@ -490,7 +495,10 @@ export function TournamentSetup(props: TournamentSetupProps) {
               disabled={locked}
               fullWidth
               required
-              placeholder={t('tournament.namePlaceholder', 'Auto Tournament 2025 Spring Tournament')}
+              placeholder={t(
+                'tournament.namePlaceholder',
+                'Auto Tournament 2025 Spring Tournament'
+              )}
               slotProps={{ htmlInput: { 'data-testid': 'tournament-name-input' } }}
             />
             <Field
@@ -651,7 +659,11 @@ export function TournamentSetup(props: TournamentSetupProps) {
               onChange={tournament ? savedSignup.setValue : handlers.onSignupChange}
               disabled={locked}
               {...(tournament
-                ? { onSave: () => void saveSignup(), dirty: savedSignup.dirty, saving: savingSignup }
+                ? {
+                    onSave: () => void saveSignup(),
+                    dirty: savedSignup.dirty,
+                    saving: savingSignup,
+                  }
                 : {})}
             />
             {tournament && (
@@ -665,28 +677,30 @@ export function TournamentSetup(props: TournamentSetupProps) {
               />
             )}
             <Typography variant="subtitle2">
-              {signup.registrationOpen ? t('tournament.setup.signup.addYourself') : t('tournament.setup.signup.pickTeams')}
+              {signup.registrationOpen
+                ? t('tournament.setup.signup.addYourself')
+                : t('tournament.setup.signup.pickTeams')}
             </Typography>
-          <TeamSelectionStep
-            teams={props.teams}
-            selectedTeams={form.selectedTeams}
-            type={form.type}
-            serverCount={serverCount}
-            requiredServers={Math.ceil(selectedCount / 2)}
-            // A game with no servers has nothing to run short of, so the
-            // "not enough servers" warning and its two buttons never show.
-            hasEnoughServers={
-              !needsServers || serverCount >= Math.ceil(selectedCount / 2)
-            }
-            loadingServers={needsServers && loadingServers}
-            canEdit={canEdit}
-            saving={saving || changingTeams}
-            onTeamsChange={(next) => void changeTeams(next)}
-            onCreateTeam={() => setTeamModalOpen(true)}
-            onImportTeams={() => setTeamImportModalOpen(true)}
-            onAddServer={AddResourceDialog ? () => setServerModalOpen(true) : undefined}
-            onBatchAddServers={BatchResourceDialog ? () => setBatchServerModalOpen(true) : undefined}
-          />
+            <TeamSelectionStep
+              teams={props.teams}
+              selectedTeams={form.selectedTeams}
+              type={form.type}
+              serverCount={serverCount}
+              requiredServers={Math.ceil(selectedCount / 2)}
+              // A game with no servers has nothing to run short of, so the
+              // "not enough servers" warning and its two buttons never show.
+              hasEnoughServers={!needsServers || serverCount >= Math.ceil(selectedCount / 2)}
+              loadingServers={needsServers && loadingServers}
+              canEdit={canEdit}
+              saving={saving || changingTeams}
+              onTeamsChange={(next) => void changeTeams(next)}
+              onCreateTeam={() => setTeamModalOpen(true)}
+              onImportTeams={() => setTeamImportModalOpen(true)}
+              onAddServer={AddResourceDialog ? () => setServerModalOpen(true) : undefined}
+              onBatchAddServers={
+                BatchResourceDialog ? () => setBatchServerModalOpen(true) : undefined
+              }
+            />
           </Box>
         );
 
@@ -698,21 +712,22 @@ export function TournamentSetup(props: TournamentSetupProps) {
           <>
             {ContentStep && <ContentStep {...settingsStepProps} />}
             {integration.capabilities.veto && (
-            <Field label={t('tournament.setup.maps.vetoTitle')}>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                data-testid="tournament-veto-summary"
-              >
-                {isShuffle
-                  ? t('tournament.setup.maps.vetoShuffle')
-                  : customVeto
-                    ? t('tournament.setup.maps.vetoCustom', { format: seriesLabel })
-                    : requiresVeto(form.type, form.format)
-                      ? t('tournament.setup.maps.vetoStandard', { format: seriesLabel })
-                      : t('tournament.setup.maps.vetoNone')}
-              </Typography>
-            </Field>
+              <Field label={t('tournament.setup.maps.vetoTitle')}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  data-testid="tournament-veto-summary"
+                >
+                  {isShuffle
+                    ? t('tournament.setup.maps.vetoShuffle')
+                    : customVeto
+                      ? t('tournament.setup.maps.vetoCustom', { format: seriesLabel })
+                      : requiresVeto(form.type, form.format) &&
+                          (form.gameSettings?.cs2 as { veto?: boolean } | undefined)?.veto !== false
+                        ? t('tournament.setup.maps.vetoStandard', { format: seriesLabel })
+                        : t('tournament.setup.maps.vetoNone')}
+                </Typography>
+              </Field>
             )}
           </>
         );
@@ -870,7 +885,6 @@ export function TournamentSetup(props: TournamentSetupProps) {
           [MEDIUM]: { gridTemplateColumns: 'minmax(0, 1fr)', gap: 4 },
         }}
       >
-
         <Box
           component="form"
           noValidate

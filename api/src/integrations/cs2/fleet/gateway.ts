@@ -724,6 +724,7 @@ export class FleetGateway {
   private readyListeners: Array<(serverId: string, hello: HelloPayload) => Promise<void> | void> =
     [];
   private offlineListeners: Array<(serverId: string) => void> = [];
+  private closedListeners: Array<(serverId: string) => void> = [];
   private welcomeRevsProvider: ((serverId: string) => Promise<WelcomeRevs>) | null = null;
   private assignmentResolver: AssignmentResolver | null = null;
   private readonly timings: GatewayTimings;
@@ -791,6 +792,11 @@ export class FleetGateway {
   /** After a server's live session ended (not when a newer session replaced it). */
   onServerOffline(listener: (serverId: string) => void): void {
     this.offlineListeners.push(listener);
+  }
+
+  /** Run `listener` when a server's session goes (it is offline now). */
+  onServerClosed(listener: (serverId: string) => void): void {
+    this.closedListeners.push(listener);
   }
 
   /** Where welcome's `server_config_rev` / `admins_rev` come from (./push); 0 / 0 without one. */
@@ -865,9 +871,20 @@ export class FleetGateway {
           log.warn(`[FLEET] ${serverId}: offline task failed: ${(error as Error).message}`);
         }
       }
-      void registry.markDisconnected(serverId, session.sessionId).catch((error) => {
-        log.warn(`[FLEET] ${serverId}: marking offline failed: ${(error as Error).message}`);
-      });
+      void registry
+        .markDisconnected(serverId, session.sessionId)
+        .catch((error) => {
+          log.warn(`[FLEET] ${serverId}: marking offline failed: ${(error as Error).message}`);
+        })
+        .finally(() => {
+          for (const listener of this.closedListeners) {
+            try {
+              listener(serverId);
+            } catch (error) {
+              log.warn(`[FLEET] ${serverId}: offline listener failed: ${(error as Error).message}`);
+            }
+          }
+        });
     }
   }
 

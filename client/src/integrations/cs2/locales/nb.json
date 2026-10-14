@@ -36,10 +36,10 @@
     "servers": {
       "title": "Servere",
       "open": "Åpne",
-      "online": "online",
+      "online": "kjører",
       "inMatch": "I kamp",
       "free": "Ledig",
-      "offline": "Offline",
+      "offline": "I dvale",
       "none": "Ingen servere tilkoblet enda.",
       "busy": "Opptatt",
       "spare": "Reserve",
@@ -76,13 +76,13 @@
       "resting": "Hviler",
       "readyIn": "Klar igjen om {{count}} s",
       "busy": "Opptatt",
-      "spare": "Reserve",
       "heldBack": {
         "demoUpload": "Laster opp demoen fra forrige kamp",
         "outOfDate": "CS2 på denne serveren må oppdateres",
         "unverified": "CS2-versjonen er ikke sjekket ennå",
         "other": "Tar ikke imot kamper akkurat nå"
       },
+      "spare": "Reserve",
       "busyReason": {
         "localMatch": "Lokal kamp {{slug}} er fortsatt lastet",
         "awaitingReset": "Venter på tilbakestilling etter serien",
@@ -407,6 +407,9 @@
   "matchInfo": {
     "server": {
       "waitingTitle": "Venter på servertildeling",
+      "paused": "Kampen er pauset.",
+      "pausedWaiting_one": "Pause: venter på at {{names}} kobler til igjen.",
+      "pausedWaiting_other": "Pause: venter på at {{names}} kobler til igjen.",
       "waitingBody": "En server tildeles automatisk så snart en blir ledig. Etter hver kamp har serverne en kort nedkjøling (rundt 2 minutter) slik at demoer kan lastes opp og serveren kan tilbakestilles helt. Siden oppdateres automatisk når serveren din er klar.",
       "serverName": "Server: {{name}}",
       "status": "Status: {{status}}",
@@ -657,8 +660,6 @@
     "enabledHelper": "Deaktiverte servere brukes ikke til kamper",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
-    "failoverUseLabel": "Bruk til failover",
-    "failoverUseHelper": "Av: automatisk failover flytter aldri en kamp hit og holder den heller ikke som reserve.",
     "chatPrefixLabel": "Overstyr chat-prefiks",
     "chatPrefixPlaceholder": "[{Green}Auto Tournament{Default}]",
     "adminChatPrefixLabel": "Overstyr admin-chat-prefiks",
@@ -693,7 +694,9 @@
     },
     "skinsLabel": "Skins på denne serveren",
     "skinsHelper": "Spillernes virtuelle skins sendes til serveren i oppvarming og mellom kart, aldri midt i et kart. Krever skins-pluginen til Ready Up og en server uten Steam-servertoken.",
-    "skinsTokenWarning": "Denne serveren kjører med et Steam-servertoken (+sv_setsteamaccount), så den får ingen skins: Valve stenger tokenet, og kontoen bak, for servere som deler ut gjenstander. Fjern tokenet i csm for å bruke skins her."
+    "skinsTokenWarning": "Denne serveren kjører med et Steam-servertoken (+sv_setsteamaccount), så den får ingen skins: Valve stenger tokenet, og kontoen bak, for servere som deler ut gjenstander. Fjern tokenet i csm for å bruke skins her.",
+    "failoverUseLabel": "Bruk til failover",
+    "failoverUseHelper": "Av: automatisk failover flytter aldri en kamp hit og holder den heller ikke som reserve."
   },
   "mapPoolModal": {
     "titleCreate": "Lag kartpool",
@@ -990,6 +993,8 @@
       "pause": {
         "title": "Pauser",
         "bothTeamsUnpause": "Krev at begge lag unpauser",
+        "onDisconnect": "Pause når en spiller faller ut (5v5)",
+        "onDisconnectHelp": "Ved neste frysetid når et lag mangler en spiller; kampen fortsetter av seg selv når spilleren er tilbake (eller etter 5 minutter). Ikke med bot-fylling.",
         "maxPausesLabel": "Maks pauser per lag",
         "maxPausesHelper": "0 = ubegrenset",
         "pauseDurationLabel": "Maks pauselengde (sekunder)",
@@ -1520,9 +1525,9 @@
     "reserveAuto": "Automatic (1 once 2 servers are online)",
     "reserveStatus": "{{effective}} of {{pool}} online server(s) kept free for failover",
     "reserveHelp": "Spare servers stay idle: matches are not put on them, so one is ready when a server goes down. At least one server always takes matches. Spare servers count toward your license like any other server.",
-    "noTarget": "Ingen server er ledig til å ta over ved failover.",
     "summaryOn": "Automatisk flytting på",
     "summaryOff": "Automatisk flytting av",
+    "noTarget": "Ingen server er ledig til å ta over ved failover.",
     "empty": "Failover trenger minst én Ready Up-server."
   },
   "pluginSets": {
@@ -1531,6 +1536,7 @@
       "tournament": "Turnering",
       "practice": "Trening",
       "fun": "Moro",
+      "tryout": "Skin-prøving",
       "custom": "Egendefinert",
       "default": "Standard for flåten",
       "none": "Ingen"
@@ -1605,7 +1611,7 @@
     "picksMost": "Velger mest",
     "vetoShare": "{{map}} · {{count}} av {{total}} vetoer",
     "noMatchesYet": "Tallene vises etter første CS2-kamp.",
-    "rating": "Rating",
+    "rating": "Prestasjon",
     "ratingNote": "1,00 er en gjennomsnittlig spiller",
     "sides": "Runder vunnet per side",
     "ctWon_one": "CT · {{count}} runde",
@@ -1627,7 +1633,7 @@
       "entry": "Entry fragger · fra åpningskills",
       "clutch": "Clutch-spiller · fra vunne clutcher",
       "support": "Support · fra flasher",
-      "fragger": "Stjernespiller · fra rating"
+      "fragger": "Stjernespiller · etter prestasjon"
     },
     "crosshair": "Siktepunkt",
     "crosshairNote": "Grader fra hodet når en motstander dukker opp",
@@ -1639,7 +1645,7 @@
     "ttdLine": "Tid til skade {{ms}} ms"
   },
   "skins": {
-    "notice": "Virtuelle skins. De finnes bare på Auto Tournament, har ingen pengeverdi, kan ikke byttes eller selges, og vises ikke i Counter-Strike 2.",
+    "notice": "Virtuelle skins. De finnes bare på Auto Tournament, har ingen pengeverdi og kan ikke byttes eller selges. Du ser dem i spillet på denne sidens servere.",
     "equipLabel": "Ta i bruk {{name}}",
     "equippedLabel": "{{name}}, i bruk",
     "new": "NY",
@@ -1664,12 +1670,17 @@
     "pattern": "Mønster",
     "place": "#{{n}} i en turnering",
     "wonMatchmaking": "Vant en matchmaking-kamp",
+    "givenByAdmin": "Gitt av en admin",
     "equipped": "I bruk",
     "inInventory": "I inventaret",
     "theirInventory": "Inventaret til {{name}}",
     "acquired": "Ny skin",
     "equipNow": "Ta i bruk nå",
-    "keep": "Behold i inventaret",
+    "equipOnT": "Bruk på T",
+    "equipOnCt": "Bruk på CT",
+    "equipOnBoth": "Bruk på CT og T",
+    "takeOff": "Ta av",
+    "keep": "Ok",
     "inventory": "Inventar",
     "count": "{{count}} skins",
     "equippedTitle": "I bruk",
@@ -1702,7 +1713,7 @@
     "arrange": "Ordne",
     "showInventory": "Vis inventar",
     "arrangeTitle": "Ordne utrustningen",
-    "arrangeHint": "Velg opptil {{max}} skins, rekkefølgen, og hvilke som vises stort.",
+    "arrangeHint": "Velg opptil {{max}} skins for profilen, i rekkefølge. De to første vises store.",
     "big": "Stor",
     "moveUp": "Flytt opp",
     "moveDown": "Flytt ned",
@@ -1760,7 +1771,8 @@
         "source": {
           "matchmaking": "Matchmaking",
           "tournament": "Turnering",
-          "admin": "Gitt av en admin"
+          "admin": "Gitt av en admin",
+          "tradeup": "Bytte opp"
         },
         "remove": "Ta bort",
         "removeTitle": "Ta bort dette skinet?",
@@ -1790,7 +1802,45 @@
       "edge": "Mellom {{a}} og {{b}}",
       "podiumHint": "Klikk et trinn for å endre hva det gir.",
       "rewardTitle": "Premie for {{place}}",
-      "done": "Ferdig"
+      "done": "Ferdig",
+      "fiveVsFive": "Disse gjelder 5v5. Mindre moduser gir sjeldnere:",
+      "fairRules": "Bare spillere som spilte hele kampen kan få noe: ingenting for en kamp noen forlot eller som sluttet tidlig, og samme motstandere igjen samme døgn gir mye sjeldnere. Plasseringspremier i turneringer går bare til spillere som spilte i turneringen.",
+      "tournamentMatchDrops": "Turneringskamper gir også drops (ikke i esport-modus)",
+      "levelUpDrops": "Et drop for hvert nye nivå",
+      "tradeUp": "Bytte opp: skins av én grad for én av neste",
+      "tradeUpCount": "Skins per bytte",
+      "drops": {
+        "title": "Gi en drop",
+        "help": "Et valg mellom tre skins til hver spiller, med en gang. Hver drop venter til spilleren åpner den neste gang de laster en side, og flere kan stå i kø.",
+        "kind": {
+          "online": "Alle pålogget",
+          "player": "En spiller",
+          "team": "Et lag",
+          "match": "En kamp"
+        },
+        "idLabel": {
+          "player": "Steam-ID",
+          "team": "Lag-id",
+          "match": "Kamp-id (slug)"
+        },
+        "start": "Gi en drop…",
+        "cancel": "Avbryt",
+        "nobody": "Ingen å gi til.",
+        "whoOnline_one": "Gi en drop til den 1 spilleren som er pålogget?",
+        "whoOnline_other": "Gi en drop til alle {{count}} spillerne som er pålogget?",
+        "whoTeam_one": "Gi en drop til lagets 1 spiller?",
+        "whoTeam_other": "Gi en drop til lagets {{count}} spillere?",
+        "whoMatch_one": "Gi en drop til kampens 1 spiller?",
+        "whoMatch_other": "Gi en drop til kampens {{count}} spillere?",
+        "whoPlayer_one": "Gi denne spilleren en drop?",
+        "whoPlayer_other": "Gi denne spilleren en drop?",
+        "give_one": "Gi 1 drop",
+        "give_other": "Gi {{count}} drops",
+        "given_one": "Ga 1 drop.",
+        "given_other": "Ga {{count}} drops."
+      },
+      "statTrakChance": "StatTrak™-sjanse (%)",
+      "statTrakHelp": "Hvor ofte et våpen eller en kniv som droppes er StatTrak™ (CS2-kasser: 10)."
     },
     "tournamentRewardsSwitch": "Skin-premier for topp tre (når skins er slått på)",
     "whatThisMeans": "Hva dette betyr",
@@ -1807,7 +1857,72 @@
       "drew": "Uavgjort {{score}}"
     },
     "unequipLabel": "Ta av {{name}}",
-    "equipFailed": "Kunne ikke ta den på"
+    "equipFailed": "Kunne ikke ta den på",
+    "chooseTitle": "Velg én å beholde",
+    "chooseHelp": "Tre skins droppet. Behold én; de to andre forsvinner.",
+    "keepThis": "Behold denne",
+    "keeping": "Beholder…",
+    "chooseFailed": "Kunne ikke beholde den",
+    "newDrop": "Nytt drop",
+    "side": {
+      "ct": "CT",
+      "t": "T",
+      "both": "Begge",
+      "equipFor": "Utstyr for",
+      "defaults": "Standard-skins"
+    },
+    "favourites": "Favoritter",
+    "favouritesTitle": "Velg favorittene dine",
+    "pickFavourites": "Favoritter",
+    "tournamentMatch": "Fra en turneringskamp",
+    "levelUp": "Nådde et nytt nivå",
+    "drops": {
+      "title": "Slik fungerer skin-drops",
+      "intro": "Et drop viser deg {{count}} skins, og du beholder én. Her ser du når du kan få et drop, og hvor sannsynlig hver skin er.",
+      "link": "Drop-sjanser",
+      "whenTitle": "Når du kan få et drop",
+      "whenMatchmaking": "Etter en matchmaking-kamp du spilte ferdig",
+      "whenTournament": "Etter en turneringskamp du spilte i",
+      "whenLevel": "Hver gang du når et nytt nivå",
+      "whenPlacement": "For topp tre i en turnering",
+      "chanceTitle": "Sjanse for drop etter en kamp",
+      "mode": "Modus",
+      "fair": "Ingenting dropper fra en kamp noen forlot eller som sluttet tidlig. Samme motstandere igjen samme døgn gir mye sjeldnere drop.",
+      "rarityTitle": "Sjanse per sjeldenhet",
+      "skins_one": "{{count}} skin",
+      "skins_other": "{{count}} skins",
+      "perSkin": "{{odds}} for én bestemt skin",
+      "rarityNote": "Hver av de {{count}} skinsene i et drop trekker sjeldenhet for seg; innen en sjeldenhet er alle skins like sannsynlige. Kniver og hansker rangeres etter pris.",
+      "placementTitle": "Turneringsplasseringer",
+      "pickOfRarity": "et valg blant {{rarity}}-skins",
+      "rarityOdds": "Sjanse for sjeldenheten",
+      "skinOdds": "Denne skinen"
+    },
+    "rewards": {
+      "title": "Premier",
+      "choosing": "velger en skin …"
+    },
+    "tradeUp": {
+      "start": "Bytt opp",
+      "picked": "{{picked}} av {{count}} valgt",
+      "cancel": "Avbryt",
+      "confirm": "Bytt opp",
+      "gives": "Gir ett {{rarity}}-skin, hvert av disse {{count}} like sannsynlig. Slitasjen er snittet av dine.",
+      "help": "Velg {{count}} våpenskins av én grad (ikke kniver eller hansker) for ett av neste grad.",
+      "failed": "Kunne ikke bytte opp.",
+      "pickLabel": "Velg {{name}}",
+      "unpickLabel": "Fjern {{name}}",
+      "origin": "Byttet opp"
+    },
+    "tryout": {
+      "title": "Prøv dem i spillet",
+      "hint": "En treningsserver med skinsene dine. Utrust her, så endres de i spillet etter noen sekunder.",
+      "join": "Bli med",
+      "joinLabel": "Bli med på {{name}}",
+      "console": "Eller lim dette inn i CS2-konsollen"
+    },
+    "stattrak": "StatTrak™",
+    "stattrakKills": "StatTrak™-drap"
   },
   "matchRules": {
     "title": "Kampregler",
@@ -1822,6 +1937,7 @@
     "lurker": "Lurker"
   },
   "analysis": {
+    "highlights": "Høydepunkter",
     "open": "Analyse",
     "analyzing": "Analyserer…",
     "title": "Analyse av {{map}}",
@@ -1861,7 +1977,7 @@
     },
     "col": {
       "player": "Spiller",
-      "rating": "Rating",
+      "rating": "Prestasjon",
       "kda": "K-D-A",
       "adr": "ADR",
       "kast": "KAST",
@@ -2118,6 +2234,8 @@
     }
   },
   "matchPage": {
+    "recordingClips": "Tar opp klipp",
+    "clipsDone": "{{done}} / {{total}} klipp",
     "reelLead": "Their plays in the order they happened. Pick a song in the player, then share or download it.",
     "inThisReel": "In this reel",
     "openReel": "Open in the watch page",
@@ -2223,7 +2341,12 @@
       "previous": "Forrige",
       "next": "Neste",
       "close": "Lukk",
-      "redoMatch": "Gjør alle klipp på nytt"
+      "redoMatch": "Gjør alle klipp på nytt",
+      "heldByFailed_one": "{{count}} klipp feilet. Rullene som ville brukt det venter til du lager det på nytt eller dropper det.",
+      "heldByFailed_other": "{{count}} klipp feilet. Rullene som ville brukt dem venter til du lager dem på nytt eller dropper dem.",
+      "reelElapsed": "ferdig {{time}} etter at første klipp startet",
+      "reelAssembly": "satt sammen på {{time}}",
+      "reelRender": "klippene: {{time}} opptak til sammen"
     },
     "add": {
       "button": "Legg til en opptaker",
@@ -2257,7 +2380,7 @@
       "approve": "Ser bra ut (A)",
       "redo": "Ta opp på nytt: hakker eller ødelagt (R)",
       "drop": "Dropp: ikke verdt å vise (D)",
-      "help": "Ta opp på nytt tar opp klippet igjen, helst på en annen opptaker, og reelene etterpå. Dropp holder det ute av alle reeler. ← → for å bla.",
+      "help": "Ta opp på nytt tar opp klippet igjen, helst på en annen opptaker, og reelene etterpå. Våpen mangler tar det opp igjen uten TrueView (CS2 mister av og til våpenet og hendene når spillerens syn bygges opp igjen). Dropp holder det ute av alle reeler. ← → for å bla.",
       "state": {
         "approved": "Godkjent",
         "redo": "Tas opp på nytt",
@@ -2266,8 +2389,10 @@
       "done": {
         "approved": "Godkjent",
         "redo": "Satt i kø for nytt opptak",
-        "drop": "Droppet; reelene lages på nytt"
-      }
+        "drop": "Droppet; reelene lages på nytt",
+        "weapon": "Lagt i kø for nytt opptak uten TrueView"
+      },
+      "weapon": "Ta opp igjen: våpen mangler (W)"
     },
     "fleet": {
       "groups": "Opptakergrupper",
@@ -2291,8 +2416,22 @@
       "updatePending": "Oppdatering venter",
       "updateQueued": "Oppdatering satt i kø; pågående jobb fullføres først.",
       "updateAll": "Oppdater alle",
-      "build": "Build {{revision}}"
-    }
+      "updateProgress": "Oppdaterer: {{done}} av {{total}} oppdatert",
+      "updateDone": "{{done}} av {{total}} oppdatert",
+      "updateFailed_one": "{{count}} feilet",
+      "updateFailed_other": "{{count}} feilet",
+      "build": "Build {{revision}}",
+      "latest": "Oppdater alle installerer image {{image}}, agent {{agent}}",
+      "behind_one": "{{count}} opptaker er utdatert",
+      "behind_other": "{{count}} opptakere er utdatert",
+      "allCurrent": "alle er oppdatert",
+      "updateAvailable": "Oppdatering tilgjengelig",
+      "upToDate": "Oppdatert",
+      "image": "image",
+      "updatedAt": "oppdatert {{time}}"
+    },
+    "runFailed_one": "{{count}} feilet",
+    "runFailed_other": "{{count}} feilet"
   },
   "tournament": {
     "botFill": {
@@ -2302,7 +2441,184 @@
     "esportsMode": {
       "label": "Esport-modus",
       "help": "Valves konkurranseregler (Premier-innstillinger, telte tekniske pauser, ingen kniv-sidevalg) og ingen skins på serveren. Av: vanlige regler, og spillerne ser skinsene sine."
+    },
+    "mapVeto": {
+      "label": "Kartveto",
+      "onHelp": "Lagene banner og velger kart før hver kamp.",
+      "offHelp": "Uten veto: hver kamp trekker kartene sine fra utvalget, og en knivrunde avgjør sidene. Ett kart eller flere holder."
+    },
+    "wingmanPreset": {
+      "button": "Sett opp som wingman"
     }
+  },
+  "library": {
+    "title": "Høydepunkter",
+    "subtitle": "Alle klipp og reels fra kampene som er spilt her.",
+    "kindLabel": "Hva som vises",
+    "sortLabel": "Rekkefølge",
+    "kind": {
+      "all": "Alle",
+      "clips": "Klipp",
+      "reels": "Reels"
+    },
+    "sort": {
+      "new": "Nyeste",
+      "views": "Mest sett",
+      "likes": "Mest likt"
+    },
+    "filter": {
+      "player": "Spiller: {{name}}",
+      "team": "Lag: {{name}}",
+      "match": "Kamp: {{name}}",
+      "tournament": "Turnering: {{name}}",
+      "map": "Kart: {{name}}"
+    },
+    "views_one": "{{count}} visning",
+    "views_other": "{{count}} visninger",
+    "likes_one": "{{count}} like",
+    "likes_other": "{{count}} likes",
+    "more": "Vis flere ({{shown}} av {{total}})",
+    "empty": "Ingen høydepunkter ennå",
+    "emptyHint": "Klipp og reels dukker opp her når demoene fra en kamp er tatt opp.",
+    "emptyFiltered": "Ingenting her ennå",
+    "emptyFilteredHint": "Fjern et filter for å se flere.",
+    "failed": "Kunne ikke hente høydepunktene",
+    "failedHint": "Prøv igjen om litt.",
+    "playerReel": "{{name}} sin reel",
+    "tournamentReel": "{{name}}-reel",
+    "matchReel": "Kampreel",
+    "kindName": {
+      "player": "Spillerreel",
+      "map": "Mapreel",
+      "series": "Seriereel",
+      "team": "Lagreel",
+      "tournament": "Turneringsreel"
+    },
+    "like": "Lik",
+    "liked": "Likt",
+    "signInToLike": "Logg inn for å like videoer",
+    "nav": "Høydepunkter",
+    "teamHighlights": "Høydepunkter",
+    "matchHighlights": "Alle høydepunkter"
+  },
+  "comments": {
+    "title_one": "{{count}} kommentar",
+    "title_other": "{{count}} kommentarer",
+    "titlePlain": "Kommentarer",
+    "placeholder": "Skriv en kommentar. Tider som 0:23 hopper dit i videoen.",
+    "post": "Kommenter",
+    "signIn": "Logg inn for å kommentere.",
+    "none": "Ingen kommentarer ennå.",
+    "edited": "redigert",
+    "edit": "Rediger",
+    "delete": "Slett",
+    "cancel": "Avbryt",
+    "save": "Lagre",
+    "seek": "Hopp til {{time}}",
+    "failed": "Kunne ikke lagre kommentaren"
+  },
+  "leaderboards": {
+    "title": "Kategoriledere",
+    "categoryLabel": "Kategori",
+    "rangeLabel": "Tidsrom",
+    "category": {
+      "rating": "Prestasjon",
+      "adr": "ADR",
+      "kd": "K/D",
+      "hs": "Headshots",
+      "opening": "Åpningsdueller",
+      "clutch": "Clutcher",
+      "kast": "KAST"
+    },
+    "range": {
+      "all": "All tid",
+      "days_one": "{{count}} dag",
+      "days_other": "Siste {{count}} dager"
+    },
+    "explain": {
+      "rating": "Hvor godt en spiller spiller, 1,00 for en gjennomsnittlig spiller: kills, deaths, assists, skade og KAST per runde.",
+      "adr": "Gjennomsnittlig skade per runde.",
+      "kd": "Kills per death.",
+      "hs": "Andelen kills som var headshots (minst 50 kills).",
+      "opening": "Andelen åpningsdueller vunnet: rundens første kill, for eller mot (minst 10 dueller).",
+      "clutch": "Andelen 1vX-runder vunnet som sistemann (minst 5).",
+      "kast": "Andelen runder med kill, assist, overlevelse eller trade."
+    },
+    "qualify": "Spillere trenger {{maps}} maps og {{rounds}} runder for å kvalifisere; like verdier deler plass.",
+    "empty": "Ingen kvalifiserer ennå.",
+    "player": "Spiller",
+    "sample": "Over",
+    "sampleHint": "{{maps}} maps, {{rounds}} runder",
+    "sampleOf": {
+      "rating_one": "{{count}} runde",
+      "rating_other": "{{count}} runder",
+      "adr_one": "{{count}} runde",
+      "adr_other": "{{count}} runder",
+      "kd_one": "{{count}} K+D",
+      "kd_other": "{{count}} K+D",
+      "hs_one": "{{count}} kill",
+      "hs_other": "{{count}} kills",
+      "opening_one": "{{count}} duell",
+      "opening_other": "{{count}} dueller",
+      "clutch_one": "{{count}} clutch",
+      "clutch_other": "{{count}} clutcher",
+      "kast_one": "{{count}} runde",
+      "kast_other": "{{count}} runder"
+    }
+  },
+  "roles": {
+    "title": "Rolle",
+    "yours": "Din rolle",
+    "none": "Ikke satt",
+    "suggested": "Foreslått ut fra demoene: {{role}} ({{confidence}}, {{maps}} maps).",
+    "confidence": {
+      "low": "lav sikkerhet",
+      "medium": "middels sikkerhet",
+      "high": "høy sikkerhet"
+    },
+    "why": {
+      "awper": "{{share}} av killsene med AWP.",
+      "entry": "Med i {{share}} av rundenes åpningsdueller.",
+      "support": "{{flashes}} fiender flashet og {{utility}} utility-skade per runde.",
+      "rifler": "Ingen annen rolle skiller seg ut."
+    },
+    "noSuggestion": "For få analyserte demoer til å foreslå en rolle ennå (3 maps og 30 kills).",
+    "saveFailed": "Kunne ikke lagre rollen",
+    "team": "Roller",
+    "suggestedShort": "{{role}} (foreslått, {{confidence}})"
+  },
+  "recorderProgress": {
+    "step": {
+      "recording": "Tar opp",
+      "encoding": "Koder",
+      "uploading": "Laster opp",
+      "joining": "Setter sammen reel",
+      "redressing": "Tegner overlegg på nytt",
+      "benchmark": "Benchmark",
+      "starting": "Starter",
+      "updating": "Oppdaterer",
+      "waiting": "Venter"
+    },
+    "update": {
+      "draining": "Fullfører jobben",
+      "pulling": "Laster ned oppdatering",
+      "restarting": "Starter på nytt",
+      "checking": "Sjekker helse",
+      "applying": "Installerer"
+    },
+    "clipOf": "klipp {{n}} av {{total}}",
+    "left": "~{{time}} igjen"
+  },
+  "crash": {
+    "downTitle": "Kampserveren krasjet",
+    "down": "Vi henter den tilbake. Du får en knapp for å koble til igjen her så snart kampen er oppe.",
+    "moving": "Flytter kampen til en annen server, med siste runde gjenopprettet.",
+    "wait": "Dette tar vanligvis under ett minutt.",
+    "backTitle": "Kampen din er tilbake",
+    "backInPlace": "Serveren er oppe igjen med kampen gjenopprettet. Koble til igjen for å spille videre.",
+    "backMoved": "Kampen er flyttet til en annen server, med siste runde gjenopprettet. Koble til igjen for å spille videre.",
+    "reconnect": "Koble til igjen",
+    "close": "Lukk"
   },
   "serversList": {
     "noMachine": "Uten maskin",

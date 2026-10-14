@@ -17,12 +17,20 @@ interface MapRule {
 
 const VETO_MIN_MAPS: Record<string, number> = { bo1: 1, bo3: 3, bo5: 5 };
 
-function mapRule(type: string, format?: string): MapRule {
+function mapRule(type: string, format?: string, veto = true): MapRule {
   if (type === 'shuffle') {
     return {
       minMaps: 1,
       requiresVeto: false,
       message: 'Select at least one map. Each map represents one round.',
+    };
+  }
+  if (format && ['bo1', 'bo3', 'bo5'].includes(format) && !veto) {
+    // No veto: each match draws its maps from the pool.
+    return {
+      minMaps: 1,
+      requiresVeto: false,
+      message: 'Select at least one map. Each match draws its maps from the pool.',
     };
   }
   if (format && ['bo1', 'bo3', 'bo5'].includes(format)) {
@@ -41,9 +49,10 @@ function mapRule(type: string, format?: string): MapRule {
 export function validateMapCount(
   maps: string[],
   type: string,
-  format?: string
+  format?: string,
+  veto = true
 ): { valid: boolean; message?: string } {
-  const rule = mapRule(type, format);
+  const rule = mapRule(type, format, veto);
   const count = maps.length;
 
   if (rule.minMaps !== undefined && count < rule.minMaps) {
@@ -56,6 +65,6 @@ export function validateMapCount(
 }
 
 /** Whether the type and format run a map veto (bo1/bo3/bo5, not shuffle). */
-export function requiresVeto(type: string, format?: string): boolean {
-  return mapRule(type, format).requiresVeto;
+export function requiresVeto(type: string, format?: string, veto = true): boolean {
+  return mapRule(type, format, veto).requiresVeto;
 }

@@ -45,7 +45,15 @@
         "live_other": "{{count}} kamper pågår",
         "completed_one": "{{count}} lag deltok",
         "completed_other": "{{count}} lag deltok",
-        "winner": "Vinner: {{name}}"
+        "winner": "Vinner: {{name}}",
+        "teamsPlayers_one": "{{count}} spiller",
+        "teamsPlayers_other": "{{count}} spillere",
+        "enteredPlayers_one": "{{count}} spiller påmeldt",
+        "enteredPlayers_other": "{{count}} spillere påmeldt",
+        "draftTeamsPlayers_one": "Utkast · {{count}} spiller",
+        "draftTeamsPlayers_other": "Utkast · {{count}} spillere",
+        "completedPlayers_one": "{{count}} spiller deltok",
+        "completedPlayers_other": "{{count}} spillere deltok"
       },
       "actions": {
         "manage": "Administrer",
@@ -167,6 +175,13 @@
       "issuerUrlHelp": "Adressen til OpenID Connect-realmen eller -leietakeren. Auto Tournament leser endepunktene fra /.well-known/openid-configuration.",
       "buttonName": "Knappenavn",
       "buttonNameHelp": "Vises som «Logg inn med …» på innloggingssiden, f.eks. navnet på fellesskapet eller identitetsserveren.",
+      "logoUpload": "Last opp logo",
+      "logoReplace": "Bytt logo",
+      "logoRemove": "Fjern logo",
+      "logoType": "Logoen må være et PNG-, JPEG-, WebP- eller SVG-bilde.",
+      "logoSize": "Logoen kan være på høyst 150 KB.",
+      "buttonColor": "Knappefarge",
+      "buttonColorDefault": "Standardfarge",
       "clientSecret": "Klienthemmelighet",
       "steamKey": "Steam Web API-nøkkel",
       "secretSet": "satt",
@@ -374,9 +389,52 @@
     "gameLinks": {
       "title": "Spillinnstillinger",
       "hint": "Hvert spill har sine egne innstillinger i menyen."
+    },
+    "sections": {
+      "label": "Innstillingsseksjoner",
+      "site": {
+        "name": "Nettsted",
+        "hint": "Navn, logo, språk"
+      },
+      "signin": {
+        "name": "Innlogging",
+        "hint": "Leverandører, admin-kontoer"
+      },
+      "email": {
+        "name": "E-post",
+        "hint": "SMTP, hva som sendes"
+      },
+      "players": {
+        "name": "Spillere",
+        "hint": "Registrering, rating"
+      },
+      "matchmaking": {
+        "name": "Matchmaking",
+        "hint": "Køer og reglene deres"
+      },
+      "news": {
+        "name": "Nyheter",
+        "hint": "Innlegg på forsiden"
+      },
+      "adminnotices": {
+        "name": "Varsler",
+        "hint": "Hva admins får beskjed om"
+      },
+      "webhooks": {
+        "name": "Integrasjoner",
+        "hint": "Webhooks"
+      },
+      "advanced": {
+        "name": "Avansert",
+        "hint": "Eksperimentelt, utvikler"
+      },
+      "module": {
+        "hint": "Modulens innstillinger"
+      }
     }
   },
   "managePage": {
+    "tournamentNotFound": "Ingen turnering med denne id-en. Velg en under Alle turneringer.",
     "title": "Administrer",
     "needsYouHeading": "Trenger deg",
     "noTournament": "Ingen turnering enda",
@@ -395,7 +453,7 @@
       "modules": "Moduler",
       "templates": "Maler",
       "ratings": "Rating",
-      "adminTools": "System",
+      "adminTools": "Logger og verktøy",
       "license": "Lisens",
       "devTools": "Dev-verktøy",
       "documentation": "Dokumentasjon",
@@ -405,13 +463,20 @@
         "tournament": "Turnering",
         "people": "Deltakere",
         "game": "Spill",
+        "home": "Hjem",
+        "history": "Historikk",
+        "setup": "Oppsett",
         "configuration": "Konfigurasjon",
-        "site": "Nettsted"
+        "site": "Nettsted",
+        "tournaments": "Turneringer",
+        "system": "System",
+        "gamesOf": "Spill · {{game}}"
       },
+      "templatesAndRatings": "Maler og rangering",
       "allTournaments": "Alle turneringer",
       "switcher": "Turnering",
       "newTournament": "Ny turnering",
-      "playedMatches": "Alle kamper",
+      "playedMatches": "Spilte kamper",
       "tournamentBar": "Denne turneringen",
       "scope": {
         "label": "Administrerer",
@@ -419,7 +484,14 @@
         "platformHint": "Turneringer, folk, nettstedet",
         "gameHint": "Spillets sider og innstillinger"
       },
-      "highlights": "Høydepunkter"
+      "highlights": "Høydepunkter",
+      "state": {
+        "live": "live",
+        "setup": "oppsett"
+      },
+      "openMenu": "Åpne Administrer-menyen",
+      "closeMenu": "Lukk menyen",
+      "setupTab": "Oppsett"
     },
     "status": {
       "live": "LIVE",
@@ -740,6 +812,7 @@
     "recordingGroup": "Opptakergruppe",
     "allRecorders": "Alle opptakere",
     "groupHelp": "Velg gruppen som skal rendre kampen. Deaktiverte grupper venter til de aktiveres.",
-    "groupDisabled": "Deaktivert"
+    "groupDisabled": "Deaktivert",
+    "notCs2Demo": "{{name}} er ikke en CS2-demo (CS:GO-demoer kan ikke importeres)."
   }
 }

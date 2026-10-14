@@ -30,11 +30,16 @@ export const paths = {
   connectSteam: '/connect-steam',
 
   // Viewer and player-facing pages
-  teamMatch: '/team/:teamId',
-  /** A match's own public page: the result, its maps and what the game recorded. */
+  /**
+   * The match room: the result, its maps and what the game recorded, and for
+   * a player in it, the veto, the server and the live score. The only place a
+   * match is played from.
+   */
   match: '/match/:slug',
-  teamProfile: '/t/team/:teamId',
-  teamManage: '/t/team/:teamId/manage',
+  /** A team's page: roster, record, matches, and its next match (a link to the room). */
+  teamProfile: '/team/:teamId',
+  /** Running the team: roster, invites, captains. */
+  teamManage: '/team/:teamId/manage',
   teamJoin: '/join/team/:code',
   tournamentOverview: '/tournament/:id',
   // The tournament page's other tabs, nested under `tournamentOverview`.
@@ -43,21 +48,26 @@ export const paths = {
   tournamentTeams: '/tournament/:id/teams',
   tournamentStandings: '/tournament/:id/standings',
   tournamentRules: '/tournament/:id/rules',
+  /** The old "Your match" tab: sends a player to their match room. */
   tournamentYourMatch: '/tournament/:id/match',
   tournamentSignup: '/tournament/:id/signup',
   /** The old address of Standings; redirects there. */
   tournamentLeaderboard: '/tournament/:id/leaderboard',
   findPlayer: '/player',
   playerProfile: '/player/:steamId',
-  browse: '/browse',
+  /** Every tournament on the site: open sign-ups, live, finished. Was `/browse`. */
+  tournamentList: '/tournaments',
   /** Every player: search, sort by rating / matches / name (public, signed in). */
-  browsePlayers: '/browse/players',
+  communityPlayers: '/community/players',
+  /** Every team, and the teams looking for players. */
+  communityTeams: '/community/teams',
+  /** Ratings per game; `?mode=matchmaking` for the matchmaking ladder. */
   leaderboards: '/leaderboards',
-  browseTeams: '/browse/teams',
   /** Matchmaking: find a match, party, the match room. */
   play: '/play',
+  /** Sends the signed-in player to where their match lives (veto, server, score, what is next). */
+  matchNow: '/match/now',
   playLobby: '/play/:lobbyId',
-  playLeaderboard: '/play/leaderboard',
   /** Your friends, friend requests, and adding friends. */
   friends: '/friends',
   /** Every notice the bell showed, with filters. */
@@ -81,6 +91,12 @@ export const paths = {
   tournament: '/manage/tournament',
   /** Admin: every tournament, and creating another. */
   tournaments: '/manage/tournaments',
+  /**
+   * One tournament in Manage (2026-10): its id in the address, its pages as
+   * tabs below it (matches, bracket, disputes, setup). `new` is the one being
+   * created.
+   */
+  manageTournament: '/manage/tournaments/:id',
   bracket: '/manage/bracket',
   matches: '/manage/matches',
   /** Results nobody agrees on (3.0 phase D, PR D8). */
@@ -107,13 +123,32 @@ export const paths = {
   dev: '/manage/dev',
 } as const;
 
+/**
+ * Public addresses that moved (2026-10, one home per page): each redirects to
+ * its new place with the query, so shared links and bookmarks keep working.
+ */
+export const MOVED_PUBLIC_PATHS: ReadonlyArray<{ from: string; to: string }> = [
+  { from: '/t/team/:teamId', to: '/team/:teamId' },
+  { from: '/t/team/:teamId/manage', to: '/team/:teamId/manage' },
+  { from: '/browse', to: paths.tournamentList },
+  { from: '/browse/teams', to: paths.communityTeams },
+  { from: '/browse/players', to: paths.communityPlayers },
+  { from: '/play/leaderboard', to: `${paths.leaderboards}?mode=matchmaking` },
+];
+
+/** `/leaderboards`, on the matchmaking ladder when asked. */
+export function leaderboardsPath(mode?: 'tournament' | 'matchmaking'): string {
+  return mode === 'matchmaking' ? `${paths.leaderboards}?mode=matchmaking` : paths.leaderboards;
+}
+
 export type AppPath = (typeof paths)[keyof typeof paths];
 
 /**
  * The admin pages' addresses before they moved under /manage (2026-10): each
  * redirects to `/manage<old>`, with the rest of the path and the query, so
  * bookmarks and old links keep working. Modules' admin pages moved too
- * (CS2: servers, maps, skins, match rules, highlights).
+ * (CS2: servers, maps, skins, match rules). `/highlights` is the public
+ * highlights library now (CS2's site route), not the admin page.
  */
 export const LEGACY_ADMIN_PATHS = [
   '/teams',
@@ -134,7 +169,6 @@ export const LEGACY_ADMIN_PATHS = [
   '/dev',
   '/skins',
   '/match-rules',
-  '/highlights',
 ] as const;
 
 /** Nested route form of an admin shell path: '/manage/servers' → 'manage/servers'. */
@@ -142,9 +176,36 @@ export function adminRoute(path: string): string {
   return path.replace(/^\//, '');
 }
 
-/** The admin Matches page with one match open (a link an admin can share). */
-export function matchDetailsPath(slug: string): string {
-  return `${paths.matches}?match=${encodeURIComponent(slug)}`;
+/** `/match/:slug`: a match's own page, the one link to a match everywhere. */
+export function matchPagePath(slug: string): string {
+  return `/match/${encodeURIComponent(slug)}`;
+}
+
+/** A tournament's tabs in Manage. */
+export type ManageTournamentTab = 'matches' | 'bracket' | 'disputes' | 'setup';
+
+/** `/manage/tournaments/:id/<tab>`: one tournament in Manage (`new` while it is created). */
+export function manageTournamentPath(
+  id: number | 'new',
+  tab: ManageTournamentTab = 'matches'
+): string {
+  return `${paths.tournaments}/${id}/${tab}`;
+}
+
+/**
+ * The admin match page: in its tournament's Manage, or on its own for a
+ * standalone match.
+ */
+export function manageMatchPath(slug: string, tournamentId?: number | null): string {
+  const s = encodeURIComponent(slug);
+  return tournamentId
+    ? `${manageTournamentPath(tournamentId, 'matches')}/${s}`
+    : `/manage/match/${s}`;
+}
+
+/** A match's room, where players and admins run it (the old admin dialog is gone). */
+export function matchDetailsPath(slug: string, _tournamentId?: number | null): string {
+  return `/match/${encodeURIComponent(slug)}`;
 }
 
 /** `/play/:lobbyId`: a matchmaking match room. */
@@ -160,7 +221,6 @@ export function playerProfilePath(steamId: string): string {
 /** The public tournament page's tabs, in the order they are shown. */
 export const TOURNAMENT_TABS = [
   'overview',
-  'match',
   'bracket',
   'matches',
   'teams',
@@ -171,27 +231,19 @@ export const TOURNAMENT_TABS = [
 ] as const;
 export type TournamentTab = (typeof TOURNAMENT_TABS)[number];
 
-/** While the tournament runs, a player in it lands on "Your match" instead of Overview. */
-export function yourMatchFirst(status: string | undefined, hasTeam: boolean | undefined): boolean {
-  return status === 'in_progress' && Boolean(hasTeam);
-}
-
 /**
  * The tabs one tournament shows: Rules only when the organizer wrote some, or
  * a description too long for the header to show in full. Before it starts:
- * Overview and Teams. While it runs, a player whose team is in it gets "Your
- * match" in place of Overview: that is what they came for. Once it is over:
- * the results (Overview), Bracket and Matches.
+ * Overview and Teams. While it runs: Overview (with the viewer's next match,
+ * a link to its match room), Bracket, Matches, Teams and Standings. Once it is
+ * over: the results (Overview), Bracket and Matches.
  */
-export function visibleTournamentTabs(
-  tournament: {
-    status?: string;
-    /** Archived: a finished tournament a new one replaced. Only its results tabs are its own. */
-    archived_at?: number | null;
-    settings?: { rules?: string[]; rulebookUrl?: string; description?: string } | null;
-  },
-  viewer: { hasTeam?: boolean } = {}
-): TournamentTab[] {
+export function visibleTournamentTabs(tournament: {
+  status?: string;
+  /** Archived: a finished tournament a new one replaced. Only its results tabs are its own. */
+  archived_at?: number | null;
+  settings?: { rules?: string[]; rulebookUrl?: string; description?: string } | null;
+}): TournamentTab[] {
   // The header shows three lines of the description; a longer one is read in full on Rules.
   const hasRules = Boolean(
     tournament.settings?.rules?.length ||
@@ -217,13 +269,7 @@ export function visibleTournamentTabs(
       ? ['overview', 'bracket', 'matches', 'rules']
       : ['overview', 'bracket', 'matches'];
   }
-  const tabs: TournamentTab[] = [
-    yourMatchFirst(tournament.status, viewer.hasTeam) ? 'match' : 'overview',
-    'bracket',
-    'matches',
-    'teams',
-    'standings',
-  ];
+  const tabs: TournamentTab[] = ['overview', 'bracket', 'matches', 'teams', 'standings'];
   if (hasRules) tabs.push('rules');
   return tabs;
 }
@@ -237,12 +283,12 @@ export function tournamentTabPath(
   return tab === 'overview' ? base : `${base}/${tab}`;
 }
 
-/** `/t/team/:teamId` for one team's public profile page. */
+/** `/team/:teamId` for one team's page. */
 export function teamProfilePath(teamId: string): string {
   return paths.teamProfile.replace(':teamId', teamId);
 }
 
-/** `/t/team/:teamId/manage`: the team's owner view. */
+/** `/team/:teamId/manage`: the team's owner view. */
 export function teamManagePath(teamId: string): string {
   return paths.teamManage.replace(':teamId', teamId);
 }

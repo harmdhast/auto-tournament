@@ -26,7 +26,15 @@ import { requireAuth, requestActorId } from '../middleware/auth';
 import { playerService } from '../services/playerService';
 import { removesLastAdmin } from '../utils/adminRules';
 import { setPlayerSteamCookie } from './auth';
-import { markLocalReauth } from '../utils/localReauth';
+import { isLocalReauthFresh, markLocalReauth } from '../utils/localReauth';
+import {
+  localAdminPasskeys,
+  passkeyName,
+  passkeyRelyingParty,
+  passkeyVerifier,
+  type AuthenticationResponseJSON,
+  type RegistrationResponseJSON,
+} from '../services/localAdminPasskeys';
 import { resolveViewerIdentity } from '../utils/viewerIdentity';
 import { playerEmailService } from '../services/playerEmailService';
 import { emailService } from '../services/emailService';
@@ -230,6 +238,8 @@ localAuthRouter.get('/status', async (_req: Request, res: Response) => {
     setup: (await localAdminService.setupMode()) === 'setup',
     // Password reset by email works: the sign-in page offers "Forgot your password?".
     emailRecovery: await emailService.isReady(),
+    // Passkey sign-in works here (https, or localhost) and some account has one.
+    passkeys: passkeyRelyingParty() !== null,
   });
 });
 
@@ -285,23 +295,19 @@ localAuthRouter.post('/login', guardWrite, async (req: Request, res: Response) =
     const result = await localAdminService.verifyLogin(username, body.password, body.totp);
     if (!result.ok) {
       if (result.reason === 'totp_required') {
-        return res
-          .status(401)
-          .json({
-            success: false,
-            totpRequired: true,
-            error: 'Enter the code from your authenticator app',
-          });
+        return res.status(401).json({
+          success: false,
+          totpRequired: true,
+          error: 'Enter the code from your authenticator app',
+        });
       }
       loginThrottle.recordFailure(ip, target);
       log.warn('[AUDIT] Local admin login failed', { username, ip, reason: result.reason });
-      return res
-        .status(401)
-        .json({
-          success: false,
-          error: BAD_LOGIN,
-          totpRequired: result.reason === 'totp_invalid' || undefined,
-        });
+      return res.status(401).json({
+        success: false,
+        error: BAD_LOGIN,
+        totpRequired: result.reason === 'totp_invalid' || undefined,
+      });
     }
     loginThrottle.recordSuccess(target);
     await signIn(req, res, result.playerId, username as string);
@@ -365,6 +371,12 @@ localAuthRouter.post(
   async (req: Request, res: Response) => {
     const playerId = sessionPlayerId(req, res);
     if (!playerId) return;
+    // On already: replacing it needs the current code, so it is turned off first.
+    if ((await localAdminService.status(playerId))?.totpEnabled) {
+      return res
+        .status(409)
+        .json({ success: false, error: 'Two-step verification is on already. Turn it off first.' });
+    }
     const started = await localAdminService.startTotp(playerId);
     if (!started) return res.status(404).json({ success: false, error: 'Not found' });
     const issuer = await settingsService.getSiteName().catch(() => 'Auto Tournament');
@@ -409,17 +421,75 @@ localAuthRouter.post(
     if (wait > 0) return tooMany(res, wait);
     if (!(await localAdminService.confirmTotp(playerId, (req.body as { code?: unknown })?.code))) {
       loginThrottle.recordFailure(ip, target);
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: 'That code is not right. Check the time on your phone and try again.',
-        });
+      return res.status(400).json({
+        success: false,
+        error: 'That code is not right. Check the time on your phone and try again.',
+      });
     }
     loginThrottle.recordSuccess(target);
     return res.json({ success: true });
   }
 );
+
+/**
+ * @openapi
+ * /api/auth/local/totp/disable:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Turn TOTP off for the signed-in local admin
+ *     description: Same-site JSON. Needs the password and a current code. Throttled like sign-in.
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               password: { type: string }
+ *               totp: { type: string }
+ *     responses:
+ *       200:
+ *         description: TOTP is off; sign-in asks for the password only
+ *       401:
+ *         description: Wrong password or code (`totpRequired` when the code is missing)
+ */
+localAuthRouter.post('/totp/disable', guardWrite, async (req: Request, res: Response) => {
+  const identity = await resolveViewerIdentity(req);
+  if (!identity.realSteamId) return res.status(404).json({ success: false, error: 'Not found' });
+  if (identity.isImpersonating) {
+    return res
+      .status(403)
+      .json({ success: false, error: 'Stop impersonating to manage your own account.' });
+  }
+  const row = await localAdminService.findByPlayerId(identity.realSteamId);
+  if (!row)
+    return res.status(404).json({ success: false, error: 'This account has no password login' });
+  if (!row.totp_secret_enc) return res.json({ success: true });
+
+  const body = (req.body ?? {}) as { password?: unknown; totp?: unknown };
+  const ip = clientIp(req);
+  const target = `user:${row.username}`;
+  const wait = loginThrottle.retryAfterMs(ip, target);
+  if (wait > 0) return tooMany(res, wait);
+  const result = await localAdminService.verifyLogin(row.username, body.password, body.totp);
+  if (!result.ok || result.playerId !== identity.realSteamId) {
+    if (!result.ok && result.reason === 'totp_required') {
+      return res.status(401).json({
+        success: false,
+        totpRequired: true,
+        error: 'Enter the code from your authenticator app',
+      });
+    }
+    loginThrottle.recordFailure(ip, target);
+    log.warn('[AUDIT] Turning off TOTP refused: wrong password or code', {
+      username: row.username,
+      ip,
+    });
+    return res.status(401).json({ success: false, error: 'Wrong password or code' });
+  }
+  loginThrottle.recordSuccess(target);
+  await localAdminService.disableTotp(identity.realSteamId);
+  return res.json({ success: true });
+});
 
 /**
  * @openapi
@@ -474,13 +544,11 @@ localAuthRouter.post('/reauth', guardWrite, async (req: Request, res: Response) 
     const result = await localAdminService.verifyLogin(row.username, body.password, body.totp);
     if (!result.ok || result.playerId !== identity.realSteamId) {
       if (!result.ok && result.reason === 'totp_required') {
-        return res
-          .status(401)
-          .json({
-            success: false,
-            totpRequired: true,
-            error: 'Enter the code from your authenticator app',
-          });
+        return res.status(401).json({
+          success: false,
+          totpRequired: true,
+          error: 'Enter the code from your authenticator app',
+        });
       }
       loginThrottle.recordFailure(ip, target);
       log.warn('[AUDIT] Local admin re-confirmation failed', { username: row.username, ip });
@@ -497,6 +565,309 @@ localAuthRouter.post('/reauth', guardWrite, async (req: Request, res: Response) 
   } catch (error) {
     log.error('[AUTH] Local admin re-confirmation failed', error as Error);
     return res.status(500).json({ success: false, error: 'Could not check your password' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Passkeys (services/localAdminPasskeys.ts)
+// ---------------------------------------------------------------------------
+
+/** A WebAuthn challenge on the session, for one ceremony, for two minutes. */
+interface PasskeyChallenge {
+  kind: 'register' | 'login';
+  challenge: string;
+  playerId: string | null;
+  at: number;
+}
+type PasskeySession = { session?: { passkeyChallenge?: PasskeyChallenge } };
+const CHALLENGE_TTL_MS = 2 * 60 * 1000;
+
+function putChallenge(req: Request, c: Omit<PasskeyChallenge, 'at'>): void {
+  const session = (req as Request & PasskeySession).session;
+  if (session) session.passkeyChallenge = { ...c, at: Date.now() };
+}
+
+/** The session's challenge for `kind`, once: it is cleared whether it matches or not. */
+function takeChallenge(req: Request, kind: PasskeyChallenge['kind']): PasskeyChallenge | null {
+  const session = (req as Request & PasskeySession).session;
+  const c = session?.passkeyChallenge;
+  if (session) delete session.passkeyChallenge;
+  if (!c || c.kind !== kind || Date.now() - c.at > CHALLENGE_TTL_MS) return null;
+  return c;
+}
+
+/** The signed-in account's own admin login (not impersonating), or null with the answer sent. */
+async function ownLocalAccount(
+  req: Request,
+  res: Response
+): Promise<{ playerId: string; username: string } | null> {
+  const identity = await resolveViewerIdentity(req);
+  if (!identity.realSteamId) {
+    res.status(404).json({ success: false, error: 'Not found' });
+    return null;
+  }
+  if (identity.isImpersonating) {
+    res
+      .status(403)
+      .json({ success: false, error: 'Stop impersonating to manage your own account.' });
+    return null;
+  }
+  const row = await localAdminService.findByPlayerId(identity.realSteamId);
+  if (!row) {
+    res.status(404).json({ success: false, error: 'This account has no admin login' });
+    return null;
+  }
+  return { playerId: identity.realSteamId, username: row.username };
+}
+
+function noPasskeysHere(res: Response): Response {
+  return res.status(409).json({
+    success: false,
+    error:
+      'Passkeys need the site on https (or localhost). Set FRONTEND_BASE_URL to its https address.',
+  });
+}
+
+/**
+ * @openapi
+ * /api/auth/local/passkeys:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Your passkeys
+ *     description: The signed-in account's passkeys (name, added, last used), for an account with an admin login.
+ *     responses:
+ *       200:
+ *         description: "`passkeys` and `available` (whether this address allows passkeys)"
+ */
+localAuthRouter.get('/passkeys', async (req: Request, res: Response) => {
+  const own = await ownLocalAccount(req, res);
+  if (!own) return;
+  return res.json({
+    success: true,
+    available: passkeyRelyingParty() !== null,
+    passkeys: await localAdminPasskeys.list(own.playerId),
+  });
+});
+
+/**
+ * @openapi
+ * /api/auth/local/passkeys/register/options:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Start adding a passkey
+ *     description: |
+ *       Same-site JSON. Needs your password confirmed in the last 10 minutes
+ *       (POST /api/auth/local/reauth; `reauthRequired` otherwise). Answers the
+ *       WebAuthn creation options for the browser.
+ *     responses:
+ *       200:
+ *         description: "`options`"
+ *       401:
+ *         description: "`reauthRequired`: confirm your password first"
+ *       409:
+ *         description: Passkeys don't work on this address (not https)
+ */
+localAuthRouter.post(
+  '/passkeys/register/options',
+  guardWrite,
+  async (req: Request, res: Response) => {
+    const own = await ownLocalAccount(req, res);
+    if (!own) return;
+    const rp = passkeyRelyingParty();
+    if (!rp) return noPasskeysHere(res);
+    if (!isLocalReauthFresh(req, own.playerId)) {
+      return res
+        .status(401)
+        .json({ success: false, reauthRequired: true, error: 'Confirm your password first' });
+    }
+    const options = await passkeyVerifier().registrationOptions({
+      rp,
+      userId: own.playerId,
+      userName: own.username,
+      exclude: await localAdminPasskeys.credentialsOf(own.playerId),
+    });
+    putChallenge(req, { kind: 'register', challenge: options.challenge, playerId: own.playerId });
+    return res.json({ success: true, options });
+  }
+);
+
+/**
+ * @openapi
+ * /api/auth/local/passkeys/register/verify:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Finish adding a passkey
+ *     description: Same-site JSON. `response` from the browser and an optional `name` ("MacBook", "Phone").
+ *     responses:
+ *       200:
+ *         description: "`passkey`: the one added"
+ *       400:
+ *         description: The browser's answer did not check out
+ */
+localAuthRouter.post(
+  '/passkeys/register/verify',
+  guardWrite,
+  async (req: Request, res: Response) => {
+    const own = await ownLocalAccount(req, res);
+    if (!own) return;
+    const rp = passkeyRelyingParty();
+    if (!rp) return noPasskeysHere(res);
+    const challenge = takeChallenge(req, 'register');
+    if (!challenge || challenge.playerId !== own.playerId) {
+      return res.status(400).json({ success: false, error: 'Start again: that took too long' });
+    }
+    const body = (req.body ?? {}) as { response?: unknown; name?: unknown };
+    try {
+      const result = await passkeyVerifier().verifyRegistration({
+        rp,
+        response: body.response as RegistrationResponseJSON,
+        challenge: challenge.challenge,
+      });
+      if (!result.verified) {
+        return res.status(400).json({ success: false, error: 'The passkey could not be checked' });
+      }
+      if (await localAdminPasskeys.find(result.credential.id)) {
+        return res.status(409).json({ success: false, error: 'That passkey is already added' });
+      }
+      const count = (await localAdminPasskeys.list(own.playerId)).length;
+      const passkey = await localAdminPasskeys.add(
+        own.playerId,
+        result.credential,
+        passkeyName(body.name, `Passkey ${count + 1}`)
+      );
+      log.info('[AUDIT] Local admin added a passkey', {
+        username: own.username,
+        name: passkey.name,
+      });
+      return res.json({ success: true, passkey });
+    } catch (error) {
+      log.warn('[AUTH] Passkey registration failed', { error: (error as Error).message });
+      return res.status(400).json({ success: false, error: 'The passkey could not be checked' });
+    }
+  }
+);
+
+/**
+ * @openapi
+ * /api/auth/local/passkeys/{id}:
+ *   delete:
+ *     tags: [Authentication]
+ *     summary: Remove one of your passkeys
+ *     description: Same-site. Needs your password confirmed in the last 10 minutes (`reauthRequired` otherwise).
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Removed
+ *       401:
+ *         description: "`reauthRequired`"
+ *       404:
+ *         description: Not one of yours
+ */
+localAuthRouter.delete('/passkeys/:id', guardWrite, async (req: Request, res: Response) => {
+  const own = await ownLocalAccount(req, res);
+  if (!own) return;
+  if (!isLocalReauthFresh(req, own.playerId)) {
+    return res
+      .status(401)
+      .json({ success: false, reauthRequired: true, error: 'Confirm your password first' });
+  }
+  if (!(await localAdminPasskeys.remove(own.playerId, req.params.id))) {
+    return res.status(404).json({ success: false, error: 'Not found' });
+  }
+  log.info('[AUDIT] Local admin removed a passkey', { username: own.username });
+  return res.json({ success: true });
+});
+
+/**
+ * @openapi
+ * /api/auth/local/passkeys/login/options:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Start signing in with a passkey
+ *     description: Same-site JSON. No username needed; the browser offers the passkeys it has for this site.
+ *     responses:
+ *       200:
+ *         description: "`options`"
+ *       403:
+ *         description: Local admin login is turned off
+ *       409:
+ *         description: Passkeys don't work on this address
+ */
+localAuthRouter.post('/passkeys/login/options', guardWrite, async (req: Request, res: Response) => {
+  if (!(await adminAccessSettings.isLocalAdminLoginEnabled())) {
+    return res.status(403).json({ success: false, error: 'Local admin login is turned off' });
+  }
+  const rp = passkeyRelyingParty();
+  if (!rp) return noPasskeysHere(res);
+  const options = await passkeyVerifier().authenticationOptions({ rp });
+  putChallenge(req, { kind: 'login', challenge: options.challenge, playerId: null });
+  return res.json({ success: true, options });
+});
+
+/**
+ * @openapi
+ * /api/auth/local/passkeys/login/verify:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Sign in with a passkey
+ *     description: |
+ *       Same-site JSON: `response` from the browser. Signs the passkey's
+ *       account in, instead of its password and two-step code. Failures are
+ *       throttled per IP like password sign-in.
+ *     responses:
+ *       200:
+ *         description: Signed in
+ *       401:
+ *         description: Not a passkey for this site, or it did not check out
+ *       429:
+ *         description: Too many attempts
+ */
+localAuthRouter.post('/passkeys/login/verify', guardWrite, async (req: Request, res: Response) => {
+  if (!(await adminAccessSettings.isLocalAdminLoginEnabled())) {
+    return res.status(403).json({ success: false, error: 'Local admin login is turned off' });
+  }
+  const rp = passkeyRelyingParty();
+  if (!rp) return noPasskeysHere(res);
+  const ip = clientIp(req);
+  const response = (req.body ?? {}).response as AuthenticationResponseJSON | undefined;
+  // Per passkey (and per IP, inside the throttle), never one shared key: a
+  // stranger's failures must not lock everyone else out of passkey sign-in.
+  const target = `passkey:${typeof response?.id === 'string' ? response.id.slice(0, 200) : '-'}`;
+  const wait = loginThrottle.retryAfterMs(ip, target);
+  if (wait > 0) return tooMany(res, wait);
+  const failed = (reason: string) => {
+    loginThrottle.recordFailure(ip, target);
+    log.warn('[AUDIT] Passkey sign-in failed', { ip, reason });
+    return res.status(401).json({ success: false, error: 'That passkey did not work here' });
+  };
+  const challenge = takeChallenge(req, 'login');
+  if (!challenge) return failed('no challenge');
+  if (!response || typeof response.id !== 'string') return failed('no response');
+  try {
+    const stored = await localAdminPasskeys.find(response.id);
+    if (!stored) return failed('unknown passkey');
+    const result = await passkeyVerifier().verifyAuthentication({
+      rp,
+      response,
+      challenge: challenge.challenge,
+      credential: stored.credential,
+    });
+    if (!result.verified) return failed('not verified');
+    const row = await localAdminService.findByPlayerId(stored.playerId);
+    if (!row) return failed('no admin login');
+    await localAdminPasskeys.used(response.id, result.newCounter);
+    loginThrottle.recordSuccess(target);
+    await signIn(req, res, stored.playerId, row.username);
+    log.info('[AUDIT] Local admin signed in with a passkey', { username: row.username, ip });
+    const status = await localAdminService.status(stored.playerId);
+    return res.json({ success: true, mustChangePassword: status?.mustChangePassword === true });
+  } catch (error) {
+    log.warn('[AUTH] Passkey sign-in failed', { error: (error as Error).message });
+    return failed('error');
   }
 });
 
@@ -545,13 +916,21 @@ localAuthRouter.post('/password', guardWrite, async (req: Request, res: Response
   if (!row)
     return res.status(404).json({ success: false, error: 'This account has no password login' });
 
-  const body = (req.body ?? {}) as { currentPassword?: unknown; newPassword?: unknown; totp?: unknown };
+  const body = (req.body ?? {}) as {
+    currentPassword?: unknown;
+    newPassword?: unknown;
+    totp?: unknown;
+  };
   const ip = clientIp(req);
   const target = `user:${row.username}`;
   const wait = loginThrottle.retryAfterMs(ip, target);
   if (wait > 0) return tooMany(res, wait);
   try {
-    const result = await localAdminService.verifyLogin(row.username, body.currentPassword, body.totp);
+    const result = await localAdminService.verifyLogin(
+      row.username,
+      body.currentPassword,
+      body.totp
+    );
     if (!result.ok || result.playerId !== identity.realSteamId) {
       if (!result.ok && result.reason === 'totp_required') {
         return res.status(401).json({
@@ -561,7 +940,10 @@ localAuthRouter.post('/password', guardWrite, async (req: Request, res: Response
         });
       }
       loginThrottle.recordFailure(ip, target);
-      log.warn('[AUDIT] Password change refused: wrong current password', { username: row.username, ip });
+      log.warn('[AUDIT] Password change refused: wrong current password', {
+        username: row.username,
+        ip,
+      });
       return res.status(401).json({
         success: false,
         error: 'Your current password is not right',
@@ -606,7 +988,9 @@ localAuthRouter.post('/password', guardWrite, async (req: Request, res: Response
 localAuthRouter.post('/forgot', guardWrite, async (req: Request, res: Response) => {
   const ip = clientIp(req);
   const identifier = (req.body ?? {}).identifier;
-  const target = `forgot:${String(identifier ?? '').slice(0, 254).toLowerCase()}`;
+  const target = `forgot:${String(identifier ?? '')
+    .slice(0, 254)
+    .toLowerCase()}`;
   const wait = loginThrottle.retryAfterMs(ip, target);
   if (wait > 0) return tooMany(res, wait);
   // Counted as a failure every time: a few requests per address, then a pause.
@@ -644,13 +1028,16 @@ localAuthRouter.post('/forgot', guardWrite, async (req: Request, res: Response) 
 localAuthRouter.post('/reset', guardWrite, async (req: Request, res: Response) => {
   const body = (req.body ?? {}) as { token?: unknown; password?: unknown };
   const problem = passwordProblem('', body.password);
-  if (problem) return res.status(400).json({ success: false, error: 'Password not accepted', problem });
+  if (problem)
+    return res.status(400).json({ success: false, error: 'Password not accepted', problem });
   try {
     const username = await playerEmailService.resetPassword(body.token, body.password as string);
     if (!username) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'This link does not work any more. Ask for a new one.', code: 'badToken' });
+      return res.status(400).json({
+        success: false,
+        error: 'This link does not work any more. Ask for a new one.',
+        code: 'badToken',
+      });
     }
     return res.json({ success: true, username });
   } catch (error) {
@@ -852,7 +1239,12 @@ localAccountsRouter.delete('/:username', guardWrite, async (req: Request, res: R
         .json({ success: false, error: 'You cannot remove the login you are signed in with' });
     }
     const player = await playerService.getPlayerById(row.player_id);
-    if (removesLastAdmin({ targetIsAdmin: !!player?.isAdmin, adminCount: await playerService.countAdmins() })) {
+    if (
+      removesLastAdmin({
+        targetIsAdmin: !!player?.isAdmin,
+        adminCount: await playerService.countAdmins(),
+      })
+    ) {
       return res.status(409).json({ success: false, error: LAST_ADMIN });
     }
     // Removing an account deletes the person (services/playerModeration.ts):

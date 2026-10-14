@@ -11,6 +11,7 @@ import {
 } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
 import { TopNavBar } from '../components/layout/TopNavBar';
+import { PendingTeamInvites } from '../components/team/PendingTeamInvites';
 import { LiveChip } from '../components/common/ui';
 import { useAuth } from '../contexts/AuthContext';
 import { useTeamMatchData } from '../hooks/useTeamMatchData';
@@ -30,24 +31,6 @@ interface ViewerTeam {
   id: string;
   name: string;
   tag?: string;
-}
-
-/**
- * Same "connect" URI as the match panel (`integrations/cs2/match/MatchServerPanel.tsx`).
- * steam://connect joins a CS2 that is already running; steam://run/730 only
- * passed its arguments when it started the game.
- */
-function steamConnectUri(server: {
-  host: string;
-  ip?: string | null;
-  port: number;
-  password?: string;
-}): string {
-  // The IP when known: CS2 ignores steam://connect with a hostname.
-  const address = `${server.ip || server.host}:${server.port}`;
-  return server.password
-    ? `steam://connect/${address}/${encodeURIComponent(server.password)}`
-    : `steam://connect/${address}`;
 }
 
 const isUpcoming = (tour: TournamentSummary) => tour.status === 'setup' || tour.status === 'ready';
@@ -256,6 +239,7 @@ export default function Home() {
           </Box>
         ) : (
           <>
+            <PendingTeamInvites />
             {showNextMatch && match && (
               <Box
                 component="section"
@@ -331,22 +315,12 @@ export default function Home() {
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Button
                     component={RouterLink}
-                    to={`/team/${myTeam?.id}`}
+                    to={paths.matchNow}
                     variant="contained"
                     data-testid="home-open-match"
                   >
                     {t('home.openMatch')}
                   </Button>
-                  {match.server && (
-                    <Button
-                      component="a"
-                      href={steamConnectUri(match.server)}
-                      variant="outlined"
-                      data-testid="home-connect-server"
-                    >
-                      {t('home.connectToServer')}
-                    </Button>
-                  )}
                 </Box>
               </Box>
             )}
@@ -356,7 +330,7 @@ export default function Home() {
                 id="home-live-title"
                 title={quiet ? t('home.quiet.title') : t('home.live.title')}
                 aside={quiet ? undefined : t('home.live.count', { count: live.length })}
-                link={{ to: paths.browse, label: t('home.allTournaments') }}
+                link={{ to: paths.tournamentList, label: t('home.allTournaments') }}
               />
               <Box
                 data-testid="home-tournaments-list"
@@ -501,7 +475,7 @@ export default function Home() {
                   ) : (
                     <Box
                       component={RouterLink}
-                      to={paths.browsePlayers}
+                      to={paths.communityPlayers}
                       data-testid="home-browse"
                       sx={{
                         p: 2.75,
@@ -566,7 +540,7 @@ export default function Home() {
                 id="home-signup-title"
                 title={t('home.signup.title')}
                 aside={t('home.signup.aside')}
-                link={{ to: paths.browse, label: t('home.allTournaments') }}
+                link={{ to: paths.tournamentList, label: t('home.allTournaments') }}
               />
               <Box
                 sx={{
@@ -672,7 +646,7 @@ export default function Home() {
                   id="home-champions-title"
                   title={t('home.champions.title')}
                   aside={t('home.champions.aside')}
-                  link={{ to: paths.browse, label: t('home.champions.all') }}
+                  link={{ to: paths.tournamentList, label: t('home.champions.all') }}
                 />
                 <Box
                   sx={{

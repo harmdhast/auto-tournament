@@ -6,30 +6,33 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Box, ButtonBase, Stack, Typography } from '@mui/material';
+import { Box, ButtonBase, LinearProgress, Stack, Typography } from '@mui/material';
 import {
   api,
-  fontDisplay,
   HighlightPlayer,
   mono,
   radii,
   textSize,
   tokens,
   useModuleTranslation,
-  VideoThumb,
+  useSocket,
   type HighlightPlayerHandle,
   type MusicTrack,
 } from '../../../module-sdk';
 import type { MatchPublicPanelProps } from '../../types';
-import {
-  clock,
-  kindLabel,
-  mapLabel,
-  playTitle,
-  watchClipPath,
-  watchTeamReelPath,
-  type Chapter,
-} from './data';
+import { clock, kindLabel, libraryPath, mapLabel, watchTeamReelPath, type Chapter } from './data';
+import { MatchClipGrid, type MatchClip } from './MatchClipGrid';
+
+/** A recorder working on this match, as its link reports it. */
+interface LiveRecording {
+  recorder: string;
+  step: string;
+  detail: string | null;
+  mapNumber: number | null;
+  done: number | null;
+  total: number | null;
+  percent: number | null;
+}
 
 interface TeamReelRow {
   teamId: string;
@@ -58,18 +61,6 @@ interface Line {
   entryKills: number;
 }
 
-interface MatchClip {
-  id: number;
-  playerId: string;
-  playerName: string;
-  kind: string;
-  title: string;
-  round: number;
-  mapNumber: number;
-  map: string | null;
-  video: string;
-}
-
 export function MatchPublicPanel({ matchSlug, match }: MatchPublicPanelProps) {
   const { t } = useModuleTranslation('cs2');
   const [teams, setTeams] = useState<TeamReelRow[]>([]);
@@ -78,9 +69,50 @@ export function MatchPublicPanel({ matchSlug, match }: MatchPublicPanelProps) {
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [board, setBoard] = useState<{ team1: Line[]; team2: Line[] } | null>(null);
   const [clips, setClips] = useState<MatchClip[]>([]);
+  // How many of the match's clips are made, while recorders are still on it.
+  const [progress, setProgress] = useState<{ done: number; total: number; waiting: number } | null>(
+    null
+  );
   const [time, setTime] = useState(0);
   const player = useRef<HighlightPlayerHandle>(null);
   const enc = encodeURIComponent;
+
+  // New clips and reels arrive while the page is open (recorders finish them
+  // one by one): the server says so over the socket, and they are read again.
+  const socket = useSocket();
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const event = `highlights:update:${matchSlug}`;
+    // A burst (a map's clips finishing together) reads them once.
+    const changed = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setVersion((v) => v + 1), 1500);
+    };
+    socket.on(event, changed);
+    return () => {
+      socket.off(event, changed);
+      if (timer) clearTimeout(timer);
+    };
+  }, [socket, matchSlug]);
+
+  // Who is recording this match right now, and how far (the recorders' live
+  // link): one line per recorder, gone when it is done.
+  const [live, setLive] = useState<Record<string, LiveRecording>>({});
+  useEffect(() => {
+    const event = `highlights:progress:${matchSlug}`;
+    const onProgress = (p: LiveRecording & { step: string | null }) =>
+      setLive((prev) => {
+        const next = { ...prev };
+        if (p.step) next[p.recorder] = p;
+        else delete next[p.recorder];
+        return next;
+      });
+    socket.on(event, onProgress);
+    return () => {
+      socket.off(event, onProgress);
+    };
+  }, [socket, matchSlug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,9 +122,14 @@ export function MatchPublicPanel({ matchSlug, match }: MatchPublicPanelProps) {
         if (cancelled) return;
         const done = (r.teams ?? []).filter((x) => x.status === 'done' && x.video);
         setTeams(done);
-        // The winners' reel first.
+        // The winners' reel first; a reel already picked stays picked.
         const winner = match.winnerSide ? match[match.winnerSide]?.id : null;
-        setPick((done.find((x) => x.teamId === winner) ?? done[0])?.teamId ?? null);
+        setPick(
+          (current) =>
+            (current && done.some((x) => x.teamId === current) ? current : null) ??
+            (done.find((x) => x.teamId === winner) ?? done[0])?.teamId ??
+            null
+        );
       })
       .catch(() => undefined);
     void api
@@ -100,18 +137,25 @@ export function MatchPublicPanel({ matchSlug, match }: MatchPublicPanelProps) {
       .then((r) => !cancelled && setBoard({ team1: r.team1, team2: r.team2 }))
       .catch(() => undefined);
     void api
-      .get<{ clips: MatchClip[] }>(`/api/game/cs2/matches/${enc(matchSlug)}/highlights`)
-      .then((r) => !cancelled && setClips(r.clips))
+      .get<{
+        clips: MatchClip[];
+        progress?: { done: number; total: number; waiting: number };
+      }>(`/api/game/cs2/matches/${enc(matchSlug)}/highlights`)
+      .then((r) => {
+        if (cancelled) return;
+        setClips(r.clips);
+        setProgress(r.progress ?? null);
+      })
       .catch(() => undefined);
     void api
-      .get<{ tracks: MusicTrack[] }>('/api/game/cs2/music')
+      .get<{ tracks: MusicTrack[] }>('/api/highlights/music')
       .then((r) => !cancelled && setTracks(r.tracks))
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per match
-  }, [matchSlug]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- per match, and again when its highlights change
+  }, [matchSlug, version]);
 
   useEffect(() => {
     if (!pick) return;
@@ -130,16 +174,28 @@ export function MatchPublicPanel({ matchSlug, match }: MatchPublicPanelProps) {
   const chapters = useMemo(() => (reel?.chapters ?? []).filter((c) => c.at !== null), [reel]);
   const current = chapters.reduce((at, c, i) => ((c.at ?? 0) <= time + 0.05 ? i : at), -1);
 
-  const section = (title: string, children: ReactNode, testid: string) => (
+  const section = (title: string, children: ReactNode, testid: string, action?: ReactNode) => (
     <Box component="section" sx={{ mt: 5 }} data-testid={testid}>
-      <Typography variant="h5" component="h2" sx={{ fontWeight: 700, mb: 2 }}>
-        {title}
-      </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        <Typography variant="h5" component="h2" sx={{ fontWeight: 700 }}>
+          {title}
+        </Typography>
+        {action}
+      </Box>
       {children}
     </Box>
   );
 
   const teamName = (side: 'team1' | 'team2') => match[side]?.name ?? '';
+  const recording = (progress?.waiting ?? 0) > 0;
 
   return (
     <Box>
@@ -376,72 +432,74 @@ export function MatchPublicPanel({ matchSlug, match }: MatchPublicPanelProps) {
           'match-page-scoreboard'
         )}
 
-      {clips.length > 0 &&
+      {(clips.length > 0 || recording) &&
         section(
           t('matchPage.highlights'),
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 220px), 1fr))',
-              gap: 2,
-            }}
-          >
-            {clips.map((c) => (
-              <Box
-                key={c.id}
-                component={RouterLink}
-                to={watchClipPath(c.id)}
-                sx={{
-                  color: 'inherit',
-                  textDecoration: 'none',
-                  display: 'grid',
-                  gap: 0.75,
-                  minWidth: 0,
-                }}
-              >
-                <Box
-                  sx={{
-                    position: 'relative',
-                    aspectRatio: '16 / 9',
-                    maxWidth: '100%',
-                    borderRadius: radii.md,
-                    overflow: 'hidden',
-                    bgcolor: 'background.surface3',
-                    border: 1,
-                    borderColor: 'divider',
-                  }}
-                >
-                  <VideoThumb src={c.video} at={4} />
+          <>
+            {recording && progress && (
+              <Box sx={{ mb: 2.5, maxWidth: 520 }} data-testid="match-page-clip-progress">
+                <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('matchPage.recordingClips')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ ...mono, fontVariantNumeric: 'tabular-nums' }}>
+                    {t('matchPage.clipsDone', { done: progress.done, total: progress.total })}
+                  </Typography>
+                </Stack>
+                <LinearProgress
+                  variant="determinate"
+                  value={progress.total ? (progress.done / progress.total) * 100 : 0}
+                  aria-label={t('matchPage.recordingClips')}
+                  sx={{ height: 6, borderRadius: radii.pill }}
+                />
+                {Object.values(live).length > 0 && (
                   <Box
-                    component="span"
-                    sx={{
-                      position: 'absolute',
-                      left: 8,
-                      top: 8,
-                      px: 1,
-                      py: 0.25,
-                      borderRadius: radii.pill,
-                      bgcolor: tokens.color.accent,
-                      color: tokens.color.accentInk,
-                      fontFamily: fontDisplay,
-                      fontWeight: 700,
-                      fontSize: textSize.xs,
-                    }}
+                    component="ul"
+                    sx={{ listStyle: 'none', p: 0, m: 0, mt: 1, display: 'grid', gap: 0.25 }}
+                    data-testid="match-page-recording-now"
                   >
-                    {kindLabel(t, c.kind)}
+                    {Object.values(live)
+                      .sort((a, b) =>
+                        a.recorder.localeCompare(b.recorder, undefined, { numeric: true })
+                      )
+                      .map((r) => (
+                        <Typography
+                          key={r.recorder}
+                          component="li"
+                          variant="caption"
+                          color="text.secondary"
+                          noWrap
+                        >
+                          {[
+                            r.recorder,
+                            t(`recorderProgress.step.${r.step}`, { defaultValue: r.step }),
+                            r.detail,
+                            typeof r.done === 'number' && r.total
+                              ? t('recorderProgress.clipOf', {
+                                  n: Math.min(r.done + 1, r.total),
+                                  total: r.total,
+                                })
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </Typography>
+                      ))}
                   </Box>
-                </Box>
-                <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
-                  {c.playerName}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap component="div">
-                  {playTitle(c.title)} · {mapLabel(t, c.map, c.mapNumber)} ·{' '}
-                  {t('highlights.roundN', { n: c.round })}
-                </Typography>
+                )}
               </Box>
-            ))}
-          </Box>,
-          'match-page-highlights'
+            )}
+            <MatchClipGrid clips={clips} />
+          </>,
+          'match-page-highlights',
+          <Box
+            component={RouterLink}
+            to={libraryPath({ match: matchSlug })}
+            sx={{ color: tokens.color.accent, fontSize: textSize.sm, textDecoration: 'none' }}
+            data-testid="match-page-library"
+          >
+            {t('library.matchHighlights')}
+          </Box>
         )}
     </Box>
   );

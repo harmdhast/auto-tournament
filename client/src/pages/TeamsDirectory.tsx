@@ -24,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../utils/api';
 import { pageTitle } from '../utils/pageTitle';
 import { teamProfilePath } from '../paths';
+import { PendingTeamInvites, TeamTile } from '../components/team/PendingTeamInvites';
 import { useSetupGames } from '../components/tournament/setup/games';
 import { useInstalledIntegrations } from '../integrations/registry';
 import { tokens, fontMono, radii, textSize, withAlpha } from '../theme/tokens';
@@ -66,45 +67,6 @@ function prettyMap(map: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-/** The team's tag, or the first letters of its name, for the logo tile. */
-function initials(team: Pick<DirectoryTeam, 'name' | 'tag'>): string {
-  if (team.tag) return team.tag;
-  return team.name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 3)
-    .toUpperCase();
-}
-
-function TeamTile({
-  team,
-  size = 52,
-}: {
-  team: Pick<DirectoryTeam, 'name' | 'tag'>;
-  size?: number;
-}) {
-  return (
-    <Box
-      aria-hidden
-      sx={{
-        width: size,
-        height: size,
-        flex: 'none',
-        borderRadius: radii.md,
-        bgcolor: color.paper3,
-        display: 'grid',
-        placeItems: 'center',
-        fontWeight: 700,
-        fontSize: size > 60 ? textSize.xl : textSize.sm,
-        color: color.ink2,
-      }}
-    >
-      {initials(team)}
-    </Box>
-  );
-}
-
 /**
  * Every team on the site (`/browse/teams`), and the viewer's own: the team
  * they own, the teams they play on, and "Create a team" when they own none.
@@ -122,7 +84,6 @@ export default function TeamsDirectory() {
   const [gameFilter, setGameFilter] = useState('all');
   const [sort, setSort] = useState<SortKey>('rating');
   const [createOpen, setCreateOpen] = useState(false);
-  const [answering, setAnswering] = useState<string | null>(null);
   const { games } = useSetupGames();
   const integrations = useInstalledIntegrations();
   const gameName = (id: string) => games.find((g) => g.id === id)?.name ?? id;
@@ -160,21 +121,6 @@ export default function TeamsDirectory() {
     load();
   }, [load]);
 
-  const answerInvite = async (teamId: string, accept: boolean) => {
-    setAnswering(teamId);
-    try {
-      await api.post(`/api/team-directory/${encodeURIComponent(teamId)}/invites/answer`, {
-        accept,
-      });
-      if (accept) navigate(teamProfilePath(teamId));
-      else load();
-    } catch {
-      load();
-    } finally {
-      setAnswering(null);
-    }
-  };
-
   // The games the listed teams play, for the filter.
   const teamGames = useMemo(
     () => [...new Set((teams ?? []).map((team) => team.game).filter((g): g is string => !!g))],
@@ -207,54 +153,11 @@ export default function TeamsDirectory() {
           sx={{ mb: 3 }}
         />
 
-        {playerSteamId && mine && mine.invites.length > 0 && (
-          <Box
-            component="section"
-            aria-label={t('teamsDirectory.invites.title')}
-            data-testid="teams-directory-invites"
-            sx={{ display: 'grid', gap: 1, mb: 2 }}
-          >
-            {mine.invites.map((invite) => (
-              <Panel
-                key={invite.teamId}
-                data-testid="teams-directory-invite"
-                sx={{
-                  p: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 2,
-                  flexWrap: 'wrap',
-                  borderColor: color.accent,
-                }}
-              >
-                <TeamTile team={invite} size={44} />
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography noWrap sx={{ fontWeight: 600 }}>
-                    {t('teamsDirectory.invites.line', { team: invite.name })}
-                  </Typography>
-                  {invite.invitedBy && (
-                    <Typography sx={{ fontSize: textSize.sm, color: color.muted }}>
-                      {t('teamsDirectory.invites.by', { name: invite.invitedBy })}
-                    </Typography>
-                  )}
-                </Box>
-                <Button
-                  variant="contained"
-                  disabled={answering === invite.teamId}
-                  onClick={() => void answerInvite(invite.teamId, true)}
-                  data-testid="teams-directory-invite-accept"
-                >
-                  {t('teamsDirectory.invites.accept')}
-                </Button>
-                <Button
-                  disabled={answering === invite.teamId}
-                  onClick={() => void answerInvite(invite.teamId, false)}
-                >
-                  {t('teamsDirectory.invites.decline')}
-                </Button>
-              </Panel>
-            ))}
-          </Box>
+        {playerSteamId && mine && (
+          <PendingTeamInvites
+            invites={mine.invites}
+            onAnswered={(_teamId, accepted) => !accepted && load()}
+          />
         )}
 
         {playerSteamId && mine && (

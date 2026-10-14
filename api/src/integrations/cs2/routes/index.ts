@@ -27,10 +27,12 @@ import playerProfileRoutes from './playerProfile';
 import demoAnalysisRoutes from './demoAnalysis';
 import demoImportRoutes from './demoImport';
 import matchPageRoutes from './matchPage';
+import leaderboardRoutes from './leaderboards';
 import radarRoutes from './radars';
 import highlightRoutes from './highlights';
 import teamProfileRoutes from './teamProfile';
 import roundBackupRoutes from './roundBackups';
+import manageMatchRoutes from './manageMatch';
 import { failoverMatchRouter, failoverSettingsRouter } from './failover';
 import testHelperRoutes from './testHelpers';
 import { fleetAdminRouter, fleetEnrollRouter } from '../fleet/routes';
@@ -44,7 +46,8 @@ export const cs2LegacyRoutes: LegacyRouteMount[] = [
     prefix: '/api/skins',
     router: skinsRoutes,
     title: 'Skins',
-    description: 'Virtual CS2 skins: inventories, loadouts, showcases and the admin inventory manager (platform only).',
+    description:
+      'Virtual CS2 skins: inventories, loadouts, showcases and the admin inventory manager (platform only).',
   },
   {
     prefix: '/api/servers',
@@ -127,7 +130,8 @@ export const cs2LegacyRoutes: LegacyRouteMount[] = [
     prefix: '/api/game/cs2',
     router: playerProfileRoutes,
     title: 'Player profile',
-    description: "A player's CS2 totals, everyone's totals to compare with, and their results per map.",
+    description:
+      "A player's CS2 totals, everyone's totals to compare with, and their results per map.",
   },
   {
     // The worker's routes take an API token (requireAuth on each); a map's
@@ -136,14 +140,15 @@ export const cs2LegacyRoutes: LegacyRouteMount[] = [
     router: demoAnalysisRoutes,
     title: 'Demo analysis',
     description:
-      'The worker container reads stored demos after the match: its job queue, and each map\'s rounds, kills and 2D replay.',
+      "The worker container reads stored demos after the match: its job queue, and each map's rounds, kills and 2D replay.",
   },
   {
     // Admin only (requireAuth on each).
     prefix: '/api/game/cs2',
     router: demoImportRoutes,
     title: 'Match import',
-    description: 'Import a match played elsewhere from its demos: teams, players and score come from the demos.',
+    description:
+      'Import a match played elsewhere from its demos: teams, players and score come from the demos.',
   },
   {
     // Public: what a finished match's page shows.
@@ -153,18 +158,27 @@ export const cs2LegacyRoutes: LegacyRouteMount[] = [
     description: "A finished match's scoreboard over its maps, and its highlight clips.",
   },
   {
+    // Public: the category leaderboards (rating, ADR, K/D, headshots…).
+    prefix: '/api/game/cs2',
+    router: leaderboardRoutes,
+    title: 'Leaderboards',
+    description: 'Players ranked by rating, ADR, K/D, headshots, opening duels, clutches and KAST.',
+  },
+  {
     // A player's clips are public; the recorder's routes take an API token.
     prefix: '/api/game/cs2',
     router: highlightRoutes,
     title: 'Highlights',
-    description: "Each player's best moments, picked from the demo analysis, and the clips the recorder makes of them.",
+    description:
+      "Each player's best moments, picked from the demo analysis, and the clips the recorder makes of them.",
   },
   {
     // Reading is public (the 2D replay); the worker's upload takes an API token.
     prefix: '/api/game/cs2',
     router: radarRoutes,
     title: 'Map radars',
-    description: "Map radar images and coordinates for the 2D replay, read from a CS2 install's own files by the worker.",
+    description:
+      "Map radar images and coordinates for the 2D replay, read from a CS2 install's own files by the worker.",
   },
   {
     // Public, like the player profile route above.
@@ -174,13 +188,21 @@ export const cs2LegacyRoutes: LegacyRouteMount[] = [
     description: "A team's CS2 results per map, and the maps it bans and picks most in the veto.",
   },
   {
+    // Admin only, per route: the admin match page's read and its Ready Up commands.
+    prefix: '/api/game/cs2',
+    router: manageMatchRoutes,
+    title: 'Manage a match',
+    description:
+      "The admin match page: a match's live state, server and event log, and the Ready Up commands it sends (logged with who sent them).",
+  },
+  {
     // Admin only, per route (requireAuth on each): the router shares its
     // prefix with the public match connect route above.
     prefix: '/api/game/cs2',
     router: roundBackupRoutes,
     title: 'Round backups',
     description:
-      "A CS2 match's round backups (Ready Up servers send them inline) and \"restore to round N\" over the fleet link or RCON, audited.",
+      'A CS2 match\'s round backups (Ready Up servers send them inline) and "restore to round N" over the fleet link or RCON, audited.',
   },
   {
     // Admin only, per route, like the round backups above.
@@ -224,7 +246,8 @@ export const cs2LegacyRoutes: LegacyRouteMount[] = [
     prefix: '/api/fleet',
     router: failoverSettingsRouter,
     title: 'Fleet failover settings',
-    description: 'Auto-failover (off by default): move a match off a dead Ready Up server without waiting for an admin.',
+    description:
+      'Auto-failover (off by default): move a match off a dead Ready Up server without waiting for an admin.',
   },
   {
     prefix: '/api/fleet',

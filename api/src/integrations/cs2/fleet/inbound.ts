@@ -33,6 +33,7 @@ import { recordCommandResult, type FleetCommandRecord } from './commands';
 import { saveMapStats } from './mapStats';
 import { toPlatformMapNumber } from './normalize';
 import { ingestFleetEvent } from './ingest';
+import { recordServerLog } from './serverLog';
 import {
   isFleetEventType,
   type Availability,
@@ -352,6 +353,17 @@ async function applyEvent(ctx: InboundContext, env: Envelope): Promise<void> {
     state: record?.state ?? null,
     ...(mapRounds ? { mapRounds } : {}),
   });
+  // The admin match page's server log (a repeat delivery is not a new line).
+  if (outcome.kind !== 'duplicate') {
+    await recordServerLog(
+      payload.match_id,
+      env.type,
+      payload.data as unknown as Record<string, unknown>,
+      record?.state ?? null,
+      payload.map_number,
+      (payload as { round?: number }).round
+    );
+  }
   if (env.type === 'event.map_result') {
     const data = payload.data as FleetEventData['map_result'];
     await saveMapStats(
@@ -454,6 +466,25 @@ export async function processInbound(
       await applyEvent(ctx, env);
       // Loadout changes made during the round go out now (push/skins.ts).
       if (env.type === 'event.round_end') void flushRoundLoadouts(ctx.serverId);
+      // A team gave up (.ff) or did not show: the admins hear of it.
+      if (env.type === 'event.forfeit' || env.type === 'event.gg') {
+        const p = env.payload as unknown as {
+          match_id: string;
+          data: { team: string; reason: string };
+        };
+        void import('../../../services/adminNoticeService').then(({ adminNoticeService }) =>
+          adminNoticeService.raise(
+            'match_forfeit',
+            {
+              matchSlug: p.match_id,
+              team: p.data?.team ?? null,
+              reason: p.data?.reason ?? null,
+              kind: env.type,
+            },
+            `match_forfeit:${p.match_id}`
+          )
+        );
+      }
       if (env.type === 'event.player_connect') {
         const p = env.payload as unknown as { match_id: string; data: { steamid64: string } };
         // Not awaited: a loadout never holds up the event stream.

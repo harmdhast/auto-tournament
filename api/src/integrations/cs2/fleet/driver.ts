@@ -1255,6 +1255,14 @@ async function onFleetEvent(notice: FleetEventNotice): Promise<void> {
     return;
   }
 
+  if (
+    env.type === 'event.pause' ||
+    env.type === 'event.player_connect' ||
+    env.type === 'event.player_disconnect'
+  ) {
+    // The players' join panel says who the pause waits for: it re-reads now.
+    emitMatchUpdate({ slug });
+  }
   if (env.type === 'event.match_restored') {
     // The live score goes back to the restored backup's (the round's start).
     // Without this it keeps the abandoned timeline's score until a later

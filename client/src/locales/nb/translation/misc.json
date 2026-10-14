@@ -173,6 +173,37 @@
       "matches_other": "{{count}} kamper spilt",
       "confirm": "Slå sammen kontoene",
       "failed": "Kunne ikke slå sammen kontoene"
+    },
+    "twoStep": {
+      "turnOn": "Slå på totrinns",
+      "turnOff": "Slå av totrinns",
+      "isOn": "Totrinnsbekreftelse på",
+      "isOff": "Totrinnsbekreftelse av",
+      "onTitle": "Slå på totrinnsbekreftelse",
+      "offTitle": "Slå av totrinnsbekreftelse",
+      "offWarning": "Uten den logger passordet alene inn på denne admin-kontoen.",
+      "password": "Passord",
+      "code": "Kode fra autentiseringsappen",
+      "codeNeeded": "Skriv inn koden fra autentiseringsappen.",
+      "failed": "Kunne ikke slå den av",
+      "cancel": "Avbryt",
+      "turnedOn": "Totrinnsbekreftelse er på",
+      "turnedOff": "Totrinnsbekreftelse er av"
+    },
+    "passkeys": {
+      "title": "Passnøkler",
+      "description": "Logg inn på admin-innloggingen med fingeravtrykk, ansikt eller PIN-koden på enheten i stedet for passord og kode.",
+      "add": "Legg til en passnøkkel",
+      "name": "Navn",
+      "nameHelp": "Et navn som skiller den fra andre, som «MacBook» eller «Telefon». Nettleseren spør etter fingeravtrykk, ansikt eller PIN etterpå.",
+      "continue": "Fortsett",
+      "added": "Passnøkkel lagt til",
+      "addFailed": "Kunne ikke legge til passnøkkelen",
+      "removed": "{{name}} fjernet",
+      "removeFailed": "Kunne ikke fjerne passnøkkelen",
+      "lastUsed": "Sist brukt {{date}}",
+      "addedOn": "Lagt til {{date}}, ikke brukt ennå",
+      "needsHttps": "Passnøkler krever at siden kjører på https (eller localhost). Be den som drifter den om å sette den bak https."
     }
   },
   "home": {
@@ -324,7 +355,7 @@
     },
     "actions": {
       "signUp": "Meld på",
-      "watch": "Se",
+      "watch": "Åpne",
       "results": "Resultater",
       "youreIn": "Du er med"
     },
@@ -474,6 +505,10 @@
         "idTaken": "«{{id}}» er allerede en innebygd modul",
         "render": "delen «{{slot}}» feilet under tegning: {{error}}"
       }
+    },
+    "signInNeed": {
+      "body": "{{game}}-spillere logger inn med {{provider}}, og innlogging med {{provider}} er slått av. De kan ikke koble til kontoen spillet trenger.",
+      "action": "Slå den på"
     }
   },
   "catalog": {
@@ -609,7 +644,7 @@
         "1v1": "Duell"
       },
       "lookingTitle": "Leter etter spillere",
-      "seats": "{{count}} av {{total}} i køen",
+      "seats": "{{count}} søker · {{total}} trengs for en kamp",
       "leaveQueue": "Forlat køen",
       "level": "Ditt nivå",
       "xp": "{{into}} / {{next}} XP",
@@ -637,7 +672,11 @@
         "5v5": "Active Duty",
         "2v2": "Wingman-kart",
         "1v1": "Active Duty"
-      }
+      },
+      "searchAnyone": "Få spillere søker: du blir satt opp mot hvem som helst ({{count}} søker, {{total}} trengs)",
+      "searchRating": "Finner en jevn kamp for ratingen din · {{count}} søker",
+      "botFill": "Fyll tomme plasser med boter",
+      "botFillUnrated": "Boter fyller tomme plasser · urangert: ingen rating, XP eller drops"
     },
     "queue": {
       "searching": "Søker {{mode}}",
@@ -769,6 +808,7 @@
       "draw": "Uavgjort"
     },
     "leaderboard": {
+      "toLadder": "Matchmaking-stigen →",
       "title": "Toppliste",
       "subtitle_one": "Spillere med {{count}} eller flere kamper de siste 30 dagene.",
       "subtitle_other": "Spillere med {{count}} eller flere kamper de siste 30 dagene.",
@@ -819,6 +859,9 @@
     "you": "Du",
     "adminBadge": "ADMIN",
     "callAdmin": "Tilkall en admin",
+    "adminCallOpen": "En admin er tilkalt her",
+    "callAdminConfirmTitle": "Tilkalle en admin?",
+    "callAdminConfirmBody": "En admin får et varsel og blir med i denne chatten. Tilkall bare når dere trenger hjelp med kampen.",
     "adminCalled": "En admin er tilkalt",
     "callFailed": "Kunne ikke tilkalle en admin",
     "sendFailed": "Kunne ikke sende meldingen",
@@ -834,6 +877,7 @@
     "system": {
       "vetoStarted": "Veto startet · {{team}} begynner",
       "vetoBan": "{{team}} bannet {{map}}",
+      "vetoReset": "En admin startet vetoen på nytt",
       "vetoPick": "{{team}} valgte {{map}}",
       "vetoSide": "{{team}} starter {{side}} på {{map}}",
       "vetoDone": "Veto ferdig · {{maps}}",
@@ -846,7 +890,9 @@
       "adminCalled": "{{name}} tilkalte en admin",
       "timedOut": "tiden gikk ut",
       "remindAccount": "{{name}}: logg inn med Steam én gang så du kan spille i {{tournament}}.",
-      "remindGame": "{{name}}: legg til spillet på profilen din (Spill du spiller) før innsjekk til {{tournament}}."
+      "remindGame": "{{name}}: legg til spillet på profilen din (Spill du spiller) før innsjekk til {{tournament}}.",
+      "serverDown": "Kampserveren krasjet. Vi henter den tilbake …",
+      "serverBack": "Kampen er tilbake: kart {{map}}, runde {{round}}. Koble til på nytt."
     },
     "party": {
       "inviteCopied": "Invitasjonslenke kopiert",
@@ -858,12 +904,36 @@
       "searching": "Søker etter kamp",
       "leaderQueues": "Lederen starter søket"
     },
-    "back": "Tilbake"
+    "back": "Tilbake",
+    "typing": {
+      "one": "{{name}} skriver…",
+      "two": "{{first}} og {{second}} skriver…",
+      "many": "{{count}} personer skriver…"
+    },
+    "emoji": {
+      "open": "Emoji",
+      "title": "Velg en emoji",
+      "search": "Søk etter emoji",
+      "none": "Fant ingen emoji",
+      "categories": {
+        "results": "Treff",
+        "recent": "Nylig brukt",
+        "smileys": "Smilefjes",
+        "gestures": "Hender",
+        "people": "Folk",
+        "animals": "Natur",
+        "food": "Mat og drikke",
+        "activity": "Spill og sport",
+        "travel": "Steder",
+        "objects": "Ting",
+        "symbols": "Symboler"
+      }
+    }
   },
   "search": {
     "open": "Søk",
-    "placeholder": "Søk etter spillere, lag, turneringer, kamper…",
-    "placeholderAdmin": "Søk etter spillere, lag, turneringer, kamper og innstillinger…",
+    "placeholder": "Søk i sider, spillere, lag, høydepunkter…",
+    "placeholderAdmin": "Søk i sider, innstillinger, spillere, lag, servere…",
     "hint": "Skriv minst to bokstaver. Ctrl K (⌘ K) eller / åpner søket fra hvor som helst.",
     "none": "Fant ingenting for «{{q}}».",
     "versus": "{{team1}} mot {{team2}}",
@@ -872,7 +942,11 @@
       "players": "Spillere",
       "teams": "Lag",
       "tournaments": "Turneringer",
-      "matches": "Kamper"
+      "matches": "Kamper",
+      "highlights": "Høydepunkter",
+      "maps": "Kart",
+      "servers": "Servere og maskiner",
+      "recorders": "Opptakere"
     },
     "status": {
       "setup": "Settes opp",
@@ -905,7 +979,10 @@
       "settingsLicense": "Lisens",
       "settingsMatchmaking": "Innstillinger: matchmaking",
       "settingsAdvanced": "Innstillinger: avansert"
-    }
+    },
+    "clips_one": "{{count}} klipp",
+    "clips_other": "{{count}} klipp",
+    "fieldLabel": "Søk"
   },
   "highlightsPage": {
     "title": "Høydepunkter",
@@ -1012,5 +1089,13 @@
     "openConsole": "Open the console ↗",
     "pasteKey": "Paste the new key",
     "replacedSoon": "A new key was made for this license in the console. Paste it in the license settings: this key stops on {{date}}."
+  },
+  "matchAdmin": {
+    "openChat": "Åpne chat",
+    "resetVeto": "Start vetoen på nytt",
+    "resetVetoTitle": "Starte vetoen på nytt?",
+    "resetVetoBody": "Alle bans, picks og sider så langt slettes, og lagene starter vetoen på nytt. Begge lag ser det i kampchatten.",
+    "vetoReset": "Vetoen starter på nytt",
+    "vetoResetFailed": "Kunne ikke starte vetoen på nytt"
   }
 }

@@ -26,6 +26,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { systemLineText } from './systemLine';
+import { api } from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import {
@@ -33,20 +34,27 @@ import {
   refreshMatchmaking,
   useMatchmaking,
 } from '../matchmaking/matchmakingStore';
-import { paths } from '../../paths';
+import { paths, playerProfilePath } from '../../paths';
+import { Link as RouterLink } from 'react-router-dom';
 import { fontDisplay, radii, textSize, tokens } from '../../theme/tokens';
 import {
   callAdmin,
   closeChat,
   dismissPeek,
   loadMessages,
+  notifyTyping,
   openChat,
+  refreshChannels,
   selectChat,
   sendMessage,
   useChat,
   type ChatChannel,
   type ChatMessage,
 } from './chatStore';
+import ConfirmDialog from '../modals/ConfirmDialog';
+import { EmojiPicker } from './EmojiPicker';
+import { insertAt } from './emojiData';
+import { typingLine, typistsNow } from './typing';
 
 const { color } = tokens;
 const PANEL_WIDTH = 400;
@@ -230,9 +238,26 @@ function MessageLine({
             flexWrap: 'wrap',
           }}
         >
-          <Box component="span" sx={{ fontWeight: 600, color: nameColor }}>
-            {message.senderName}
-          </Box>
+          {message.senderId && message.senderKind === 'player' ? (
+            // A player's name opens their profile.
+            <Box
+              component={RouterLink}
+              to={playerProfilePath(message.senderId)}
+              data-testid="chat-sender-link"
+              sx={{
+                fontWeight: 600,
+                color: nameColor,
+                textDecoration: 'none',
+                '&:hover, &:focus-visible': { textDecoration: 'underline' },
+              }}
+            >
+              {message.senderName}
+            </Box>
+          ) : (
+            <Box component="span" sx={{ fontWeight: 600, color: nameColor }}>
+              {message.senderName}
+            </Box>
+          )}
           {isAdmin && (
             <Box
               component="span"
@@ -375,12 +400,14 @@ function Panel({ phone, wide, lift = 0 }: { phone: boolean; wide: boolean; lift?
   const { t } = useTranslation();
   const { showError, showSuccess } = useSnackbar();
   const { playerSteamId, impersonation } = useAuth();
-  const { channels, threads, active } = useChat();
+  const { channels, threads, active, typing } = useChat();
   const channel = channels.find((c) => c.channel === active) ?? null;
+  const typingNow = typingLine(typistsNow(typing, active, Date.now()), t);
   const thread = active ? threads[active] : undefined;
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [calling, setCalling] = useState(false);
+  const [confirmCall, setConfirmCall] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -599,6 +626,7 @@ function Panel({ phone, wide, lift = 0 }: { phone: boolean; wide: boolean; lift?
             <Typography sx={{ fontSize: textSize.sm, color: color.muted }}>{subtitle}</Typography>
           )}
           {channel?.kind === 'party' && !readOnly && <PartyBar />}
+          {channel?.admin && channel.call && <AdminCallBar call={channel.call} />}
         </Box>
 
         <Box
@@ -699,6 +727,15 @@ function Panel({ phone, wide, lift = 0 }: { phone: boolean; wide: boolean; lift?
               gap: 1.25,
             }}
           >
+            {typingNow && (
+              <Typography
+                aria-live="polite"
+                data-testid="chat-typing"
+                sx={{ fontSize: '0.75rem', color: color.muted, mt: -0.5, minHeight: '1em' }}
+              >
+                {typingNow}
+              </Typography>
+            )}
             {readOnly ? (
               <Typography sx={{ fontSize: textSize.sm, color: color.muted }}>
                 {t('chat.readOnlyImpersonating')}
@@ -708,7 +745,10 @@ function Panel({ phone, wide, lift = 0 }: { phone: boolean; wide: boolean; lift?
                 <InputBase
                   inputRef={inputRef}
                   value={draft}
-                  onChange={(e) => setDraft(e.target.value.slice(0, MAX_BODY))}
+                  onChange={(e) => {
+                    setDraft(e.target.value.slice(0, MAX_BODY));
+                    if (active && e.target.value.trim()) notifyTyping(active);
+                  }}
                   placeholder={placeholder}
                   inputProps={{
                     'aria-label': placeholder,
@@ -727,6 +767,22 @@ function Panel({ phone, wide, lift = 0 }: { phone: boolean; wide: boolean; lift?
                     fontSize: textSize.md,
                     '&.Mui-focused': { borderColor: color.accent },
                   }}
+                />
+                <EmojiPicker
+                  disabled={sending}
+                  onPick={(char) => {
+                    const el = inputRef.current;
+                    const next = insertAt(
+                      draft,
+                      char,
+                      el?.selectionStart ?? null,
+                      el?.selectionEnd ?? null
+                    );
+                    if (next.value.length > MAX_BODY) return;
+                    setDraft(next.value);
+                    requestAnimationFrame(() => el?.setSelectionRange(next.caret, next.caret));
+                  }}
+                  onClose={() => requestAnimationFrame(() => inputRef.current?.focus())}
                 />
                 <IconButton
                   type="submit"
@@ -766,7 +822,7 @@ function Panel({ phone, wide, lift = 0 }: { phone: boolean; wide: boolean; lift?
             {channel.kind === 'match' && myTeam && !readOnly && (
               <Button
                 type="button"
-                onClick={call}
+                onClick={() => setConfirmCall(true)}
                 disabled={calling}
                 data-testid="chat-call-admin"
                 startIcon={<ShieldIcon size={14} />}
@@ -784,9 +840,82 @@ function Panel({ phone, wide, lift = 0 }: { phone: boolean; wide: boolean; lift?
                 {t('chat.callAdmin')}
               </Button>
             )}
+            {/* A misclick must not page the admins. */}
+            <ConfirmDialog
+              open={confirmCall}
+              title={t('chat.callAdminConfirmTitle')}
+              message={t('chat.callAdminConfirmBody')}
+              confirmLabel={t('chat.callAdmin')}
+              confirmColor="warning"
+              loading={calling}
+              onCancel={() => setConfirmCall(false)}
+              onConfirm={() => {
+                setConfirmCall(false);
+                void call();
+              }}
+            />
           </Box>
         )}
       </Box>
+    </Box>
+  );
+}
+
+/** An admin's match chat with an open call: who has it, and claim / release / resolve. */
+function AdminCallBar({
+  call,
+}: {
+  call: { id: number; claimedBy: string | null; claimedByName: string | null };
+}) {
+  const { t } = useTranslation();
+  const { playerSteamId } = useAuth();
+  const { showError } = useSnackbar();
+  const [busy, setBusy] = useState(false);
+  const mine = !!call.claimedBy && call.claimedBy === playerSteamId;
+  const run = async (path: string) => {
+    setBusy(true);
+    try {
+      await api.post(`/api/admin-calls/${call.id}/${path}`, {});
+      await refreshChannels();
+    } catch {
+      showError(t('adminCalls.resolveFailed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Box
+      data-testid="chat-admin-call"
+      sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', color: admin }}
+    >
+      <Typography sx={{ fontSize: textSize.sm, fontWeight: 600, color: admin, flex: 1 }}>
+        {call.claimedBy
+          ? mine
+            ? t('adminCalls.claimedByYou')
+            : t('adminCalls.claimedBy', { name: call.claimedByName || t('adminCalls.anAdmin') })
+          : t('chat.adminCallOpen')}
+      </Typography>
+      {(!call.claimedBy || mine) && (
+        <Button
+          size="small"
+          variant="outlined"
+          disabled={busy}
+          onClick={() => void run(mine ? 'release' : 'claim')}
+          data-testid={mine ? 'chat-admin-call-release' : 'chat-admin-call-claim'}
+        >
+          {mine ? t('adminCalls.release') : t('adminCalls.claim')}
+        </Button>
+      )}
+      <Button
+        size="small"
+        variant="contained"
+        color="error"
+        disabled={busy}
+        onClick={() => void run('resolve')}
+        data-testid="chat-admin-call-resolve"
+      >
+        {t('adminCalls.resolve')}
+      </Button>
     </Box>
   );
 }
@@ -947,7 +1076,8 @@ export function ChatDock() {
   }, [peek]);
 
   if (open) return <Panel phone={phone} wide={!phone} lift={me?.queue ? 56 : 0} />;
-  if (channels.length === 0) return null;
+  // Admins always get the launcher: a call or a match they open lands here.
+  if (channels.length === 0 && !isAdmin) return null;
 
   const peekChannel = peek ? channels.find((c) => c.channel === peek.channel) : null;
   const peekWhere = peekChannel

@@ -30,7 +30,7 @@ import { useServerAvailability } from './useServerAvailability';
  * it (client API 0.2.0): the console hands it only the tournament.
  */
 export const ServerGrid: React.FC<ManageResourcesProps> = () => {
-  const { availability, answers } = useServerAvailability(5000);
+  const { availability, answers } = useServerAvailability();
   const servers = availability?.servers ?? [];
   const matches = useServerMatches();
   return <ServerGridView servers={servers} matches={matches} answers={answers} />;

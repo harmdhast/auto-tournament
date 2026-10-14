@@ -55,18 +55,22 @@ test.describe.serial('Manage console', () => {
 
       const queue = page.getByTestId('manage-needs-you');
       await expect(queue).toBeVisible();
-      await expect(queue.getByText(`${team1.name} vs ${team2.name}`, { exact: false })).toBeVisible({
-        timeout: 15000,
-      });
+      await expect(queue.getByText(`${team1.name} vs ${team2.name}`, { exact: false })).toBeVisible(
+        {
+          timeout: 15000,
+        }
+      );
 
       await queue.getByRole('button', { name: /decide/i }).click();
 
-      // The existing decide/set-winner dialog (MatchDetailsModal) opens.
-      const winnerButton = page.getByRole('button', { name: `${team1.name} wins` });
+      // Decide opens the admin match page; setting the winner asks first and needs the match name typed.
+      await expect(page.getByTestId('manage-match-page')).toBeVisible({ timeout: 10000 });
+      const winnerButton = page.getByRole('button', { name: `${team1.name} wins` }).first();
       await expect(winnerButton).toBeVisible({ timeout: 10000 });
       await winnerButton.click();
 
-      await page.getByTestId('confirm-dialog-confirm-button').click();
+      await page.getByTestId('manage-confirm-type').fill(`${team1.name} vs ${team2.name}`);
+      await page.getByTestId('manage-confirm-action').click();
 
       await expect(page.getByText('Winner set')).toBeVisible({ timeout: 10000 });
     }

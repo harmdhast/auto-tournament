@@ -103,20 +103,20 @@ function useMatchConnect(
     socket.on(`match:update:${matchSlug}`, reload);
     // server_assigned, match_loaded and the like arrive as bracket updates.
     socket.on('bracket:update', reload);
+    // A failover moves the match to another server (or epoch): its address changes.
+    const onFailover = (data?: { matchSlug?: string }) => {
+      if (!data?.matchSlug || data.matchSlug === matchSlug) reload();
+    };
+    socket.on('fleet:failover', onFailover);
     const offReconnect = onSocketReconnect(socket, reload);
-    // A failover or a restarted server does not always come with an event here, and the page
-    // kept the old server / password until a reload (live test). Ask again every 20 s and when
-    // the tab comes back into view.
-    const poll = setInterval(() => {
-      if (document.visibilityState === 'visible') void load();
-    }, 20_000);
+    // And when the tab comes back into view (events missed while it slept).
     const onVisible = () => {
       if (document.visibilityState === 'visible') reload();
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       if (timer.current) clearTimeout(timer.current);
-      clearInterval(poll);
+      socket.off('fleet:failover', onFailover);
       document.removeEventListener('visibilitychange', onVisible);
       offReconnect();
       socket.off('match:update', onMatch);
@@ -235,6 +235,18 @@ export function MatchServerPanel({
                     defaultValue:
                       'The old server went down. Connect to the server below (it has a new password): the match continues from the last round backup.',
                   })}
+            </Typography>
+          </Alert>
+        )}
+        {server.pause && (
+          <Alert severity="info" data-testid="match-server-paused">
+            <Typography variant="body2" fontWeight={600}>
+              {server.pause.waitingFor.length > 0
+                ? t('matchInfo.server.pausedWaiting', {
+                    names: server.pause.waitingFor.join(', '),
+                    count: server.pause.waitingFor.length,
+                  })
+                : t('matchInfo.server.paused')}
             </Typography>
           </Alert>
         )}

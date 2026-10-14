@@ -30,13 +30,16 @@ import {
   type HighlightQuality,
 } from './highlightQuality';
 import { notificationService } from '../../../services/notificationService';
+import { emitHighlightsChanged } from '../../../services/socketService';
 import fs from 'fs';
 import path from 'path';
 import { DATA_DIR } from '../../../config/dataDir';
 import { db } from '../../../config/database';
+import { wakeRecorders } from './recorderLink';
 import { reelFailoverFilter } from './reelFailover';
 import { log } from '../../../utils/logger';
 import type { DemoAnalysisPayload } from './jobs';
+import { runRedressQueue } from './redressQueue';
 
 export const HIGHLIGHTS_DIR = path.join(DATA_DIR, 'highlights');
 
@@ -82,6 +85,20 @@ export interface Moment {
   title: string;
 }
 
+/** Per round, the last tick a clip of it may reach: the next round's start, else its end plus a tail. */
+export function roundStops(
+  rounds: ReadonlyArray<{ number: number; endTick: number; startTick?: number }>
+): Map<number, number> {
+  const byNumber = new Map(rounds.map((r) => [r.number, r]));
+  return new Map(
+    rounds.map((r) => {
+      const next = byNumber.get(r.number + 1)?.startTick;
+      const stop = typeof next === 'number' && next > r.endTick ? next : r.endTick + 5 * TICKRATE;
+      return [r.number, stop];
+    })
+  );
+}
+
 /**
  * Pick the best moments of a map (pure: tested on its own), up to
  * `perPlayer` for each player (the `highlights_per_player` setting).
@@ -95,7 +112,11 @@ export function pickMoments(
     .filter((k) => k.attacker && k.attackerSide && k.attackerSide !== k.victimSide)
     .sort((a, b) => a.tick - b.tick);
   const all = (analysis.kills as unknown as KillRow[]).slice().sort((a, b) => a.tick - b.tick);
-  const roundEnd = new Map(analysis.rounds.map((r) => [r.number, r.endTick]));
+  // How far a clip of a round may run: into the time after the round ends
+  // (the game keeps playing until the next round starts), so a round-ending
+  // kill still gets its tail and slow-mo. Capping at the round's end tick
+  // cut such clips off on the kill (clip 250, 2026-10-12).
+  const roundEnd = roundStops(analysis.rounds);
 
   // One player's kills in one round.
   const runs: KillRow[][] = [];
@@ -279,6 +300,9 @@ export async function saveMoments(
         ]
       );
     }
+    // Open match pages show them as being recorded; linked recorders start now.
+    emitHighlightsChanged(matchSlug);
+    wakeRecorders();
   } catch (error) {
     log.warn(`[HIGHLIGHTS] Could not save the moments of ${matchSlug} map ${mapNumber}`, {
       error: (error as Error).message,
@@ -296,6 +320,8 @@ export interface RecordMoment {
   endTick: number;
   slowmoTick: number;
   killTicks: number[];
+  /** false: record without TrueView (the review's "weapon missing" redo). */
+  trueView?: boolean;
 }
 
 /** One player's moments on one map: the recorder plays the demo once for them. */
@@ -338,6 +364,8 @@ export interface MomentRow {
   end_tick: number;
   slowmo_tick: number;
   kill_ticks: string;
+  /** 0: record without TrueView (an admin's "weapon missing"); 1 or absent: with. */
+  true_view?: number;
 }
 
 /**
@@ -417,7 +445,7 @@ export async function claimRecordJob(recorder: string): Promise<RecordJob | null
       WHERE id IN (SELECT id FROM cs2_highlights
                     WHERE match_slug = ? AND map_number = ? AND player_id = ? AND ${waiting}
                     FOR UPDATE SKIP LOCKED)
-      RETURNING id, match_slug, map_number, player_id, kind, title, round, score, start_tick, end_tick, slowmo_tick, kill_ticks`,
+      RETURNING id, match_slug, map_number, player_id, kind, title, round, score, start_tick, end_tick, slowmo_tick, kill_ticks, true_view`,
     [
       recorder.slice(0, 120),
       qualityLabel(await readHighlightQuality()),
@@ -537,7 +565,7 @@ export async function claimMapJob(
       WHERE id IN (SELECT id FROM cs2_highlights h
                     WHERE id IN (${ids.map(() => '?').join(', ')}) AND ${waiting}
                     FOR UPDATE SKIP LOCKED)
-      RETURNING id, match_slug, map_number, player_id, kind, title, round, score, start_tick, end_tick, slowmo_tick, kill_ticks`,
+      RETURNING id, match_slug, map_number, player_id, kind, title, round, score, start_tick, end_tick, slowmo_tick, kill_ticks, true_view`,
     [
       recorder.slice(0, 120),
       qualityLabel(quality),
@@ -681,6 +709,7 @@ export async function jobFor(
         endTick: Number(r.end_tick),
         slowmoTick: Number(r.slowmo_tick),
         killTicks: JSON.parse(r.kill_ticks) as number[],
+        ...(Number(r.true_view ?? 1) === 0 ? { trueView: false } : {}),
       }))
       .sort((a, b) => a.startTick - b.startTick),
     doneClips: done.map((d) => ({
@@ -703,6 +732,28 @@ export interface ClipMarkers {
   slowmo: [number, number] | null;
   /** The kills the crowd reacts to (seconds in, how impressive): the reel's crowd track. */
   reactions?: { t: number; score: number; aww?: boolean }[];
+  /**
+   * The clip itself starts this far into its clean twin (worker/standalone.go:
+   * on its own it skips the caption card's opening). The times above are the
+   * twin's, which reels are joined from; `markersOnItsOwn` shifts them.
+   */
+  start?: number;
+}
+
+/** A clip's markers as the clip itself plays (from `start` into its clean twin). */
+export function markersOnItsOwn(m: ClipMarkers | null): ClipMarkers | null {
+  if (!m || !m.start) return m;
+  const at = m.start;
+  const r = (n: number) => Math.round(n * 100) / 100;
+  const reactions = (m.reactions ?? [])
+    .filter((x) => x.t >= at)
+    .map((x) => ({ ...x, t: r(x.t - at) }));
+  return {
+    duration: r(Math.max(0, m.duration - at)),
+    kills: m.kills.filter((k) => k >= at).map((k) => r(k - at)),
+    slowmo: m.slowmo ? [r(Math.max(0, m.slowmo[0] - at)), r(Math.max(0, m.slowmo[1] - at))] : null,
+    ...(reactions.length ? { reactions } : {}),
+  };
 }
 
 /** The recorder's `X-AT-Markers` header, checked; null when absent or wrong. */
@@ -723,11 +774,13 @@ export function parseMarkers(raw: unknown): ClipMarkers | null {
           .slice(0, 30)
           .map((x) => ({ t: r(x.t), score: r(x.score), ...(x.aww === true ? { aww: true } : {}) }))
       : [];
+    const start = num(m.start) && m.start! < m.duration! ? r(m.start!) : 0;
     return {
       duration: r(m.duration!),
       kills: m.kills.slice(0, 30).map(r),
       slowmo: slowmo ? [r(slowmo[0]), r(slowmo[1])] : null,
       ...(reactions.length ? { reactions } : {}),
+      ...(start > 0 ? { start } : {}),
     };
   } catch {
     return null;
@@ -790,6 +843,11 @@ export async function saveClip(
   );
   await queueMatchReelFor([id]);
   await noticeHighlightReady(id);
+  const owner = await db.queryOneAsync<{ match_slug: string }>(
+    'SELECT match_slug FROM cs2_highlights WHERE id = ?',
+    [id]
+  );
+  if (owner) emitHighlightsChanged(owner.match_slug);
   return size;
 }
 
@@ -803,21 +861,86 @@ export async function renewClaims(recorder: string): Promise<number> {
   return renewRecordingLeases(recorder);
 }
 
-/** Tell the player their clip is ready (a player's own moment; reels belong to no one player). */
+/**
+ * Tell the player their clip is ready (a player's own moment; reels belong to
+ * no one player), and the players it shows with them: on a killfeed line of
+ * the clip's player inside the clip (killed by them, assisted them, killed
+ * them). Someone elsewhere on the map at the time is not in it.
+ */
 async function noticeHighlightReady(id: number): Promise<void> {
   const row = await db.queryOneAsync<{
     player_id: string;
     title: string;
     kind: string;
     match_slug: string;
-  }>('SELECT player_id, title, kind, match_slug FROM cs2_highlights WHERE id = ?', [id]);
-  if (!row || !/^\d{15,20}$/.test(row.player_id)) return;
-  await notificationService.notify(
-    row.player_id,
-    'highlight',
-    { highlightId: id, title: row.title, kind: row.kind, matchSlug: row.match_slug },
-    `highlight:${id}`
+    map_number: number;
+    start_tick: number;
+    end_tick: number;
+  }>(
+    'SELECT player_id, title, kind, match_slug, map_number, start_tick, end_tick FROM cs2_highlights WHERE id = ?',
+    [id]
   );
+  if (!row || !/^\d{15,20}$/.test(row.player_id)) return;
+  const data = {
+    highlightId: id,
+    title: row.title,
+    kind: row.kind,
+    matchSlug: row.match_slug,
+    // Where the notice opens (the clip's watch page) and its still.
+    url: `/watch/clip/${id}`,
+    video: `/api/game/cs2/highlights/${id}.mp4`,
+  };
+  await notificationService.notify(row.player_id, 'highlight', data, `highlight:${id}`);
+
+  const featured = await clipFeatures(row);
+  if (featured.size === 0) return;
+  const owner = await db.queryOneAsync<{ name: string | null }>(
+    'SELECT name FROM players WHERE id = ?',
+    [row.player_id]
+  );
+  for (const [playerId, role] of featured) {
+    await notificationService.notify(
+      playerId,
+      'highlight',
+      { ...data, role, by: row.player_id, byName: owner?.name ?? null },
+      `highlight:${id}`
+    );
+  }
+}
+
+/** Who else a clip shows, and how: the other names on its player's killfeed lines inside it. */
+async function clipFeatures(row: {
+  player_id: string;
+  match_slug: string;
+  map_number: number;
+  start_tick: number;
+  end_tick: number;
+}): Promise<Map<string, 'victim' | 'assist' | 'killer'>> {
+  const out = new Map<string, 'victim' | 'assist' | 'killer'>();
+  const job = await db.queryOneAsync<{ kills: string | null }>(
+    'SELECT kills FROM cs2_demo_jobs WHERE match_slug = ? AND map_number = ?',
+    [row.match_slug, row.map_number]
+  );
+  let kills: Array<KillRow & { assister?: string | null }> = [];
+  try {
+    kills = job?.kills ? JSON.parse(job.kills) : [];
+  } catch {
+    return out;
+  }
+  const add = (who: string | null | undefined, role: 'victim' | 'assist' | 'killer') => {
+    if (!who || who === row.player_id || !/^\d{15,20}$/.test(who) || out.has(who)) return;
+    out.set(who, role);
+  };
+  for (const k of kills) {
+    if (k.tick < row.start_tick || k.tick > row.end_tick) continue;
+    if (k.attacker === row.player_id) {
+      add(k.victim, 'victim');
+      add(k.assister, 'assist');
+    } else if (k.victim === row.player_id) {
+      add(k.attacker, 'killer');
+    }
+  }
+  return out;
 }
 
 /** The recorder could not record these moments: try again later, up to MAX_ATTEMPTS. */
@@ -829,6 +952,12 @@ export async function failRecordJob(ids: number[], error: string): Promise<void>
     [error.slice(0, 500), ...ids]
   );
   await queueMatchReelFor(ids);
+  // Open match pages count it as no longer being recorded.
+  const slugs = await db.queryAsync<{ match_slug: string }>(
+    `SELECT DISTINCT match_slug FROM cs2_highlights WHERE id IN (${ids.map(() => '?').join(', ')})`,
+    ids
+  );
+  for (const r of slugs) emitHighlightsChanged(r.match_slug);
 }
 
 /**
@@ -941,7 +1070,7 @@ export async function saveReel(
   // A crowd track from an earlier make of this reel would not match it.
   await removeTwins(file);
   // Made again after its clips were redressed (redress.ts): done.
-  await db.runAsync('DELETE FROM cs2_redress_queue WHERE file = ?', [path.basename(file)]);
+  await runRedressQueue('DELETE FROM cs2_redress_queue WHERE file = ?', [path.basename(file)]);
   const moments = await db.queryOneAsync<{ n: number | string }>(
     "SELECT COUNT(*) AS n FROM cs2_highlights WHERE match_slug = ? AND map_number = ? AND player_id = ? AND status = 'done'",
     [matchSlug, mapNumber, playerId]
@@ -979,7 +1108,12 @@ const MATCH_REEL_MIN_PLAYERS = 2;
  */
 export const SERIES_REEL = -1;
 
-/** A moment a reel could use: recorded, or still waiting to be (not failed, skipped or funny). */
+/**
+ * A moment a reel could use: recorded, still waiting to be, or failed (not
+ * skipped or funny). A failed one it would take holds the reel back until it is
+ * redone or dropped (Clips tab): a reel made without a match's best plays is
+ * wrong (2026-10-09: a series reel from map 3 alone, 75 clips of maps 0-2 failed).
+ */
 export interface ReelCandidate {
   id: number;
   playerId: string;
@@ -1036,7 +1170,7 @@ export function seriesReelReady(
   return reelReady(pickSeriesClips(candidates, max, perPlayer));
 }
 
-/** A match's moments a reel could use, and its maps (usable: one recorded or still waiting). */
+/** A match's moments a reel could use (failed ones too: they hold it), and its maps (usable: one recorded or still waiting). */
 async function reelCandidates(
   matchSlug: string
 ): Promise<{ candidates: ReelCandidate[]; maps: { mapNumber: number; usable: boolean }[] }> {
@@ -1059,7 +1193,7 @@ async function reelCandidates(
     const mapNumber = Number(r.map_number);
     const usable = ['done', 'pending', 'recording'].includes(r.status);
     maps.set(mapNumber, (maps.get(mapNumber) ?? false) || usable);
-    if (!usable || r.kind === 'funny') continue;
+    if ((!usable && r.status !== 'failed') || r.kind === 'funny') continue;
     candidates.push({
       id: Number(r.id),
       playerId: r.player_id,
@@ -1087,13 +1221,15 @@ export async function queueMatchReelFor(highlightIds: number[]): Promise<void> {
       highlightIds
     );
     const limits = await readReelLimits();
-    const queue = (slug: string, mapNumber: number) =>
-      db.runAsync(
+    const queue = async (slug: string, mapNumber: number) => {
+      await db.runAsync(
         `INSERT INTO cs2_match_reels (match_slug, map_number) VALUES (?, ?)
          ON CONFLICT (match_slug, map_number) DO UPDATE SET status = 'pending', attempts = 0, error = NULL
            WHERE cs2_match_reels.status IN ('failed', 'waiting')`,
         [slug, mapNumber]
       );
+      wakeRecorders();
+    };
     for (const slug of new Set(maps.map((m) => m.match_slug))) {
       const { candidates, maps: all } = await reelCandidates(slug);
       for (const m of maps.filter((x) => x.match_slug === slug)) {
@@ -1372,11 +1508,11 @@ export async function saveMatchReel(
   // A crowd track from an earlier make of this reel would not match it.
   await removeTwins(file);
   await db.runAsync(
-    `INSERT INTO cs2_match_reels (match_slug, map_number, status, clips, clip_path, clip_bytes, clip_ids, clip_starts)
-     VALUES (?, ?, 'done', ?, ?, ?, ?, ?)
+    `INSERT INTO cs2_match_reels (match_slug, map_number, status, clips, clip_path, clip_bytes, clip_ids, clip_starts, done_at)
+     VALUES (?, ?, 'done', ?, ?, ?, ?, ?, EXTRACT(EPOCH FROM NOW())::INTEGER)
      ON CONFLICT (match_slug, map_number) DO UPDATE SET status = 'done', error = NULL,
        clips = EXCLUDED.clips, clip_path = EXCLUDED.clip_path, clip_bytes = EXCLUDED.clip_bytes,
-       clip_ids = EXCLUDED.clip_ids, clip_starts = EXCLUDED.clip_starts`,
+       clip_ids = EXCLUDED.clip_ids, clip_starts = EXCLUDED.clip_starts, done_at = EXCLUDED.done_at`,
     [
       matchSlug,
       mapNumber,
@@ -1387,6 +1523,7 @@ export async function saveMatchReel(
       clipStarts ? JSON.stringify(clipStarts) : null,
     ]
   );
+  emitHighlightsChanged(matchSlug);
   return size;
 }
 

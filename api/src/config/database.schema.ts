@@ -319,6 +319,7 @@ export function getSchemaSQL(): string {
       last_sign_in_at INTEGER, -- Epoch of the player's last sign-in (Steam or SSO); NULL = never since this column exists. Admin-only, never in a public response
       last_seen_at INTEGER, -- Epoch the player last closed the site (their last socket left); shown to their friends only
       party_invites_from TEXT NOT NULL DEFAULT 'everyone', -- Who may invite them to a matchmaking party: 'everyone' | 'friends' | 'nobody'
+      notification_settings TEXT, -- JSON: per kind of notice, 'off' | 'bell' | 'sound' (services/notificationService); NULL = the defaults
       deleted_at INTEGER, -- Epoch an admin deleted the player: a tombstone named "Deleted player" that keeps their match rows; nothing else of theirs is left (services/playerModeration.ts)
       banned_at INTEGER, -- Epoch an admin banned the player: no sign-in, public pages show only their name and "Banned"
       ban_reason TEXT, -- Why, for admins only; never in a public response
@@ -778,7 +779,9 @@ export function getSchemaSQL(): string {
       received_at INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER,
       resolved_at INTEGER, -- NULL while open
       resolved_by TEXT, -- The admin's Steam ID, or token:<label> for an API token
-      resolution_note TEXT
+      resolution_note TEXT,
+      claimed_at INTEGER, -- An admin took it on (the others see who); NULL = nobody yet
+      claimed_by TEXT -- That admin's Steam ID, or token:<label>
     );
 
     CREATE INDEX IF NOT EXISTS idx_admin_calls_open ON admin_calls(received_at) WHERE resolved_at IS NULL;
@@ -877,6 +880,9 @@ export function getSchemaSQL(): string {
       -- OpenID Connect: the issuer and the login button's name.
       issuer_url TEXT,
       label TEXT,
+      -- OpenID Connect: the button's logo (a data: URL, PNG/JPEG/WebP/SVG) and colour (#rrggbb).
+      logo TEXT,
+      button_color TEXT,
       updated_at INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER,
       updated_by TEXT
     );
@@ -899,6 +905,20 @@ export function getSchemaSQL(): string {
       -- next sign-in (the first-sign-in setup, /login/welcome).
       must_change_password INTEGER NOT NULL DEFAULT 0
     );
+
+    -- Passkeys of local admin accounts (services/localAdminPasskeys.ts): a
+    -- passkey signs its account in instead of the password and TOTP.
+    CREATE TABLE IF NOT EXISTS local_admin_passkeys (
+      id TEXT PRIMARY KEY, -- the credential id, base64url
+      player_id TEXT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      public_key TEXT NOT NULL, -- base64url COSE key
+      counter BIGINT NOT NULL DEFAULT 0,
+      transports TEXT NOT NULL DEFAULT '[]', -- JSON array
+      name TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER,
+      last_used_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_local_admin_passkeys_player ON local_admin_passkeys(player_id);
 
     -- Sending email (services/emailService.ts): one row, set on Settings ->
     -- Email. The SMTP password is encrypted with utils/secretBox.
@@ -1029,6 +1049,32 @@ export function getSchemaSQL(): string {
 
     CREATE INDEX IF NOT EXISTS idx_notifications_player ON notifications(player_id, id);
 
+    -- The admins' bell (services/adminNoticeService.ts): what needs an admin
+    -- (a stuck match, a crashed server, a failing recorder). One feed for
+    -- every admin; a repeat of an open notice (same dedupe_key) counts up
+    -- instead of adding a row. resolved_at: it fixed itself or was dismissed.
+    CREATE TABLE IF NOT EXISTS admin_notices (
+      id SERIAL PRIMARY KEY,
+      kind TEXT NOT NULL,
+      severity TEXT NOT NULL DEFAULT 'warn', -- 'error' | 'warn' | 'info'
+      data TEXT NOT NULL DEFAULT '{}',
+      dedupe_key TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER,
+      updated_at INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER,
+      resolved_at INTEGER,
+      dismissed_at INTEGER -- an admin dismissed it: a sweep that still sees the problem stays quiet until it clears
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_notices_open ON admin_notices(dedupe_key) WHERE resolved_at IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_admin_notices_updated ON admin_notices(updated_at);
+
+    -- What each admin has seen of the admins' bell: everything up to last_seen_at.
+    CREATE TABLE IF NOT EXISTS admin_notice_reads (
+      admin_key TEXT PRIMARY KEY,
+      last_seen_at INTEGER NOT NULL
+    );
+
     -- Chat (services/chatService.ts): a match's both teams and the admins,
     -- a team, a matchmaking party. channel = 'match:<slug>', 'team:<id>',
     -- 'party:<id>'. No foreign keys: the history outlives what it was about.
@@ -1061,7 +1107,8 @@ export function getSchemaSQL(): string {
       mode TEXT NOT NULL,
       queued_at INTEGER NOT NULL,
       status TEXT NOT NULL DEFAULT 'searching', -- 'searching' | 'found'
-      lobby_id TEXT
+      lobby_id TEXT,
+      bot_fill BOOLEAN NOT NULL DEFAULT FALSE -- bots take the empty seats (2v2 / 5v5); unrated
     );
 
     CREATE TABLE IF NOT EXISTS mm_lobbies (
@@ -1074,6 +1121,7 @@ export function getSchemaSQL(): string {
       map TEXT,
       map_pool TEXT, -- JSON [{ id, name, imageUrl }]: the maps the roulette shows, the chosen one among them
       match_slug TEXT,
+      bot_fill BOOLEAN NOT NULL DEFAULT FALSE, -- a bot-filled game: unrated, no XP or drops
       created_at INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER
     );
 

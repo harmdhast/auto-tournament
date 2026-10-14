@@ -10,6 +10,8 @@ import {
   planScaling,
   scalerReserve,
   limitActions,
+  holdCreatesWhileLicenseFull,
+  LICENSE_FULL_BACKOFF_SECONDS,
   MAX_COMMANDS_PER_HOST,
   MAX_STARTS_PER_PASS,
   MAX_STOPS_PER_PASS,
@@ -420,6 +422,29 @@ test.describe('Autoscale: plan', () => {
     expect(p.actions).toEqual([expect.objectContaining({ kind: 'start', server: 'server-3' })]);
   });
 
+  test('a practice server is not capacity, and never started or stopped by the scaler', () => {
+    // A running practice server, idle long past the cool-down: left running.
+    const quiet = plan({
+      demand: demand(0),
+      servers: [warmIdle(1, 7200, { practice: true, idle: false }), warmIdle(2, 1200)],
+    });
+    expect(quiet.actions).toEqual([expect.objectContaining({ kind: 'stop', server: 'server-2' })]);
+    // A match waiting: the practice server does not count as warm, and a
+    // stopped one is not started for it.
+    const waiting = plan({
+      demand: demand(0, 1),
+      servers: [
+        warmIdle(1, 60, { practice: true, idle: false }),
+        server(2, { practice: true }),
+        server(3),
+      ],
+    });
+    expect(waiting).toMatchObject({ desired: 1, warm: 0 });
+    expect(waiting.actions).toEqual([
+      expect.objectContaining({ kind: 'start', server: 'server-3' }),
+    ]);
+  });
+
   test('stop after the cool-down: surplus idle servers, longest idle first', () => {
     const p = plan({
       demand: demand(0),
@@ -438,6 +463,19 @@ test.describe('Autoscale: plan', () => {
         servers: [warmIdle(1, 61)],
       }).actions
     ).toHaveLength(1);
+  });
+
+  test('a server whose match just ended stops at once when not needed; one warmed ahead waits', () => {
+    // Match over, demo uploaded, nothing waiting: stop it now (servers start in seconds).
+    const done = plan({ demand: demand(0), servers: [warmIdle(1, 5, { afterMatch: true })] });
+    expect(done.actions.map((a) => a.kind === 'stop' && a.server)).toEqual(['server-1']);
+    expect(done.actions[0].reason).toMatch(/^Match over, demo uploaded and not needed/);
+    // A server started ahead of a match keeps the cool-down.
+    expect(plan({ demand: demand(0), servers: [warmIdle(1, 5)] }).actions).toEqual([]);
+    // Still needed (the next match is waiting): it stays.
+    expect(
+      plan({ demand: demand(0, 1), servers: [warmIdle(1, 5, { afterMatch: true })] }).actions
+    ).toEqual([]);
   });
 
   test('never stops a busy, updating, failover, pending or not-idle server', () => {
@@ -555,5 +593,33 @@ test.describe('Autoscale: rate limit', () => {
     expect(limitActions(many, recent, NOW).allowed).toHaveLength(2);
     // Another machine is not held back.
     expect(limitActions([act('start', 'h2')], recent, NOW).allowed).toHaveLength(1);
+  });
+});
+
+test.describe('license full: creates wait', () => {
+  const acts = [
+    { kind: 'create', hostId: 'h1' },
+    { kind: 'start', hostId: 'h1' },
+    { kind: 'stop', hostId: 'h2' },
+  ];
+
+  test('no back-off: every action goes', () => {
+    expect(holdCreatesWhileLicenseFull(acts, 1000, 0)).toEqual({ actions: acts, held: false });
+  });
+
+  test('during the back-off a create is held, starts and stops go on', () => {
+    const until = 1000 + LICENSE_FULL_BACKOFF_SECONDS;
+    const r = holdCreatesWhileLicenseFull(acts, 1001, until);
+    expect(r.held).toBe(true);
+    expect(r.actions.map((a) => a.kind)).toEqual(['start', 'stop']);
+  });
+
+  test('nothing to hold: held is false', () => {
+    const r = holdCreatesWhileLicenseFull([{ kind: 'stop', hostId: 'h1' }], 1001, 5000);
+    expect(r).toEqual({ actions: [{ kind: 'stop', hostId: 'h1' }], held: false });
+  });
+
+  test('the back-off ends', () => {
+    expect(holdCreatesWhileLicenseFull(acts, 5000, 5000).held).toBe(false);
   });
 });

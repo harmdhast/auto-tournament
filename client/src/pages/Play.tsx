@@ -13,7 +13,9 @@ import {
   ButtonBase,
   CircularProgress,
   Container,
+  FormControlLabel,
   LinearProgress,
+  Switch,
   Typography,
 } from '@mui/material';
 import { PlayCircleIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
@@ -37,7 +39,7 @@ import { FriendsCard } from '../components/social/FriendsCard';
 import { answerPartyInvite, cancelPartyInvite } from '../components/social/socialStore';
 import { getMapData } from '../constants/maps';
 import { mapImageUrl } from '../constants/cs2Assets';
-import { paths, playLobbyPath } from '../paths';
+import { leaderboardsPath, paths, playLobbyPath } from '../paths';
 import { fontDisplay, fontMono, radii, textSize, tokens, withAlpha } from '../theme/tokens';
 
 const { color } = tokens;
@@ -199,7 +201,7 @@ function YouColumn({ playerId, rating }: { playerId: string; rating: { elo: numb
         })}
         <Box
           component={RouterLink}
-          to={paths.playLeaderboard}
+          to={leaderboardsPath('matchmaking')}
           data-testid="mm-leaderboard-link"
           sx={{ mt: 0.5, fontSize: textSize.md, color: color.ink2 }}
         >
@@ -258,6 +260,8 @@ export default function Play() {
   const [params, setParams] = useSearchParams();
   const [busy, setBusy] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
+  // Bots in the empty seats (2v2 / 5v5): an unrated game for a small group.
+  const [botFill, setBotFill] = useState(false);
   const [inviteAnchor, setInviteAnchor] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -336,6 +340,8 @@ export default function Play() {
   const invited = party?.invited ?? [];
   const invites = me?.invites ?? [];
   const notReady = me?.notReady ?? [];
+  // Your own missing game does not hold the search: searching adds it to your games.
+  const blocking = notReady.filter((p) => !(p.id === playerSteamId && p.missing === 'game'));
 
   const queueMode = me?.queue?.mode ?? mode;
   const waited =
@@ -481,8 +487,19 @@ export default function Play() {
                       );
                     })}
                   </Box>
-                  <Typography sx={{ fontSize: textSize.md, color: color.ink2 }}>
-                    {t('matchmaking.play.seats', { count: inQueue, total: need })}
+                  <Typography
+                    sx={{ fontSize: textSize.md, color: color.ink2 }}
+                    data-testid="mm-search-status"
+                  >
+                    {/* What the search is doing (services/matchmaking/rules.ts
+                        fewSearching): with fewer than two matches' worth
+                        searching, anyone is matched; otherwise by rating. */}
+                    {t(
+                      (counts[queueMode] ?? inQueue) < need * 2
+                        ? 'matchmaking.play.searchAnyone'
+                        : 'matchmaking.play.searchRating',
+                      { count: counts[queueMode] ?? inQueue, total: need }
+                    )}
                     {typeof me?.waitSeconds?.[queueMode] === 'number' && (
                       <Box
                         component="span"
@@ -496,6 +513,14 @@ export default function Play() {
                       </Box>
                     )}
                   </Typography>
+                  {me?.queue?.botFill && (
+                    <Typography
+                      sx={{ fontSize: textSize.sm, color: color.muted }}
+                      data-testid="mm-searching-bots"
+                    >
+                      {t('matchmaking.play.botFillUnrated')}
+                    </Typography>
+                  )}
                   {isLeader && (
                     <Button
                       variant="outlined"
@@ -825,7 +850,7 @@ export default function Play() {
                           {p.id === playerSteamId
                             ? t(
                                 p.missing === 'game'
-                                  ? 'social.setup.youGame'
+                                  ? 'social.setup.youGameAuto'
                                   : 'social.setup.youAccount'
                               )
                             : t(
@@ -836,7 +861,7 @@ export default function Play() {
                               )}
                         </Typography>
                       ))}
-                      {notReady.some((p) => p.id === playerSteamId) && (
+                      {blocking.some((p) => p.id === playerSteamId) && (
                         <Button
                           component={RouterLink}
                           to={paths.meConnections}
@@ -854,16 +879,46 @@ export default function Play() {
                       {t('matchmaking.play.cooldown', { minutes: Math.ceil(cooldown / 60) })}
                     </Typography>
                   )}
+                  {isLeader && (mode === '2v2' || mode === '5v5') && (
+                    <Box sx={{ mb: -1 }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={botFill}
+                            onChange={(e) => setBotFill(e.target.checked)}
+                            inputProps={{ 'aria-describedby': 'mm-bot-fill-help' }}
+                            data-testid="mm-bot-fill"
+                          />
+                        }
+                        label={t('matchmaking.play.botFill')}
+                      />
+                      <Typography
+                        id="mm-bot-fill-help"
+                        sx={{ fontSize: textSize.sm, color: color.muted, ml: 6 }}
+                      >
+                        {t('matchmaking.play.botFillUnrated')}
+                      </Typography>
+                    </Box>
+                  )}
                   <Button
                     variant="contained"
                     disabled={
                       busy ||
                       !isLeader ||
                       cooldown > 0 ||
-                      notReady.length > 0 ||
+                      blocking.length > 0 ||
                       me?.lobby?.status === 'accepting'
                     }
-                    onClick={() => void run(() => matchmakingAction('POST', '/queue', { mode }))}
+                    onClick={() =>
+                      void run(() =>
+                        matchmakingAction('POST', '/queue', {
+                          mode,
+                          ...(botFill && (mode === '2v2' || mode === '5v5')
+                            ? { botFill: true }
+                            : {}),
+                        })
+                      )
+                    }
                     data-testid="mm-find"
                     startIcon={<PlayCircleIcon size={26} />}
                     sx={{

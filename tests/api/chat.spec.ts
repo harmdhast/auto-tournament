@@ -229,6 +229,29 @@ test.describe.serial('Chat', () => {
     }
   );
 
+  test("typing reaches the channel's others, not the typist or outsiders", TAGS, async () => {
+    const channel = `team:${teamA}`;
+    const path = `/api/chat/${encodeURIComponent(channel)}/typing`;
+    const [mate, self, other] = await Promise.all([listen(a2.ctx), listen(a1.ctx), listen(b1.ctx)]);
+    const heard = { mate: [] as unknown[], self: [] as unknown[], other: [] as unknown[] };
+    mate.on('chat:typing', (e) => heard.mate.push(e));
+    self.on('chat:typing', (e) => heard.self.push(e));
+    other.on('chat:typing', (e) => heard.other.push(e));
+    try {
+      expect((await a1.ctx.post(path, { data: {} })).ok()).toBe(true);
+      await expect.poll(() => heard.mate.length).toBe(1);
+      expect(heard.mate[0]).toMatchObject({ channel, playerId: a1.id, name: expect.any(String) });
+      await new Promise((r) => setTimeout(r, 300));
+      expect(heard.self).toHaveLength(0);
+      expect(heard.other).toHaveLength(0);
+      expect((await outsider.ctx.post(path, { data: {} })).status()).toBe(403);
+    } finally {
+      mate.close();
+      self.close();
+      other.close();
+    }
+  });
+
   test('team chat stays in the team; empty, long and fast messages are refused', TAGS, async () => {
     const path = `/api/chat/${encodeURIComponent(`team:${teamA}`)}/messages`;
     expect((await a2.ctx.post(path, { data: { body: 'eco this round' } })).ok()).toBe(true);
@@ -276,6 +299,51 @@ test.describe.serial('Chat', () => {
       }>;
       expect(lines.at(-1)).toMatchObject({ senderKind: 'system' });
       expect(lines.at(-1)!.body).toContain('"key":"adminCalled"');
+    }
+  );
+
+  test(
+    'an admin call puts the match chat in the admins\u2019 dock, and one admin can claim it',
+    TAGS,
+    async ({ request }) => {
+      expect(await signInViaRequest(request)).toBe(true);
+      const channel = `match:${slug}`;
+      const channels = async () =>
+        ((await (await request.get('/api/chat/channels', { headers: getAuthHeader() })).json())
+          .channels ?? []) as Array<{
+          channel: string;
+          admin?: boolean;
+          call?: { id: number; claimedBy: string | null } | null;
+        }>;
+
+      const listed = (await channels()).find((c) => c.channel === channel);
+      expect(listed, 'the open call lists its match chat for admins').toMatchObject({
+        admin: true,
+      });
+      const callId = listed!.call!.id;
+      expect(listed!.call!.claimedBy).toBeNull();
+
+      const claim = await request.post(`/api/admin-calls/${callId}/claim`, {
+        headers: getAuthHeader(),
+      });
+      expect(claim.ok(), await claim.text()).toBe(true);
+      expect((await claim.json()).claimed).toBe(true);
+      // Claimed already: a second claim changes nothing.
+      const again = await request.post(`/api/admin-calls/${callId}/claim`, {
+        headers: getAuthHeader(),
+      });
+      expect((await again.json()).claimed).toBe(false);
+      expect((await channels()).find((c) => c.channel === channel)!.call!.claimedBy).not.toBeNull();
+
+      const release = await request.post(`/api/admin-calls/${callId}/release`, {
+        headers: getAuthHeader(),
+      });
+      expect((await release.json()).released).toBe(true);
+      expect((await channels()).find((c) => c.channel === channel)!.call!.claimedBy).toBeNull();
+
+      // Resolved: the chat leaves the dock of an admin who never opened it.
+      await request.post(`/api/admin-calls/${callId}/resolve`, { headers: getAuthHeader() });
+      expect((await channels()).find((c) => c.channel === channel)?.call ?? null).toBeNull();
     }
   );
 });

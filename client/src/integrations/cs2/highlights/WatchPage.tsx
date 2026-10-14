@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { Box, ButtonBase, CircularProgress, Container } from '@mui/material';
+import { HeartIcon } from '@phosphor-icons/react';
 import {
   api,
   fontDisplay,
   links,
   mono,
-  openMatchDetails,
   pageTitle,
   radii,
   textSize,
   tokens,
+  useAuth,
   useModuleTranslation,
 } from '../../../module-sdk';
 import { analysisPath } from '../demos/paths';
+import { Comments } from './Comments';
 import {
   clock,
   kindLabel,
@@ -101,6 +103,8 @@ interface Watchable {
   file: string;
   /** A reel's crowd track, played beside it. */
   crowd: string | null;
+  /** A clip's player, shown beside its title (the clip has no caption card). */
+  player?: { id: string; name: string; avatarUrl: string | null };
 }
 
 const pill = {
@@ -129,6 +133,24 @@ const pill = {
  * `/watch/clip/:id`, `/watch/reel/:match/:map/:player`,
  * `/watch/match/:match/:map`, `/watch/tournament/:id`.
  */
+/** This browser's own id for counting views without an account (kept in localStorage). */
+function browserId(): string | undefined {
+  try {
+    let id = localStorage.getItem('at.viewerId');
+    if (!id) {
+      // randomUUID needs a secure context (a LAN install may be plain http).
+      id =
+        typeof window.crypto?.randomUUID === 'function'
+          ? window.crypto.randomUUID()
+          : Array.from({ length: 4 }, () => Math.random().toString(36).slice(2, 10)).join('-');
+      localStorage.setItem('at.viewerId', id);
+    }
+    return id;
+  } catch {
+    return undefined;
+  }
+}
+
 export function WatchPage() {
   const params = useParams();
   const parts = (params['*'] ?? '').split('/').filter(Boolean).map(decodeURIComponent);
@@ -140,12 +162,57 @@ export function WatchPage() {
   const [time, setTime] = useState(0);
   const player = useRef<HighlightPlayerHandle>(null);
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
+  const { playerSteamId } = useAuth();
 
-  // Reels play music beside them (not part of the video; a download can mix one in).
+  // Its views and likes (the highlights library's counts).
+  const [statsOf, setStatsOf] = useState<{
+    key: string;
+    views: number;
+    likes: number;
+    liked: boolean;
+  } | null>(null);
+  const stats = statsOf?.key === key ? statsOf : null;
   useEffect(() => {
     let cancelled = false;
     api
-      .get<{ tracks: MusicTrack[] }>('/api/game/cs2/music')
+      .get<{ views: number; likes: number; liked: boolean }>(
+        `/api/game/cs2/watch/stats?video=${encodeURIComponent(key)}`
+      )
+      .then(
+        (r) => !cancelled && setStatsOf({ key, views: r.views, likes: r.likes, liked: r.liked })
+      )
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [key, playerSteamId]);
+  const viewed = useRef<string | null>(null);
+  const countView = () => {
+    if (viewed.current === key) return;
+    viewed.current = key;
+    void api
+      .post<{ counted: boolean }>('/api/game/cs2/watch/view', { video: key, browser: browserId() })
+      .then((r) => {
+        if (r.counted) setStatsOf((s) => (s && s.key === key ? { ...s, views: s.views + 1 } : s));
+      })
+      .catch(() => undefined);
+  };
+  const toggleLike = () => {
+    if (!stats) return;
+    void api
+      .put<{ views: number; likes: number; liked: boolean }>('/api/game/cs2/watch/like', {
+        video: key,
+        liked: !stats.liked,
+      })
+      .then((r) => setStatsOf({ key, views: r.views, likes: r.likes, liked: r.liked }))
+      .catch(() => undefined);
+  };
+
+  // Clips and reels play optional music beside the video; downloads can mix it in.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ tracks: MusicTrack[] }>('/api/highlights/music')
       .then((res) => !cancelled && setTracks(res.tracks))
       .catch(() => undefined);
     return () => {
@@ -182,6 +249,7 @@ export function WatchPage() {
             playerId: clip.playerId,
             file: `${clip.playerName}-${clip.kind}-${clip.id}.mp4`,
             crowd: null,
+            player: { id: clip.playerId, name: clip.playerName, avatarUrl: clip.avatarUrl },
           })
         )
         .catch(fail);
@@ -383,7 +451,11 @@ export function WatchPage() {
 
   if (failed === key) {
     return (
-      <Container maxWidth="lg" sx={{ py: 6, color: tokens.color.muted }}>
+      <Container
+        maxWidth="lg"
+        sx={{ py: 6, color: tokens.color.muted }}
+        data-testid="cs2-watch-missing"
+      >
         {t('highlights.watch.missing')}
       </Container>
     );
@@ -442,12 +514,14 @@ export function WatchPage() {
             downloadName={w.file}
             crowd={w.crowd}
             music={
-              w.chapters.length > 0 && tracks.length > 0
-                ? { tracks, introEnd: Math.max(0, w.chapters[0]?.at ?? 0) }
-                : null
+              tracks.length > 0 ? { tracks, introEnd: Math.max(0, w.chapters[0]?.at ?? 0) } : null
             }
             autoPlay
-            onTime={setTime}
+            onTime={(at) => {
+              setTime(at);
+              // Two seconds in, it counts as a view.
+              if (at >= 2) countView();
+            }}
           />
           <Box
             sx={{
@@ -458,29 +532,61 @@ export function WatchPage() {
               flexWrap: 'wrap',
             }}
           >
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
-              <Box
-                component="h1"
-                sx={{
-                  m: 0,
-                  fontFamily: fontDisplay,
-                  fontSize: { xs: '1.25rem', md: '1.375rem' },
-                  fontWeight: 600,
-                  overflowWrap: 'anywhere',
-                }}
-              >
-                {w.title}
-              </Box>
-              <Box sx={{ fontSize: textSize.sm, color: tokens.color.muted }}>{w.sub}</Box>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {w.match && (
-                <ButtonBase
-                  onClick={() => void openMatchDetails(w.match!.slug).catch(() => undefined)}
-                  sx={pill}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+              {w.player && (
+                <PlayerAvatar
+                  id={w.player.id}
+                  name={w.player.name}
+                  avatarUrl={w.player.avatarUrl}
+                  size={48}
+                />
+              )}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
+                <Box
+                  component="h1"
+                  sx={{
+                    m: 0,
+                    fontFamily: fontDisplay,
+                    fontSize: { xs: '1.25rem', md: '1.375rem' },
+                    fontWeight: 600,
+                    overflowWrap: 'anywhere',
+                  }}
                 >
+                  {w.title}
+                </Box>
+                <Box sx={{ fontSize: textSize.sm, color: tokens.color.muted }}>{w.sub}</Box>
+              </Box>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+              {stats && (
+                <Box
+                  component="span"
+                  sx={{ fontSize: textSize.sm, color: tokens.color.muted, mr: 0.5 }}
+                  data-testid="watch-views"
+                >
+                  {t('library.views', { count: stats.views })}
+                </Box>
+              )}
+              <ButtonBase
+                onClick={toggleLike}
+                disabled={!playerSteamId || !stats}
+                title={playerSteamId ? undefined : t('library.signInToLike')}
+                aria-pressed={stats?.liked ?? false}
+                sx={{ ...pill, gap: 0.75, '&.Mui-disabled': { opacity: 0.6 } }}
+                data-testid="watch-like"
+              >
+                <HeartIcon
+                  size={16}
+                  weight={stats?.liked ? 'fill' : 'regular'}
+                  color={stats?.liked ? tokens.color.accent : undefined}
+                  aria-hidden
+                />
+                {stats ? stats.likes : ''} {t(stats?.liked ? 'library.liked' : 'library.like')}
+              </ButtonBase>
+              {w.match && (
+                <Box component={RouterLink} to={links.match(w.match.slug)} sx={pill}>
                   {t('highlights.watch.openMatch')}
-                </ButtonBase>
+                </Box>
               )}
               {w.match && w.mapNumber !== null && (
                 <Box
@@ -664,6 +770,18 @@ export function WatchPage() {
             </Box>
           </Box>
         )}
+      </Box>
+
+      <Box sx={{ mt: 5, maxWidth: 820 }}>
+        <Comments
+          video={key}
+          duration={w.markers?.duration ?? null}
+          onSeek={(at) => {
+            player.current?.seek(at);
+            player.current?.play();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       </Box>
 
       {rel && (rel.players.length > 0 || rel.reels.length > 0) && (

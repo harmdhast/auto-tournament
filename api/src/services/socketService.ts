@@ -1,11 +1,15 @@
 import { Server as SocketIOServer, type Socket } from 'socket.io';
 import type { Server as HTTPServer, IncomingMessage, ServerResponse } from 'http';
 import type { Request } from 'express';
-import { log } from '../utils/logger';
+import { log, onLogEntry } from '../utils/logger';
 import { getRealViewerSteamId } from '../utils/viewerIdentity';
 import { checkAdminAccess } from '../middleware/auth';
 import { matchChanged } from '../core/matchChangeBus';
-import type { AdminCall, AdminCallResolvedEvent } from '../types/adminCall.types';
+import type {
+  AdminCall,
+  AdminCallClaimedEvent,
+  AdminCallResolvedEvent,
+} from '../types/adminCall.types';
 import type {
   TournamentUpdateEvent,
   BracketUpdateEvent,
@@ -91,7 +95,10 @@ async function joinAdminRoom(socket: Socket, ack?: unknown): Promise<void> {
   }
 }
 
-export function initializeSocket(httpServer: HTTPServer, options: SocketOptions = {}): SocketIOServer {
+export function initializeSocket(
+  httpServer: HTTPServer,
+  options: SocketOptions = {}
+): SocketIOServer {
   io = new SocketIOServer(httpServer, {
     cors: {
       origin: process.env.CORS_ORIGIN || '*',
@@ -102,11 +109,17 @@ export function initializeSocket(httpServer: HTTPServer, options: SocketOptions 
   // Session and Passport on the handshake only (not on every polling
   // request of the same connection), as Socket.IO's docs recommend.
   for (const middleware of options.handshakeMiddleware ?? []) {
-    io.engine.use((req: IncomingMessage & { _query?: { sid?: string } }, res: ServerResponse, next: (err?: unknown) => void) => {
-      const isHandshake = req._query?.sid === undefined;
-      if (isHandshake) middleware(req, res, next);
-      else next();
-    });
+    io.engine.use(
+      (
+        req: IncomingMessage & { _query?: { sid?: string } },
+        res: ServerResponse,
+        next: (err?: unknown) => void
+      ) => {
+        const isHandshake = req._query?.sid === undefined;
+        if (isHandshake) middleware(req, res, next);
+        else next();
+      }
+    );
   }
 
   io.on('connection', (socket) => {
@@ -159,7 +172,8 @@ export function initializeSocket(httpServer: HTTPServer, options: SocketOptions 
     socket.on('disconnecting', () => {
       for (const room of socket.rooms) {
         if (!room.startsWith('player:')) continue;
-        if ((io?.sockets.adapter.rooms.get(room)?.size ?? 0) <= 1) presenceListener?.(room.slice('player:'.length), false);
+        if ((io?.sockets.adapter.rooms.get(room)?.size ?? 0) <= 1)
+          presenceListener?.(room.slice('player:'.length), false);
       }
     });
 
@@ -168,8 +182,44 @@ export function initializeSocket(httpServer: HTTPServer, options: SocketOptions 
     });
   });
 
+  // The admin log viewer follows the log (the `logs` topic, coalesced).
+  onLogEntry(() => emitTopic('logs', { admin: true }));
+
   log.success('Socket.io initialized');
   return io;
+}
+
+/**
+ * Page data changed: every page showing `topic` re-reads it (client
+ * hooks/useTopic.ts), instead of polling. `admin` topics go to the admins'
+ * room only. Coalesced per topic: a burst of changes is one `topic` event
+ * 250 ms after the first.
+ *
+ * Topics: `fleet` (servers, machines, autoscale, failover, pushes, server
+ * availability; admin), `matchmaking` (the admin queue; admin), `steam-health`
+ * (admin), `highlights-admin` (clean copies and redraws; admin),
+ * `logs` (the log viewer; admin), `demo-analysis` (imports; admin).
+ */
+const TOPIC_COALESCE_MS = 250;
+const pendingTopics = new Map<string, NodeJS.Timeout>();
+
+export function emitTopic(topic: string, options: { admin?: boolean } = {}): void {
+  const key = `${options.admin ? 'admin' : 'all'}:${topic}`;
+  if (pendingTopics.has(key)) return;
+  pendingTopics.set(
+    key,
+    setTimeout(() => {
+      pendingTopics.delete(key);
+      if (!io) return;
+      if (options.admin) io.to(ADMIN_ROOM).emit('topic', { topic });
+      else io.emit('topic', { topic });
+    }, TOPIC_COALESCE_MS)
+  );
+}
+
+/** The socket server, or null before it is up (for emitters that may run early, or in scripts). */
+export function maybeIO(): SocketIOServer | null {
+  return io ?? null;
 }
 
 export function getIO(): SocketIOServer {
@@ -185,7 +235,9 @@ export function getIO(): SocketIOServer {
 export function emitTournamentUpdate(tournament: TournamentUpdateEvent): void {
   // A tournament changed status (created, started, finished, ...): which one
   // is featured may have changed with it.
-  void import('./currentTournament').then((m) => m.refreshCurrentTournamentId()).catch(() => undefined);
+  void import('./currentTournament')
+    .then((m) => m.refreshCurrentTournamentId())
+    .catch(() => undefined);
   if (io) {
     io.emit('tournament:update', tournament);
     log.debug('Emitted tournament update', { tournamentId: tournament.id });
@@ -258,6 +310,18 @@ export function emitMatchEvent(matchSlug: string, event: MatchEventData['event']
 }
 
 /**
+ * A match's highlights changed (a clip or a reel finished, or one was
+ * dropped): its public page fetches them again. Only the slug goes out;
+ * what changed is read through the usual public routes.
+ */
+export function emitHighlightsChanged(matchSlug: string): void {
+  if (io) {
+    io.emit(`highlights:update:${matchSlug}`, { matchSlug });
+    log.debug('Emitted highlights update', { matchSlug });
+  }
+}
+
+/**
  * Emit server status update
  */
 export function emitServerStatus(serverId: string, status: 'online' | 'offline'): void {
@@ -313,6 +377,16 @@ export function onlinePlayerCount(): number {
     if (room.startsWith('player:') && sockets.size > 0) n += 1;
   }
   return n;
+}
+
+/** The players with the site open right now (their `player:<id>` rooms have a socket). */
+export function onlinePlayerIds(): string[] {
+  if (!io) return [];
+  const ids: string[] = [];
+  for (const [room, sockets] of io.sockets.adapter.rooms) {
+    if (room.startsWith('player:') && sockets.size > 0) ids.push(room.slice('player:'.length));
+  }
+  return ids;
 }
 
 /** Whether the player has the site open in at least one tab. */
@@ -378,7 +452,25 @@ export function emitFleetHostChanged(hostId: string): void {
   if (io) io.to(ADMIN_ROOM).emit('fleet:host', { hostId });
 }
 
+/** A notice for the admins' bell (services/adminNoticeService.ts), to the signed-in admins. */
+export function emitAdminNotice(notice: unknown, sound: boolean): void {
+  if (io) io.to(ADMIN_ROOM).emit('admin:notice', { notice, sound });
+}
+
+/** Admins' bell notices that are closed now (fixed themselves or dismissed). */
+export function emitAdminNoticesResolved(ids: number[]): void {
+  if (io && ids.length) io.to(ADMIN_ROOM).emit('admin:notice:resolved', { ids });
+}
+
 /** Admin calls resolved, to the signed-in admins (room `admins`). */
+/** A call was claimed or released, to the signed-in admins (the others see who has it). */
+export function emitAdminCallClaimed(payload: AdminCallClaimedEvent): void {
+  if (io) {
+    io.to(ADMIN_ROOM).emit('admin:call:claimed', payload);
+    log.debug('Emitted admin call claimed', { id: payload.id });
+  }
+}
+
 export function emitAdminCallResolved(payload: AdminCallResolvedEvent): void {
   if (io) {
     io.to(ADMIN_ROOM).emit('admin:call:resolved', payload);
@@ -387,11 +479,25 @@ export function emitAdminCallResolved(payload: AdminCallResolvedEvent): void {
 }
 
 /** A chat message, to the players in its channel (rooms `player:<id>`) and, for a match, the admins. */
-export function emitChatMessage(playerIds: Iterable<string>, toAdmins: boolean, message: unknown): void {
+export function emitChatMessage(
+  playerIds: Iterable<string>,
+  toAdmins: boolean,
+  message: unknown
+): void {
   if (!io) return;
   const rooms = [...new Set(playerIds)].map(playerRoom);
   if (toAdmins) rooms.push(ADMIN_ROOM);
   if (rooms.length > 0) io.to(rooms).emit('chat:message', message);
+}
+
+/** Someone is typing in a chat channel, to its other players (not the admins' room). */
+export function emitChatTyping(
+  playerIds: Iterable<string>,
+  typing: { channel: string; playerId: string; name: string }
+): void {
+  if (!io) return;
+  const rooms = [...new Set(playerIds)].map(playerRoom);
+  if (rooms.length > 0) io.to(rooms).emit('chat:typing', typing);
 }
 
 /**

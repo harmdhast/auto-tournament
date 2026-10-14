@@ -46,6 +46,11 @@ const ALLOWED = new Set([
   'OFL-1.1',
   'WTFPL',
   'Artistic-2.0',
+  // File-level copyleft: unmodified MPL files may ship inside a product under
+  // other terms (MPL 2.0 §3.3, a Larger Work) as long as recipients are told
+  // where their source is; the notice below names each package's repository.
+  // Only unmodified packages (satori and resvg-wasm for the share cards).
+  'MPL-2.0',
 ]);
 
 const LICENSE_FILES = /^(licen[cs]e|copying|notice)(\.(md|txt|markdown|mit|bsd))?$/i;

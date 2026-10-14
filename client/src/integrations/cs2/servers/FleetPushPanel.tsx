@@ -37,8 +37,7 @@ import type {
   PluginSetValue,
   PluginsState,
 } from './fleetPush.types';
-
-const POLL_MS = 10_000;
+import { useTopic } from '../../../module-sdk';
 
 type Dialogs = { kind: 'defaults' } | { kind: 'extras' } | { kind: 'defaultPlugins' } | null;
 
@@ -74,7 +73,7 @@ export function initialPluginSet(
       (p) =>
         catalog.required.includes(p) || (state.installed.includes(p) && !state.disabled.includes(p))
     );
-    const preset = (['tournament', 'practice', 'fun'] as const).find(
+    const preset = (['tournament', 'practice', 'fun', 'tryout'] as const).find(
       (x) =>
         catalog.presets[x].length === on.length && catalog.presets[x].every((p) => on.includes(p))
     );
@@ -109,9 +108,9 @@ export default function FleetPushPanel() {
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => void load(), POLL_MS);
-    return () => clearInterval(timer);
   }, [load]);
+  // Re-read when the fleet changes (the `fleet` topic), not on a timer.
+  useTopic('fleet', load, { admin: true });
 
   const run = async (what: string, fn: () => Promise<void>) => {
     setBusy(true);

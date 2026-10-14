@@ -22,6 +22,7 @@ import { getMapData } from '../constants/maps';
 import { mapImageUrl } from '../constants/cs2Assets';
 import { paths, playerProfilePath } from '../paths';
 import { fontDisplay, radii, textSize, tokens } from '../theme/tokens';
+import { useTopic } from '../hooks/useTopic';
 
 const { color } = tokens;
 
@@ -74,12 +75,11 @@ export default function PlayLobby() {
   useEffect(() => {
     document.title = pageTitle(t('matchmaking.room.title'));
     const first = setTimeout(() => void load(), 0);
-    const id = setInterval(() => void load(), 5000);
-    return () => {
-      clearTimeout(first);
-      clearInterval(id);
-    };
+    return () => clearTimeout(first);
   }, [load, t]);
+  // Accepts, the match being made and its progress: the player's own
+  // matchmaking event and the match's updates.
+  useTopic([], load, { player: true, events: ['mm:changed', 'match:update'] });
 
   const onRolled = useCallback(() => setRolled(true), []);
 

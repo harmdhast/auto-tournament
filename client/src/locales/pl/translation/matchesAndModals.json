@@ -80,6 +80,52 @@
       "lower": "LB R{{round}} M{{match}}",
       "grandFinal": "Grand Final",
       "grandFinalReset": "Grand Final Reset"
+    },
+    "table": {
+      "filterLabel": "Show",
+      "search": "Find a team or player",
+      "tbd": "TBD",
+      "manage": "Manage match",
+      "empty": "No matches here.",
+      "filter": {
+        "attention_one": "Needs attention · {{count}}",
+        "attention_other": "Needs attention · {{count}}",
+        "live_one": "Live · {{count}}",
+        "live_other": "Live · {{count}}",
+        "veto_one": "Veto · {{count}}",
+        "veto_other": "Veto · {{count}}",
+        "waiting_one": "Waiting · {{count}}",
+        "waiting_other": "Waiting · {{count}}",
+        "finished_one": "Finished · {{count}}",
+        "finished_other": "Finished · {{count}}",
+        "all_one": "All · {{count}}",
+        "all_other": "All · {{count}}"
+      },
+      "columns": {
+        "match": "Match",
+        "teams": "Teams",
+        "phase": "Phase",
+        "server": "Server",
+        "attention": "Needs attention",
+        "open": "Open"
+      },
+      "attention": {
+        "calls_one": "Admin call",
+        "calls_other": "{{count}} admin calls",
+        "decide": "Decide the result"
+      },
+      "phase": {
+        "live": "Live · map {{map}}",
+        "finished": "Finished",
+        "finishedScore": "Finished · {{score}}",
+        "veto": "Map veto",
+        "waitingTeams": "Waiting for its teams",
+        "queued": "Waiting for a server · #{{position}} in queue",
+        "waiting": "Waiting"
+      },
+      "server": {
+        "freed": "Freed"
+      }
     }
   },
   "matchDetailsModal": {
@@ -213,7 +259,7 @@
     "playersHeader": "Gracze ({{count}})",
     "selectPlayers": "Wybierz graczy",
     "noPlayersInfo": "Nie dodano jeszcze graczy. Dodaj co najmniej jednego gracza.",
-    "addPlayersHelper": "Dodaj graczy, wklejając URL Steam lub wybierając z istniejących graczy",
+    "addPlayersHelper_steam": "Dodaj graczy, wklejając URL Steam lub wybierając z istniejących graczy",
     "steamInputLabel": "Steam ID / vanity URL",
     "steamInputPlaceholder": "gaben or steamcommunity.com/id/gaben",
     "resolveSteam": "Rozwiąż Steam ID",
@@ -235,7 +281,9 @@
       "deleteFailed": "Nie udało się usunąć drużyny",
       "discordIdInvalid": "ID Discord musi mieć 17–20 cyfr (numeryczne ID użytkownika, nie nazwa użytkownika)",
       "discordIdInvalidPlayers": "Nieprawidłowe ID Discord dla: {{names}}. Musi mieć 17–20 cyfr lub pozostać puste.",
-      "discordIdSaveFailed": "Drużyna została zapisana, ale nie udało się zapisać ID Discord dla: {{names}}. {{message}}"
+      "discordIdSaveFailed": "Drużyna została zapisana, ale nie udało się zapisać ID Discord dla: {{names}}. {{message}}",
+      "nameRequired": "Enter the player's name",
+      "addPlayerFailed": "Could not add the player"
     },
     "success": {
       "playerAdded": "Gracz dodany do drużyny",
@@ -256,7 +304,10 @@
       "message": "Czy na pewno chcesz usunąć \"{{name}}\"? Tej akcji nie można cofnąć."
     },
     "replacePlayerAria": "Zamień gracza {{name}}",
-    "replacePlayerTooltip": "Zamień tego gracza"
+    "replacePlayerTooltip": "Zamień tego gracza",
+    "addPlayersHelper": "Add a new player below, or select from existing players",
+    "accountLabel": "{{account}} account (optional)",
+    "accountHelper": "For {{games}}. When they sign in with {{account}}, they become this player."
   },
   "playerModal": {
     "titleCreate": "Utwórz gracza",
@@ -303,7 +354,10 @@
       "title": "Zaktualizuj ELO gracza",
       "message": "Czy na pewno chcesz zaktualizować ELO tego gracza z {{from}} do {{to}}? Spowoduje to reset statystyk oraz historii ratingu. Tej akcji nie można cofnąć."
     },
-    "discordIdHelper": "Opcjonalnie. 17–20 cyfr. Pozwala organizatorom skontaktować się z tym graczem na Discordzie. Nigdy nie jest wyświetlane publicznie."
+    "discordIdHelper": "Opcjonalnie. 17–20 cyfr. Pozwala organizatorom skontaktować się z tym graczem na Discordzie. Nigdy nie jest wyświetlane publicznie.",
+    "accountLabel": "{{account}} account (optional)",
+    "accountHelper": "For {{games}}. The account id; when they sign in with {{account}}, they become this player.",
+    "accountVerified": "Linked: they signed in with {{account}}. They change it themselves."
   },
   "teamImportModal": {
     "title": "Importuj drużyny z JSON",
@@ -389,7 +443,7 @@
   "playerSelectionModal": {
     "title": "Wybierz graczy",
     "selectedCount": "{{count}} wybrano",
-    "searchPlaceholder": "Szukaj graczy po nazwie lub Steam ID...",
+    "searchPlaceholder_steam": "Szukaj graczy po nazwie lub Steam ID...",
     "selectAll": {
       "select": "Zaznacz wszystkie",
       "deselect": "Odznacz wszystkie"
@@ -408,7 +462,8 @@
     "addPlayersButton_one": "Dodaj {{count}} gracza",
     "addPlayersButton_few": "Dodaj {{count}} graczy",
     "addPlayersButton_many": "Dodaj {{count}} graczy",
-    "addPlayersButton_other": "Dodaj {{count}} graczy"
+    "addPlayersButton_other": "Dodaj {{count}} graczy",
+    "searchPlaceholder": "Search players by name..."
   },
   "soundSettingsModal": {
     "title": "Ustawienia dźwięku",

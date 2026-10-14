@@ -17,6 +17,8 @@ import {
 } from '../../../module-sdk';
 import { getMapDisplayName } from '../maps/mapData';
 import { ReplayViewer } from './ReplayViewer';
+import { MatchReelButton } from './MatchReelButton';
+import { MatchClipGrid, type MatchClip } from '../highlights/MatchClipGrid';
 
 const { color } = tokens;
 
@@ -120,6 +122,22 @@ export function DemoAnalysisPage() {
   const [data, setData] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState(startRound ?? 1);
+  // This map's highlight clips (the match's, filtered).
+  const [clips, setClips] = useState<MatchClip[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ clips: MatchClip[] }>(
+        `/api/game/cs2/matches/${encodeURIComponent(matchSlug)}/highlights`
+      )
+      .then((res) => {
+        if (!cancelled) setClips(res.clips.filter((c) => c.mapNumber === Number(mapNumber)));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [matchSlug, mapNumber]);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,8 +160,12 @@ export function DemoAnalysisPage() {
   }, [mapName, t]);
 
   const players = useMemo(() => new Map((data?.players ?? []).map((p) => [p.id, p])), [data]);
+  // A bot that died in a bot-filled match is "bot:<name>" (worker/analyze.go).
   const nameOf = (id: string | null) =>
-    id ? (players.get(id)?.name ?? `…${id.slice(-4)}`) : t('analysis.world');
+    id
+      ? (players.get(id)?.name ??
+        (id.startsWith('bot:') ? `BOT ${id.slice(4)}` : `…${id.slice(-4)}`))
+      : t('analysis.world');
 
   // Which side each team played each round: the side its players were on in
   // that round's kills; a round without them keeps the last known, switched
@@ -289,6 +311,27 @@ export function DemoAnalysisPage() {
           startRound={startRound}
         />
       </Box>
+
+      {/* The map's highlight clips, and its match reel. */}
+      {clips.length > 0 && (
+        <Box component="section" aria-labelledby="analysis-highlights" sx={{ mb: 5 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+              flexWrap: 'wrap',
+            }}
+          >
+            <SectionHead id="analysis-highlights" title={t('analysis.highlights')} />
+            <MatchReelButton matchSlug={matchSlug} mapNumber={Number(mapNumber)} />
+          </Box>
+          <Box data-testid="demo-analysis-highlights">
+            <MatchClipGrid clips={clips} />
+          </Box>
+        </Box>
+      )}
 
       {/* The rounds: who won each, and each side's buy. */}
       <Box component="section" aria-labelledby="analysis-rounds">

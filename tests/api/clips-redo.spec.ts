@@ -1,5 +1,11 @@
-import { test, expect, type APIRequestContext } from '@playwright/test';
-import { signInViaRequest } from '../helpers/auth';
+import {
+  test,
+  expect,
+  request as playwrightRequest,
+  type APIRequestContext,
+} from '@playwright/test';
+import { io } from 'socket.io-client';
+import { signInAsPlayerViaRequest, signInViaRequest } from '../helpers/auth';
 
 /**
  * The admin's Clips list and Redo (api/src/integrations/cs2/demos/clipsAdmin.ts):
@@ -10,6 +16,7 @@ import { signInViaRequest } from '../helpers/auth';
  */
 
 const TAGS = { tag: ['@api'] };
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3069';
 
 function fakeDemo(map: string, size: number): Buffer {
   const name = Buffer.from(map);
@@ -128,13 +135,75 @@ test('clips: the per-player limit, made-with, outdated and redo', TAGS, async ({
     expect(recorder.online).toBe(true);
     expect(recorder.working).toMatchObject({ matchSlug: slug, mapNumber: 0 });
 
+    // The match page counts the clips still being recorded.
+    type Progress = { done: number; total: number; waiting: number };
+    const progress = async () =>
+      (
+        (await (await request.get(`/api/game/cs2/matches/${slug}/highlights`)).json()) as {
+          progress: Progress;
+        }
+      ).progress;
+    const before = await progress();
+    expect(before.total).toBe(2);
+    expect(before.done).toBe(0);
+    expect(before.waiting).toBe(2);
+
+    // The match page is told over the socket when a clip arrives.
+    const socket = io(BASE_URL, { transports: ['polling'], forceNew: true });
+    await new Promise<void>((resolve, reject) => {
+      socket.once('connect', () => resolve());
+      socket.once('connect_error', reject);
+    });
+    const told = new Promise<{ matchSlug: string }>((resolve) =>
+      socket.once(`highlights:update:${slug}`, resolve)
+    );
+    // The clip on its own starts after its caption card's opening: its
+    // markers are its clean twin's (a reel's), with where it starts.
+    const twin = { duration: 12, kills: [1.6, 5, 7.5], slowmo: [8, 11], start: 2.6 };
+    // The player, signed in, is told when their clip is ready.
+    const starCtx = await playwrightRequest.newContext({ baseURL: BASE_URL });
+    expect(await signInAsPlayerViaRequest(starCtx, star, 'C0')).toBe(true);
     for (const m of mine.moments) {
       const up = await request.put(`/api/game/cs2/recorder/jobs/${m.id}/clip`, {
-        headers: { 'Content-Type': 'video/mp4' },
+        headers: { 'Content-Type': 'video/mp4', 'X-AT-Markers': JSON.stringify(twin) },
         data: Buffer.from('not really a video'),
       });
       expect(up.status()).toBe(200);
     }
+    // The notice opens the clip's own page and shows its still.
+    const notices = (await (await starCtx.get('/api/social/notifications')).json()).items as Array<{
+      kind: string;
+      data: { highlightId?: number; url?: string; video?: string };
+    }>;
+    const ready = notices.find(
+      (n) => n.kind === 'highlight' && n.data.highlightId === mine.moments[0].id
+    );
+    expect(ready?.data).toMatchObject({
+      url: `/watch/clip/${mine.moments[0].id}`,
+      video: `/api/game/cs2/highlights/${mine.moments[0].id}.mp4`,
+    });
+    await starCtx.dispose();
+    expect(await told).toEqual({ matchSlug: slug });
+    socket.close();
+    expect(await progress()).toEqual({ done: 2, total: 2, waiting: 0 });
+    const watched = async (id: number) =>
+      (await (await request.get(`/api/game/cs2/watch/clip/${id}`)).json()).clip.markers;
+    expect(await watched(mine.moments[0].id)).toEqual({
+      duration: 9.4,
+      kills: [2.4, 4.9],
+      slowmo: [5.4, 8.4],
+    });
+    // Dressed again on its own, it says where it starts now.
+    const again = await request.put(`/api/game/cs2/recorder/redress/${mine.moments[0].id}.mp4`, {
+      headers: { 'Content-Type': 'video/mp4', 'X-AT-Start': '1.00' },
+      data: Buffer.from('not really a video either'),
+    });
+    expect(again.status(), await again.text()).toBe(200);
+    expect(await watched(mine.moments[0].id)).toEqual({
+      duration: 11,
+      kills: [0.6, 4, 6.5],
+      slowmo: [7, 10],
+    });
     // Its overlay recipe (JSON) is kept next to it: the app's JSON parser
     // must not leave it an empty file ("The overlay is not JSON").
     const recipe = { version: 1, name: 'C0', kills: [1.5, 2.25] };
@@ -303,5 +372,100 @@ test(
     expect(
       (await request.delete(`/api/game/cs2/recorders/${encodeURIComponent(name)}`)).status()
     ).toBe(200);
+  }
+);
+
+test(
+  'a clip reviewed as "weapon missing" is recorded again without TrueView',
+  TAGS,
+  async ({ request }) => {
+    expect(await signInViaRequest(request)).toBe(true);
+    const { slug, star } = await matchWithMoments(request);
+    const name = `spec-weapon-${Date.now()}`;
+    type Job = {
+      kind: string;
+      matchSlug: string;
+      players: Array<{ playerId: string; moments: Array<{ id: number; trueView?: boolean }> }>;
+    };
+    // A recorder finishes its job before it gets another: the redo is
+    // claimed by a second one.
+    const claim = async (until: (job: Job) => boolean, recorder = name) => {
+      for (let i = 0; i < 30; i++) {
+        const res = await request.post('/api/game/cs2/recorder/claim', {
+          data: { recorder, version: 7 },
+        });
+        if (res.status() !== 200) return null;
+        const job = (await res.json()).job as Job;
+        // A new recorder benchmarks first, on a clip another spec recorded: say it did.
+        if (job?.kind === 'benchmark') {
+          await request.post('/api/game/cs2/recorder/benchmark', {
+            data: { recorder, tries: [] },
+          });
+          continue;
+        }
+        if (job && until(job)) return job;
+      }
+      return null;
+    };
+    const first = await claim((j) => j.matchSlug === slug);
+    expect(first).not.toBeNull();
+    const moment = first!.players.find((p) => p.playerId === star)!.moments[0];
+    expect(moment.trueView).toBeUndefined(); // recorded with TrueView, as every clip is
+    const up = await request.put(`/api/game/cs2/recorder/jobs/${moment.id}/clip`, {
+      headers: { 'Content-Type': 'video/mp4' },
+      data: Buffer.from('not really a video'),
+    });
+    expect(up.status()).toBe(200);
+
+    const review = await request.post(`/api/game/cs2/clips/${moment.id}/review`, {
+      data: { verdict: 'weapon' },
+    });
+    expect(review.status()).toBe(200);
+
+    const again = await claim(
+      (j) => j.players.some((p) => p.moments.some((m) => m.id === moment.id)),
+      `${name}-b`
+    );
+    expect(again).not.toBeNull();
+    const redone = again!.players.flatMap((p) => p.moments).find((m) => m.id === moment.id)!;
+    expect(redone.trueView).toBe(false);
+  }
+);
+
+test(
+  'a failed clip holds its reels, and the Clips list says so until it is redone',
+  TAGS,
+  async ({ request }) => {
+    expect(await signInViaRequest(request)).toBe(true);
+    const { slug } = await matchWithMoments(request);
+    type Listed = {
+      matches: Array<{
+        slug: string;
+        failedClips: number;
+        clips: Array<{ id: number; kind: string }>;
+      }>;
+    };
+    const ours = async () =>
+      ((await (await request.get('/api/game/cs2/clips')).json()) as Listed).matches.find(
+        (m) => m.slug === slug
+      )!;
+    const before = await ours();
+    expect(before.failedClips).toBe(0);
+    const clip = before.clips.find((c) => c.kind !== 'funny')!;
+
+    // A recorder failed it: the match says its reels wait.
+    expect(
+      (
+        await request.post('/api/test/highlights/status', {
+          data: { ids: [clip.id], status: 'failed' },
+        })
+      ).ok()
+    ).toBe(true);
+    expect((await ours()).failedClips).toBe(1);
+
+    // Redone: it is waiting to be recorded again, and nothing is held by a failure.
+    const redo = await request.post('/api/game/cs2/clips/redo', { data: { clipIds: [clip.id] } });
+    expect(redo.ok(), await redo.text()).toBe(true);
+    expect((await ours()).failedClips).toBe(0);
   }
 );

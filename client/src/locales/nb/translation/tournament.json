@@ -676,6 +676,17 @@
       "confirm": "Arkiver og start ny",
       "delete": "Slett den og start ny",
       "deleteHint": "Eller slett den: da forsvinner resultatene, kampene og statistikken."
+    },
+    "end": {
+      "button": "Avslutt turnering",
+      "tooltip": "Stopper turneringen nå uten resultat: kamper på servere avsluttes, resten avlyses. Ingen vinner og ingen premier. Den kan arkiveres etterpå.",
+      "title": "Avslutte denne turneringen?",
+      "body": "Alle kamper som pågår avsluttes på serveren sin og resten avlyses. Ingen vinner og ingen premier deles ut. Dette kan ikke angres.",
+      "typeName": "Skriv «{{name}}» for å bekrefte",
+      "confirm": "Avslutt turnering",
+      "done_one": "Turneringen er avsluttet, {{count}} kamp avlyst",
+      "done_other": "Turneringen er avsluttet, {{count}} kamper avlyst",
+      "failed": "Kunne ikke avslutte turneringen"
     }
   },
   "bracket": {
@@ -881,6 +892,7 @@
     "notJoined": "Ikke koblet til",
     "waitingForPlayers": "Venter på spillere",
     "inServerCount": "{{count}} av {{expected}} på serveren. Kampen starter når alle er klare.",
+    "inServerCountBots": "{{count}} på serveren. Boter tar de tomme plassene; kampen starter når alle her er klare.",
     "live": "Live",
     "round": "Runde {{n}}",
     "vetoTitle": "Kartvalg pågår",
@@ -908,7 +920,7 @@
       "player": "Spiller",
       "team": "Lag",
       "rating": "Rating ±",
-      "hltv": "Rating"
+      "hltv": "Prestasjon"
     },
     "award": {
       "mostKills": "Flest kills",
@@ -919,7 +931,8 @@
       "biggestGain": "Størst rating-økning",
       "bestPlayer": "Beste spiller",
       "mostClutches": "Flest clutcher",
-      "mostTeamFlashes": "Flest flasher på eget lag"
+      "mostTeamFlashes": "Flest flasher på eget lag",
+      "mostMoney": "Brukte mest penger"
     },
     "awardValue": {
       "mostKills": "{{value}} kills",
@@ -930,7 +943,8 @@
       "biggestGain": "+{{value}} rating",
       "bestPlayer": "rating {{value}}",
       "mostTeamFlashes": "{{value}} lagkamerater flashet",
-      "mostClutches": "{{value}} clutcher vunnet"
+      "mostClutches": "{{value}} clutcher vunnet",
+      "mostMoney": "{{value}} brukt"
     },
     "wonFinal": "Vant finalen {{a}}–{{b}} mot {{opponent}}"
   },
@@ -1039,6 +1053,7 @@
     "pickSub": "Velg reserve"
   },
   "bracketCards": {
+    "open": "Åpne {{a}} mot {{b}}",
     "upper": "Øvre bracket",
     "lower": "Nedre bracket",
     "grandFinal": "Storfinale",

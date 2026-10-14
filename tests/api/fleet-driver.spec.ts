@@ -167,6 +167,14 @@ test.describe.serial('Fleet driver: Ready Up servers play matches (M1)', () => {
     const paused = await pausing;
     expect(paused.status()).toBe(200);
     expect(await paused.json()).toMatchObject({ success: true, transport: 'fleet', status: 'ok' });
+    // The players hear it in game (gameMessages.ts): a say, not tied to the match.
+    const told = await fake.next('cmd');
+    expect(told.payload).toMatchObject({
+      name: 'say',
+      args: { text: 'The match is paused from the site.' },
+      issued_by: { user_id: 'platform' },
+    });
+    fake.answer(told);
 
     const unpausing = request.post('/api/rcon/force-unpause', {
       headers: getAuthHeader(),

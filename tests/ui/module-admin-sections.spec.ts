@@ -60,17 +60,11 @@ test.describe('Module sections on Admin tools and Settings', () => {
       // Settings is the platform's only: none of CS2's fields, no second nav.
       await expect(page.getByTestId('settings-webhook-url-input')).toHaveCount(0);
       await expect(page.getByTestId('cs2-server-defaults')).toHaveCount(0);
-      await expect(page.locator('[id^="settings-nav-"]')).toHaveCount(0);
       await expect(page.getByTestId('settings-game-links')).toBeVisible({ timeout: 30000 });
 
-      // The rail is the platform's here; CS2 is its own area in the rail's
-      // dropdown, with Servers, Maps, Skins and Match rules.
-      await expect(page.getByTestId('manage-rail-scope-name')).toHaveText('Platform');
-      await expect(page.getByTestId('manage-rail-group-game')).toHaveCount(0);
-      await page.getByTestId('manage-rail-scope').click();
-      await page.getByTestId('manage-rail-scope-cs2').click();
-      await expect(page).toHaveURL(/\/servers$/, { timeout: 15000 });
-      const group = page.getByTestId('manage-rail-group-game');
+      // CS2's pages are their own group in the rail (Games · Counter-Strike
+      // 2): Servers, Maps, Skins and Match rules.
+      const group = page.getByTestId('manage-rail-group-game-cs2');
       await expect(group).toBeVisible({ timeout: 30000 });
       for (const name of ['Servers', 'Maps', 'Skins', 'Match rules']) {
         await expect(group.getByRole('link', { name })).toBeVisible();

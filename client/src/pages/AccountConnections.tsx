@@ -20,13 +20,23 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { InfoIcon } from '@phosphor-icons/react';
+import { FingerprintIcon, InfoIcon } from '@phosphor-icons/react';
+import {
+  browserSupportsWebAuthn,
+  startRegistration,
+  type PublicKeyCredentialCreationOptionsJSON,
+} from '@simplewebauthn/browser';
 import { ProviderLogo, hasProviderLogo } from '../components/auth/ProviderLogo';
 import { useTranslation } from 'react-i18next';
 import { TopNavBar } from '../components/layout/TopNavBar';
 import { PlayerAvatar } from '../components/player/PlayerAvatar';
 import { GamePicker } from '../components/games/GamePicker';
-import { GAMES_UPDATED_EVENT, fetchMyGames, saveMyGames, type GameSummary } from '../components/games/gamesApi';
+import {
+  GAMES_UPDATED_EVENT,
+  fetchMyGames,
+  saveMyGames,
+  type GameSummary,
+} from '../components/games/gamesApi';
 import {
   apiErrorFlag,
   cancelSteamMerge,
@@ -40,9 +50,10 @@ import {
   type SignInMethod,
 } from '../components/account/connectionsApi';
 import { ChangePasswordDialog } from '../components/account/ChangePasswordDialog';
+import { TwoStepDialog } from '../components/account/TwoStepDialog';
 import { AccountEmailSection } from '../components/account/AccountEmailSection';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import { apiErrorMessage } from '../utils/api';
+import { api, apiErrorMessage } from '../utils/api';
 import { fontDisplay, tokens } from '../theme/tokens';
 
 const { color, radius } = tokens;
@@ -71,7 +82,14 @@ function ProviderTile({ provider, label }: { provider: string; label: string }) 
         '& svg': { fontSize: 22, width: 22, height: 22 },
       }}
     >
-      {hasProviderLogo(provider) ? <ProviderLogo id={provider} size={22} /> : label.slice(0, 1).toUpperCase()}
+      {provider === 'oidc' ? (
+        // The admin's logo when there is one; the OpenID mark when not.
+        <ProviderLogo id={provider} size={22} src="/api/auth/oidc/logo" />
+      ) : hasProviderLogo(provider) ? (
+        <ProviderLogo id={provider} size={22} />
+      ) : (
+        label.slice(0, 1).toUpperCase()
+      )}
     </Box>
   );
 }
@@ -117,7 +135,9 @@ function Row({
         {children}
       </Box>
       {end && (
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', gridColumn: { xs: 2, sm: 'auto' } }}>
+        <Box
+          sx={{ display: 'flex', gap: 1, alignItems: 'center', gridColumn: { xs: 2, sm: 'auto' } }}
+        >
           {end}
         </Box>
       )}
@@ -158,7 +178,12 @@ function Section({
 }) {
   return (
     <Box component="section" aria-labelledby={id} sx={{ '& + &': { mt: 6 } }}>
-      <Typography id={id} component="h2" variant="h6" sx={{ fontFamily: fontDisplay, fontWeight: 600 }}>
+      <Typography
+        id={id}
+        component="h2"
+        variant="h6"
+        sx={{ fontFamily: fontDisplay, fontWeight: 600 }}
+      >
         {title}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2, maxWidth: '62ch' }}>
@@ -187,13 +212,27 @@ function ConnectedAccount({
   return (
     <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, mt: 0.5 }}>
       {account.avatarUrl && (
-        <Avatar src={account.avatarUrl} alt="" sx={{ width: 28, height: 28, flex: 'none' }} imgProps={{ referrerPolicy: 'no-referrer' }} />
+        <Avatar
+          src={account.avatarUrl}
+          alt=""
+          sx={{ width: 28, height: 28, flex: 'none' }}
+          imgProps={{ referrerPolicy: 'no-referrer' }}
+        />
       )}
       <Box sx={{ minWidth: 0 }}>
         {account.name && (
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, overflowWrap: 'anywhere' }}>{account.name}</Typography>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, overflowWrap: 'anywhere' }}>
+            {account.name}
+          </Typography>
         )}
-        <Typography sx={{ ...muted, fontSize: '0.8rem', overflowWrap: 'anywhere', fontVariantNumeric: 'tabular-nums' }}>
+        <Typography
+          sx={{
+            ...muted,
+            fontSize: '0.8rem',
+            overflowWrap: 'anywhere',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
           {secondary}
         </Typography>
       </Box>
@@ -201,11 +240,188 @@ function ConnectedAccount({
   );
 }
 
+interface PasskeyItem {
+  id: string;
+  name: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+}
+
+/**
+ * Passkeys of the account's admin login (Vikunja 1741): sign in on
+ * /login/admin with a fingerprint, face or PIN instead of the password and
+ * code. Adding or removing one asks for the password again (`requestReauth`).
+ * Browsers only allow passkeys on https (or localhost), so elsewhere this
+ * says why there are none.
+ */
+function PasskeysSection({
+  formatDate,
+  requestReauth,
+}: {
+  formatDate: (seconds: number) => string;
+  requestReauth: (run: () => void) => void;
+}) {
+  const { t } = useTranslation();
+  const { showSuccess, showError } = useSnackbar();
+  const [list, setList] = useState<PasskeyItem[] | null>(null);
+  const [available, setAvailable] = useState(false);
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const supported =
+    typeof window !== 'undefined' && window.isSecureContext && browserSupportsWebAuthn();
+
+  const load = useCallback(async () => {
+    try {
+      const r = await api.get<{ available: boolean; passkeys: PasskeyItem[] }>(
+        '/api/auth/local/passkeys'
+      );
+      setList(r.passkeys);
+      setAvailable(r.available);
+    } catch {
+      setList([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const add = async (label: string) => {
+    setBusy(true);
+    try {
+      const { options } = await api.post<{ options: PublicKeyCredentialCreationOptionsJSON }>(
+        '/api/auth/local/passkeys/register/options',
+        {}
+      );
+      const response = await startRegistration({ optionsJSON: options });
+      await api.post('/api/auth/local/passkeys/register/verify', { response, name: label });
+      setNaming(false);
+      setName('');
+      showSuccess(t('account.passkeys.added'));
+      void load();
+    } catch (err) {
+      if (apiErrorFlag(err, 'reauthRequired')) {
+        setNaming(false);
+        requestReauth(() => void add(label));
+      } else if ((err as Error)?.name !== 'NotAllowedError') {
+        // NotAllowedError: the browser's dialog was cancelled.
+        showError(apiErrorMessage(err, t('account.passkeys.addFailed')));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (passkey: PasskeyItem) => {
+    setBusy(true);
+    try {
+      await api.delete(`/api/auth/local/passkeys/${encodeURIComponent(passkey.id)}`);
+      showSuccess(t('account.passkeys.removed', { name: passkey.name }));
+      void load();
+    } catch (err) {
+      if (apiErrorFlag(err, 'reauthRequired')) requestReauth(() => void remove(passkey));
+      else showError(apiErrorMessage(err, t('account.passkeys.removeFailed')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const usable = supported && available;
+  return (
+    <Section
+      id="account-passkeys"
+      title={t('account.passkeys.title')}
+      description={t('account.passkeys.description')}
+    >
+      {!usable ? (
+        <Typography
+          sx={{ color: color.muted, fontSize: '0.875rem' }}
+          data-testid="passkeys-unavailable"
+        >
+          {t('account.passkeys.needsHttps')}
+        </Typography>
+      ) : (
+        <Stack spacing={2} alignItems="flex-start">
+          {list && list.length > 0 && (
+            <Box sx={{ width: '100%' }}>
+              <ListPanel label={t('account.passkeys.title')}>
+                {list.map((p) => (
+                  <Row
+                    key={p.id}
+                    testId="passkey-row"
+                    tile={<Box component={FingerprintIcon} size={28} sx={{ color: color.ink2 }} />}
+                    title={p.name}
+                    end={
+                      <Button
+                        size="small"
+                        color="inherit"
+                        disabled={busy}
+                        onClick={() => void remove(p)}
+                        data-testid="passkey-remove"
+                      >
+                        {t('account.signIn.remove')}
+                      </Button>
+                    }
+                  >
+                    <Typography sx={{ color: color.muted, fontSize: '0.875rem' }}>
+                      {p.lastUsedAt
+                        ? t('account.passkeys.lastUsed', { date: formatDate(p.lastUsedAt) })
+                        : t('account.passkeys.addedOn', { date: formatDate(p.createdAt) })}
+                    </Typography>
+                  </Row>
+                ))}
+              </ListPanel>
+            </Box>
+          )}
+          <Button
+            variant="outlined"
+            size="small"
+            disabled={busy}
+            onClick={() => setNaming(true)}
+            data-testid="passkey-add"
+          >
+            {t('account.passkeys.add')}
+          </Button>
+        </Stack>
+      )}
+      <Dialog open={naming} onClose={() => !busy && setNaming(false)} fullWidth maxWidth="xs">
+        <DialogTitle>{t('account.passkeys.add')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>{t('account.passkeys.nameHelp')}</DialogContentText>
+          <TextField
+            label={t('account.passkeys.name')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+            fullWidth
+            inputProps={{ maxLength: 60, 'data-testid': 'passkey-name' }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" onClick={() => setNaming(false)} disabled={busy}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => void add(name)}
+            disabled={busy}
+            data-testid="passkey-continue"
+          >
+            {t('account.passkeys.continue')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Section>
+  );
+}
+
 /** What to do once the admin password has been confirmed again. */
 type ReauthNext =
   | { kind: 'link'; provider: string }
   | { kind: 'merge' }
-  | { kind: 'remove'; method: SignInMethod };
+  | { kind: 'remove'; method: SignInMethod }
+  | { kind: 'retry'; run: () => void };
 
 export default function AccountConnections() {
   const { t, i18n } = useTranslation();
@@ -224,6 +440,7 @@ export default function AccountConnections() {
   const [reauthError, setReauthError] = useState<string | null>(null);
   const [mergeDismissed, setMergeDismissed] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [twoStep, setTwoStep] = useState<'on' | 'off' | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -357,10 +574,13 @@ export default function AccountConnections() {
       setReauthNext(null);
       setPassword('');
       setTotp('');
-      setData((d) => (d && d.localLogin ? { ...d, localLogin: { ...d.localLogin, reauthFresh: true } } : d));
+      setData((d) =>
+        d && d.localLogin ? { ...d, localLogin: { ...d.localLogin, reauthFresh: true } } : d
+      );
       if (next?.kind === 'link') startLink(next.provider);
       else if (next?.kind === 'merge') void doMerge();
       else if (next?.kind === 'remove') void doRemove(next.method);
+      else if (next?.kind === 'retry') next.run();
     } catch (err) {
       setReauthError(
         apiErrorFlag(err, 'totpRequired') && !totp.trim()
@@ -396,14 +616,23 @@ export default function AccountConnections() {
   const railLinks = data
     ? [
         { key: 'profile', label: t('account.rail.profile'), to: `/player/${data.account.steamId}` },
-        { key: 'connections', label: t('account.rail.connections'), to: '/me/connections', current: true },
+        {
+          key: 'connections',
+          label: t('account.rail.connections'),
+          to: '/me/connections',
+          current: true,
+        },
       ]
     : [];
 
   const gamesFirst = !readOnly && games !== null && games.length === 0;
   const gamesSection = games !== null && (
     <Box sx={{ scrollMarginTop: 96, mt: gamesFirst ? 0 : 6, mb: gamesFirst ? 5 : 0 }}>
-      <Section id="account-games" title={t('games.profile.title')} description={t('games.profile.description')}>
+      <Section
+        id="account-games"
+        title={t('games.profile.title')}
+        description={t('games.profile.description')}
+      >
         <Box
           sx={{
             bgcolor: color.paper2,
@@ -414,9 +643,7 @@ export default function AccountConnections() {
         >
           {readOnly ? (
             <Typography sx={muted}>
-              {games.length === 0
-                ? t('games.profile.empty')
-                : games.map((g) => g.name).join(', ')}
+              {games.length === 0 ? t('games.profile.empty') : games.map((g) => g.name).join(', ')}
             </Typography>
           ) : (
             <>
@@ -538,7 +765,11 @@ export default function AccountConnections() {
                   bottom (the page used to show both). */}
               {gamesFirst && gamesSection}
 
-              <Section id="account-game-accounts" title={t('account.gameAccounts.title')} description={t('account.gameAccounts.description')}>
+              <Section
+                id="account-game-accounts"
+                title={t('account.gameAccounts.title')}
+                description={t('account.gameAccounts.description')}
+              >
                 <ListPanel label={t('account.gameAccounts.title')}>
                   {data.gameAccounts.map((acct: GameAccount) => (
                     <Row
@@ -569,7 +800,10 @@ export default function AccountConnections() {
                       }
                     >
                       {acct.account ? (
-                        <ConnectedAccount account={acct.account} idLabel={t('account.signIn.accountId')} />
+                        <ConnectedAccount
+                          account={acct.account}
+                          idLabel={t('account.signIn.accountId')}
+                        />
                       ) : acct.externalId ? (
                         <Typography sx={{ ...muted, overflowWrap: 'anywhere' }}>
                           {t('account.gameAccounts.id', { id: acct.externalId })}
@@ -608,12 +842,25 @@ export default function AccountConnections() {
                 </Box>
               </Section>
 
-              <Section id="account-sign-in" title={t('account.signIn.title')} description={t('account.signIn.description')}>
+              <Section
+                id="account-sign-in"
+                title={t('account.signIn.title')}
+                description={t('account.signIn.description')}
+              >
                 <ListPanel label={t('account.signIn.title')}>
                   {data.signInMethods.map((method) => {
                     let detail: string;
                     if (method.provider === 'local') {
-                      detail = t('account.signIn.localDetail', { username: method.username ?? '' });
+                      detail = [
+                        t('account.signIn.localDetail', { username: method.username ?? '' }),
+                        data.localLogin
+                          ? data.localLogin.totpEnabled
+                            ? t('account.twoStep.isOn')
+                            : t('account.twoStep.isOff')
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ');
                       if (!method.signInEnabled) detail += ` · ${t('account.signIn.turnedOff')}`;
                     } else if (method.primary) {
                       detail =
@@ -667,7 +914,12 @@ export default function AccountConnections() {
                     }
 
                     // The password login: its owner can change the password here.
-                    if (method.provider === 'local' && method.linked && !readOnly && data.localLogin) {
+                    if (
+                      method.provider === 'local' &&
+                      method.linked &&
+                      !readOnly &&
+                      data.localLogin
+                    ) {
                       end = (
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Button
@@ -677,6 +929,16 @@ export default function AccountConnections() {
                             data-testid="sign-in-change-password"
                           >
                             {t('account.changePassword.button')}
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => setTwoStep(data.localLogin?.totpEnabled ? 'off' : 'on')}
+                            data-testid="sign-in-two-step"
+                          >
+                            {data.localLogin.totpEnabled
+                              ? t('account.twoStep.turnOff')
+                              : t('account.twoStep.turnOn')}
                           </Button>
                           {end}
                         </Stack>
@@ -692,7 +954,10 @@ export default function AccountConnections() {
                         end={end}
                       >
                         {method.linked && method.account && (
-                          <ConnectedAccount account={method.account} idLabel={t('account.signIn.accountId')} />
+                          <ConnectedAccount
+                            account={method.account}
+                            idLabel={t('account.signIn.accountId')}
+                          />
                         )}
                         <Typography sx={muted}>{detail}</Typography>
                       </Row>
@@ -700,6 +965,13 @@ export default function AccountConnections() {
                   })}
                 </ListPanel>
               </Section>
+
+              {!readOnly && data.localLogin && (
+                <PasskeysSection
+                  formatDate={formatDate}
+                  requestReauth={(run) => openReauth({ kind: 'retry', run })}
+                />
+              )}
 
               {!readOnly && <AccountEmailSection />}
 
@@ -710,6 +982,18 @@ export default function AccountConnections() {
           </Box>
         )}
       </Container>
+
+      <TwoStepDialog
+        mode={twoStep}
+        onClose={() => setTwoStep(null)}
+        onDone={(on) => {
+          setTwoStep(null);
+          setData((d) =>
+            d && d.localLogin ? { ...d, localLogin: { ...d.localLogin, totpEnabled: on } } : d
+          );
+          showSuccess(on ? t('account.twoStep.turnedOn') : t('account.twoStep.turnedOff'));
+        }}
+      />
 
       <ChangePasswordDialog
         open={changingPassword}

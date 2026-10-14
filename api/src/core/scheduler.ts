@@ -53,7 +53,10 @@ export interface MatchAllocationResult {
 }
 
 /** An integration's allocation outcome in the shape the allocator reports. */
-function toMatchAllocationResult(matchSlug: string, outcome: AllocateResult): MatchAllocationResult {
+function toMatchAllocationResult(
+  matchSlug: string,
+  outcome: AllocateResult
+): MatchAllocationResult {
   switch (outcome.status) {
     case 'assigned':
       return {
@@ -377,11 +380,7 @@ export class Scheduler {
     const deadline = Date.now() + MAX_WAIT_MS;
 
     let availableServers = await this.getAvailableServerCount(tournamentId);
-    while (
-      availableServers > 0 &&
-      availableServers < requiredServers &&
-      Date.now() < deadline
-    ) {
+    while (availableServers > 0 && availableServers < requiredServers && Date.now() < deadline) {
       log.info(
         `[ALLOCATION] Waiting for idle servers before batch allocation: ${availableServers}/${requiredServers} available`
       );
@@ -538,7 +537,10 @@ export class Scheduler {
   /**
    * Start tournament - allocate all ready matches to available servers
    */
-  async startTournament(tournamentId: number, baseUrl: string): Promise<{
+  async startTournament(
+    tournamentId: number,
+    baseUrl: string
+  ): Promise<{
     success: boolean;
     message: string;
     allocated: number;
@@ -747,12 +749,13 @@ export class Scheduler {
     // Determine if this tournament uses veto system: the game has a veto
     // (pre-match phase) and the format is a series. Shuffle tournaments
     // *never* use veto, even if format is BO1. This gate is tournament-wide on
-    // purpose: the per-match `isReadyToAllocate` only holds matches for the
-    // simulation auto-veto (see makeMatchReady), so `/restart` of a veto
-    // tournament still allocates nothing here.
+    // purpose (`/restart` of a veto tournament allocates nothing here); the
+    // per-match `isReadyToAllocate` holds each later-round match until its
+    // own veto is done (see makeMatchReady).
     const integration = await this.integrationForTournament(tournamentId);
     const requiresVeto =
       integration.capabilities.veto &&
+      (integration.usesPreMatchPhase?.(tournament) ?? true) &&
       tournament.type !== 'shuffle' &&
       ['bo1', 'bo3', 'bo5'].includes(tournament.format.toLowerCase());
 
@@ -991,7 +994,49 @@ export class Scheduler {
   /**
    * Restart tournament - run css_restart on all servers with loaded matches, then reallocate
    */
-  async restartTournament(tournamentId: number, baseUrl: string): Promise<{
+  /**
+   * End a running tournament without a result ("End tournament"): matches on
+   * a server are ended there, every match not finished is cancelled, polling
+   * for servers stops, and the tournament is `cancelled` (no winner, no
+   * placement rewards). It can be archived afterwards.
+   */
+  async cancelTournament(tournamentId: number): Promise<{ ended: number; cancelled: number }> {
+    const tournament = await tournamentService.getTournament(tournamentId);
+    if (!tournament) throw new Error('No tournament exists');
+    const loaded = await db.queryAsync<DbMatchRow>(
+      `SELECT * FROM matches WHERE tournament_id = ? AND status IN ('loaded', 'live')
+         AND server_id IS NOT NULL AND server_id != ''`,
+      [tournamentId]
+    );
+    const { ended } = await this.endMatchesOnResources(loaded, {
+      reason: 'tournament-cancel',
+      logPrefix: '[CANCEL]',
+    });
+    const open = await db.queryAsync<{ slug: string }>(
+      "SELECT slug FROM matches WHERE tournament_id = ? AND status NOT IN ('completed', 'cancelled')",
+      [tournamentId]
+    );
+    for (const { slug } of open) this.stopPollingForServer(slug);
+    const now = Math.floor(Date.now() / 1000);
+    await db.runAsync(
+      "UPDATE matches SET status = 'cancelled', server_id = NULL WHERE tournament_id = ? AND status NOT IN ('completed', 'cancelled')",
+      [tournamentId]
+    );
+    await db.updateAsync('tournament', { status: 'cancelled', updated_at: now }, 'id = ?', [
+      tournamentId,
+    ]);
+    log.info(
+      `[CANCEL] Tournament ${tournamentId} ended by an admin: ${open.length} match(es) cancelled`
+    );
+    emitTournamentUpdate({ id: tournamentId, status: 'cancelled' });
+    emitBracketUpdate({ action: 'tournament_cancelled' });
+    return { ended, cancelled: open.length };
+  }
+
+  async restartTournament(
+    tournamentId: number,
+    baseUrl: string
+  ): Promise<{
     success: boolean;
     message: string;
     allocated: number;
@@ -1183,7 +1228,10 @@ export class Scheduler {
   }
 
   /** Admin "reallocate": move a match that has not gone live to another free resource. */
-  async reallocateMatch(match: DbMatchRow, opts: { baseUrl: string }): Promise<ResourceActionResult> {
+  async reallocateMatch(
+    match: DbMatchRow,
+    opts: { baseUrl: string }
+  ): Promise<ResourceActionResult> {
     return integrationForMatch(match).restart(await matchContextFor(match), {
       ...opts,
       moveResource: true,
@@ -1443,7 +1491,9 @@ export class Scheduler {
       // Fleet-level trigger (a server freed up): no single tournament in the
       // call chain, so every running tournament's ready matches get a try,
       // oldest tournament first.
-      const tournamentIds = [...new Set([...(await runningTournamentIds()), resolveTournamentId()])];
+      const tournamentIds = [
+        ...new Set([...(await runningTournamentIds()), resolveTournamentId()]),
+      ];
       const standaloneSlugs = await this.getReadyStandaloneMatchSlugs();
       let anyReady = false;
       for (const tournamentId of tournamentIds) {

@@ -14,13 +14,14 @@ import ResetPassword from './pages/ResetPassword';
 import EmailLink from './pages/EmailLink';
 import { BlockedNotice } from './components/auth/BlockedNotice';
 import Reports from './pages/Reports';
-import AdminHome from './pages/AdminHome';
 import Manage from './pages/Manage';
 import Teams from './pages/Teams';
 import Players from './pages/Players';
 import Tournament from './pages/Tournament';
 import Tournaments from './pages/Tournaments';
+import { ScopedTournamentRedirect, TournamentScope } from './components/manage/TournamentScope';
 import Bracket from './pages/Bracket';
+import ManageMatch from './pages/ManageMatch';
 import Matches from './pages/Matches';
 import Disputes from './pages/Disputes';
 import PlayedMatches from './pages/PlayedMatches';
@@ -32,9 +33,7 @@ import Settings from './pages/Settings';
 import License from './pages/License';
 import Development from './pages/Development';
 import { useIsDevelopment } from './hooks/useIsDevelopment';
-import TeamMatch from './pages/TeamMatch';
 import TeamProfile from './pages/TeamProfile';
-import FindPlayer from './pages/FindPlayer';
 import PlayerProfile from './pages/PlayerProfile';
 import MatchPage from './pages/MatchPage';
 import TournamentLeaderboard from './pages/TournamentLeaderboard';
@@ -47,7 +46,7 @@ import TournamentBracketTab from './pages/TournamentBracketTab';
 import TournamentMatchesTab from './pages/TournamentMatchesTab';
 import TournamentTeamsTab from './pages/TournamentTeamsTab';
 import TournamentRulesTab from './pages/TournamentRulesTab';
-import TournamentYourMatchTab from './pages/TournamentYourMatchTab';
+import TournamentMatchRedirect from './pages/TournamentMatchRedirect';
 import TournamentSignupTab from './pages/TournamentSignupTab';
 import { TopNavBar } from './components/layout/TopNavBar';
 import { ModuleGlobalOverlays } from './components/layout/ModuleGlobalOverlays';
@@ -63,7 +62,6 @@ import TeamJoin from './pages/TeamJoin';
 import Compatibility from './pages/Compatibility';
 import Play from './pages/Play';
 import PlayLobby from './pages/PlayLobby';
-import PlayLeaderboard from './pages/PlayLeaderboard';
 import { MatchmakingOverlay } from './components/matchmaking/MatchmakingOverlay';
 import { ChatDock } from './components/chat/ChatDock';
 import { PartyInviteToast } from './components/social/PartyInviteToast';
@@ -81,6 +79,7 @@ function ScopedLayout() {
 }
 import { AdminCallsHost } from './components/admin/AdminCallsHost';
 import NotFound from './pages/NotFound';
+import MatchNow from './pages/MatchNow';
 import { theme } from './theme';
 import { GamesOnboardingRedirect } from './components/games/GamesOnboardingRedirect';
 import WelcomeGames from './pages/WelcomeGames';
@@ -90,12 +89,14 @@ import { LicenseGate } from './components/license/LicenseGate';
 import { ImpersonationBanner } from './components/common/ImpersonationBanner';
 import { listRouteIntegrations } from './integrations/registry';
 import { useModuleState } from './module-loader/useModuleState';
+import { modulesMayArrive } from './module-loader/moduleState';
 import { ModulePendingRoute } from './components/common/ModuleNotInstalledNotice';
 import { MatchDetailsHost } from './components/modals/MatchDetailsHost';
 import {
   adminRoute,
   LEGACY_ADMIN_PATHS,
-  matchDetailsPath,
+  matchPagePath,
+  MOVED_PUBLIC_PATHS,
   paths,
   playerProfilePath,
 } from './paths';
@@ -218,9 +219,9 @@ function ProtectedRoute({ children, adminOnly = true }: ProtectedRouteProps) {
 /**
  * What "/" shows.
  *
- * - A real admin session (not impersonating): the admin dashboard shell
- *   (`Layout`, with its nested `/teams`, `/players`, etc. routes) — unchanged
- *   from before Home existed.
+ * - A real admin session (not impersonating): Home when the admin is also a
+ *   player, else `/manage`. Every other path under "/" is the Manage
+ *   dashboard (`Layout`, with its nested `/manage/*` routes).
  * - A signed-in player (including an admin impersonating one — impersonation
  *   is there to preview the player experience, and this is the player
  *   experience): `Home`.
@@ -233,6 +234,10 @@ function ProtectedRoute({ children, adminOnly = true }: ProtectedRouteProps) {
 function RootRoute() {
   const { isAuthenticated, isLoading, playerSteamId, needsSteamLink, impersonation } = useAuth();
   const location = useLocation();
+  // A page a code module brings (CS2's /watch/…, /highlights) is not routed
+  // until the module has arrived; until then its address lands here. Wait for
+  // the modules instead of sending the visitor to login or their profile.
+  const modulesArriving = modulesMayArrive(useModuleState());
 
   if (isLoading) {
     return (
@@ -254,6 +259,12 @@ function RootRoute() {
     if (needsSteamLink && location.pathname !== paths.connectSteam) {
       return <Navigate to={paths.connectSteam} replace />;
     }
+    // "/" is Home for everyone (2026-10): an admin who plays gets the
+    // player Home with Manage in the top bar; a username-only admin has no
+    // player Home, so Manage is theirs.
+    if (location.pathname === paths.root) {
+      return playerSteamId ? <Home /> : <Navigate to={paths.manage} replace />;
+    }
     // The admin shell opens once the license terms are accepted.
     return (
       <LicenseConsentGate>
@@ -262,6 +273,10 @@ function RootRoute() {
         </AdminTournamentProvider>
       </LicenseConsentGate>
     );
+  }
+
+  if (location.pathname !== paths.root && modulesArriving) {
+    return <ModulePendingRoute fallback={<NotFound />} />;
   }
 
   if (playerSteamId) {
@@ -383,21 +398,7 @@ function AppRoutes() {
         ))}
 
       {/* Viewer & player-facing pages – require a signed-in identity (admin or player) */}
-      <Route
-        path={paths.teamMatch}
-        element={
-          <ProtectedRoute adminOnly={false}>
-            <TeamMatch />
-          </ProtectedRoute>
-        }
-      />
-      {/*
-        Public team profile. Deliberately not `/team/:teamId` or `/teams/:teamId`:
-        the former is the team's live match/server page (`TeamMatch`, used during
-        play by players and MatchZy Enhanced flows) and must keep its URL unchanged; the
-        latter would sit under the admin-only teams list. `/t/team/:teamId`
-        avoids both.
-      */}
+      {/* A team's page. Its match is played in the match room (`/match/:slug`), which it links to. */}
       <Route
         path={paths.teamProfile}
         element={
@@ -421,21 +422,22 @@ function AppRoutes() {
         <Route path="teams" element={<TournamentTeamsTab />} />
         <Route path="standings" element={<TournamentLeaderboard />} />
         <Route path="rules" element={<TournamentRulesTab />} />
-        <Route path="match" element={<TournamentYourMatchTab />} />
+        {/* The old "Your match" tab: the player's match room now. */}
+        <Route path="match" element={<TournamentMatchRedirect />} />
         <Route path="signup" element={<TournamentSignupTab />} />
         {/* A module's own tab (CS2: highlights). */}
         <Route path=":moduleTab" element={<TournamentModuleTab />} />
       </Route>
       {/* Standings' old address, still in bookmarks and older links. */}
       <Route path={paths.tournamentLeaderboard} element={<LegacyLeaderboardRedirect />} />
-      <Route
-        path={paths.findPlayer}
-        element={
-          <ProtectedRoute adminOnly={false}>
-            <FindPlayer />
-          </ProtectedRoute>
-        }
-      />
+      {/* The old Find player page: the Players directory finds anyone now. */}
+      <Route path={paths.findPlayer} element={<Navigate to={paths.communityPlayers} replace />} />
+      {/* Public pages that moved (2026-10): their old addresses redirect, query kept. */}
+      {MOVED_PUBLIC_PATHS.map(({ from, to }) => (
+        <Route key={from} path={from} element={<MovedRedirect to={to} />} />
+      ))}
+      {/* Old shared match links (`/matches/<slug>`), for anyone: the match page. */}
+      <Route path="/matches/:slug" element={<MatchSlugRedirect />} />
       <Route
         path={paths.match}
         element={
@@ -474,7 +476,7 @@ function AppRoutes() {
           />
         ))}
       <Route
-        path={paths.browse}
+        path={paths.tournamentList}
         element={
           <ProtectedRoute adminOnly={false}>
             <Browse />
@@ -506,7 +508,7 @@ function AppRoutes() {
         }
       />
       <Route
-        path={paths.browsePlayers}
+        path={paths.communityPlayers}
         element={
           <ProtectedRoute adminOnly={false}>
             <PlayersDirectory />
@@ -523,7 +525,7 @@ function AppRoutes() {
       />
       <Route path={paths.teamJoin} element={<TeamJoin />} />
       <Route
-        path={paths.browseTeams}
+        path={paths.communityTeams}
         element={
           <ProtectedRoute adminOnly={false}>
             <TeamsDirectory />
@@ -546,6 +548,16 @@ function AppRoutes() {
         }
       />
 
+      {/* "My match": wherever the signed-in player's match lives. */}
+      <Route
+        path={paths.matchNow}
+        element={
+          <RequireSignedIn>
+            <MatchNow />
+          </RequireSignedIn>
+        }
+      />
+
       {/* Matchmaking: find a match, the match room. */}
       <Route
         path={paths.play}
@@ -556,7 +568,6 @@ function AppRoutes() {
         }
       />
       {/* Public when an admin allows it; the API decides. */}
-      <Route path={paths.playLeaderboard} element={<PlayLeaderboard />} />
       <Route
         path={paths.playLobby}
         element={
@@ -578,21 +589,43 @@ function AppRoutes() {
       />
 
       <Route path={paths.root} element={<RootRoute />}>
-        <Route index element={<AdminHome />} />
         <Route path={adminRoute(paths.manage)} element={<Manage />} />
         <Route path={adminRoute(paths.teams)} element={<Teams />} />
         <Route path={adminRoute(paths.players)} element={<Players />} />
         <Route path={adminRoute(paths.reports)} element={<Reports />} />
-        <Route path={adminRoute(paths.tournament)} element={<Tournament />} />
         <Route path={adminRoute(paths.tournaments)} element={<Tournaments />} />
-        <Route path={adminRoute(paths.bracket)} element={<Bracket />} />
-        <Route path={adminRoute(paths.matches)} element={<Matches />} />
+        <Route path={adminRoute('/manage/match/:slug')} element={<ManageMatch />} />
+        {/* One tournament: its id in the address, its pages as tabs. */}
+        <Route path={adminRoute(paths.manageTournament)} element={<TournamentScope />}>
+          <Route index element={<Navigate to="matches" replace />} />
+          <Route path="matches" element={<Matches />} />
+          <Route path="matches/:slug" element={<ManageMatch />} />
+          <Route path="bracket" element={<Bracket />} />
+          <Route path="disputes" element={<Disputes />} />
+          <Route path="setup" element={<Tournament />} />
+        </Route>
+        {/* Their old addresses: the tournament Manage last had open. */}
+        <Route
+          path={adminRoute(paths.tournament)}
+          element={<ScopedTournamentRedirect tab="setup" />}
+        />
+        <Route
+          path={adminRoute(paths.bracket)}
+          element={<ScopedTournamentRedirect tab="bracket" />}
+        />
+        <Route
+          path={adminRoute(paths.matches)}
+          element={<ScopedTournamentRedirect tab="matches" />}
+        />
         <Route path={`${adminRoute(paths.matches)}/:slug`} element={<MatchSlugRedirect />} />
         {/* Mounted for every instance, not only one whose game can have a
             dispute: the page itself says "nothing to settle here" when the
             tournament's module fills no queue, and a bookmarked URL is better
             answered that way than with a 404. */}
-        <Route path={adminRoute(paths.disputes)} element={<Disputes />} />
+        <Route
+          path={adminRoute(paths.disputes)}
+          element={<ScopedTournamentRedirect tab="disputes" />}
+        />
         <Route path={adminRoute(paths.playedMatches)} element={<PlayedMatches />} />
         <Route path={adminRoute(paths.importMatch)} element={<ImportMatch />} />
         <Route path={adminRoute(paths.highlights)} element={<HighlightsAdmin />} />
@@ -652,10 +685,22 @@ function LegacyAdminRedirect() {
   );
 }
 
-/** `/matches/:slug` → the Matches page with that match open. */
+/** An old public address → its new one, keeping its params, the query and the hash. */
+function MovedRedirect({ to }: { to: string }) {
+  const location = useLocation();
+  const params = useParams();
+  const filled = to.replace(/:(\w+)/g, (_, key: string) => encodeURIComponent(params[key] ?? ''));
+  const [path, query = ''] = filled.split('?');
+  const search = new URLSearchParams(query);
+  new URLSearchParams(location.search).forEach((value, key) => search.set(key, value));
+  const searchText = search.toString();
+  return <Navigate to={`${path}${searchText ? `?${searchText}` : ''}${location.hash}`} replace />;
+}
+
+/** `/matches/:slug` (old shared links) → the match's own page. */
 function MatchSlugRedirect() {
   const { slug = '' } = useParams();
-  return <Navigate to={matchDetailsPath(slug)} replace />;
+  return <Navigate to={matchPagePath(slug)} replace />;
 }
 
 export default function App() {
