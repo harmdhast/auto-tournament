@@ -11,6 +11,7 @@ import { FakeReadyUp, createMatch, link, unlink } from '../helpers/fleetFake';
  * @tag api
  * @tag fleet
  */
+const DB = process.env.DB_NAME ?? 'auto_tournament';
 
 const auditRows = (slug: string): string =>
   execFileSync(
@@ -22,7 +23,7 @@ const auditRows = (slug: string): string =>
       '-U',
       'postgres',
       '-d',
-      'auto_tournament',
+      DB,
       '-At',
       '-c',
       `SELECT actor || '|' || command || '|' || status FROM cs2_fleet_audit WHERE match_slug = '${slug}'`,
@@ -33,7 +34,7 @@ const auditRows = (slug: string): string =>
 const psql = (sql: string): void => {
   execFileSync(
     'podman',
-    ['exec', 'auto-tournament-postgres', 'psql', '-U', 'postgres', '-d', 'auto_tournament', '-c', sql],
+    ['exec', 'auto-tournament-postgres', 'psql', '-U', 'postgres', '-d', DB, '-c', sql],
     { encoding: 'utf8' }
   );
 };
@@ -122,7 +123,9 @@ test.describe.serial('Fleet orphan unassign', () => {
     await expect(fake.next('match.unassign', 2000)).rejects.toThrow();
   });
 
-  test('a match the platform still assigns here survives unlink and relink', async ({ request }) => {
+  test('a match the platform still assigns here survives unlink and relink', async ({
+    request,
+  }) => {
     const { fake, cs2Id } = await online(request);
     const slug = `orphan-unlinked-${Date.now()}`;
     await createMatch(request, slug);
@@ -201,7 +204,12 @@ test.describe.serial('Fleet orphan unassign', () => {
     const slug = `orphan-both-${Date.now()}`;
     await createMatch(request, slug);
     await setState(request, slug, 'completed', cs2Id);
-    await fake.reconnect({ availability: 'busy', reason: 'awaiting_reset', detail: slug, state: null });
+    await fake.reconnect({
+      availability: 'busy',
+      reason: 'awaiting_reset',
+      detail: slug,
+      state: null,
+    });
     const msg = await fake.next('match.unassign');
     expect(msg.payload).toMatchObject({ match_id: slug });
     fake.answer(msg, 'ok');
