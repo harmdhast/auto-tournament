@@ -54,7 +54,7 @@ test('spare and busy servers are not counted as in a match', async ({ page, requ
         },
       })
   );
-  await page.goto('/');
+  await page.goto('/manage');
   const card = page.getByTestId('admin-home-servers-card');
   const count = (k: string) => card.getByTestId(`admin-home-servers-${k}`);
   await expect(count('inMatch')).toHaveText('2');
