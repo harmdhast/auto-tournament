@@ -244,6 +244,24 @@ test.describe.serial('Skins catalogue unlock', () => {
     expect((await me()).picks).toEqual([]);
   });
 
+  test('taking one side off a pick for both keeps the other side', { tag: ['@api'] }, async () => {
+    const { pick } = await (await put(pickOf(DEAGLE, 0))).json();
+    await player.delete(`/api/skins/me/equip/${DEAGLE}?team=3`);
+    let picks = (await me()).picks;
+    expect(picks).toEqual([expect.objectContaining({ id: pick.id, equippedSides: [2] })]);
+    await player.delete(`/api/skins/me/equip/${DEAGLE}?team=2`);
+    expect((await me()).picks).toEqual([]);
+    expect(await skinGone(pick.id)).toBe(true);
+
+    // The other side has its own pick: the shared one only loses this side.
+    const both = (await (await put(pickOf(DEAGLE, 0))).json()).pick;
+    const t = (await (await put(pickOf(DEAGLE, 1, { team: 2 }))).json()).pick;
+    await player.delete(`/api/skins/me/equip/${DEAGLE}?team=3`);
+    picks = (await me()).picks;
+    expect(picks.map((p: { id: number }) => p.id)).toEqual([t.id]);
+    expect(await skinGone(both.id)).toBe(true);
+  });
+
   test('picks stay hidden while the mode is off', { tag: ['@api'] }, async ({ request }) => {
     const { pick } = await (await put(pickOf(DEAGLE, 0))).json();
     await setConfig(request, { catalogUnlocked: false });

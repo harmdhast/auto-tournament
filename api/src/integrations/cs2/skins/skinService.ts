@@ -1459,10 +1459,29 @@ export const skinService = {
   async unequip(playerUid: string, slot: string, team?: unknown): Promise<void> {
     const replaced = await pickIdsInSlot(playerUid, slot);
     if (team === 0 || team === 2 || team === 3) {
-      await db.runAsync(
+      const removed = await db.runAsync(
         'DELETE FROM cs2_player_loadout WHERE player_uid = ? AND slot = ? AND team = ?',
         [playerUid, slot, team]
       );
+      if (removed.changes === 0 && team !== 0) {
+        // A pick on both sides taken off one: the other side keeps it (earned skins split client-side).
+        const other = team === 2 ? 3 : 2;
+        await db.runAsync(
+          `UPDATE cs2_player_loadout l SET team = ?
+            FROM cs2_player_skins s
+           WHERE s.id = l.skin_id AND s.source = 'catalog'
+             AND l.player_uid = ? AND l.slot = ? AND l.team = 0
+             AND NOT EXISTS (SELECT 1 FROM cs2_player_loadout x
+                              WHERE x.player_uid = l.player_uid AND x.slot = l.slot AND x.team = ?)`,
+          [other, playerUid, slot, other]
+        );
+        await db.runAsync(
+          `DELETE FROM cs2_player_loadout l USING cs2_player_skins s
+            WHERE s.id = l.skin_id AND s.source = 'catalog'
+              AND l.player_uid = ? AND l.slot = ? AND l.team = 0`,
+          [playerUid, slot]
+        );
+      }
     } else {
       await db.runAsync('DELETE FROM cs2_player_loadout WHERE player_uid = ? AND slot = ?', [
         playerUid,
