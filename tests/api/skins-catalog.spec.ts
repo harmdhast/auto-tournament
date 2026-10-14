@@ -275,6 +275,37 @@ test.describe.serial('Skins catalogue unlock', () => {
     expect(await skinGone(pick.id)).toBe(false);
   });
 
+  test(
+    'a stored pick with the mode off is not an owned skin and keeps its slot',
+    { tag: ['@api'] },
+    async ({ request }) => {
+      // The state a catalogue row left by an earlier unlock is in: `source = 'catalog'`, one
+      // team-0 loadout row, no skin of its own in the inventory.
+      const { pick } = await (await put(pickOf(DEAGLE, 0))).json();
+      await setConfig(request, { catalogUnlocked: false });
+      const headers = getAuthHeader();
+      const given = await request.post(`/api/skins/admin/players/${STEAM_ID}/skins`, {
+        headers,
+        data: { weapon: DEAGLE, paintKit: deagle[1].paintKit },
+      });
+      const { id } = await given.json();
+      let body = await me();
+      expect(body.inventory.map((s: { id: number }) => s.id)).toContain(id);
+      expect(body.inventory.map((s: { id: number }) => s.id)).not.toContain(pick.id);
+      // A new drop does not take the hidden pick's slot.
+      expect(body.inventory.find((s: { id: number }) => s.id === id).equipped).toBe(false);
+      const admin = await (
+        await request.get(`/api/skins/admin/players/${STEAM_ID}/inventory`, { headers })
+      ).json();
+      expect(admin.inventory.map((s: { id: number }) => s.id)).not.toContain(pick.id);
+
+      await setConfig(request, { catalogUnlocked: true });
+      body = await me();
+      expect(body.picks).toEqual([expect.objectContaining({ id: pick.id, equippedSides: [0] })]);
+      await request.delete(`/api/skins/admin/skins/${id}`, { headers });
+    }
+  );
+
   test('bad picks are refused and store nothing', { tag: ['@api'] }, async () => {
     const good = pickOf(DEAGLE, 0, { float: 0.2, seed: 6 });
     const { pick } = await (await put(good)).json();
