@@ -12,9 +12,24 @@
 
 ## Sync
 
-Current state: `custom` is synced to upstream `main` 6ed6dd22 (`v3.0.0-beta.100-13-g6ed6dd22`, base tag `v3.0.0-beta.100`) by merge 00b054ab.
+Current state: `custom` is synced to upstream `main` 0b645086 (`v3.0.0-beta.132-1-g0b645086`, base tag `v3.0.0-beta.132`) by merge 4e303dc3. Previous sync: 6ed6dd22 (`v3.0.0-beta.100`) by merge 00b054ab.
 
-Dropped by the sync:
+Dropped or re-ported by the beta.132 sync:
+
+- Upstream removed MatchZy Enhanced and RCON (#848). The feat/readyup-only gates on that code went with it; `requireRconEnabled` stays on `POST /api/servers` and `/api/servers/batch`. `/api/rcon/test`, `/api/rcon/test-connection`, `/api/test/match-report` and `/api/test/server-status` are gone; `/api/rcon/test/:serverId` (fleet link status), `/api/rcon/capabilities/:serverId` and `/api/rcon/add-time` stay, fleet only. `tests/api/match-phase.spec.ts` was deleted with the report helper it used.
+- Upstream removed the `.stop` settings as unread by Ready Up (#946). feat/fleet-stop-rules sends them as `rules.stop`: `at_stop_command_available` / `at_stop_command_no_damage` are back in the CS2 settings, readers, Match rules page and locales.
+- Upstream's veto orders for any pool size (#930) replace fix/veto-small-pool's `standardVetoOrder` (`veto/config.ts` is upstream's). The veto board still draws the API's order: upstream's `order.steps` first, else the fork's `vetoOrder`.
+- Upstream serves map and skin pictures from the platform (`/api/game/cs2/img`, #959). feat/cs2-local-images keeps its bundled manifest first; its jsDelivr fallbacks now point at the platform route (skins-256 for small skin pictures).
+- Upstream's stray-server `server.enroll` (#913) meets the enrollment 409: a key minted for a machine re-enrolls an install that an earlier key of the same machine enrolled; any other key still gets 409 `install_conflict`.
+- Upstream's machine public address (#939, migration `057-fleet-host-public-address`) applies only to the servers the machine may claim, like its reported address.
+- Upstream's `linkCreatedOnce` (server.enroll joins the pool) lives in `fleet/link.ts` (refactor/simplify-cs2).
+- Upstream's Settings-made API tokens: an admin-scope one counts as root (fork root model), so only a root admin makes one; an integrator token's `POST /api/players/import` gets past the fork's large-body gate.
+- Upstream's match-less call for help (a practice server) is recorded; a call naming a match still needs a server that held it.
+- The `/api/test/fleet/events` and `/fleet/snapshot` helpers give their sender the match (and a pending fleet record when it has none), since only the holder moves a match.
+- Upstream's join a running shuffle (#977) left its spec expecting a refusal; `shuffle-tournament.spec.ts` now expects the player registered.
+- Versions: client API 0.2.26 (upstream), server API 0.1.3 (fork: host bridge `utils/rootAccess`, `utils/accountConnections`).
+
+Dropped by the beta.100 sync:
 
 - Upstream removed the match dialog (`MatchDetailsModal.tsx`, #827) and the old match controls (`AdminMatchControls.tsx`, #833): fix/match-modal-reopens, the server-supported admin controls (d467b7d6) and the dialog's local map images went with them.
 - Upstream's `?match=` link opens the match room (#833), so the Matches page no longer keeps an open dialog in the URL.
@@ -29,7 +44,7 @@ CS2 ships as a signed module in the image's offline snapshot. The workflow signs
 
 `custom` keeps every branch migration's id and SQL unchanged, appended after upstream's list in merge order. Merging the same branch upstream later is then a no-op on a database that ran `custom`. If upstream ships a branch with different ids or SQL, the database needs a manual reconcile.
 
-Fork-only migrations (`api/src/integrations/cs2/migrations.ts`, after upstream's `054-skin-stattrak`):
+Fork-only migrations (`api/src/integrations/cs2/migrations.ts`, after upstream's `058-movement-records`):
 
 | id                              | branch                       |
 | ------------------------------- | ---------------------------- |
