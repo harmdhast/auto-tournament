@@ -1,8 +1,5 @@
 import { test, expect } from '@playwright/test';
-import {
-  buildServerGroups,
-  rowForFleetServer,
-} from '../../client/src/integrations/cs2/servers/list/serverGroups';
+import { buildServerGroups } from '../../client/src/integrations/cs2/servers/list/serverGroups';
 import type { FleetHost, FleetServer, Server } from '../../client/src/integrations/cs2/cs2.types';
 import { fleetServer } from '../helpers/fleetUi';
 
@@ -93,15 +90,5 @@ test.describe('server groups', () => {
       [fleet('a', { name: 'a', status: 'revoked' }), fleet('b', { name: 'b' })]
     );
     expect(groups[0].rows.map((r) => r.key)).toEqual(['r:b', 'r:a']);
-  });
-
-  test('rowForFleetServer finds machine and Ready Up rows', () => {
-    const groups = buildServerGroups(
-      [host('h1', {}, [{ name: 'cs2-1', fleetId: 'f1' }])],
-      [fleet('f1'), fleet('f2')]
-    );
-    expect(rowForFleetServer(groups, 'f1')?.key).toBe('m:h1:cs2-1');
-    expect(rowForFleetServer(groups, 'f2')?.key).toBe('r:f2');
-    expect(rowForFleetServer(groups, 'zz')).toBeNull();
   });
 });
