@@ -7,11 +7,7 @@
 
 import { log } from '../../../utils/logger';
 import { capabilitiesOf } from './registry';
-import {
-  getIO,
-  onSocketConnection,
-  socketHasAdminAccess,
-} from '../../../services/socketService';
+import { getIO, onSocketConnection, socketHasAdminAccess } from '../../../services/socketService';
 import { registerInboundHandler } from './inbound';
 import { fleetBus, onFleetServerClosed, onFleetServerReady } from './service';
 import type { Socket } from 'socket.io';
@@ -38,21 +34,22 @@ let hooked = false;
 
 export const logRoom = (fleetServerId: string): string => `fleet-logs:${fleetServerId}`;
 
-function requestStream(fleetServerId: string, backlog: boolean): void {
+function sendStreamControl(
+  fleetServerId: string,
+  type: 'logs.start' | 'logs.stop',
+  payload: { backlog?: boolean }
+): void {
   void fleetBus()
-    .send(fleetServerId, { type: 'logs.start', payload: { backlog }, reliable: false })
+    .send(fleetServerId, { type, payload, reliable: false })
     .catch((error) =>
-      log.warn(`[FLEET] ${fleetServerId}: logs.start failed: ${(error as Error).message}`)
+      log.warn(`[FLEET] ${fleetServerId}: ${type} failed: ${(error as Error).message}`)
     );
 }
 
-function stopStream(fleetServerId: string): void {
-  void fleetBus()
-    .send(fleetServerId, { type: 'logs.stop', payload: {}, reliable: false })
-    .catch((error) =>
-      log.warn(`[FLEET] ${fleetServerId}: logs.stop failed: ${(error as Error).message}`)
-    );
-}
+const requestStream = (fleetServerId: string, backlog: boolean): void =>
+  sendStreamControl(fleetServerId, 'logs.start', { backlog });
+const stopStream = (fleetServerId: string): void =>
+  sendStreamControl(fleetServerId, 'logs.stop', {});
 
 export async function subscribeLogs(
   socketId: string,

@@ -60,26 +60,17 @@ export function startFleetPush(): void {
     });
 
     onFleetServerReady(async (serverId, hello) => {
-      try {
-        await adminsOnHello(serverId, hello.admins_rev);
-      } catch (error) {
-        log.warn(`[FLEET] ${serverId}: admins.set after hello failed: ${(error as Error).message}`);
-      }
-      try {
-        await settingsOnHello(serverId);
-      } catch (error) {
-        log.warn(`[FLEET] ${serverId}: settings after hello failed: ${(error as Error).message}`);
-      }
-      try {
-        await autoLinkOnEnroll(serverId);
-      } catch (error) {
-        log.warn(`[FLEET] ${serverId}: auto-link after hello failed: ${(error as Error).message}`);
-      }
-      try {
-        await pluginsOnHello(serverId, hello);
-      } catch (error) {
-        log.warn(`[FLEET] ${serverId}: plugins after hello failed: ${(error as Error).message}`);
-      }
+      const step = async (label: string, run: () => Promise<unknown>): Promise<void> => {
+        try {
+          await run();
+        } catch (error) {
+          log.warn(`[FLEET] ${serverId}: ${label} after hello failed: ${(error as Error).message}`);
+        }
+      };
+      await step('admins.set', () => adminsOnHello(serverId, hello.admins_rev));
+      await step('settings', () => settingsOnHello(serverId));
+      await step('auto-link', () => autoLinkOnEnroll(serverId));
+      await step('plugins', () => pluginsOnHello(serverId, hello));
     });
   }
 
