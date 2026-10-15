@@ -15,7 +15,7 @@ import {
   inventoryServer,
   newMachineId,
 } from '../helpers/fleetHost';
-import { unlinkAll } from '../helpers/fleetFake';
+import { releaseFleet } from '../helpers/fleetFake';
 import { validateMessage, type Envelope } from '../../api/src/integrations/cs2/fleet/protocol/v1';
 
 /**
@@ -158,7 +158,7 @@ test.describe.serial('Fleet plugin sets', () => {
   test.afterAll(async ({ request }) => {
     await signInViaRequest(request);
     await request.put('/api/fleet/plugins/default', { data: { plugins: null } });
-    await unlinkAll(request, enrolled);
+    await releaseFleet(request, enrolled);
   });
 
   test('catalog and presets; the default set is validated', async ({ request }) => {

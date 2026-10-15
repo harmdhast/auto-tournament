@@ -171,17 +171,29 @@ export async function unlink(request: APIRequestContext, fleetServerId: string):
   await request.delete(`/api/fleet/servers/${fleetServerId}/link`, { headers: getAuthHeader() });
 }
 
-/** Unlinks the servers a spec enrolled, so their rows do not outlive it. */
-export async function unlinkAll(
+const createdMatches: string[] = [];
+
+/** Records a match slug to delete with `releaseFleet`; returns it. */
+export function trackMatch(slug: string): string {
+  createdMatches.push(slug);
+  return slug;
+}
+
+/** Unlinks the servers a spec enrolled and deletes the matches it made with `createMatch`, so none outlives it. */
+export async function releaseFleet(
   request: APIRequestContext,
   fleetServerIds: string[]
 ): Promise<void> {
   await signInViaRequest(request);
   for (const id of fleetServerIds) await unlink(request, id);
+  for (const slug of createdMatches.splice(0)) {
+    await request.delete(`/api/matches/${slug}`, { headers: getAuthHeader() });
+  }
 }
 
 /** A standalone match with no server: the allocator picks one. */
 export async function createMatch(request: APIRequestContext, slug: string): Promise<void> {
+  createdMatches.push(slug);
   await request.delete(`/api/matches/${slug}`, { headers: getAuthHeader() });
   const res = await request.post('/api/matches', {
     headers: getAuthHeader(),

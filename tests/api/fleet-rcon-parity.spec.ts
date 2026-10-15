@@ -7,7 +7,7 @@ import {
   acceptAssign,
   createMatch,
   link,
-  unlinkAll,
+  releaseFleet,
 } from '../helpers/fleetFake';
 import { configureWebhook } from '../helpers/setup';
 import { createTestServer, deleteServer } from '../helpers/servers';
@@ -38,7 +38,7 @@ test.describe.serial('Fleet: RCON parity', () => {
 
   test.afterAll(async ({ request }) => {
     for (const f of fakes) f.close();
-    await unlinkAll(
+    await releaseFleet(
       request,
       fakes.map((f) => f.serverId)
     );
