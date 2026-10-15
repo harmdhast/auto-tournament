@@ -11,6 +11,7 @@ import {
   resetEnrollRateLimit,
   type Enrolled,
 } from '../helpers/fleet';
+import { releaseFleet, trackMatch } from '../helpers/fleetFake';
 import { ulid } from '../../api/src/integrations/cs2/fleet/credentials';
 import { validateMessage, type Envelope } from '../../api/src/integrations/cs2/fleet/protocol/v1';
 
@@ -147,7 +148,7 @@ function reliable(
 async function acked(client: FleetTestClient, seq: number): Promise<void> {
   const carries = (m: Envelope) => typeof m.ack === 'number' && m.ack >= seq;
   const control = (m: Envelope) => ['ack', 'ping', 'pong'].includes(m.type);
-  for (const deadline = Date.now() + 5000; Date.now() < deadline; ) {
+  for (const deadline = Date.now() + 5000; Date.now() < deadline;) {
     const i = client.received.findIndex((m) => carries(m) && control(m));
     if (i >= 0) {
       client.received.splice(i, 1);
@@ -156,10 +157,16 @@ async function acked(client: FleetTestClient, seq: number): Promise<void> {
     if (client.received.some(carries)) return;
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  throw new Error(`seq ${seq} not acked; received: ${JSON.stringify(client.received.map((m) => m.type))}`);
+  throw new Error(
+    `seq ${seq} not acked; received: ${JSON.stringify(client.received.map((m) => m.type))}`
+  );
 }
 
 test.describe.serial('Fleet gateway: match state and events (step 3)', () => {
+  test.afterAll(async ({ request }) => {
+    await releaseFleet(request, []);
+  });
+
   test.beforeEach(async ({ request }) => {
     expect(await signInViaRequest(request)).toBe(true);
     await resetEnrollRateLimit(request);
@@ -170,7 +177,7 @@ test.describe.serial('Fleet gateway: match state and events (step 3)', () => {
     request,
   }) => {
     const server = await enrollNew(request);
-    const slug = `fleet-t-${Date.now()}`;
+    const slug = trackMatch(`fleet-t-${Date.now()}`);
     const epoch = await assign(request, slug, server.server_id);
     expect(epoch).toBe(1);
 
@@ -249,7 +256,7 @@ test.describe.serial('Fleet gateway: match state and events (step 3)', () => {
     request,
   }) => {
     const server = await enrollNew(request);
-    const slug = `fleet-t-${Date.now()}`;
+    const slug = trackMatch(`fleet-t-${Date.now()}`);
     const epoch = await assign(request, slug, server.server_id);
     const assignFrame = example('match.assign.json');
     const payload = { ...(assignFrame.payload as Record<string, unknown>), match_id: slug, epoch };

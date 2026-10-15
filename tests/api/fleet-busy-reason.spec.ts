@@ -2,7 +2,7 @@ import { test, expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
 import { createTestServer, deleteServer } from '../helpers/servers';
-import { FakeReadyUp, link } from '../helpers/fleetFake';
+import { FakeReadyUp, link, releaseFleet } from '../helpers/fleetFake';
 import { CS2_MIGRATIONS } from '../../api/src/integrations/cs2/migrations';
 import {
   effectiveBusyReason,
@@ -76,8 +76,12 @@ test.describe.serial('Fleet busy reason: kept per server', () => {
     if (!key) key = await createFleetKey(request, { name: 'fleet-busy-reason-tests' });
   });
 
-  test.afterAll(() => {
+  test.afterAll(async ({ request }) => {
     for (const f of fakes) f.close();
+    await releaseFleet(
+      request,
+      fakes.map((f) => f.serverId)
+    );
   });
 
   test('the busy reason follows hello, server.availability and snapshots', async ({ request }) => {

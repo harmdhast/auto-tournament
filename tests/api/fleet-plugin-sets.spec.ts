@@ -15,6 +15,7 @@ import {
   inventoryServer,
   newMachineId,
 } from '../helpers/fleetHost';
+import { releaseFleet } from '../helpers/fleetFake';
 import { validateMessage, type Envelope } from '../../api/src/integrations/cs2/fleet/protocol/v1';
 
 /**
@@ -99,12 +100,15 @@ async function createServer(
   };
 }
 
+const enrolled: string[] = [];
+
 async function readyUpServer(request: APIRequestContext, enrollKey: string) {
   const installId = newInstallId();
   const res = await enroll(request, { key: enrollKey }, installId, {
     name: `plugins-${Date.now()}`,
   });
   expect(res.status, JSON.stringify(res.body)).toBe(201);
+  enrolled.push(res.body.server_id as string);
   return { serverId: res.body.server_id as string, token: res.body.token as string, installId };
 }
 
@@ -154,6 +158,7 @@ test.describe.serial('Fleet plugin sets', () => {
   test.afterAll(async ({ request }) => {
     await signInViaRequest(request);
     await request.put('/api/fleet/plugins/default', { data: { plugins: null } });
+    await releaseFleet(request, enrolled);
   });
 
   test('catalog and presets; the default set is validated', async ({ request }) => {

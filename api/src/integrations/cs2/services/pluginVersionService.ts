@@ -103,6 +103,8 @@ type ReleaseFetch = (
 // releases, pre-release servers against the newest release including betas.
 const readyUpCache = new Map<'stable' | 'prerelease', { release: ReadyUpRelease | null; at: number }>();
 
+const readyUpInflight = new Map<'stable' | 'prerelease', Promise<ReadyUpRelease | null>>();
+
 /** Test hook: forget the cached Ready Up lookup. */
 export function resetReadyUpReleaseCache(): void {
   readyUpCache.clear();
@@ -115,7 +117,21 @@ export function resetReadyUpReleaseCache(): void {
  * ones. GitHub's 404 (or an empty list) is an expected "no release", not an
  * error; any other failure also yields null (and is not cached).
  */
-export async function getLatestReadyUpRelease(options?: {
+export function getLatestReadyUpRelease(options?: {
+  runningVersion?: string | null;
+  forceRefresh?: boolean;
+  fetchImpl?: ReleaseFetch;
+}): Promise<ReadyUpRelease | null> {
+  // A listing asks once per server: lookups in flight on a channel share one request.
+  const channel = isPrereleaseVersion(options?.runningVersion) ? 'prerelease' : 'stable';
+  const pending = readyUpInflight.get(channel);
+  if (pending) return pending;
+  const lookup = lookupLatestReadyUpRelease(options).finally(() => readyUpInflight.delete(channel));
+  readyUpInflight.set(channel, lookup);
+  return lookup;
+}
+
+async function lookupLatestReadyUpRelease(options?: {
   runningVersion?: string | null;
   forceRefresh?: boolean;
   fetchImpl?: ReleaseFetch;

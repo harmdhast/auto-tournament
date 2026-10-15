@@ -10,6 +10,7 @@ import {
   resetEnrollRateLimit,
   type Enrolled,
 } from '../helpers/fleet';
+import { releaseFleet, trackMatch } from '../helpers/fleetFake';
 import { validateMessage, type Envelope } from '../../api/src/integrations/cs2/fleet/protocol/v1';
 
 /**
@@ -94,6 +95,7 @@ test.describe.serial('Fleet pushes: admins, settings, switches, match.update', (
     await signInViaRequest(request);
     await request.put('/api/fleet/settings', { data: { settings: { config: {}, match: {} } } });
     await request.put('/api/fleet/admins/extras', { data: { admins: [] } });
+    await releaseFleet(request, []);
   });
 
   test('admins.set: rev in welcome, sent after a hello that is behind, raised above a higher rev, pushed on change', async ({
@@ -348,7 +350,7 @@ test.describe.serial('Fleet pushes: admins, settings, switches, match.update', (
     // M1 play-test: the route answered configSaved:false (the cmd.result hook
     // had saved it first), and the sub was stored as a plain player.
     const server = await enrollNew(request);
-    const slug = `fleet-sub-${Date.now()}`;
+    const slug = trackMatch(`fleet-sub-${Date.now()}`);
     const A = '76561198000000021';
     const B = '76561198000000022';
     const SUB = '76561198000000023';
@@ -412,7 +414,7 @@ test.describe.serial('Fleet pushes: admins, settings, switches, match.update', (
     request,
   }) => {
     const server = await enrollNew(request);
-    const slug = `fleet-push-${Date.now()}`;
+    const slug = trackMatch(`fleet-push-${Date.now()}`);
     const assign = await request.post('/api/test/fleet/assign', {
       headers: getAuthHeader(),
       data: { matchSlug: slug, serverId: server.server_id },
