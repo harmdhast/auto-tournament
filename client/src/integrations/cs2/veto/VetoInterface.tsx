@@ -90,13 +90,44 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     setAllMaps(new Map(maps.map((map) => [map.id, map])));
   }, []);
 
+  const vetoRequest = useCallback(
+    async (path = '', body?: Record<string, unknown>) => {
+      const response = await fetch(
+        `/api/veto/${matchSlug}${path}`,
+        body === undefined
+          ? undefined
+          : {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            }
+      );
+      return (await response.json()) as VetoStateResponse & { veto: VetoState };
+    },
+    [matchSlug]
+  );
+
+  // Read the veto again without the loading state, so the board does not flash.
+  const refetchVeto = useCallback(
+    (announceCompleted: boolean) => {
+      void vetoRequest()
+        .then((data) => {
+          if (!data.success || !data.veto) return;
+          storeMapInfo(data.maps);
+          setVetoState(data.veto);
+          if (announceCompleted && data.veto.status === 'completed') onCompleteRef.current?.();
+        })
+        .catch(() => undefined);
+    },
+    [vetoRequest, storeMapInfo]
+  );
+
   const loadVetoState = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetch(`/api/veto/${matchSlug}`);
-      const data = (await response.json()) as VetoStateResponse & { veto: VetoState };
+      const data = await vetoRequest();
 
       if (data.success) {
         storeMapInfo(data.maps);
@@ -113,7 +144,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [matchSlug, t, translateVetoError, storeMapInfo]);
+  }, [vetoRequest, t, translateVetoError, storeMapInfo]);
 
   useEffect(() => {
     loadVetoState();
@@ -133,12 +164,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
           ? { ...updatedVeto, turnDeadline: undefined, turnSeconds: prev.turnSeconds }
           : updatedVeto
       );
-      void fetch(`/api/veto/${matchSlug}`)
-        .then((response) => response.json())
-        .then((data: { success?: boolean; veto?: VetoState }) => {
-          if (data.success && data.veto) setVetoState(data.veto);
-        })
-        .catch(() => undefined);
+      refetchVeto(false);
       // The board moved on, so a refused action from before is no longer news.
       setActionError('');
       if (updatedVeto.status === 'completed') {
@@ -151,26 +177,13 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     // A pick or ban made while this socket was down never arrives, which left
     // the board on the wrong turn until a reload. Refetch on reconnect,
     // without the loading state so the board does not flash.
-    const offReconnect = onSocketReconnect(socket, () => {
-      void fetch(`/api/veto/${matchSlug}`)
-        .then((response) => response.json())
-        .then((data: { success?: boolean; veto?: VetoState; maps?: VetoMapInfo[] }) => {
-          if (data.success && data.veto) {
-            storeMapInfo(data.maps);
-            setVetoState(data.veto);
-            if (data.veto.status === 'completed') {
-              onCompleteRef.current?.();
-            }
-          }
-        })
-        .catch(() => undefined);
-    });
+    const offReconnect = onSocketReconnect(socket, () => refetchVeto(true));
 
     return () => {
       offReconnect();
       socket.off(vetoEvent, onVetoUpdate);
     };
-  }, [socket, matchSlug, storeMapInfo]);
+  }, [socket, matchSlug, refetchVeto]);
 
   // Memoize mapsToShow - must be called before any early returns (Rules of Hooks)
   // Motion (punchy, short): a decided map leaves the grid, the rest close up. Off with reduced motion.
@@ -224,16 +237,10 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
 
     // For ban/pick actions, submit immediately
     try {
-      const response = await fetch(`/api/veto/${matchSlug}/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mapName,
-          teamSlug: currentTeamSlug, // Send which team is making the action
-        }),
+      const data = await vetoRequest('/action', {
+        mapName,
+        teamSlug: currentTeamSlug, // Send which team is making the action
       });
-
-      const data = await response.json();
 
       if (!data.success) {
         setActionError(
@@ -255,16 +262,10 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     }
 
     try {
-      const response = await fetch(`/api/veto/${matchSlug}/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          side,
-          teamSlug: currentTeamSlug, // Send which team is making the action
-        }),
+      const data = await vetoRequest('/action', {
+        side,
+        teamSlug: currentTeamSlug, // Send which team is making the action
       });
-
-      const data = await response.json();
 
       if (data.success) {
         setActionError('');
