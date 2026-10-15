@@ -1,8 +1,7 @@
 import { matchChanged } from '../core/matchChangeBus';
 import { log } from '../utils/logger';
-import type { LiveStatus } from '../types/match.types';
 
-export type { LiveStatus };
+export type LiveStatus = 'warmup' | 'knife' | 'live' | 'halftime' | 'postgame';
 
 export interface PlayerStatLine {
   steamId: string;
@@ -187,3 +186,5 @@ class MatchLiveStatsService {
 }
 
 export const matchLiveStatsService = new MatchLiveStatsService();
+
+

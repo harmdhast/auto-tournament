@@ -8,12 +8,13 @@ import { db } from '../../../../config/database';
 import { log } from '../../../../utils/logger';
 import { getFailoverSettings } from '../failoverSettings';
 import { normalizeAutoscaleSettings, type AutoscaleSettings } from './plan';
-import { nowS } from '../util';
 
 export interface StoredAutoscaleSettings extends AutoscaleSettings {
   updatedBy: string | null;
   updatedAt: number | null;
 }
+
+const nowS = () => Math.floor(Date.now() / 1000);
 
 function parse(raw: string | null | undefined): unknown {
   if (!raw) return null;

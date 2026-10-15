@@ -19,7 +19,6 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Box, Typography } from '@mui/material';
 import { api } from '../../../module-sdk';
 import type { TournamentStartConfirmProps } from '../../types';
-import { SERVER_AVAILABILITY_ENDPOINT } from '../cs2.types';
 
 export const Cs2StartConfirm: React.FC<TournamentStartConfirmProps> = ({ open }) => {
   const [availableServerCount, setAvailableServerCount] = useState<number | null>(null);
@@ -46,7 +45,7 @@ export const Cs2StartConfirm: React.FC<TournamentStartConfirmProps> = ({ open })
             online: boolean;
             allocatable: boolean;
           }>;
-        }>(SERVER_AVAILABILITY_ENDPOINT);
+        }>('/api/tournament/server-availability');
         if (cancelled) return;
         if (response.success) {
           setAvailableServerCount(response.availableServerCount);
