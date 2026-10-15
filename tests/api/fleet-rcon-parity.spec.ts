@@ -85,12 +85,12 @@ test.describe.serial('Fleet: RCON parity', () => {
     }
   });
 
-  test('skip-veto stays 400 on Ready Up', async ({ request }) => {
+  test('there is no skip-veto button on Ready Up', async ({ request }) => {
     const res = await request.post('/api/rcon/skip-veto', {
       headers: getAuthHeader(),
       data: { serverId: cs2Id },
     });
-    expect(res.status()).toBe(400);
+    expect(res.status()).toBe(404);
   });
 
   test('fleet answers name the server; the connection test reads the fleet link', async ({
