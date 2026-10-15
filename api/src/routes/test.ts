@@ -214,9 +214,12 @@ router.post('/marker', requireAuth, (req: Request, res: Response): void => {
 router.post(
   '/reset-database',
   requireAuth,
-  requireTestEndpoints('production', {
-    success: false,
-    error: 'Database reset endpoint is disabled in production',
+  requireTestEndpoints({
+    tier: 'production',
+    body: {
+      success: false,
+      error: 'Database reset endpoint is disabled in production',
+    },
   }),
   async (_req: Request, res: Response): Promise<void> => {
     try {
@@ -257,7 +260,10 @@ router.post(
 router.post(
   '/match-state',
   requireAuth,
-  requireTestEndpoints('production', { success: false, error: 'Disabled in production' }),
+  requireTestEndpoints({
+    tier: 'production',
+    body: { success: false, error: 'Disabled in production' },
+  }),
   async (req: Request, res: Response): Promise<void> => {
     const { slug, status, serverId, loadedAt } = (req.body || {}) as {
       slug?: string;
@@ -314,7 +320,10 @@ router.post(
 router.post(
   '/match-report',
   requireAuth,
-  requireTestEndpoints('production', { success: false, error: 'Disabled in production' }),
+  requireTestEndpoints({
+    tier: 'production',
+    body: { success: false, error: 'Disabled in production' },
+  }),
   async (req: Request, res: Response): Promise<void> => {
     const { slug, report } = (req.body || {}) as { slug?: string; report?: unknown };
 
@@ -349,7 +358,10 @@ router.post(
 router.post(
   '/series-result',
   requireAuth,
-  requireTestEndpoints('production', { success: false, error: 'Disabled in production' }),
+  requireTestEndpoints({
+    tier: 'production',
+    body: { success: false, error: 'Disabled in production' },
+  }),
   async (req: Request, res: Response): Promise<void> => {
     const { slug, result, meta } = (req.body || {}) as {
       slug?: string;
@@ -449,9 +461,12 @@ router.post(
  */
 router.post(
   '/login-admin',
-  requireTestEndpoints('production', {
-    success: false,
-    error: 'login-admin test helper is disabled in production',
+  requireTestEndpoints({
+    tier: 'production',
+    body: {
+      success: false,
+      error: 'login-admin test helper is disabled in production',
+    },
   }),
   async (req: Request, res: Response): Promise<void> => {
     const anyReq = req as Request & {
@@ -530,9 +545,12 @@ router.post(
  */
 router.post(
   '/login-player',
-  requireTestEndpoints('production', {
-    success: false,
-    error: 'login-player test helper is disabled in production',
+  requireTestEndpoints({
+    tier: 'production',
+    body: {
+      success: false,
+      error: 'login-player test helper is disabled in production',
+    },
   }),
   async (req: Request, res: Response): Promise<void> => {
     try {
@@ -1916,22 +1934,22 @@ router.get('/oauth/:provider/callback', (req: Request, res: Response, next: Next
  *   POST /api/test/steam-link/start                  as POST /api/auth/steam/link, answers JSON instead of redirecting to Steam
  *   POST /api/test/steam-link/callback { steamId }   as the Steam callback once Steam proved `steamId`
  */
-router.post('/steam-link/start', async (req: Request, res: Response): Promise<void> => {
-  if (!testEndpointsFlag()) {
-    res.status(404).json({ success: false, error: 'Not found' });
-    return;
+router.post(
+  '/steam-link/start',
+  requireTestEndpoints({ tier: 'flag' }),
+  async (req: Request, res: Response): Promise<void> => {
+    if (await beginSteamLink(req, res)) res.json({ success: true });
   }
-  if (await beginSteamLink(req, res)) res.json({ success: true });
-});
+);
 
-router.post('/steam-link/callback', async (req: Request, res: Response): Promise<void> => {
-  if (!testEndpointsFlag()) {
-    res.status(404).json({ success: false, error: 'Not found' });
-    return;
+router.post(
+  '/steam-link/callback',
+  requireTestEndpoints({ tier: 'flag' }),
+  async (req: Request, res: Response): Promise<void> => {
+    const steamId = (req.body as { steamId?: unknown })?.steamId;
+    await completeSteamLink(req, res, typeof steamId === 'string' ? steamId : '');
   }
-  const steamId = (req.body as { steamId?: unknown })?.steamId;
-  await completeSteamLink(req, res, typeof steamId === 'string' ? steamId : '');
-});
+);
 
 router.get('/fake-oauth/:provider/authorize', (req: Request, res: Response): void => {
   if (!fakeOAuthProviderFrom(req, res)) return;

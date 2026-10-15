@@ -16,21 +16,16 @@ export function testEndpointsAllowed(): boolean {
  * 404; `production` only refuses in production and answers 403 with `body`.
  */
 export function requireTestEndpoints(
-  tier: 'flag'
-): (req: Request, res: Response, next: NextFunction) => void;
-export function requireTestEndpoints(
-  tier: 'production',
-  body: Record<string, unknown>
-): (req: Request, res: Response, next: NextFunction) => void;
-export function requireTestEndpoints(tier: 'flag' | 'production', body?: Record<string, unknown>) {
+  gate: { tier: 'flag' } | { tier: 'production'; body: Record<string, unknown> }
+) {
   return (_req: Request, res: Response, next: NextFunction): void => {
-    if (tier === 'flag') {
+    if (gate.tier === 'flag') {
       if (!testEndpointsFlag()) {
         res.status(404).json({ success: false, error: 'Not found' });
         return;
       }
     } else if (!testEndpointsAllowed()) {
-      res.status(403).json(body);
+      res.status(403).json(gate.body);
       return;
     }
     next();
