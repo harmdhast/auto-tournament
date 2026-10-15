@@ -16,6 +16,7 @@
 
 import { Router, type Request, type Response } from 'express';
 import { requireAuth } from '../../middleware/auth';
+import { testEndpointsFlag } from '../../utils/testEndpoints';
 import { log } from '../../utils/logger';
 import type { NormalizedEvent, NormalizedEventType } from '../types';
 import type {
@@ -42,12 +43,10 @@ const EVENT_TYPES: ReadonlySet<NormalizedEventType> = new Set<NormalizedEventTyp
 ]);
 
 function isEnabled(): boolean {
-  if (process.env.NODE_ENV !== 'production') return true;
-  const flag = (process.env.ENABLE_TEST_ENDPOINTS || '').toLowerCase();
-  return flag === '1' || flag === 'true' || flag === 'yes';
+  return testEndpointsFlag();
 }
 
-fakeEventRoutes.use(requireAuth, (_req, res, next) => {
+fakeEventRoutes.use(requireAuth, function requireTestEndpoints(_req, res, next) {
   if (!isEnabled()) {
     res.status(403).json({ success: false, error: 'Disabled in production' });
     return;

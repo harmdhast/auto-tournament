@@ -341,7 +341,8 @@ const Development: React.FC = () => {
 
     try {
       const response: { success: boolean; message: string } = await api.post(
-        '/api/tournament/wipe-database'
+        '/api/tournament/wipe-database',
+        { confirm: 'wipe' }
       );
       showSuccess(
         response.message || t('devToolsPage.wipeDatabase.successRedirect')
@@ -372,7 +373,8 @@ const Development: React.FC = () => {
 
     try {
       const response: { success: boolean; message: string } = await api.post(
-        `/api/tournament/wipe-table/${table}`
+        `/api/tournament/wipe-table/${table}`,
+        { confirm: table }
       );
       showSuccess(
         response.message ||
@@ -390,7 +392,8 @@ const Development: React.FC = () => {
     setResettingSimulation(true);
     try {
       const response: { success: boolean; message?: string; error?: string } = await api.post(
-        '/api/tournament/dev/reset-simulation-state'
+        '/api/tournament/dev/reset-simulation-state',
+        { confirm: 'reset' }
       );
       if (response.success) {
         showSuccess(

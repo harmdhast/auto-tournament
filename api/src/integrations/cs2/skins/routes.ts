@@ -20,10 +20,11 @@
  */
 
 import { db } from '../../../config/database';
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { requireAuth } from '../../../middleware/auth';
 import { log } from '../../../utils/logger';
 import { resolveViewerAccount } from '../../../utils/viewerIdentity';
+import { isSameSiteRequest } from '../../../utils/accountConnections';
 import { skinImageUrls } from '../assets/localAssets';
 import { WEAPON_DEFINDEX } from './skinDefindex';
 import { catalogWeapons, pickableSkin, searchCatalog } from './catalogSearch';
@@ -52,6 +53,19 @@ async function loadoutChanged(uid: string): Promise<void> {
   if (!row) return;
   const { pushLoadoutLive } = await import('../fleet/push/skins');
   await pushLoadoutLive(row.id);
+}
+
+/** CSRF: a player's writes come from this site, as JSON (DELETE has no body). */
+function sameSiteJson(req: Request, res: Response, next: NextFunction): void {
+  if (!isSameSiteRequest(req)) {
+    res.status(403).json({ success: false, error: 'Request refused' });
+    return;
+  }
+  if (req.method !== 'DELETE' && !req.is('application/json')) {
+    res.status(415).json({ success: false, error: 'Send this request as JSON' });
+    return;
+  }
+  next();
 }
 
 async function playerOrStop(req: Request, res: Response): Promise<string | null> {
@@ -221,7 +235,7 @@ router.get('/me/trade-up', async (req, res) => {
   }
 });
 
-router.post('/me/trade-up', async (req, res) => {
+router.post('/me/trade-up', sameSiteJson, async (req, res) => {
   try {
     const uid = await playerOrStop(req, res);
     if (!uid) return;
@@ -251,7 +265,7 @@ router.post('/me/trade-up', async (req, res) => {
  *       404: { description: Not a waiting choice of yours }
  *       409: { description: Already chosen }
  */
-router.post('/me/choices/:id', async (req, res) => {
+router.post('/me/choices/:id', sameSiteJson, async (req, res) => {
   try {
     const uid = await playerOrStop(req, res);
     if (!uid) return;
@@ -276,7 +290,7 @@ router.post('/me/choices/:id', async (req, res) => {
  *       200: { description: Equipped }
  *       404: { description: Not in your inventory, or skins are off }
  */
-router.post('/me/equip', async (req, res) => {
+router.post('/me/equip', sameSiteJson, async (req, res) => {
   try {
     const uid = await playerOrStop(req, res);
     if (!uid) return;
@@ -301,7 +315,7 @@ router.post('/me/equip', async (req, res) => {
  *     responses:
  *       200: { description: Emptied }
  */
-router.delete('/me/equip/:slot', async (req, res) => {
+router.delete('/me/equip/:slot', sameSiteJson, async (req, res) => {
   try {
     const uid = await playerOrStop(req, res);
     if (!uid) return;
@@ -327,7 +341,7 @@ router.delete('/me/equip/:slot', async (req, res) => {
  *     responses:
  *       200: { description: Marked }
  */
-router.post('/me/seen', async (req, res) => {
+router.post('/me/seen', sameSiteJson, async (req, res) => {
   try {
     const uid = await playerOrStop(req, res);
     if (!uid) return;
@@ -359,7 +373,7 @@ router.post('/me/seen', async (req, res) => {
  *     responses:
  *       200: { description: Saved }
  */
-router.put('/me/showcase', async (req, res) => {
+router.put('/me/showcase', sameSiteJson, async (req, res) => {
   try {
     const uid = await playerOrStop(req, res);
     if (!uid) return;
@@ -468,7 +482,7 @@ router.get('/catalog', async (req, res) => {
  *       400: { description: Not in the catalogue, no game definition for it, or float or seed out of range }
  *       404: { description: The catalogue is not unlocked }
  */
-router.put('/me/picks', async (req, res) => {
+router.put('/me/picks', sameSiteJson, async (req, res) => {
   try {
     const uid = await catalogPlayerOrStop(req, res);
     if (!uid) return;

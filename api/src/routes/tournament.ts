@@ -25,6 +25,8 @@ import { eloTemplateService } from '../services/eloTemplateService';
 import { settingsService } from '../services/settingsService';
 import { checkTournamentCompletion } from '../utils/matchProgression';
 import { resolveTournamentId } from '../utils/tournamentRow';
+import { requireTypedConfirm } from '../utils/typedConfirm';
+import { requireTestEndpoints } from '../utils/testEndpoints';
 import { validateTeamCount } from '../utils/tournamentHelpers';
 import { integrationForMatch } from '../integrations/registry';
 import { resolveGameRef } from '../services/gameCatalogService';
@@ -1670,6 +1672,11 @@ router.post('/restart', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+const confirmWipe = requireTypedConfirm(() => 'wipe');
+const confirmTable = requireTypedConfirm((req) => req.params.table);
+const confirmReset = requireTypedConfirm(() => 'reset');
+const devOnly = requireTestEndpoints({ tier: 'flag' });
+
 /**
  * @openapi
  * /api/tournament/wipe-database:
@@ -1677,14 +1684,26 @@ router.post('/restart', requireAuth, async (req: Request, res: Response) => {
  *     tags:
  *       - Tournament
  *     summary: Reset entire database (DEV ONLY)
- *     description: Drops all tables and reinitializes the database schema with default data (maps, map pools). This resets the database to its initial state as if starting fresh. USE WITH CAUTION!
+ *     description: Drops all tables and reinitializes the database schema with default data (maps, map pools). This resets the database to its initial state as if starting fresh. USE WITH CAUTION! A signed-in admin session only (no API token), same-site JSON, `{ "confirm": "wipe" }`.
  *     security:
  *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               confirm: { type: string, description: '"wipe"' }
  *     responses:
  *       200:
  *         description: Database reset successfully
+ *       400:
+ *         description: Missing or wrong confirmation
+ *       403:
+ *         description: An API token, or a cross-site request
  */
-router.post('/wipe-database', async (_req: Request, res: Response) => {
+router.post('/wipe-database', confirmWipe, async (_req: Request, res: Response) => {
   try {
     log.warn('[WARNING] DATABASE WIPE REQUESTED - Resetting database to initial state');
 
@@ -1723,9 +1742,17 @@ router.post('/wipe-database', async (_req: Request, res: Response) => {
  *     tags:
  *       - Tournament
  *     summary: Wipe specific table (DEV ONLY)
- *     description: Deletes all data from a specific table
+ *     description: Deletes all data from a specific table. A signed-in admin session only (no API token), same-site JSON, `{ "confirm": "<table>" }`.
  *     security:
  *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               confirm: { type: string, description: 'The table name' }
  *     parameters:
  *       - name: table
  *         in: path
@@ -1736,8 +1763,12 @@ router.post('/wipe-database', async (_req: Request, res: Response) => {
  *     responses:
  *       200:
  *         description: Table wiped successfully
+ *       400:
+ *         description: Invalid table, or missing or wrong confirmation
+ *       403:
+ *         description: An API token, or a cross-site request
  */
-router.post('/wipe-table/:table', async (req: Request, res: Response) => {
+router.post('/wipe-table/:table', confirmTable, async (req: Request, res: Response) => {
   try {
     const tournamentId = resolveTournamentId(req);
     const { table } = req.params;
@@ -1842,16 +1873,31 @@ router.post('/wipe-table/:table', async (req: Request, res: Response) => {
  *       you can restart simulations from a clean slate, while preserving servers, teams, maps,
  *       map pools, and the current tournament configuration (name, type, maps, teams, settings).
  *       Player records are kept, but their current ELO and match counts are reset based on their
- *       starting values.
+ *       starting values. Only with ENABLE_TEST_ENDPOINTS; a signed-in admin session only (no API
+ *       token), same-site JSON, `{ "confirm": "reset" }`.
  *     security:
  *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               confirm: { type: string, description: '"reset"' }
  *     responses:
  *       200:
  *         description: Simulation state reset successfully
+ *       400:
+ *         description: Missing or wrong confirmation
+ *       403:
+ *         description: An API token, or a cross-site request
+ *       404:
+ *         description: ENABLE_TEST_ENDPOINTS is off
  *       500:
  *         description: Failed to reset simulation state
  */
-router.post('/dev/reset-simulation-state', async (req: Request, res: Response) => {
+router.post('/dev/reset-simulation-state', devOnly, confirmReset, async (req, res) => {
   try {
     const tournamentId = resolveTournamentId(req);
     log.warn(
