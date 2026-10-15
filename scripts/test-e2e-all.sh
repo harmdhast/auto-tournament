@@ -60,6 +60,11 @@ export PLAYWRIGHT_BASE_URL="http://localhost:3069"
 # The skin catalogue comes from a local fixture, not GitHub.
 node scripts/serve-skins-fixture.mjs &
 SKINS_FIXTURE_PID=$!
+for _ in $(seq 1 20); do
+  curl -sf "http://localhost:${SKINS_FIXTURE_PORT:-3098}/" > /dev/null && break
+  kill -0 "${SKINS_FIXTURE_PID}" 2>/dev/null || { echo -e "${RED}Error: the skin fixture server did not start.${NC}"; exit 1; }
+  sleep 0.5
+done
 export SKINS_JSON_URL="http://host.docker.internal:${SKINS_FIXTURE_PORT:-3098}/skins.json"
 
 echo -e "${BLUE}Configuration:${NC}"
