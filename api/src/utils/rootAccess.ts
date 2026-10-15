@@ -17,6 +17,9 @@ export function isRootRequest(req: Request): boolean {
   return !!actor && (isLocalPlayerId(actor) || isSavedAdminSteamId(actor));
 }
 
+/** 403 body when a non-root admin tries to change who is root. */
+export const ROOT_ONLY = 'Only a root admin can change who has root access';
+
 /** isRootRequest for a route without requireAuth (/api/auth/me): an admin first. */
 export async function viewerIsRoot(req: Request): Promise<boolean> {
   const access = await checkAdminAccess(req);

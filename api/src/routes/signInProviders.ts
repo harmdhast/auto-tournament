@@ -24,6 +24,7 @@ import {
 } from '../services/authProviderSettingsService';
 import { steamService } from '../services/steamService';
 import { adminAccessSettings, AdminAccessError, parseAdminAccessPatch } from '../services/adminAccessSettings';
+import { isRootRequest, ROOT_ONLY } from '../utils/rootAccess';
 import { testSignInProvider } from '../services/signInProviderTest';
 
 const router = Router();
@@ -109,6 +110,8 @@ router.get('/', (_req: Request, res: Response) => {
  *         description: Saved; the settings as GET returns them
  *       400:
  *         description: Invalid field
+ *       403:
+ *         description: adminSteamIds from an admin who is not root
  *       409:
  *         description: Turning local admin login off would lock every admin out
  */
@@ -120,6 +123,9 @@ router.put('/admin-access', async (req: Request, res: Response) => {
   if (refuseWrite(req, res)) return;
   const parsed = parseAdminAccessPatch(req.body);
   if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error });
+  if (parsed.patch.adminSteamIds !== undefined && !isRootRequest(req)) {
+    return res.status(403).json({ success: false, error: ROOT_ONLY });
+  }
   try {
     await adminAccessSettings.update(parsed.patch, requestActorId(req));
     return res.json({ success: true, ...(await adminAccessSettings.view()) });

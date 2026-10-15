@@ -9186,6 +9186,9 @@
           "400": {
             "description": "Username or password not accepted"
           },
+          "403": {
+            "description": "isAdmin from an admin who is not root"
+          },
           "409": {
             "description": "The username is taken"
           }
@@ -9210,6 +9213,9 @@
         "responses": {
           "200": {
             "description": "Saved"
+          },
+          "403": {
+            "description": "Making an admin, from an admin who is not root"
           },
           "404": {
             "description": "No such account"
@@ -9287,6 +9293,9 @@
           },
           "400": {
             "description": "Password not accepted"
+          },
+          "403": {
+            "description": "An admin account's password, from an admin who is not root"
           },
           "404": {
             "description": "No such account"
@@ -14412,6 +14421,9 @@
           },
           "400": {
             "description": "Invalid field"
+          },
+          "403": {
+            "description": "adminSteamIds from an admin who is not root"
           },
           "409": {
             "description": "Turning local admin login off would lock every admin out"
