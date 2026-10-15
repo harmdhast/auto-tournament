@@ -43,7 +43,7 @@ export function warnIfTestEndpointsInProduction(warn: (message: string) => void)
 export function requireTestEndpoints(
   gate: { tier: 'flag' } | { tier: 'production'; body: Record<string, unknown> }
 ) {
-  return (_req: Request, res: Response, next: NextFunction): void => {
+  return function requireTestEndpoints(_req: Request, res: Response, next: NextFunction): void {
     if (gate.tier === 'flag') {
       if (!testEndpointsFlag()) {
         res.status(404).json({ success: false, error: 'Not found' });
