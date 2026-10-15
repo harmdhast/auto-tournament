@@ -35,7 +35,6 @@ function guardWrite(req: Request, res: Response, next: NextFunction): void {
   next();
 }
 
-/** The request's own origin, for links when no site address is set. */
 function sendError(res: Response, error: unknown, fallback: string): Response {
   if (error instanceof PlayerEmailError) {
     return res
