@@ -13,7 +13,7 @@ import {
   socketHasAdminAccess,
 } from '../../../services/socketService';
 import { registerInboundHandler } from './inbound';
-import { fleetBus, onFleetServerOffline, onFleetServerReady } from './service';
+import { fleetBus, onFleetServerClosed, onFleetServerReady } from './service';
 import type { Socket } from 'socket.io';
 import type { LogsLinesPayload } from './protocol/v1';
 
@@ -161,7 +161,7 @@ export function startLogRelay(): void {
       requestStream(fleetServerId, true);
       getIO().to(logRoom(fleetServerId)).emit('fleet:logs:state', { fleetServerId, live: true });
     });
-    onFleetServerOffline((fleetServerId) => {
+    onFleetServerClosed((fleetServerId) => {
       if (!watched.has(fleetServerId)) return;
       getIO().to(logRoom(fleetServerId)).emit('fleet:logs:state', { fleetServerId, live: false });
     });

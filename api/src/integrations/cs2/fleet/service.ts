@@ -131,8 +131,3 @@ export function stopFleet(): void {
   rotationTimer = null;
   gateway.shutdown();
 }
-
-/** Run `listener` when a server's live session ends. */
-export function onFleetServerOffline(listener: (serverId: string) => void): void {
-  gateway.onServerOffline(listener);
-}
