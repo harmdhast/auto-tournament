@@ -1,15 +1,11 @@
-import type { LiveStatus } from '../services/matchLiveStatsService';
+import type { LiveStatus } from './match.types';
 
 /**
  * Tournament Types
  */
 
 export type TournamentType =
-  | 'single_elimination'
-  | 'double_elimination'
-  | 'round_robin'
-  | 'swiss'
-  | 'shuffle';
+  'single_elimination' | 'double_elimination' | 'round_robin' | 'swiss' | 'shuffle';
 
 export type TournamentStatus = 'setup' | 'ready' | 'in_progress' | 'completed' | 'cancelled';
 
