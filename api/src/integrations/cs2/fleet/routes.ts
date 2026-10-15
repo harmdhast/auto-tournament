@@ -65,6 +65,7 @@ import { isSteam64 } from './push/admins';
 import { hasControlChars } from './push/settings';
 import { execLineError, fleetResponseBody, isRootRequest, issuedBy } from '../routes/fleetCommands';
 import { effectiveBusyReason } from './busyReason';
+import type { BusyReason } from './protocol/v1/types';
 import { heldFleetSpares } from './failover';
 import { matchDisabledServerIds } from './push/pluginSets';
 import { enrollHostHandler } from './hosts/routes';
@@ -264,20 +265,25 @@ function optionalPositiveInt(value: unknown): number | null | undefined {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+/** The reason to show for a server: match off and failover spares come from the platform. */
+async function busyReasonResolver(): Promise<
+  (id: string, stored: BusyReason | null) => BusyReason | null
+> {
+  const [matchOff, spares] = await Promise.all([matchDisabledServerIds(), heldFleetSpares()]);
+  const spareIds = new Set(spares.map((c) => c.fleetServerId));
+  return (id, stored) =>
+    effectiveBusyReason(stored, { matchDisabled: matchOff.has(id), reserved: spareIds.has(id) });
+}
+
 fleetAdminRouter.get('/servers', async (_req: Request, res: Response) => {
   try {
-    const [listed, matchOff, spares] = await Promise.all([
+    const [listed, busyReasonOf] = await Promise.all([
       registry.listFleetServers(),
-      matchDisabledServerIds(),
-      heldFleetSpares(),
+      busyReasonResolver(),
     ]);
-    const spareIds = new Set(spares.map((c) => c.fleetServerId));
     const live = (await withLinks(withLiveState(listed))).map((s) => ({
       ...s,
-      availabilityReason: effectiveBusyReason(s.availabilityReason, {
-        matchDisabled: matchOff.has(s.id),
-        reserved: spareIds.has(s.id),
-      }),
+      availabilityReason: busyReasonOf(s.id, s.availabilityReason),
     }));
     // Pre-release servers compare against the newest release incl. betas,
     // stable ones against stable releases only (both lookups are cached).
@@ -303,16 +309,13 @@ fleetAdminRouter.get('/servers/:id', async (req: Request, res: Response) => {
   try {
     const found = await registry.getFleetServerView(req.params.id);
     if (!found) return res.status(404).json({ success: false, error: 'Fleet server not found' });
-    const [matchOff, spares] = await Promise.all([matchDisabledServerIds(), heldFleetSpares()]);
+    const busyReasonOf = await busyReasonResolver();
     const [view] = await withLinks(withLiveState([found]));
     return res.json({
       success: true,
       server: {
         ...view,
-        availabilityReason: effectiveBusyReason(view.availabilityReason, {
-          matchDisabled: matchOff.has(view.id),
-          reserved: spares.some((c) => c.fleetServerId === view.id),
-        }),
+        availabilityReason: busyReasonOf(view.id, view.availabilityReason),
         players: fleetPlayersOf(view.id),
       },
     });

@@ -22,8 +22,8 @@ import {
   ulid,
   verifySecret,
 } from './credentials';
-import type { EnrollRequest, Envelope, HostInfo, Versions } from './protocol/v1';
-import { parseBusyDetail, parseBusyReason } from './busyReason';
+import type { Availability, EnrollRequest, Envelope, HostInfo, Versions } from './protocol/v1';
+import { parseBusy, parseBusyReason } from './busyReason';
 import type { BusyReason } from './protocol/v1/types';
 
 export const FLEET_TENANT = 'default';
@@ -806,6 +806,7 @@ export async function markConnected(
   }
 ): Promise<void> {
   const now = nowS();
+  const busy = hello.availability === 'available' ? null : parseBusy(hello);
   await db.runAsync(
     `UPDATE cs2_fleet_servers
         SET online = 1, session_id = ?, connected_at = ?, last_seen = ?, availability = ?,
@@ -818,8 +819,8 @@ export async function markConnected(
       now,
       now,
       hello.availability,
-      hello.availability === 'available' ? null : parseBusyReason(hello.reason),
-      hello.availability === 'available' ? null : parseBusyDetail(hello.detail),
+      busy?.reason ?? null,
+      busy?.detail ?? null,
       JSON.stringify(hello.versions),
       JSON.stringify(hello.capabilities),
       JSON.stringify(hello.host),
@@ -831,6 +832,22 @@ export async function markConnected(
       hello.peer_addr ?? null,
       serverId,
     ]
+  );
+}
+
+/** An available server has no busy reason, whatever came with it. */
+export async function setAvailability(
+  serverId: string,
+  availability: Availability,
+  reason: BusyReason | null,
+  detail: string | null
+): Promise<void> {
+  const busy = availability !== 'available';
+  await db.runAsync(
+    `UPDATE cs2_fleet_servers
+        SET availability = ?, availability_reason = ?, availability_detail = ?, updated_at = ?
+      WHERE id = ?`,
+    [availability, busy ? reason : null, busy ? detail : null, nowS(), serverId]
   );
 }
 

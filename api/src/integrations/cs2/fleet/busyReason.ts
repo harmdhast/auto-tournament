@@ -19,6 +19,19 @@ export function parseBusyDetail(raw: unknown): string | null {
   return clean || null;
 }
 
+/** Reason and detail as Ready Up sent them (`reason`/`detail`, or the snapshot's `availability_*`), parsed. */
+export function parseBusy(raw: { reason?: unknown; detail?: unknown }): {
+  reason: BusyReason | null;
+  detail: string | null;
+} {
+  return { reason: parseBusyReason(raw.reason), detail: parseBusyDetail(raw.detail) };
+}
+
+/** A server that holds a platform match as its own copy, or waits for its reset. */
+export function holdsLocalCopy(reason: BusyReason | null): boolean {
+  return reason === 'local_match' || reason === 'awaiting_reset';
+}
+
 /** The reason to show: match off first, then what the server said, then a held spare. */
 export function effectiveBusyReason(
   stored: BusyReason | null,

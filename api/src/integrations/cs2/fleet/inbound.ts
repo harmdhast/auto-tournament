@@ -47,7 +47,8 @@ import {
   type StateSnapshotPayload,
 } from './protocol/v1';
 import { flushRoundLoadouts, pushSkinsOnConnect, skinsTurnedOn } from './push/skins';
-import { parseBusyDetail, parseBusyReason } from './busyReason';
+import { parseBusy } from './busyReason';
+import { setAvailability } from './registry';
 import { noteSnapshot } from './players';
 import type { BusyReason } from './protocol/v1/types';
 import {
@@ -412,8 +413,7 @@ async function applyAvailability(
   ctx: InboundContext,
   payload: ServerAvailabilityPayload
 ): Promise<void> {
-  const busyReason = parseBusyReason(payload.reason);
-  const busyDetail = parseBusyDetail(payload.detail);
+  const { reason: busyReason, detail: busyDetail } = parseBusy(payload);
   await setAvailability(ctx.serverId, payload.availability, busyReason, busyDetail);
   log.info(`[FLEET] ${ctx.serverId}: ${payload.availability} (${payload.reason})`);
   fleetInbound.emit('availability', {
@@ -423,28 +423,6 @@ async function applyAvailability(
     busyReason,
     busyDetail,
   });
-}
-
-/** An available server has no busy reason, whatever came with it. */
-async function setAvailability(
-  serverId: string,
-  availability: Availability,
-  reason: BusyReason | null,
-  detail: string | null
-): Promise<void> {
-  const busy = availability !== 'available';
-  await db.runAsync(
-    `UPDATE cs2_fleet_servers
-        SET availability = ?, availability_reason = ?, availability_detail = ?, updated_at = ?
-      WHERE id = ?`,
-    [
-      availability,
-      busy ? reason : null,
-      busy ? detail : null,
-      Math.floor(Date.now() / 1000),
-      serverId,
-    ]
-  );
 }
 
 /** Rows being applied right now (this process). */
@@ -573,14 +551,15 @@ export async function handleSnapshot(
     // Still a gap after the patches that followed on from it: ask again.
     requestSnapshot(ctx, outcome.record.epoch);
   }
-  await setAvailability(
-    ctx.serverId,
-    payload.availability,
-    parseBusyReason(payload.availability_reason),
-    parseBusyDetail(payload.availability_detail)
-  ).catch((error) => {
-    log.warn(`[FLEET] ${ctx.serverId}: availability update failed: ${(error as Error).message}`);
+  const busy = parseBusy({
+    reason: payload.availability_reason,
+    detail: payload.availability_detail,
   });
+  await setAvailability(ctx.serverId, payload.availability, busy.reason, busy.detail).catch(
+    (error) => {
+      log.warn(`[FLEET] ${ctx.serverId}: availability update failed: ${(error as Error).message}`);
+    }
+  );
   fleetInbound.emit('snapshot', { serverId: ctx.serverId, payload, outcome });
   return outcome;
 }

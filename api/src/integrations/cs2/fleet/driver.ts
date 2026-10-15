@@ -73,7 +73,7 @@ import {
 import { roundBackupStore } from './backups';
 import { DEMO_STREAM_CAPABILITY } from './limits';
 import { matchPluginDisabled } from './push/pluginSets';
-import { effectiveBusyReason, parseBusyDetail, parseBusyReason } from './busyReason';
+import { effectiveBusyReason, holdsLocalCopy, parseBusy, parseBusyReason } from './busyReason';
 import type { BusyReason } from './protocol/v1/types';
 import { fleetBus, onFleetServerReady, setFleetAssignmentResolver } from './service';
 import type {
@@ -1123,10 +1123,10 @@ const toldToDrop = new Map<string, Set<string>>();
  */
 export async function supersedeStaleLocalCopy(
   fleetServerId: string,
-  reason: string | null,
+  reason: BusyReason | null,
   detail: string | null
 ): Promise<boolean> {
-  if (!detail || (reason !== 'local_match' && reason !== 'awaiting_reset')) return false;
+  if (!detail || !holdsLocalCopy(reason)) return false;
   const told = toldToDrop.get(fleetServerId) ?? new Set<string>();
   if (told.has(detail)) return false;
   const known = await db.queryOneAsync<{ slug: string }>(
@@ -1167,11 +1167,8 @@ async function checkHello(fleetServerId: string, hello: HelloPayload): Promise<v
   forgetDroppedOrphans(fleetServerId);
   const state = hello.state as { match_id?: unknown; epoch?: unknown } | null | undefined;
   if (!state && hello.availability !== 'available') {
-    await supersedeStaleLocalCopy(
-      fleetServerId,
-      parseBusyReason(hello.reason),
-      parseBusyDetail(hello.detail)
-    );
+    const busy = parseBusy(hello);
+    await supersedeStaleLocalCopy(fleetServerId, busy.reason, busy.detail);
   }
   if (state && typeof state.match_id === 'string' && typeof state.epoch === 'number') {
     // A match the platform never assigned (a local `ru match load`) has no
