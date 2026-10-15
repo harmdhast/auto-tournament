@@ -93,6 +93,13 @@
   ],
   "author": "",
   "license": "SEE LICENSE IN LICENSE",
+  "resolutions": {
+    "axios": "^1.20.0",
+    "engine.io": "~6.6.10",
+    "socket.io-parser": "~4.2.7",
+    "qs": "^6.16.0",
+    "ws": "^8.21.0"
+  },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.56.1",
@@ -123,7 +130,7 @@
     "pngjs": "^7.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.21.0",
+    "react-router-dom": "^6.30.6",
     "sharp": "^0.35.5",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"

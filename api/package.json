@@ -16,7 +16,6 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@faker-js/faker": "^10.1.0",
     "@fontsource/geist": "5.2.6",
     "@fontsource/sora": "5.2.6",
     "@resvg/resvg-wasm": "2.6.2",
@@ -33,7 +32,7 @@
     "express-session": "^1.17.3",
     "gamedig": "^5.1.15",
     "node-fetch": "^2.7.0",
-    "nodemailer": "^7.0.13",
+    "nodemailer": "^10.0.6",
     "openskill": "^4.1.0",
     "passport": "^0.7.0",
     "passport-discord": "^0.1.4",
@@ -46,13 +45,14 @@
     "pngjs": "^7.0.0",
     "satori": "0.18.3",
     "semver": "^7.6.0",
-    "socket.io": "^4.8.1",
+    "socket.io": "^4.8.4",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "unique-names-generator": "^4.7.1",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.1.0",
     "@types/nodemailer": "^8.0.2"
   }
 }
