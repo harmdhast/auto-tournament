@@ -37,6 +37,7 @@ import * as gameReadiness from '../services/gameReadiness';
 import * as settingsService from '../services/settingsService';
 import * as tournamentSignupService from '../services/tournamentSignupService';
 import * as socketService from '../services/socketService';
+import * as accountConnections from '../utils/accountConnections';
 import * as adminSteamIds from '../utils/adminSteamIds';
 import * as cs2Version from '../utils/cs2Version';
 import * as eventLogger from '../utils/eventLogger';
@@ -82,6 +83,7 @@ const MODULES: Record<string, object> = {
   'services/tournamentSignupService': tournamentSignupService,
   'services/socketService': socketService,
   'types/adminCall.types': adminCallTypes,
+  'utils/accountConnections': accountConnections,
   'utils/adminSteamIds': adminSteamIds,
   'utils/cs2Version': cs2Version,
   'utils/eventLogger': eventLogger,
