@@ -89,6 +89,7 @@ import {
   sessionSecretProblem,
 } from './utils/sessionSecret';
 import { COMPAT_MAX_BYTES } from './utils/compatPayload';
+import { checkStoredSecretsKey } from './services/secretsKeyCheck';
 import { reportCompatConfig } from './services/compatService';
 import { startCompatFeed, stopCompatFeed } from './services/compatFeedService';
 import { startLicenseCheckin, stopLicenseCheckin } from './services/license/checkinService';
@@ -101,7 +102,7 @@ import {
 const sessionSecretRefusal = sessionSecretProblem();
 if (sessionSecretRefusal) {
   log.error(
-    `[FATAL] ${sessionSecretRefusal}. Refusing to start in production: set SESSION_SECRET to a random value of at least ${MIN_SESSION_SECRET_LENGTH} characters (openssl rand -base64 32).`
+    `[FATAL] ${sessionSecretRefusal}. Refusing to start in production: set SESSION_SECRET to a random value of at least ${MIN_SESSION_SECRET_LENGTH} characters (openssl rand -base64 32). First set SECRETS_KEY to the previous value (the old SESSION_SECRET, or auto-tournament-dev-session-secret if it was unset), or the secrets saved in the UI (sign-in providers, Steam Web API key, two-step verification, SMTP password) can no longer be read.`
   );
   process.exit(1);
 }
@@ -555,6 +556,8 @@ process.on('uncaughtException', (err) => {
     } catch (error) {
       log.warn('[SIGN-IN] Could not load the saved sign-in settings', { error });
     }
+    // A SESSION_SECRET change can leave saved secrets under the old key. Never throws.
+    await checkStoredSecretsKey();
 
     // Admin Steam IDs / emails (imported once from ADMIN_STEAM_IDS /
     // ADMIN_EMAILS), applied before deciding whether this install still

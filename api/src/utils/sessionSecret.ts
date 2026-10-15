@@ -6,7 +6,9 @@
  */
 
 const DEV_SESSION_SECRET = 'auto-tournament-dev-session-secret';
-const PLACEHOLDERS = new Set([DEV_SESSION_SECRET, 'change-this-session-secret']);
+/** The development fallback and example.env's placeholder: an install that never set its own used one. */
+export const KNOWN_SESSION_SECRETS = [DEV_SESSION_SECRET, 'change-this-session-secret'] as const;
+const PLACEHOLDERS = new Set<string>(KNOWN_SESSION_SECRETS);
 export const MIN_SESSION_SECRET_LENGTH = 32;
 
 export function getSessionSecret(env: NodeJS.ProcessEnv = process.env): string {
