@@ -306,9 +306,7 @@ test.describe.serial('Fleet: the server holding the match', () => {
     expect(await forfeitNotices(request, slug)).toBe(before);
 
     holder.send(forfeitFrame(slug, 1, undefined));
-    await expect
-      .poll(() => forfeitNotices(request, slug), { timeout: 10_000 })
-      .toBe(before + 1);
+    await expect.poll(() => forfeitNotices(request, slug), { timeout: 10_000 }).toBe(before + 1);
     holder.close();
     other.close();
   });

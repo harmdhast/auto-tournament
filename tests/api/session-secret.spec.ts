@@ -50,9 +50,13 @@ test.describe('secrets key hint after a SESSION_SECRET change (pure)', () => {
   test('says nothing when the current key opens them or no default does', TAGS, () => {
     expect(previousSecretsKey([], NEW)).toBeNull();
     expect(previousSecretsKey([encryptSecret('ok', NEW)], NEW)).toBeNull();
-    expect(previousSecretsKey([encryptSecret('x', { SESSION_SECRET: 'b'.repeat(40) })], NEW)).toBeNull();
+    expect(
+      previousSecretsKey([encryptSecret('x', { SESSION_SECRET: 'b'.repeat(40) })], NEW)
+    ).toBeNull();
     const dev = encryptSecret('dev', {});
-    expect(previousSecretsKey([dev], { SECRETS_KEY: 'auto-tournament-dev-session-secret' })).toBeNull();
+    expect(
+      previousSecretsKey([dev], { SECRETS_KEY: 'auto-tournament-dev-session-secret' })
+    ).toBeNull();
   });
 });
 
