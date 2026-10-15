@@ -314,7 +314,7 @@ async function applyPatchOf(
   return outcome;
 }
 
-async function applyEvent(ctx: InboundContext, env: Envelope): Promise<void> {
+async function applyEvent(ctx: InboundContext, env: Envelope): Promise<PatchOutcome> {
   const payload = env.payload as unknown as FleetEventPayload;
   const outcome = await applyPatchOf(ctx, env, payload);
   if (outcome.kind === 'stale_epoch') {
@@ -324,7 +324,7 @@ async function applyEvent(ctx: InboundContext, env: Envelope): Promise<void> {
       patch: outcome.kind,
       record: null,
     });
-    return;
+    return outcome;
   }
 
   let mapRounds;
@@ -381,6 +381,7 @@ async function applyEvent(ctx: InboundContext, env: Envelope): Promise<void> {
     patch: outcome.kind,
     record,
   });
+  return outcome;
 }
 
 async function applyCommandResult(ctx: InboundContext, env: Envelope): Promise<void> {
@@ -441,11 +442,14 @@ export async function processInbound(
   }
   try {
     if (isFleetEventType(env.type)) {
-      await applyEvent(ctx, env);
+      const outcome = await applyEvent(ctx, env);
       // Loadout changes made during the round go out now (push/skins.ts).
       if (env.type === 'event.round_end') void flushRoundLoadouts(ctx.serverId);
-      // A team gave up (.ff) or did not show: the admins hear of it.
-      if (env.type === 'event.forfeit' || env.type === 'event.gg') {
+      // A team gave up (.ff) or did not show: the admins hear of it, from the holder only.
+      if (
+        (env.type === 'event.forfeit' || env.type === 'event.gg') &&
+        outcome.kind !== 'stale_epoch'
+      ) {
         const p = env.payload as unknown as {
           match_id: string;
           data: { team: string; reason: string };

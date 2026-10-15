@@ -164,6 +164,43 @@ function phaseLive(slug: string, seq: number, epoch: number | undefined): Envelo
   return env;
 }
 
+function forfeitFrame(slug: string, seq: number, epoch: number | undefined): Envelope {
+  const frame = example('live.event.phase.json');
+  const { ack: _ack, epoch: _epoch, ...rest } = frame;
+  const env = {
+    ...rest,
+    type: 'event.forfeit',
+    id: ulid(),
+    ts: Date.now(),
+    seq,
+    ...(epoch !== undefined ? { epoch } : {}),
+    payload: {
+      match_id: slug,
+      map_number: 1,
+      rev: 1,
+      patch: { live_rev: 1 },
+      data: { team: 'team1', reason: 'ff' },
+    },
+  } as Envelope;
+  expect(validateMessage(env).errors).toEqual([]);
+  return env;
+}
+
+/** How many times a forfeit notice was raised for `slug` (match slugs repeat across tournaments). */
+async function forfeitNotices(request: APIRequestContext, slug: string): Promise<number> {
+  const res = await request.get('/api/admin-notices?limit=200', { headers: getAuthHeader() });
+  expect(res.ok(), await res.text()).toBe(true);
+  return (
+    (await res.json()).notices as Array<{
+      kind: string;
+      count: number;
+      data: { matchSlug?: string };
+    }>
+  )
+    .filter((n) => n.kind === 'match_forfeit' && n.data.matchSlug === slug)
+    .reduce((sum, n) => sum + n.count, 0);
+}
+
 test.describe.serial('Fleet: the server holding the match', () => {
   const enrolled: string[] = [];
 
@@ -234,6 +271,44 @@ test.describe.serial('Fleet: the server holding the match', () => {
     await expect.poll(() => matchStatus(request, slug), { timeout: 10_000 }).toBe('live');
     const ok = await upload(a.token);
     expect(ok.ok(), await ok.text()).toBe(true);
+    holder.close();
+    other.close();
+  });
+
+  test("another server's forfeit raises no admin notice", async ({ request }) => {
+    const setup = await setupTournament(request, { teamCount: 2, serverCount: 1, format: 'bo1' });
+    expect(setup).toBeTruthy();
+    const matches = await (await request.get('/api/matches', { headers: getAuthHeader() })).json();
+    const slug = (matches.matches?.[0] as { slug: string }).slug;
+    expect(slug).toBeTruthy();
+
+    const a = await enrollNew(request);
+    const b = await enrollNew(request);
+    enrolled.push(a.server_id, b.server_id);
+    const assigned = await request.post('/api/test/fleet/assign', {
+      headers: getAuthHeader(),
+      data: { matchSlug: slug, serverId: a.server_id },
+    });
+    expect(assigned.ok(), await assigned.text()).toBe(true);
+    const epoch = (await assigned.json()).epoch as number;
+
+    const holder = await connect(a);
+    const other = await connect(b);
+    holder.send(snapshotFrame(slug, epoch));
+    await expect.poll(async () => (await liveState(request, slug))?.state?.phase).toBe('loading');
+    const before = await forfeitNotices(request, slug);
+
+    other.send(forfeitFrame(slug, 1, epoch));
+    other.send(forfeitFrame(slug, 2, undefined));
+    await expect.poll(() => processed(request, b.server_id)).toBe(2);
+    // The notice is raised after the event is stored; give a stray one time to land.
+    await new Promise((r) => setTimeout(r, 500));
+    expect(await forfeitNotices(request, slug)).toBe(before);
+
+    holder.send(forfeitFrame(slug, 1, undefined));
+    await expect
+      .poll(() => forfeitNotices(request, slug), { timeout: 10_000 })
+      .toBe(before + 1);
     holder.close();
     other.close();
   });
