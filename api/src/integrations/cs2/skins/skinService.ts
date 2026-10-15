@@ -17,6 +17,7 @@
 import { notificationService } from '../../../services/notificationService';
 import { randomInt } from 'crypto';
 import fetch from 'node-fetch';
+import type { PoolClient } from 'pg';
 import { db } from '../../../config/database';
 import { log } from '../../../utils/logger';
 import { emitSkinsChanged, onlinePlayerIds } from '../../../services/socketService';
@@ -631,14 +632,41 @@ async function equippedSides(playerUid: string): Promise<Map<number, LoadoutTeam
   return sides;
 }
 
+/**
+ * Runs `work` in a transaction that holds a lock on the player's slot, so two
+ * writes to one slot (parallel picks, equips) run one after the other.
+ */
+async function withSlotLock<T>(
+  playerUid: string,
+  slot: string,
+  work: (client: PoolClient) => Promise<T>
+): Promise<T> {
+  return db.withClient(async (client) => {
+    await client.query('BEGIN');
+    try {
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${playerUid}:${slot}`]);
+      const result = await work(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw error;
+    }
+  });
+}
+
 /** The catalogue picks equipped in a player's slot, whatever the side. */
-async function pickIdsInSlot(playerUid: string, slot: string): Promise<number[]> {
-  const rows = await db.queryAsync<{ skin_id: number }>(
+async function pickIdsInSlot(
+  client: PoolClient,
+  playerUid: string,
+  slot: string
+): Promise<number[]> {
+  const rows = await client.query<{ skin_id: number }>(
     `SELECT l.skin_id FROM cs2_player_loadout l JOIN cs2_player_skins s ON s.id = l.skin_id
-      WHERE l.player_uid = ? AND l.slot = ? AND s.source = 'catalog'`,
+      WHERE l.player_uid = $1 AND l.slot = $2 AND s.source = 'catalog'`,
     [playerUid, slot]
   );
-  return rows.map((r) => r.skin_id);
+  return rows.rows.map((r) => r.skin_id);
 }
 
 /** Deletes the given picks that no side has equipped any more. */
@@ -1383,45 +1411,38 @@ export const skinService = {
       throw new SkinError(400, 'The seed must be a whole number from 0 to 1000.');
     const slot = slotOf(skin.weapon);
     const side = equipTeam(skin.weapon, input.team);
-    const replaced = await pickIdsInSlot(playerUid, slot);
-    const row = await db.withClient(async (client) => {
-      await client.query('BEGIN');
-      try {
-        const inserted = await client.query<SkinRow>(
-          `INSERT INTO cs2_player_skins
+    const row = await withSlotLock(playerUid, slot, async (client) => {
+      const replaced = await pickIdsInSlot(client, playerUid, slot);
+      const inserted = await client.query<SkinRow>(
+        `INSERT INTO cs2_player_skins
              (player_uid, weapon, weapon_name, paint_kit, name, rarity, image, float_value, pattern, source, variant, seen)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'catalog', $10, TRUE) RETURNING *`,
-          [
-            playerUid,
-            skin.weapon,
-            skin.weaponName,
-            skin.paintKit,
-            skin.name,
-            skin.rarity,
-            skin.image,
-            float,
-            seed,
-            variantOf(skin.paintKitName),
-          ]
-        );
-        if (side === 0) {
-          await client.query(
-            'DELETE FROM cs2_player_loadout WHERE player_uid = $1 AND slot = $2 AND team <> 0',
-            [playerUid, slot]
-          );
-        }
+        [
+          playerUid,
+          skin.weapon,
+          skin.weaponName,
+          skin.paintKit,
+          skin.name,
+          skin.rarity,
+          skin.image,
+          float,
+          seed,
+          variantOf(skin.paintKitName),
+        ]
+      );
+      if (side === 0) {
         await client.query(
-          `INSERT INTO cs2_player_loadout (player_uid, slot, skin_id, team) VALUES ($1, $2, $3, $4)
-           ON CONFLICT (player_uid, slot, team) DO UPDATE SET skin_id = EXCLUDED.skin_id`,
-          [playerUid, slot, inserted.rows[0].id, side]
+          'DELETE FROM cs2_player_loadout WHERE player_uid = $1 AND slot = $2 AND team <> 0',
+          [playerUid, slot]
         );
-        await client.query(DROP_ORPHAN_PICKS_SQL, [replaced]);
-        await client.query('COMMIT');
-        return inserted.rows[0];
-      } catch (error) {
-        await client.query('ROLLBACK').catch(() => undefined);
-        throw error;
       }
+      await client.query(
+        `INSERT INTO cs2_player_loadout (player_uid, slot, skin_id, team) VALUES ($1, $2, $3, $4)
+           ON CONFLICT (player_uid, slot, team) DO UPDATE SET skin_id = EXCLUDED.skin_id`,
+        [playerUid, slot, inserted.rows[0].id, side]
+      );
+      await client.query(DROP_ORPHAN_PICKS_SQL, [replaced]);
+      return inserted.rows[0];
     });
     return toRow(row, await equippedSides(playerUid));
   },
@@ -1440,55 +1461,59 @@ export const skinService = {
       throw new SkinError(404, 'That skin is not in your inventory.');
     const slot = slotOf(skin.weapon);
     const side = equipTeam(skin.weapon, team);
-    const replaced = await pickIdsInSlot(playerUid, slot);
-    if (side === 0) {
-      await db.runAsync(
-        'DELETE FROM cs2_player_loadout WHERE player_uid = ? AND slot = ? AND team <> 0',
-        [playerUid, slot]
+    await withSlotLock(playerUid, slot, async (client) => {
+      const replaced = await pickIdsInSlot(client, playerUid, slot);
+      if (side === 0) {
+        await client.query(
+          'DELETE FROM cs2_player_loadout WHERE player_uid = $1 AND slot = $2 AND team <> 0',
+          [playerUid, slot]
+        );
+      }
+      await client.query(
+        `INSERT INTO cs2_player_loadout (player_uid, slot, skin_id, team) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (player_uid, slot, team) DO UPDATE SET skin_id = EXCLUDED.skin_id`,
+        [playerUid, slot, skinId, side]
       );
-    }
-    await db.runAsync(
-      `INSERT INTO cs2_player_loadout (player_uid, slot, skin_id, team) VALUES (?, ?, ?, ?)
-       ON CONFLICT (player_uid, slot, team) DO UPDATE SET skin_id = EXCLUDED.skin_id`,
-      [playerUid, slot, skinId, side]
-    );
-    await db.runAsync(DROP_ORPHAN_PICKS_SQL, [replaced]);
+      await client.query(DROP_ORPHAN_PICKS_SQL, [replaced]);
+    });
   },
 
   /** Empties a slot: one side's pick (2, 3), or every side's (no team). */
   async unequip(playerUid: string, slot: string, team?: unknown): Promise<void> {
-    const replaced = await pickIdsInSlot(playerUid, slot);
-    if (team === 0 || team === 2 || team === 3) {
-      const removed = await db.runAsync(
-        'DELETE FROM cs2_player_loadout WHERE player_uid = ? AND slot = ? AND team = ?',
-        [playerUid, slot, team]
-      );
-      if (removed.changes === 0 && team !== 0) {
-        // A pick on both sides taken off one: the other side keeps it (earned skins split client-side).
-        const other = team === 2 ? 3 : 2;
-        await db.runAsync(
-          `UPDATE cs2_player_loadout l SET team = ?
-            FROM cs2_player_skins s
-           WHERE s.id = l.skin_id AND s.source = 'catalog'
-             AND l.player_uid = ? AND l.slot = ? AND l.team = 0
-             AND NOT EXISTS (SELECT 1 FROM cs2_player_loadout x
-                              WHERE x.player_uid = l.player_uid AND x.slot = l.slot AND x.team = ?)`,
-          [other, playerUid, slot, other]
+    await withSlotLock(playerUid, slot, async (client) => {
+      const replaced = await pickIdsInSlot(client, playerUid, slot);
+      if (team === 0 || team === 2 || team === 3) {
+        const removed = await client.query(
+          'DELETE FROM cs2_player_loadout WHERE player_uid = $1 AND slot = $2 AND team = $3',
+          [playerUid, slot, team]
         );
-        await db.runAsync(
-          `DELETE FROM cs2_player_loadout l USING cs2_player_skins s
-            WHERE s.id = l.skin_id AND s.source = 'catalog'
-              AND l.player_uid = ? AND l.slot = ? AND l.team = 0`,
-          [playerUid, slot]
-        );
+        if (removed.rowCount === 0 && team !== 0) {
+          // A pick on both sides taken off one: the other side keeps it (earned skins split client-side).
+          const other = team === 2 ? 3 : 2;
+          await client.query(
+            `UPDATE cs2_player_loadout l SET team = $1
+              FROM cs2_player_skins s
+             WHERE s.id = l.skin_id AND s.source = 'catalog'
+               AND l.player_uid = $2 AND l.slot = $3 AND l.team = 0
+               AND NOT EXISTS (SELECT 1 FROM cs2_player_loadout x
+                                WHERE x.player_uid = l.player_uid AND x.slot = l.slot AND x.team = $1)`,
+            [other, playerUid, slot]
+          );
+          await client.query(
+            `DELETE FROM cs2_player_loadout l USING cs2_player_skins s
+              WHERE s.id = l.skin_id AND s.source = 'catalog'
+                AND l.player_uid = $1 AND l.slot = $2 AND l.team = 0`,
+            [playerUid, slot]
+          );
+        }
+      } else {
+        await client.query('DELETE FROM cs2_player_loadout WHERE player_uid = $1 AND slot = $2', [
+          playerUid,
+          slot,
+        ]);
       }
-    } else {
-      await db.runAsync('DELETE FROM cs2_player_loadout WHERE player_uid = ? AND slot = ?', [
-        playerUid,
-        slot,
-      ]);
-    }
-    await db.runAsync(DROP_ORPHAN_PICKS_SQL, [replaced]);
+      await client.query(DROP_ORPHAN_PICKS_SQL, [replaced]);
+    });
   },
 
   async markSeen(playerUid: string, ids: number[]): Promise<void> {

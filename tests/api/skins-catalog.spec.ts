@@ -194,6 +194,23 @@ test.describe.serial('Skins catalogue unlock', () => {
     expect(await skinGone(ct2.id)).toBe(true);
   });
 
+  test('parallel picks on one slot and side leave one row', { tag: ['@api'] }, async () => {
+    const responses = await Promise.all(
+      [0, 1, 2, 3, 0, 1, 2, 3].map((i) =>
+        put(pickOf(DEAGLE, i % deagle.length, { team: 3, float: 0.1 + i / 100 }))
+      )
+    );
+    const ids: number[] = [];
+    for (const res of responses) {
+      expect(res.status()).toBe(200);
+      ids.push((await res.json()).pick.id);
+    }
+    let alive = 0;
+    for (const id of ids) if (!(await skinGone(id))) alive += 1;
+    expect(alive).toBe(1);
+    expect((await me()).picks).toHaveLength(1);
+  });
+
   test('a one-side weapon is always picked for both', { tag: ['@api'] }, async () => {
     const { pick } = await (await put(pickOf(AK, 0, { team: 3 }))).json();
     expect(pick).toMatchObject({ side: 2, equippedSides: [0] });
