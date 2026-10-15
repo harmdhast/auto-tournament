@@ -42,6 +42,7 @@ import { DATA_DIR } from './config/dataDir';
 import { getOpenApiSpec } from './config/swagger';
 import { log, logger, LOG_HTTP_REQUESTS, LOG_DB_VERBOSE, LOG_DB_VALUES } from './utils/logger';
 import { warnIfTestEndpointsInProduction } from './utils/testEndpoints';
+import { defaultBodies, largeJsonAfterAuth } from './utils/bodyLimits';
 import { cleanupOldLogs } from './utils/eventLogger';
 import { getIO, initializeSocket, type HandshakeMiddleware } from './services/socketService';
 import { matchmakingService } from './services/matchmaking/matchmakingService';
@@ -121,9 +122,8 @@ app.use('/api/compat/events', (err: unknown, _req: Request, res: Response, next:
   }
   return next(err);
 });
-// Increase body size limit to 50MB for image uploads (base64 encoded images can be large)
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// 1 MB JSON / 100 KB forms; the admin file routes are read after auth (utils/bodyLimits.ts).
+app.use(defaultBodies);
 
 // Session + Passport
 const sessionSecret = process.env.SESSION_SECRET || 'auto-tournament-dev-session-secret';
@@ -441,6 +441,7 @@ app.get('/api/health/fleet', async (_req: Request, res: Response) => {
 // The mount table lives in routes/routeTable.ts so that the reference
 // generator can read it without starting a server. Order is significant —
 // see the note there.
+app.use(largeJsonAfterAuth);
 for (const { prefix, router } of routeTable) {
   app.use(prefix, router);
 }
