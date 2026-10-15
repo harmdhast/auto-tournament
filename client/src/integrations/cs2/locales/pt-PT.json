@@ -120,7 +120,6 @@
     },
     "errors": {
       "loadMaps": "Não foi possível carregar os mapas",
-      "loadPools": "Não foi possível carregar os pools de mapas",
       "defaultPoolCannotDelete": "O pool de mapas predefinido não pode ser eliminado.",
       "setDefaultPool": "Não foi possível definir o pool de mapas predefinido",
       "togglePool": "Não foi possível alterar o estado do pool de mapas",
@@ -194,7 +193,6 @@
     },
     "buttons": {
       "cancel": "Cancelar",
-      "saving": "A guardar...",
       "update": "Atualizar",
       "create": "Criar"
     }
@@ -219,87 +217,6 @@
       "enable": "Ativar",
       "disable": "Desativar",
       "setDefault": "Definir como predefinido"
-    }
-  },
-  "batchServerModal": {
-    "title": "Criar servidores em lote",
-    "info": "Crie vários servidores com portas a aumentar de 10 em 10 (27015, 27025, 27035...). Perfeito para configurações LAN com servidores na mesma máquina.",
-    "sections": {
-      "identification": {
-        "title": "Identificação do servidor"
-      },
-      "connection": {
-        "title": "Definições de ligação"
-      },
-      "configuration": {
-        "title": "Configuração do servidor"
-      }
-    },
-    "baseId": {
-      "label": "ID base",
-      "placeholder": "server",
-      "helper": "Os IDs dos servidores serão: base_1, base_2, base_3..."
-    },
-    "baseName": {
-      "label": "Nome base",
-      "placeholder": "Auto Tournament",
-      "helper": "Os nomes dos servidores serão: Base #1, Base #2, Base #3..."
-    },
-    "host": {
-      "label": "Host / endereço IP",
-      "placeholder": "192.168.1.100"
-    },
-    "rconPassword": {
-      "label": "Palavra-passe RCON",
-      "placeholder": "shared-rcon-password",
-      "helper": "A mesma palavra-passe para todos os servidores"
-    },
-    "numServers": {
-      "label": "Número de servidores",
-      "placeholder": "3",
-      "helper": "Máx.: 50"
-    },
-    "assignPorts": {
-      "label": "Atribuir portas",
-      "helper": "API → Servidor (teste RCON)"
-    },
-    "serverPortLabel": "Servidor #{{index}}",
-    "portPlaceholder": "27015",
-    "enabled": {
-      "label": "Servidores ativados",
-      "helper": "Todos os servidores serão criados como ativados/desativados"
-    },
-    "preview": {
-      "more": "...e mais {{count}}",
-      "titleFirst10": "Pré-visualização (primeiros 10)",
-      "titleAll": "Pré-visualização (todos)"
-    },
-    "checkServersButton": {
-      "default": "Verificar servidores",
-      "checking": "A verificar..."
-    },
-    "createServersButton": {
-      "creating": "A criar...",
-      "default_one": "Criar {{count}} servidor",
-      "default_other": "Criar {{count}} servidores"
-    },
-    "warnings": {
-      "notAllVerified": "Alguns servidores não passaram nas verificações de conectividade. Serão guardados, mas poderão aparecer offline até RCON e webhook estarem configurados."
-    },
-    "success": {
-      "createdAll_one": "{{count}} servidor criado",
-      "createdAll_other": "{{count}} servidores criados"
-    },
-    "errors": {
-      "baseNameRequired": "O nome base é obrigatório",
-      "baseIdRequired": "O ID base é obrigatório",
-      "hostRequired": "O host é obrigatório",
-      "countRange": "O número de servidores tem de estar entre 1 e 50",
-      "passwordRequired": "A palavra-passe RCON é obrigatória",
-      "portRange": "A porta do servidor #{{index}} tem de estar entre 1 e 65535",
-      "connectionFailed": "A ligação falhou",
-      "createFailed": "Não foi possível criar os servidores",
-      "partialCreate": "Criados {{created}}/{{total}} servidores. Erros:\n{{details}}"
     }
   },
   "matchesPage": {
@@ -333,18 +250,12 @@
     "vetoCompleted": "Veto concluído!",
     "vetoCompletedSubtitle": "A seleção de mapas está concluída. A partida começará em breve.",
     "selectedMaps": "Mapas selecionados",
-    "yourTurnToBan": "É A VEZ DA SUA EQUIPA BANIR UM MAPA",
-    "yourTurnToPick": "É A VEZ DA SUA EQUIPA ESCOLHER UM MAPA",
-    "yourTurnToChooseSide": "É A VEZ DA SUA EQUIPA ESCOLHER UM LADO",
     "clickMapToConfirm": "Clique num dos mapas destacados abaixo para confirmar a sua escolha.",
     "waitingToBan": "À espera que {{team}} banir um mapa",
     "waitingToPick": "À espera que {{team}} escolha um mapa",
     "waitingToChooseSide": "À espera que {{team}} escolha um lado",
     "pageUpdatesAutomatically": "Mantenha esta página aberta – ela atualiza automaticamente quando for a sua vez.",
     "stepOf": "Passo {{current}} de {{total}}",
-    "banPhase": "Fase de ban",
-    "pickPhase": "Fase de pick",
-    "sideChoice": "Escolha de lado",
     "chooseYourStartingSide": "Escolha o seu lado inicial",
     "waitingForSidePick": "À espera que {{team}} escolha o lado inicial...",
     "counterTerrorist": "Counter-Terrorista",
@@ -411,7 +322,6 @@
       "pausedWaiting_one": "Em pausa: à espera que {{names}} volte a ligar-se.",
       "pausedWaiting_other": "Em pausa: à espera que {{names}} voltem a ligar-se.",
       "waitingBody": "Um servidor será atribuído automaticamente assim que houver um disponível. Após cada jogo, os servidores entram num breve período de arrefecimento (cerca de 2 minutos) para que as demos sejam enviadas e o servidor seja totalmente reiniciado. Esta página será atualizada automaticamente quando o teu servidor estiver pronto.",
-      "serverName": "Servidor: {{name}}",
       "status": "Estado: {{status}}",
       "connect": "Ligar ao servidor",
       "connecting": "✓ A ligar...",
@@ -439,196 +349,9 @@
   },
   "serversPage": {
     "title": "Servidores",
-    "headerActions": {
-      "refreshChecking": "A verificar…",
-      "refresh": "Atualizar estado",
-      "batchAdd": "Adicionar em lote",
-      "addServer": "Adicionar servidor",
-      "retryUninitialized": "Repetir não inicializados ({{count}})",
-      "retryUninitializedChecking": "A repetir...",
-      "select": "Selecionar",
-      "done": "Concluir seleção",
-      "selectAll": "Selecionar tudo",
-      "unselectAll": "Desmarcar tudo",
-      "deleteSelected": "Eliminar selecionados"
-    },
-    "empty": {
-      "createServers": "Link a machine or create servers",
-      "addExisting": "Add an existing server (RCON)",
-      "title": "Nenhum servidor registado",
-      "description": "Adiciona o teu primeiro servidor CS2 para começar o torneio",
-      "addServer": "Adicionar servidor",
-      "batchAdd": "Ou adicionar vários servidores em lote"
-    },
-    "errors": {
-      "loadServers": "Falha ao carregar servidores",
-      "noMatchesForServer": "Não foram encontrados jogos para este servidor",
-      "loadCurrentMatch": "Não foi possível carregar o jogo atual deste servidor",
-      "bulkDelete": "Não foi possível eliminar um ou mais servidores"
-    },
-    "allocation": {
-      "loading": "A carregar estado de alocação...",
-      "nextPass": "Próxima passagem do alocador em ~{{seconds}} s",
-      "cooldownLabel": "Tempo de espera",
-      "cooldownDescription": "Um jogo terminou recentemente — em tempo de espera para os demos carregarem e o servidor fazer reset completo (cerca de 2 minutos).",
-      "cooldownEta": "Pronto em ~{{seconds}} s"
-    },
-    "statusChip": {
-      "checking": "A verificar...",
-      "disabled": "Desativado",
-      "offline": "Indisponível",
-      "onlineOk": "Online (API ↔ servidor OK)",
-      "onlineRconOnly": "Online (apenas RCON)",
-      "rconFailed": "Falha no RCON",
-      "onlineTesting": "Online (teste)",
-      "noEventsYet": "Ainda sem eventos",
-      "notConfigured": "Não configurado",
-      "onlineIdle": "Online (inativo — sem eventos recentes)",
-      "onlineActive": "Online (ativo)",
-      "online": "Online"
-    },
-    "ipBanned": {
-      "title": "O servidor pode ter banido o nosso IP",
-      "message": "O servidor está acessível, mas rejeita repetidamente a autenticação RCON. Isto pode indicar um ban por IP. Se a palavra-passe RCON estiver correta, verifique a lista de bans do servidor e remova o ban do nosso endereço IP."
-    },
-    "connectivity": {
-      "apiToServer": "Auto Tournament API → Servidor CS2",
-      "serverToApi": "Servidor → API (/api/events)",
-      "unreachable": "Inacessível",
-      "reachable": "Acessível",
-      "unknown": "Desconhecido",
-      "loading": "A carregar…"
-    },
-    "currentMatch": {
-      "view": "Ver jogo",
-      "loading": "A carregar...",
-      "queuedPrefix": "Em fila: "
-    },
-    "bulkDelete": {
-      "title": "Eliminar servidores",
-      "message_one": "Tem a certeza de que pretende eliminar {{count}} servidor? Esta ação não pode ser anulada.",
-      "message_other": "Tem a certeza de que pretende eliminar {{count}} servidores? Esta ação não pode ser anulada."
-    },
-    "autoConfig": {
-      "configuring": "A configurar novos servidores (a enviar configuração MatchZy Enhanced via RCON)…",
-      "done": "Novos servidores configurados. A atualizar estado…"
-    },
-    "checkServerLogs": "Verifique a consola/logs do servidor de jogo para ver se o plugin Auto Tournament recebe configuração e envia eventos.",
     "fleet": {
-      "title": "Estado dos servidores",
       "total_one": "{{count}} servidor",
-      "total_other": "{{count}} servidores",
-      "latestRelease": "Última versão do MatchZy Enhanced: v{{version}}",
-      "olderVersion_one": "{{count}} servidor está a usar uma versão mais antiga do que a última versão.",
-      "olderVersion_other": "{{count}} servidores estão a usar uma versão mais antiga do que a última versão.",
-      "downloadLatest": "Transferir a mais recente"
-    },
-    "cs2Update": {
-      "title": "Atualização do CS2 necessária",
-      "snackbarBody_one": "{{count}} servidor está desatualizado. Atualize a instalação do servidor e reinicie.",
-      "snackbarBody_other": "{{count}} servidores estão desatualizados. Atualize a instalação do servidor e reinicie.",
-      "fleetTitle": "Servidores CS2 desatualizados — atualização necessária",
-      "fleetBody_one": "{{count}} servidor recebeu da Steam o aviso de uma atualização obrigatória do CS2. Atualize a instalação do servidor (SteamCMD/host) e reinicie.",
-      "fleetBody_other": "{{count}} servidores receberam da Steam o aviso de uma atualização obrigatória do CS2. Atualize a instalação do servidor (SteamCMD/host) e reinicie."
-    },
-    "versionMismatch": {
-      "title": "Versões diferentes detetadas",
-      "chip_one": "v{{version}}: {{count}} servidor",
-      "chip_other": "v{{version}}: {{count}} servidores",
-      "recommended": "Recomendado: atualize todos os servidores para v{{version}} para manter a consistência"
-    },
-    "notInitialized": {
-      "title": "Servidor não inicializado",
-      "checking": "A verificar a ligação…",
-      "rconUnreachable": "RCON inacessível. Verifique o host, a porta e se o servidor de jogo está a correr. Use Repetir quando estiver acessível.",
-      "noEvents": "RCON acessível, mas o plugin Auto Tournament ainda não enviou eventos. Clique em Repetir para o configurar.",
-      "notChecked": "Ligação ainda não verificada. Consulte o estado abaixo. Clique em Repetir para configurar quando o RCON estiver acessível."
-    },
-    "chips": {
-      "versionMismatch": "Versão diferente",
-      "ipBanned": "IP banido",
-      "pluginDbDown": "BD do plugin em baixo",
-      "cs2UpdateRequired": "Atualização do CS2 necessária ({{version}})"
-    },
-    "tooltips": {
-      "fixGuide": "Guia de resolução",
-      "disabledTitle": "Servidor desativado",
-      "disabledBody": "Os servidores desativados são ignorados na atribuição e nas verificações de estado.",
-      "noEventsTitle": "Ainda não foram recebidos eventos do plugin Auto Tournament",
-      "noEventsBody": "O Auto Tournament enviou a configuração do webhook por RCON, mas não recebeu nenhum evento. Normalmente, isto significa que o servidor não consegue aceder ao URL do webhook do Auto Tournament ou que o plugin Auto Tournament não está a correr.",
-      "notConfiguredTitle": "Não configurado",
-      "notConfiguredBody": "O Auto Tournament ainda não enviou a configuração persistente para este servidor. Use Repetir para o inicializar.",
-      "unreachableTitle": "Servidor inacessível a partir do Auto Tournament",
-      "unreachableBody": "O Auto Tournament não consegue aceder ao servidor por RCON. Verifique host/porta, palavra-passe RCON, firewall e se o servidor está a correr.",
-      "webhookTitle": "O servidor não consegue aceder ao Auto Tournament (webhook)",
-      "webhookBody": "O Auto Tournament consegue aceder ao servidor por RCON, mas o servidor não consegue aceder ao webhook do Auto Tournament. Verifique o tráfego de saída, o DNS e o URL do webhook configurado.",
-      "versionDiffTitle": "Versões do plugin diferentes entre servidores",
-      "versionDiffBody": "Alguns servidores estão a usar uma versão diferente do MatchZy Enhanced. Se usar o CSM, execute {{command}} e reinicie os servidores.",
-      "ipBannedTitle": "IP banido no RCON",
-      "ipBannedBody": "O servidor baniu temporariamente o IP do Auto Tournament após várias falhas de autenticação RCON. Corrija a palavra-passe RCON e remova o banimento do IP.",
-      "pluginDbTitle": "O plugin Auto Tournament não consegue aceder à base de dados.",
-      "pluginDbBody": "Se usar o CSM, execute {{path}}.",
-      "cs2UpdateBody": "O Auto Tournament confirmou que a build deste servidor está atrás da Steam. O servidor fica bloqueado para novas atribuições (e para o início de torneios) até ser atualizado."
-    },
-    "lastActive": {
-      "justNow": "Ativo agora mesmo",
-      "minutesAgo_one": "Ativo há {{count}} minuto",
-      "minutesAgo_other": "Ativo há {{count}} minutos",
-      "hoursAgo_one": "Ativo há {{count}} hora",
-      "hoursAgo_other": "Ativo há {{count}} horas",
-      "daysAgo_one": "Ativo há {{count}} dia",
-      "daysAgo_other": "Ativo há {{count}} dias"
-    },
-    "pluginStatus": {
-      "idle": "Inativo",
-      "loading": "A carregar",
-      "warmup": "Warmup",
-      "knife": "Ronda de faca",
-      "live": "Em direto",
-      "playing": "Em jogo",
-      "paused": "Em pausa",
-      "halftime": "Intervalo",
-      "postgame": "Pós-jogo",
-      "queued": "Em fila",
-      "error": "Erro"
-    },
-    "retry": {
-      "sendingConfig": "A enviar a configuração persistente para o servidor…",
-      "triggered": "Inicialização do servidor iniciada",
-      "failed": "Não foi possível repetir a inicialização: {{message}}",
-      "retryingAll_one": "A repetir a inicialização de {{count}} servidor…",
-      "retryingAll_other": "A repetir a inicialização de {{count}} servidores…",
-      "triggeredAll_one": "Repetição iniciada para {{count}} servidor",
-      "triggeredAll_other": "Repetição iniciada para {{count}} servidores",
-      "failedAll": "A repetição falhou: {{message}}"
-    },
-    "row": {
-      "details": "Details for {{name}}",
-      "actions": "Actions for {{name}}",
-      "edit": "Edit",
-      "retryInit": "Retry initialization",
-      "disabled": "Disabled: allocation skips it",
-      "waitingForPlugin": "Config sent, waiting for the plugin's first event",
-      "running": "Running {{match}}",
-      "ready": "Ready for the next match"
-    },
-    "details": {
-      "host": "Host",
-      "port": "Port",
-      "cs2Name": "CS2 name",
-      "plugin": "Plugin",
-      "cs2Build": "CS2 build",
-      "pluginStatus": "Plugin status",
-      "lastEvent": "Last event",
-      "id": "ID"
-    },
-    "strip": {
-      "online": "ONLINE",
-      "offline": "OFFLINE",
-      "notConfigured": "NOT SET UP",
-      "disabled": "DISABLED",
-      "free": "FREE",
-      "waiting": "WAITING"
+      "total_other": "{{count}} servidores"
     },
     "limit": {
       "unlimited": "no server limit (non-commercial use)",
@@ -639,13 +362,6 @@
     },
     "machineCount_one": "{{count}} machine",
     "machineCount_other": "{{count}} machines",
-    "settings": "Server settings",
-    "other": {
-      "title": "Other servers",
-      "summary_one": "{{count}} server not on a machine",
-      "summary_other": "{{count}} servers not on a machine",
-      "about": "Servers added by address, not run by csm on a linked machine."
-    },
     "add": {
       "button": "Adicionar",
       "machine": "Máquina",
@@ -660,21 +376,8 @@
     "enabledHelper": "Servidores desativados não serão usados em jogos",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
-    "chatPrefixLabel": "Substituição do prefixo do chat",
-    "chatPrefixPlaceholder": "[{Green}Auto Tournament{Default}]",
-    "adminChatPrefixLabel": "Substituição do prefixo do chat admin",
-    "adminChatPrefixPlaceholder": "[{Red}ADMIN{Default}]",
-    "knifeOverrideLabel": "Ronda knife ativada por defeito (substituição)",
-    "connectivity": {
-      "apiToServer": "Auto Tournament API → Servidor CS2:",
-      "serverToApi": "Servidor → API (/api/events):",
-      "reachable": "Acessível",
-      "unreachable": "Inacessível"
-    },
     "errors": {
       "nameRequired": "O nome do servidor é obrigatório",
-      "duplicateHostPort": "Já existe um servidor com host:porta '{{host}}:{{port}}' (ID: {{id}}, Nome: {{name}})",
-      "testConnectionSaveFirst": "Guarde o servidor primeiro antes de testar a ligação",
       "saveFailed": "Não foi possível guardar o servidor",
       "deleteFailed": "Não foi possível eliminar o servidor"
     },
@@ -692,8 +395,6 @@
       "title": "Eliminar servidor",
       "message": "Tem a certeza de que pretende eliminar \"{{name}}\"? Esta ação não pode ser anulada."
     },
-    "skinsLabel": "Skins on this server",
-    "skinsHelper": "Players' equipped virtual skins are sent to the server in warmup and between maps, never mid-map. Needs Ready Up's skins plugin and a server without a Steam server token.",
     "skinsTokenWarning": "This server runs with a Steam server token (+sv_setsteamaccount), so it gets no skins: Valve bans the token, and the account behind it, of a server that hands out items. Remove the token in csm to use skins here.",
     "failoverUseLabel": "Usar para failover",
     "failoverUseHelper": "Desligado: o failover automático nunca move aqui uma partida nem a mantém como reserva."
@@ -782,161 +483,6 @@
     "info_other": "Isto guarda um map pool com {{count}} mapas."
   },
   "adminTools": {
-    "description": "Execute ações comuns de jogos e servidores nos seus servidores CS2. As ações rápidas aparecem primeiro, com ferramentas mais avançadas abaixo.",
-    "refresh": "Atualizar servidores",
-    "serverSelect": {
-      "label": "Servidor(es) alvo",
-      "allServersChip": "Todos os servidores",
-      "sendStatus": "Enviar estado",
-      "allServersDescription_one": "Executar em {{count}} servidor",
-      "allServersDescription_other": "Executar em todos os {{count}} servidores"
-    },
-    "command": {
-      "execute": "Executar"
-    },
-    "customRconWarning": "Aviso: use com cuidado!",
-    "results": {
-      "title": "Resultados da execução",
-      "successChip": "✓ Sucesso",
-      "failedChip": "✗ Falha",
-      "errorPrefix": "Erro:"
-    },
-    "quickActions": {
-      "title": "Ações rápidas"
-    },
-    "advanced": {
-      "title": "Ferramentas avançadas"
-    },
-    "noServers": "Não foram encontrados servidores ativados. Adicione e ative servidores na página Servidores.",
-    "toasts": {
-      "commandExecuted_one": "Comando executado em {{count}} servidor",
-      "commandExecuted_other": "Comando executado em {{count}} servidores",
-      "commandPartial": "Comando executado com sucesso em {{succeeded}} de {{total}} servidores ({{failed}} falharam)",
-      "commandFailed": "Não foi possível executar o comando"
-    },
-    "commands": {
-      "matchStart": {
-        "label": "Iniciar jogo",
-        "description": "Inicia o jogo imediatamente."
-      },
-      "matchEnd": {
-        "label": "Terminar jogo",
-        "description": "Força o fim do jogo atual nos servidores selecionados e repõe-nos em warmup com css_restart."
-      },
-      "forcePause": {
-        "label": "Forçar pausa",
-        "description": "Força a pausa do jogo."
-      },
-      "forceUnpause": {
-        "label": "Forçar retoma",
-        "description": "Força a retoma do jogo."
-      },
-      "skipVeto": {
-        "label": "Saltar veto",
-        "description": "Salta a fase de veto."
-      },
-      "toggleKnife": {
-        "label": "Ativar/desativar ronda de faca",
-        "description": "Ativa ou desativa a ronda de faca para escolha de lado (alias: rk)."
-      },
-      "togglePlayout": {
-        "label": "Ativar/desativar playout",
-        "description": "Ativa ou desativa jogar todas as rondas até ao fim."
-      },
-      "toggleWhitelist": {
-        "label": "Ativar/desativar whitelist",
-        "description": "Ativa ou desativa a whitelist das equipas."
-      },
-      "showSettings": {
-        "label": "Mostrar definições",
-        "description": "Mostra as definições atuais do jogo."
-      },
-      "reloadAdmins": {
-        "label": "Recarregar admins",
-        "description": "Recarrega a lista de admins a partir de admins.json."
-      },
-      "readyRequired": {
-        "label": "Definir jogadores necessários para ready",
-        "description": "Define quantos jogadores têm de ficar ready antes de o jogo começar.",
-        "inputLabel": "Número de jogadores"
-      },
-      "restoreBackup": {
-        "label": "Restaurar cópia de segurança da ronda",
-        "description": "Restaura o jogo para uma ronda específica.",
-        "inputLabel": "Número da ronda"
-      },
-      "cleanServers": {
-        "label": "Limpar servidores",
-        "description": "Termina qualquer jogo em curso nos servidores selecionados e repõe-nos em warmup com css_restart. Esta ação é destrutiva."
-      },
-      "changeMap": {
-        "label": "Mudar de mapa",
-        "description": "Muda para outro mapa (css_map <mapname>).",
-        "inputLabel": "Nome do mapa (de_dust2)"
-      },
-      "team1Name": {
-        "label": "Definir nome da equipa 1",
-        "description": "Define o nome da equipa 1.",
-        "inputLabel": "Nome da equipa"
-      },
-      "team2Name": {
-        "label": "Definir nome da equipa 2",
-        "description": "Define o nome da equipa 2.",
-        "inputLabel": "Nome da equipa"
-      },
-      "startPractice": {
-        "label": "Iniciar modo de treino",
-        "description": "Ativa o modo de treino com .commands."
-      },
-      "exitPractice": {
-        "label": "Sair do modo de treino",
-        "description": "Desativa o modo de treino."
-      },
-      "broadcast": {
-        "label": "Difundir mensagem",
-        "description": "Envia uma mensagem de admin a todos os jogadores.",
-        "inputLabel": "Mensagem"
-      },
-      "customRcon": {
-        "label": "Executar comando RCON personalizado",
-        "description": "Executa diretamente qualquer comando RCON.",
-        "inputLabel": "Comando RCON"
-      }
-    },
-    "categories": {
-      "matchControl": "Controlo do jogo",
-      "matchSettings": "Definições do jogo",
-      "backupRestore": "Cópia de segurança e restauro",
-      "serverMgmt": "Gestão de servidores",
-      "teamMgmt": "Gestão de equipas",
-      "practiceMode": "Modo de treino",
-      "adminComm": "Comunicação de admin",
-      "advanced": "RCON avançado"
-    },
-    "events": {
-      "title": "Monitor de eventos do servidor",
-      "healthCheckFailed": "A verificação de estado da API de eventos falhou. Verifique se a API está a correr e se /api/events/test está acessível.",
-      "loadFailed": "Não foi possível carregar os eventos",
-      "connected": "Ligado",
-      "disconnected": "Desligado",
-      "paused": "Em pausa",
-      "pause": "Pausar",
-      "resume": "Retomar",
-      "refresh": "Atualizar eventos",
-      "clear": "Limpar consola",
-      "filterLabel": "Filtrar por servidor (opcional)",
-      "noServers": "Nenhum servidor disponível",
-      "refreshServers": "Atualizar lista de servidores",
-      "noEvents": "Ainda não foram recebidos eventos deste servidor.",
-      "noEventsHint": "Continua sem eventos após 15 segundos. Verifique se o seu servidor CS2 está configurado para enviar webhooks do MatchZy Enhanced para /api/events/:matchSlugOrServerId com o X-Auto-Tournament-Token correto.",
-      "waiting": "À espera de eventos do servidor…",
-      "footer_one": "A mostrar {{count}} evento (máx. 100)",
-      "footer_other": "A mostrar {{count}} eventos (máx. 100)",
-      "footerForServer_one": "A mostrar {{count}} evento do servidor {{server}} (máx. 100)",
-      "footerForServer_other": "A mostrar {{count}} eventos do servidor {{server}} (máx. 100)",
-      "realtime": "Os eventos são atualizados em tempo real via WebSocket",
-      "downloadDemo": "Transferir demo"
-    },
     "title": "Counter-Strike 2 servers"
   },
   "settings": {
@@ -1284,20 +830,11 @@
       "add": "Could not add the machine",
       "command": "The command failed"
     },
-    "sent": "Sent to {{name}}",
     "queued": "{{name}} is offline; it runs when csm reconnects",
     "rotateSent": "New token sent",
     "rotateQueued": "The machine gets a new token when it next connects",
-    "process": {
-      "running": "Running",
-      "stopped": "Stopped"
-    },
-    "restarts": "{{count}} restarts in 24 h",
     "readyUp": "Ready Up {{version}}",
     "noReadyUp": "No Ready Up",
-    "matchInProgress": "Match in progress",
-    "linked": "on the fleet link",
-    "linkedOffline": "fleet link offline",
     "start": "Start",
     "restart": "Restart",
     "stop": "Stop",
@@ -1305,22 +842,15 @@
     "queuedShort": "Queued",
     "waiting": "Waiting for csm…",
     "refusedMatch": "csm refused: a match is in progress",
-    "title": "Machines",
     "add": "Add machine",
-    "description": "Machines run CS2 Server Manager (csm). Link one with a single command, then create, start, stop and update its servers from here.",
-    "empty": "No machines yet.",
     "codeExpires": "Code valid until {{time}}",
     "lastSeen": "Last seen {{time}}",
-    "resources": "{{cpus}} CPU · load {{load}} · {{free}}/{{total}} GB RAM free",
     "disk": "{{mount}}: {{free}} GB free",
-    "cs2Build": "CS2 {{build}}",
     "cs2UpdateAvailable": "CS2 update available",
     "newCode": "New code",
     "rotate": "Rotate token",
     "revoke": "Revoke machine",
     "remove": "Remove",
-    "createServer": "Create server",
-    "createN": "Create several…",
     "updateGame": "Update CS2",
     "updateReadyUp": "Update Ready Up…",
     "updatesHold": "Automatic updates",
@@ -1329,7 +859,6 @@
       "on": "Paused",
       "off": "Always (even during tournaments)"
     },
-    "noServers": "No servers on this machine yet.",
     "enrolledElsewhere": "Enrolled from this machine: {{names}}",
     "activity": "Recent actions",
     "addHelp": "You get one command to run on the machine. It needs CS2 Server Manager (csm) installed.",
@@ -1342,7 +871,6 @@
     "linkWaiting": "Waiting for the machine to connect…",
     "insecureNote": "Este site usa http:// sem encriptação, por isso o comando inclui --insecure e o token viaja sem encriptação. Se puder, sirva a plataforma por https://.",
     "done": "Done",
-    "createHelp": "New servers get Ready Up and connect to this platform on their own.",
     "count": "How many",
     "create": "Create",
     "version": "Version",
@@ -1369,10 +897,7 @@
       "revoked": "Revoked"
     },
     "status": {
-      "pending": "In progress",
-      "ok": "Done",
-      "rejected": "Refused",
-      "failed": "Failed"
+      "ok": "Done"
     },
     "health": {
       "ok": "Ready Up healthy",
@@ -1418,33 +943,12 @@
       "failed": "Failed",
       "timeout": "No answer from csm"
     },
-    "summary": "{{machines}} machine(s), {{online}} online · {{servers}} server(s)",
-    "about": "Machines run CS2 Server Manager (csm). The platform starts, stops and creates servers on them by itself.",
     "deleteServer": "Delete server",
-    "deleting": "Deleting…",
-    "ago": {
-      "seconds": "{{count}} s ago",
-      "minutes": "{{count}} min ago"
-    },
     "working": "csm is on it",
-    "tile": {
-      "free": "Free",
-      "match": "In a match",
-      "starting": "Starting…",
-      "stopping": "Stopping…",
-      "restarting": "Restarting…",
-      "updating": "Updating…",
-      "deleting": "Deleting…",
-      "stopped": "Stopped",
-      "offline": "Offline"
-    },
     "tryAgain": "Try again",
-    "load": "Load {{load}} · {{free}} GB RAM free",
-    "offlineSince": "Offline since {{time}}",
     "waitingFor_one": "{{count}} action waits for it",
     "waitingFor_other": "{{count}} actions wait for it",
     "addServers": "Add servers",
-    "back": "All machines",
     "more": "More for {{name}}",
     "machine": "Machine",
     "cpu": "CPU load",
@@ -2040,8 +1544,6 @@
   },
   "highlights": {
     "title": "Highlights",
-    "queued_one": "{{count}} more on the way",
-    "queued_other": "{{count}} more on the way",
     "pending": "Waiting for the recorder",
     "recording": "Recording…",
     "mapN": "Map {{n}}",
@@ -2049,16 +1551,10 @@
     "moments_one": "{{count}} moment",
     "moments_other": "{{count}} moments",
     "matchReel": "Match reel",
-    "close": "Close",
     "roundN": "Round {{n}}",
-    "seeAll": "See all {{count}}",
     "reelBadge": "REEL",
     "favourite": "Favourite",
-    "makeFavourite": "Make it your favourite",
-    "unfavourite": "No longer your favourite",
     "favouriteFailed": "Could not save your favourite",
-    "beingRecorded_one": "{{count}} highlight is being recorded.",
-    "beingRecorded_other": "{{count}} highlights are being recorded.",
     "pageTitle": "{{name}}'s highlights",
     "summary": "{{clips}} clips · {{reels}} reels · from {{maps}} maps",
     "loading": "Loading highlights",
@@ -2124,7 +1620,6 @@
       "playOfTheTournament": "Play of the tournament",
       "firstSoon": "The first plays show up here soon"
     },
-    "readyIn": "ready in about {{minutes}} min",
     "matchReelRecording": "Match reel · being recorded",
     "teamReelButton": "{{team}} highlights",
     "wholeSeries": "Whole series",
@@ -2263,11 +1758,8 @@
     "highlights": "Highlights"
   },
   "highlightsAdmin": {
-    "title": "Highlights",
-    "subtitle": "The recorders that turn demos into highlight clips and reels: how they're doing, what they make, and how to add one.",
     "tabs": {
       "recorders": "Recorders",
-      "settings": "Settings",
       "overlays": "Overlays",
       "clips": "Clips"
     },
@@ -2275,7 +1767,6 @@
     "actionError": "That didn't work",
     "empty": "No recorder has asked for work yet",
     "emptyHelp": "Start one with the steps under Add a recorder; it shows up here when it first asks for work.",
-    "online": "Online",
     "offline": "Offline",
     "paused": "Paused",
     "oldVersion": "Version {{version}}: update it for frame checks and benchmarks",
@@ -2329,7 +1820,6 @@
     "forget": "Forget",
     "forgotten": "Forgotten. It shows up again if it asks for work.",
     "clips": {
-      "tab": "Clips",
       "current": "Clips and reels are made at {{quality}} now.",
       "outdated_other": "{{count}} made at other settings",
       "redoOutdated": "Make the outdated ones again",
