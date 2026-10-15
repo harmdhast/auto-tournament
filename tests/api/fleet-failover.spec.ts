@@ -1,6 +1,4 @@
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import {
@@ -26,6 +24,7 @@ import {
   type HelloPayload,
   type InlineBackup,
 } from '../../api/src/integrations/cs2/fleet/protocol/v1';
+import { example } from '../helpers/fleetFake';
 
 /**
  * Fleet failover (FLEET.md §11, fleet/failover.ts) with fake Ready Up
@@ -51,9 +50,6 @@ import {
  * @tag fleet
  */
 
-const EXAMPLES = path.resolve(__dirname, '../fixtures/fleet/v1');
-const example = (file: string): Envelope =>
-  JSON.parse(fs.readFileSync(path.join(EXAMPLES, file), 'utf8')) as Envelope;
 const STEAM = (n: number) => `765611980002${String(n).padStart(5, '0')}`;
 
 let key: { id: string; value: string };
@@ -356,8 +352,15 @@ async function setFailover(
   return res.json();
 }
 
-async function setFailoverUse(request: APIRequestContext, cs2ServerId: string, failoverUse: boolean) {
-  const res = await request.put(`/api/servers/${cs2ServerId}`, { headers: getAuthHeader(), data: { failoverUse } });
+async function setFailoverUse(
+  request: APIRequestContext,
+  cs2ServerId: string,
+  failoverUse: boolean
+) {
+  const res = await request.put(`/api/servers/${cs2ServerId}`, {
+    headers: getAuthHeader(),
+    data: { failoverUse },
+  });
   expect(res.ok(), await res.text()).toBe(true);
 }
 
@@ -933,10 +936,16 @@ test.describe.serial('Fleet failover (FLEET.md §11)', () => {
     await b.hello();
     const cs2B = await link(request, b.serverId);
     cleanup.push(() => unlink(request, b.serverId));
-    const practice = await request.put(`/api/servers/${cs2B}`, { headers: getAuthHeader(), data: { tournamentUse: false } });
+    const practice = await request.put(`/api/servers/${cs2B}`, {
+      headers: getAuthHeader(),
+      data: { tournamentUse: false },
+    });
     expect(practice.ok(), await practice.text()).toBeTruthy();
     cleanup.push(async () => {
-      await request.put(`/api/servers/${cs2B}`, { headers: getAuthHeader(), data: { tournamentUse: true } });
+      await request.put(`/api/servers/${cs2B}`, {
+        headers: getAuthHeader(),
+        data: { tournamentUse: true },
+      });
     });
 
     const res = await request.get('/api/fleet/failover/settings', { headers: getAuthHeader() });
@@ -1114,7 +1123,11 @@ test.describe.serial('Fleet failover (FLEET.md §11)', () => {
     a.kill();
     const proposal = await scanUntilProposed(request, slug);
     const view = await failoverView(request, slug);
-    expect(view.proposal).toMatchObject({ id: proposal.id, status: 'open', targetCs2ServerId: null });
+    expect(view.proposal).toMatchObject({
+      id: proposal.id,
+      status: 'open',
+      targetCs2ServerId: null,
+    });
     expect(view.candidates.map((c: { id: string }) => c.id)).toContain(cs2B);
     expect((await matchRow(request, slug))?.serverId).not.toBe(cs2B);
 
