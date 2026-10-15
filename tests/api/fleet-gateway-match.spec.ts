@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { setupTournament } from '../helpers/tournamentSetup';
@@ -11,7 +9,7 @@ import {
   resetEnrollRateLimit,
   type Enrolled,
 } from '../helpers/fleet';
-import { releaseFleet, trackMatch } from '../helpers/fleetFake';
+import { example, releaseFleet, trackMatch } from '../helpers/fleetFake';
 import { ulid } from '../../api/src/integrations/cs2/fleet/credentials';
 import { validateMessage, type Envelope } from '../../api/src/integrations/cs2/fleet/protocol/v1';
 
@@ -33,10 +31,6 @@ import { validateMessage, type Envelope } from '../../api/src/integrations/cs2/f
  *
  * @tag api
  */
-
-const EXAMPLES = path.resolve(__dirname, '../fixtures/fleet/v1');
-const example = (file: string): Envelope =>
-  JSON.parse(fs.readFileSync(path.join(EXAMPLES, file), 'utf8')) as Envelope;
 
 let key: { id: string; value: string };
 

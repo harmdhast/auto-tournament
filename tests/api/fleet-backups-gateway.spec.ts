@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import {
@@ -16,6 +14,7 @@ import {
   type Envelope,
   type InlineBackup,
 } from '../../api/src/integrations/cs2/fleet/protocol/v1';
+import { example } from '../helpers/fleetFake';
 
 /**
  * Round backups end to end, with a fake Ready Up server on the fleet socket
@@ -27,10 +26,6 @@ import {
  *
  * @tag api
  */
-
-const EXAMPLES = path.resolve(__dirname, '../fixtures/fleet/v1');
-const example = (file: string): Envelope =>
-  JSON.parse(fs.readFileSync(path.join(EXAMPLES, file), 'utf8')) as Envelope;
 
 let key: { id: string; value: string };
 

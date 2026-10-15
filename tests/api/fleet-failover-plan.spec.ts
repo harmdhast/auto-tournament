@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { test, expect } from '@playwright/test';
 import {
   buildResume,
@@ -21,6 +19,7 @@ import {
   type InlineBackup,
   type MatchState,
 } from '../../api/src/integrations/cs2/fleet/protocol/v1';
+import { example } from '../helpers/fleetFake';
 
 /**
  * The pure failover decisions (FLEET.md §11, fleet/failoverPlan.ts): when a
@@ -30,10 +29,6 @@ import {
  *
  * @tag api
  */
-
-const EXAMPLES = path.resolve(__dirname, '../fixtures/fleet/v1');
-const example = (file: string): Envelope =>
-  JSON.parse(fs.readFileSync(path.join(EXAMPLES, file), 'utf8')) as Envelope;
 
 const NOW = 1_800_000_000;
 
@@ -120,11 +115,29 @@ test.describe('failover: what to resume with', () => {
     expect(maxBackupRound(undefined)).toBe(Infinity);
     expect(maxBackupRound({})).toBe(Infinity);
     expect(maxBackupRound({ max_rounds: 24, overtime: { enabled: false } })).toBe(24);
-    expect(maxBackupRound({ max_rounds: 24, overtime: { enabled: false }, tiebreak: { sudden_death_on_tie: true } })).toBe(24 + 10 * 2 * 5);
+    expect(
+      maxBackupRound({
+        max_rounds: 24,
+        overtime: { enabled: false },
+        tiebreak: { sudden_death_on_tie: true },
+      })
+    ).toBe(24 + 10 * 2 * 5);
     // max_overtimes is not a ceiling (the valve ruleset plays unlimited overtime).
-    expect(maxBackupRound({ max_rounds: 24, overtime: { enabled: true, rounds_per_half: 3, max_overtimes: 0 } })).toBe(24 + 10 * 2 * 5);
-    expect(maxBackupRound({ max_rounds: 24, overtime: { enabled: true, rounds_per_half: 3, max_overtimes: 2 } })).toBe(24 + 10 * 2 * 5);
-    expect(maxBackupRound({ max_rounds: 24, overtime: { enabled: true, rounds_per_half: 6 } })).toBe(24 + 10 * 2 * 6);
+    expect(
+      maxBackupRound({
+        max_rounds: 24,
+        overtime: { enabled: true, rounds_per_half: 3, max_overtimes: 0 },
+      })
+    ).toBe(24 + 10 * 2 * 5);
+    expect(
+      maxBackupRound({
+        max_rounds: 24,
+        overtime: { enabled: true, rounds_per_half: 3, max_overtimes: 2 },
+      })
+    ).toBe(24 + 10 * 2 * 5);
+    expect(
+      maxBackupRound({ max_rounds: 24, overtime: { enabled: true, rounds_per_half: 6 } })
+    ).toBe(24 + 10 * 2 * 6);
     expect(maxBackupRound({ max_rounds: 24 })).toBe(24 + 10 * 2 * 5);
     // mp_overtime_maxrounds 10 from the cvars: 10 overtimes still fit.
     expect(24 + 10 * 10).toBeLessThanOrEqual(maxBackupRound({ max_rounds: 24 }));
@@ -289,7 +302,13 @@ test.describe('failover: the resume block', () => {
 
   test('round_sides: set with a known backup round (inline and backup_ref), omitted when unknown or round 0', () => {
     const base = { fromEpoch: 1, mapNumber: 2, state: state(), mapStats: null };
-    const inline = buildResume({ ...base, round: backup.round, backup, backupRef: null, roundSides: 'team1_ct' });
+    const inline = buildResume({
+      ...base,
+      round: backup.round,
+      backup,
+      backupRef: null,
+      roundSides: 'team1_ct',
+    });
     expect(inline.round_sides).toBe('team1_ct');
     expect(valid(inline)).toEqual({ ok: true, errors: [] });
     const ref = buildResume({
@@ -301,10 +320,24 @@ test.describe('failover: the resume block', () => {
     });
     expect(ref.round_sides).toBe('team2_ct');
     expect(valid(ref)).toEqual({ ok: true, errors: [] });
-    const unknown = buildResume({ ...base, round: backup.round, backup, backupRef: null, roundSides: null });
+    const unknown = buildResume({
+      ...base,
+      round: backup.round,
+      backup,
+      backupRef: null,
+      roundSides: null,
+    });
     expect(unknown.round_sides).toBeUndefined();
-    expect(buildResume({ ...base, round: backup.round, backup, backupRef: null }).round_sides).toBeUndefined();
-    const warmup = buildResume({ ...base, round: 0, backup: null, backupRef: null, roundSides: 'team1_ct' });
+    expect(
+      buildResume({ ...base, round: backup.round, backup, backupRef: null }).round_sides
+    ).toBeUndefined();
+    const warmup = buildResume({
+      ...base,
+      round: 0,
+      backup: null,
+      backupRef: null,
+      roundSides: 'team1_ct',
+    });
     expect(warmup.round_sides).toBeUndefined();
   });
 
