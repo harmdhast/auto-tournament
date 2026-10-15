@@ -312,11 +312,22 @@ router.post(
       return;
     }
     const from = serverId ?? match?.server_id ?? 'test-ready-up';
-    const record = await liveStateStore.getLiveState(matchSlug);
+    const stored = await liveStateStore.getLiveState(matchSlug);
+    // Only the server holding the match moves it (fleet/state.ts): the sender
+    // takes the match first, as a match.assign would have given it.
+    let record = stored;
+    if (match && (!stored || stored.serverId !== from)) {
+      // A sender with no fleet record (the match's RCON row, `test-ready-up`) gets a pending one.
+      await db.runAsync(
+        `INSERT INTO cs2_fleet_servers (id, name, status) VALUES (?, ?, 'pending') ON CONFLICT (id) DO NOTHING`,
+        [from, from]
+      );
+      record = await liveStateStore.beginAssignment(matchSlug, from, stored?.configRev ?? 1);
+    }
     const ctx = { serverId: from, streamId: 'test', sendEphemeral: () => false };
-    // In order after the stored record (a real server's revs, or 0 for a record
-    // a new match with this slug starts from), else after the last test batch.
-    let rev = record ? record.liveRev : (testRevs.get(matchSlug) ?? 0);
+    // In order after the stored state (a real server's revs), else after the
+    // last test batch.
+    let rev = record?.state ? record.liveRev : (testRevs.get(matchSlug) ?? 0);
     for (const event of events) {
       const type = event.type.startsWith('event.') ? event.type : `event.${event.type}`;
       rev += 1;
