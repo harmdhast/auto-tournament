@@ -85,7 +85,7 @@ for i in $(seq 1 "$N"); do
   WEB=$(web_port "$i") API=$(($(web_port "$i") + 1)) DB=$(db_name "$i")
   pg 'await c.query(`DROP DATABASE IF EXISTS "${argv[0]}" WITH (FORCE)`); await c.query(`CREATE DATABASE "${argv[0]}"`);' "$DB" || exit 1
   # Same API env as the CI e2e job (.github/workflows/ci.yml).
-  (cd api && exec env PORT=$API NODE_ENV=development DB_NAME="$DB" \
+  (cd api && exec env PORT=$API NODE_ENV=development DB_NAME="$DB" FRONTEND_BASE_URL="http://localhost:$WEB" \
     SESSION_SECRET=e2e-session-secret-0123456789abcdef SERVER_TOKEN=server123 \
     ENABLE_TEST_ENDPOINTS=true MAT_TEST_INTEGRATION=1 AT_ACCEPT_LICENSE=noncommercial AT_VETO_TURN_SECONDS_DEFAULT=0 \
     AT_UPDATE_CHECK=off GAMES_ENRICH=off LICENSE_CHECKIN_URL=off CS2_IMAGE_PREFETCH=off STEAM_API_KEY= \
@@ -130,7 +130,7 @@ for i in $(seq 1 "$N"); do
   files=$(node tests/ci-shard.mjs "$i" "$N")
   [ -z "$files" ] && continue
   # shellcheck disable=SC2086
-  SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL="http://localhost:$(web_port "$i")" DB_NAME=$(db_name "$i") \
+  SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL="http://localhost:$(web_port "$i")" BASE_URL="http://localhost:$(web_port "$i")" DB_NAME=$(db_name "$i") \
     node_modules/.bin/playwright test -c tests/playwright.config.ts --reporter=list \
     --output "$OUT/results-$i" $files >"$OUT/shard-$i.txt" 2>&1 &
   pids+=($!)
