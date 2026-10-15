@@ -129,4 +129,19 @@ test.describe('test endpoints gate', () => {
       });
     }
   });
+
+  test('every core helper is behind the flag', TAGS, () => {
+    const first = (
+      testRoutes as unknown as {
+        stack: Array<{
+          route?: unknown;
+          handle: (req: Request, res: Response, next: () => void) => void;
+        }>;
+      }
+    ).stack[0];
+    expect(first.route).toBeUndefined();
+    withEnv({ NODE_ENV: 'development', ENABLE_TEST_ENDPOINTS: undefined }, () => {
+      expect(run(first.handle, {})).toEqual({ status: 404, next: false });
+    });
+  });
 });

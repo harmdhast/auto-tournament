@@ -64,6 +64,7 @@ import path from 'path';
 
 const router = Router();
 const flagOnly = requireTestEndpoints({ tier: 'flag' });
+router.use(flagOnly);
 
 /**
  * Test sign-ins skip the "What do you play?" dialog unless the test asks for
