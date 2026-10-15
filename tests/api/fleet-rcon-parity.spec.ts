@@ -136,8 +136,9 @@ test.describe.serial('Fleet: RCON parity', () => {
       const body = await (
         await request.get(`/api/rcon/capabilities/${rcon!.id}`, { headers: getAuthHeader() })
       ).json();
-      expect(body).toMatchObject({ success: true, transport: 'rcon' });
-      expect(body.matchControls).toContain('skipVeto');
+      // Every button is a fleet command (upstream #848): a row no server is linked to says so too.
+      expect(body).toMatchObject({ success: true, transport: 'fleet' });
+      expect(body.matchControls).not.toContain('skipVeto');
     } finally {
       await deleteServer(request, rcon!.id);
     }
