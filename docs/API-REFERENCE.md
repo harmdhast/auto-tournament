@@ -1140,7 +1140,7 @@ Parties, the queue, matches and the matchmaking leaderboard (docs/design/matchma
 
 ### Test helpers
 
-E2E helpers. Disabled in production unless ENABLE_TEST_ENDPOINTS is set.
+E2E helpers. Off unless ENABLE_TEST_ENDPOINTS is set.
 
 | Method | Path | Auth |
 | --- | --- | --- |
