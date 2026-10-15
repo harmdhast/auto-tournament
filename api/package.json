@@ -16,7 +16,6 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@faker-js/faker": "^10.1.0",
     "@fontsource/geist": "5.2.6",
     "@fontsource/sora": "5.2.6",
     "@resvg/resvg-wasm": "2.6.2",
@@ -53,6 +52,7 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.1.0",
     "@types/nodemailer": "^8.0.2"
   }
 }
