@@ -5,7 +5,7 @@
  * core test helpers.
  */
 
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { requireAuth } from '../../../middleware/auth';
 import { db } from '../../../config/database';
 import { resetEnrollRateLimit } from '../fleet/routes';
@@ -18,9 +18,14 @@ import { scanForFailovers } from '../fleet/failover';
 
 const router = Router();
 
-function isE2eTestHelperEnabled(): boolean {
+/** The helpers answer only with ENABLE_TEST_ENDPOINTS set. */
+function requireTestHelpers(_req: Request, res: Response, next: NextFunction): void {
   const enabled = (process.env.ENABLE_TEST_ENDPOINTS || '').toLowerCase();
-  return enabled === '1' || enabled === 'true' || enabled === 'yes';
+  if (enabled !== '1' && enabled !== 'true' && enabled !== 'yes') {
+    res.status(403).json({ success: false, error: 'Disabled in production' });
+    return;
+  }
+  next();
 }
 
 /**
@@ -31,11 +36,8 @@ function isE2eTestHelperEnabled(): boolean {
 router.post(
   '/highlights/status',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!isE2eTestHelperEnabled()) {
-      res.status(403).json({ success: false, error: 'Disabled in production' });
-      return;
-    }
     const { ids, status } = (req.body || {}) as { ids?: unknown; status?: unknown };
     const list = Array.isArray(ids) ? ids.map(Number).filter(Number.isInteger) : [];
     if (list.length === 0 || typeof status !== 'string') {
@@ -58,40 +60,39 @@ router.post(
  *   so the next connect (or the hourly job) rotates them
  * POST /api/test/fleet/expire-key { keyId }   make a fleet key's expiry pass
  */
-router.post('/fleet/reset-enroll-rate-limit', requireAuth, (_req: Request, res: Response): void => {
-  if (!isE2eTestHelperEnabled()) {
-    res.status(403).json({ success: false, error: 'Disabled in production' });
-    return;
+router.post(
+  '/fleet/reset-enroll-rate-limit',
+  requireAuth,
+  requireTestHelpers,
+  (_req: Request, res: Response): void => {
+    resetEnrollRateLimit();
+    res.json({ success: true });
   }
-  resetEnrollRateLimit();
-  res.json({ success: true });
-});
+);
 
-router.post('/fleet/age-token', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (!isE2eTestHelperEnabled()) {
-    res.status(403).json({ success: false, error: 'Disabled in production' });
-    return;
+router.post(
+  '/fleet/age-token',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { serverId, days } = (req.body || {}) as { serverId?: string; days?: number };
+    if (!serverId || typeof days !== 'number' || days <= 0) {
+      res.status(400).json({ success: false, error: 'serverId and a positive days are required' });
+      return;
+    }
+    const result = await db.runAsync(
+      'UPDATE cs2_fleet_tokens SET created_at = created_at - ? WHERE server_id = ? AND revoked_at IS NULL',
+      [Math.floor(days * 86400), serverId]
+    );
+    res.json({ success: true, tokens: result.changes });
   }
-  const { serverId, days } = (req.body || {}) as { serverId?: string; days?: number };
-  if (!serverId || typeof days !== 'number' || days <= 0) {
-    res.status(400).json({ success: false, error: 'serverId and a positive days are required' });
-    return;
-  }
-  const result = await db.runAsync(
-    'UPDATE cs2_fleet_tokens SET created_at = created_at - ? WHERE server_id = ? AND revoked_at IS NULL',
-    [Math.floor(days * 86400), serverId]
-  );
-  res.json({ success: true, tokens: result.changes });
-});
+);
 
 router.post(
   '/fleet/expire-key',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!isE2eTestHelperEnabled()) {
-      res.status(403).json({ success: false, error: 'Disabled in production' });
-      return;
-    }
     const { keyId } = (req.body || {}) as { keyId?: string };
     if (!keyId) {
       res.status(400).json({ success: false, error: 'keyId is required' });
@@ -117,28 +118,24 @@ router.post(
  * POST /api/test/fleet/failover/scan { liveSeconds?, preLiveSeconds? }   one failover detection pass
  *   with its own grace (default 0 / 0: a server that is down now counts as down)
  */
-function fleetTestGuard(res: Response): boolean {
-  if (!isE2eTestHelperEnabled()) {
-    res.status(403).json({ success: false, error: 'Disabled in production' });
-    return false;
+router.post(
+  '/fleet/assign',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { matchSlug, serverId, configRev } = (req.body || {}) as {
+      matchSlug?: string;
+      serverId?: string;
+      configRev?: number;
+    };
+    if (!matchSlug || !serverId) {
+      res.status(400).json({ success: false, error: 'matchSlug and serverId are required' });
+      return;
+    }
+    const record = await liveStateStore.beginAssignment(matchSlug, serverId, configRev ?? 1);
+    res.json({ success: true, epoch: record.epoch, record });
   }
-  return true;
-}
-
-router.post('/fleet/assign', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (!fleetTestGuard(res)) return;
-  const { matchSlug, serverId, configRev } = (req.body || {}) as {
-    matchSlug?: string;
-    serverId?: string;
-    configRev?: number;
-  };
-  if (!matchSlug || !serverId) {
-    res.status(400).json({ success: false, error: 'matchSlug and serverId are required' });
-    return;
-  }
-  const record = await liveStateStore.beginAssignment(matchSlug, serverId, configRev ?? 1);
-  res.json({ success: true, epoch: record.epoch, record });
-});
+);
 
 /**
  * POST /api/test/highlights/repick { matchSlug, mapNumber, clips, source }
@@ -151,8 +148,8 @@ router.post('/fleet/assign', requireAuth, async (req: Request, res: Response): P
 router.post(
   '/highlights/repick',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const { matchSlug, mapNumber, clips, source } = (req.body || {}) as {
       matchSlug?: string;
       mapNumber?: number;
@@ -209,41 +206,49 @@ router.post(
  * connected server's would be: the match then has a live record the admin
  * match page reads. `serverId` defaults to `test-ready-up`.
  */
-router.post('/fleet/snapshot', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (!fleetTestGuard(res)) return;
-  const { serverId, state } = (req.body || {}) as {
-    serverId?: string;
-    state?: Record<string, unknown>;
-  };
-  if (!state || typeof state.match_id !== 'string') {
-    res.status(400).json({ success: false, error: 'state with match_id is required' });
-    return;
+router.post(
+  '/fleet/snapshot',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { serverId, state } = (req.body || {}) as {
+      serverId?: string;
+      state?: Record<string, unknown>;
+    };
+    if (!state || typeof state.match_id !== 'string') {
+      res.status(400).json({ success: false, error: 'state with match_id is required' });
+      return;
+    }
+    try {
+      const outcome = await liveStateStore.applySnapshot(serverId || 'test-ready-up', {
+        reason: 'request',
+        state,
+      } as unknown as Parameters<typeof liveStateStore.applySnapshot>[1]);
+      res.json({ success: true, outcome });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
   }
-  try {
-    const outcome = await liveStateStore.applySnapshot(serverId || 'test-ready-up', {
-      reason: 'request',
-      state,
-    } as unknown as Parameters<typeof liveStateStore.applySnapshot>[1]);
-    res.json({ success: true, outcome });
-  } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message });
-  }
-});
+);
 
 /** POST /api/test/fleet/stattrak  { increments }: a skins.stattrak report, as from a server. */
-router.post('/fleet/stattrak', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (!fleetTestGuard(res)) return;
-  const { skinService } = await import('../skins/skinService');
-  const increments = Array.isArray(req.body?.increments) ? req.body.increments : [];
-  res.json({ success: true, counted: await skinService.addStatTrakKills(increments) });
-});
+router.post(
+  '/fleet/stattrak',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { skinService } = await import('../skins/skinService');
+    const increments = Array.isArray(req.body?.increments) ? req.body.increments : [];
+    res.json({ success: true, counted: await skinService.addStatTrakKills(increments) });
+  }
+);
 
 /** GET /api/test/fleet/skins-loadout/:steamId: the `skins.loadout` items a server would get for a player. */
 router.get(
   '/fleet/skins-loadout/:steamId',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const { skinService } = await import('../skins/skinService');
     res.json({ success: true, items: await skinService.loadoutItems(req.params.steamId) });
   }
@@ -253,8 +258,8 @@ router.get(
 router.post(
   '/fleet/movement-record',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const { validatePayload } = await import('../fleet/protocol/v1');
     const check = validatePayload('movement.record', req.body ?? {});
     if (!check.ok) {
@@ -277,68 +282,72 @@ router.post(
  * event gets the next rev for the match.
  */
 const testRevs = new Map<string, number>();
-router.post('/fleet/events', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (!fleetTestGuard(res)) return;
-  const { matchSlug, serverId, events } = (req.body || {}) as {
-    matchSlug?: string;
-    serverId?: string;
-    events?: Array<{
-      type: string;
-      map_number?: number;
-      round?: number;
-      data?: Record<string, unknown>;
-      patch?: Record<string, unknown>;
-    }>;
-  };
-  if (!matchSlug || !Array.isArray(events) || events.length === 0) {
-    res.status(400).json({ success: false, error: 'matchSlug and events are required' });
-    return;
+router.post(
+  '/fleet/events',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { matchSlug, serverId, events } = (req.body || {}) as {
+      matchSlug?: string;
+      serverId?: string;
+      events?: Array<{
+        type: string;
+        map_number?: number;
+        round?: number;
+        data?: Record<string, unknown>;
+        patch?: Record<string, unknown>;
+      }>;
+    };
+    if (!matchSlug || !Array.isArray(events) || events.length === 0) {
+      res.status(400).json({ success: false, error: 'matchSlug and events are required' });
+      return;
+    }
+    const match = await db.queryOneAsync<{ server_id: string | null }>(
+      'SELECT server_id FROM matches WHERE slug = ?',
+      [matchSlug]
+    );
+    // A call for help can come from a server with no match (`admin_called`).
+    if (!match && !serverId) {
+      res.status(404).json({ success: false, error: 'Match not found' });
+      return;
+    }
+    const from = serverId ?? match?.server_id ?? 'test-ready-up';
+    const record = await liveStateStore.getLiveState(matchSlug);
+    const ctx = { serverId: from, streamId: 'test', sendEphemeral: () => false };
+    // In order after the stored record (a real server's revs, or 0 for a record
+    // a new match with this slug starts from), else after the last test batch.
+    let rev = record ? record.liveRev : (testRevs.get(matchSlug) ?? 0);
+    for (const event of events) {
+      const type = event.type.startsWith('event.') ? event.type : `event.${event.type}`;
+      rev += 1;
+      testRevs.set(matchSlug, rev);
+      const env = {
+        v: 1,
+        type,
+        id: `test-${matchSlug}-${rev}-${Date.now()}`,
+        ts: Date.now(),
+        ...(record?.epoch !== undefined ? { epoch: record.epoch } : {}),
+        payload: {
+          match_id: matchSlug,
+          map_number: event.map_number ?? 1,
+          round: event.round ?? 0,
+          rev,
+          patch: { ...(event.patch ?? {}), live_rev: rev },
+          data: event.data ?? {},
+        },
+      } as unknown as Envelope;
+      await processInbound(ctx, env, null);
+    }
+    res.json({ success: true, applied: events.length });
   }
-  const match = await db.queryOneAsync<{ server_id: string | null }>(
-    'SELECT server_id FROM matches WHERE slug = ?',
-    [matchSlug]
-  );
-  // A call for help can come from a server with no match (`admin_called`).
-  if (!match && !serverId) {
-    res.status(404).json({ success: false, error: 'Match not found' });
-    return;
-  }
-  const from = serverId ?? match?.server_id ?? 'test-ready-up';
-  const record = await liveStateStore.getLiveState(matchSlug);
-  const ctx = { serverId: from, streamId: 'test', sendEphemeral: () => false };
-  // In order after the stored record (a real server's revs, or 0 for a record
-  // a new match with this slug starts from), else after the last test batch.
-  let rev = record ? record.liveRev : (testRevs.get(matchSlug) ?? 0);
-  for (const event of events) {
-    const type = event.type.startsWith('event.') ? event.type : `event.${event.type}`;
-    rev += 1;
-    testRevs.set(matchSlug, rev);
-    const env = {
-      v: 1,
-      type,
-      id: `test-${matchSlug}-${rev}-${Date.now()}`,
-      ts: Date.now(),
-      ...(record?.epoch !== undefined ? { epoch: record.epoch } : {}),
-      payload: {
-        match_id: matchSlug,
-        map_number: event.map_number ?? 1,
-        round: event.round ?? 0,
-        rev,
-        patch: { ...(event.patch ?? {}), live_rev: rev },
-        data: event.data ?? {},
-      },
-    } as unknown as Envelope;
-    await processInbound(ctx, env, null);
-  }
-  res.json({ success: true, applied: events.length });
-});
+);
 
 /** GET /api/test/fleet/assign-config/:slug  the `match.assign` config the match would get now. */
 router.get(
   '/fleet/assign-config/:slug',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const preview = await assignConfigPreview(req.params.slug);
     if (!preview) {
       res.status(404).json({ success: false, error: 'Match not found' });
@@ -348,39 +357,43 @@ router.get(
   }
 );
 
-router.post('/fleet/send', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (!fleetTestGuard(res)) return;
-  const { serverId, type, payload, epoch } = (req.body || {}) as {
-    serverId?: string;
-    type?: ReliableType;
-    payload?: Record<string, unknown>;
-    epoch?: number;
-  };
-  if (!serverId || !type || !payload) {
-    res.status(400).json({ success: false, error: 'serverId, type and payload are required' });
-    return;
-  }
-  try {
-    const sent = await sendReliable(serverId, {
-      type,
-      payload: payload as never,
-      ...(epoch !== undefined ? { epoch } : {}),
-    });
-    res.json({ success: true, ...sent });
-  } catch (error) {
-    if (error instanceof FleetSendError) {
-      res.status(400).json({ success: false, error: error.message });
+router.post(
+  '/fleet/send',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { serverId, type, payload, epoch } = (req.body || {}) as {
+      serverId?: string;
+      type?: ReliableType;
+      payload?: Record<string, unknown>;
+      epoch?: number;
+    };
+    if (!serverId || !type || !payload) {
+      res.status(400).json({ success: false, error: 'serverId, type and payload are required' });
       return;
     }
-    throw error;
+    try {
+      const sent = await sendReliable(serverId, {
+        type,
+        payload: payload as never,
+        ...(epoch !== undefined ? { epoch } : {}),
+      });
+      res.json({ success: true, ...sent });
+    } catch (error) {
+      if (error instanceof FleetSendError) {
+        res.status(400).json({ success: false, error: error.message });
+        return;
+      }
+      throw error;
+    }
   }
-});
+);
 
 router.get(
   '/fleet/live-state/:slug',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const record = await liveStateStore.getLiveState(String(req.params.slug));
     if (!record) {
       res.status(404).json({ success: false, error: 'No live state' });
@@ -393,8 +406,8 @@ router.get(
 router.get(
   '/fleet/events/:serverId',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const rows = await db.queryAsync(
       `SELECT id, stream_id, seq, message_id, type, match_slug, epoch, rev, ref, processed_at, error
        FROM cs2_fleet_events WHERE server_id = ? ORDER BY id ASC`,
@@ -407,8 +420,8 @@ router.get(
 router.post(
   '/fleet/failover/scan',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const { liveSeconds, preLiveSeconds } = (req.body || {}) as {
       liveSeconds?: number;
       preLiveSeconds?: number;
@@ -426,8 +439,8 @@ router.post(
 router.get(
   '/fleet/commands/:id',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const command = await getCommand(String(req.params.id));
     if (!command) {
       res.status(404).json({ success: false, error: 'No such command' });
