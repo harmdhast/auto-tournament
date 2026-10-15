@@ -9,7 +9,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { requireAuth } from '../../../middleware/auth';
 import { db } from '../../../config/database';
 import { resetEnrollRateLimit } from '../fleet/routes';
-import { liveStateStore } from '../fleet/state';
+import { liveStateStore, type LiveMatchRecord } from '../fleet/state';
 import { processInbound } from '../fleet/inbound';
 import { assignConfigPreview } from '../fleet/driver';
 import type { Envelope } from '../fleet/protocol/v1';
@@ -17,6 +17,24 @@ import { FleetSendError, getCommand, sendReliable, type ReliableType } from '../
 import { scanForFailovers } from '../fleet/failover';
 
 const router = Router();
+
+/**
+ * Only the server holding a match moves it (fleet/state.ts): a helper speaking
+ * for `serverId` takes the match first, as a match.assign would have given it.
+ * A sender with no fleet record (an RCON row, `test-ready-up`) gets a pending one.
+ */
+async function holdMatch(
+  matchSlug: string,
+  serverId: string,
+  stored: LiveMatchRecord | null
+): Promise<LiveMatchRecord> {
+  if (stored && stored.serverId === serverId) return stored;
+  await db.runAsync(
+    `INSERT INTO cs2_fleet_servers (id, name, status) VALUES (?, ?, 'pending') ON CONFLICT (id) DO NOTHING`,
+    [serverId, serverId]
+  );
+  return liveStateStore.beginAssignment(matchSlug, serverId, stored?.configRev ?? 1);
+}
 
 /** The helpers answer only with ENABLE_TEST_ENDPOINTS set. */
 function requireTestHelpers(_req: Request, res: Response, next: NextFunction): void {
@@ -220,9 +238,15 @@ router.post(
       return;
     }
     try {
-      const outcome = await liveStateStore.applySnapshot(serverId || 'test-ready-up', {
+      const from = serverId || 'test-ready-up';
+      const slug = state.match_id as string;
+      const exists = await db.queryOneAsync('SELECT 1 FROM matches WHERE slug = ?', [slug]);
+      const held = exists
+        ? await holdMatch(slug, from, await liveStateStore.getLiveState(slug))
+        : null;
+      const outcome = await liveStateStore.applySnapshot(from, {
         reason: 'request',
-        state,
+        state: held ? { ...state, epoch: held.epoch } : state,
       } as unknown as Parameters<typeof liveStateStore.applySnapshot>[1]);
       res.json({ success: true, outcome });
     } catch (error) {
@@ -315,15 +339,7 @@ router.post(
     const stored = await liveStateStore.getLiveState(matchSlug);
     // Only the server holding the match moves it (fleet/state.ts): the sender
     // takes the match first, as a match.assign would have given it.
-    let record = stored;
-    if (match && (!stored || stored.serverId !== from)) {
-      // A sender with no fleet record (the match's RCON row, `test-ready-up`) gets a pending one.
-      await db.runAsync(
-        `INSERT INTO cs2_fleet_servers (id, name, status) VALUES (?, ?, 'pending') ON CONFLICT (id) DO NOTHING`,
-        [from, from]
-      );
-      record = await liveStateStore.beginAssignment(matchSlug, from, stored?.configRev ?? 1);
-    }
+    const record = match ? await holdMatch(matchSlug, from, stored) : stored;
     const ctx = { serverId: from, streamId: 'test', sendEphemeral: () => false };
     // In order after the stored state (a real server's revs), else after the
     // last test batch.
