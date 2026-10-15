@@ -44,6 +44,18 @@ import { reserveCount } from './fleet/failoverSettings';
 import { pickReserved } from './fleet/failoverPlan';
 import type { BusyReason } from './fleet/protocol/v1/types';
 
+/** One server's live check for the pool status; `fleet*`/`busy*` only for Ready Up servers. */
+interface PoolStatusCheck {
+  server: ServerResponse;
+  status: ServerStatus | null;
+  matchSlug: string | null;
+  updatedAt: number | null;
+  online: boolean;
+  fleetIdle?: boolean;
+  busyReason?: BusyReason | null;
+  busyDetail?: string | null;
+}
+
 /** One attempt to put a match on a server, as the allocator reports it. */
 export interface ServerAllocationResult {
   matchSlug: string;
@@ -184,8 +196,8 @@ export class Cs2ServerPool {
     // (loaded/live matches). By not filtering on `serverAllocationTracker` here
     // we ensure that UIs – including the manual match creator – always see a
     // complete snapshot of online servers together with their allocatable flag.
-    const statusChecks = await Promise.all(
-      configuredServers.map(async (server) => {
+    const statusChecks: PoolStatusCheck[] = await Promise.all(
+      configuredServers.map(async (server): Promise<PoolStatusCheck> => {
         try {
           if (server.transport === 'fleet') {
             const fleet = await fleetServerIsIdle(server.id);
@@ -299,7 +311,7 @@ export class Cs2ServerPool {
       // This prevents servers from showing as "Available" when they have
       // a match in warmup but the plugin hasn't updated the ConVar yet.
       const pluginSaysIdle = isFleet
-        ? (check as { fleetIdle?: boolean }).fleetIdle === true
+        ? check.fleetIdle === true
         : isAllocatableStatus(status, matchSlug);
       const dbSaysBusy = dbBusy !== null;
 
@@ -422,15 +434,8 @@ export class Cs2ServerPool {
         secondsUntilReady,
         allocatable,
         notAllocatableReason,
-        busyReason: isFleet
-          ? reserved
-            ? 'reserved'
-            : ((check as { busyReason?: BusyReason | null }).busyReason ?? null)
-          : null,
-        busyDetail:
-          isFleet && !reserved
-            ? ((check as { busyDetail?: string | null }).busyDetail ?? null)
-            : null,
+        busyReason: isFleet ? (reserved ? 'reserved' : (check.busyReason ?? null)) : null,
+        busyDetail: isFleet && !reserved ? (check.busyDetail ?? null) : null,
         staleMatchSlug: dbRecordIsStale ? (dbBusy?.slug ?? null) : null,
       });
     }
@@ -722,11 +727,8 @@ export class Cs2ServerPool {
    * own records, and past their turnover (a demo upload still running holds
    * the server). No webhook check: events come over the same socket. The
    * failover reserve (idle servers kept for FLEET.md §11, never ones opted
-   * out of failover) is held back unless `includeReserve`.
-   */
-  /**
-   * The Ready Up servers that can take a match now (getAvailableServers' fleet
-   * half), without probing any RCON server: for the fleet views and failover.
+   * out of failover) is held back unless `includeFleetReserve`. No RCON server
+   * is probed: for the fleet views and failover.
    */
   async getAvailableFleetServers(
     options: { includeFleetReserve?: boolean } = {}
