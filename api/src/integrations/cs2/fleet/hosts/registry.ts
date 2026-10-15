@@ -284,9 +284,13 @@ export async function reissueHostCode(
 
 export type HostEnrollOutcome =
   | { ok: true; host: FleetHostRow; token: string; reenrolled: boolean }
-  | { ok: false; status: 401 | 403; code: string; error: string };
+  | { ok: false; status: 401 | 403 | 409; code: string; error: string };
 
-const invalid = (code: string, error: string, status: 401 | 403 = 401): HostEnrollOutcome => ({
+const invalid = (
+  code: string,
+  error: string,
+  status: 401 | 403 | 409 = 401
+): HostEnrollOutcome => ({
   ok: false,
   status,
   code,
@@ -335,6 +339,23 @@ async function findByMachine(
   return r.rows[0];
 }
 
+/**
+ * Whether enrolling would take over `existing`, a host other than the one the
+ * credential is for: another csm user's, or an enrolled one this key did not
+ * enroll (`keyId` null: a code, which enrolls only its own placeholder).
+ */
+function takesOver(existing: FleetHostRow, req: HostEnrollRequest, keyId: string | null): boolean {
+  if (existing.csm_user !== null && existing.csm_user !== (req.csm_user ?? null)) return true;
+  return existing.status === 'enrolled' && (keyId === null || existing.enrollment_key_id !== keyId);
+}
+
+const hostConflict = (): HostEnrollOutcome =>
+  invalid(
+    'host_conflict',
+    'This machine is enrolled as another host. Link it with the key that enrolled it, or remove that machine first.',
+    409
+  );
+
 /** `POST /api/fleet/host/enroll`, after schema validation. */
 export async function enrollHost(req: HostEnrollRequest): Promise<HostEnrollOutcome> {
   if (req.code !== undefined) return enrollWithCode(req);
@@ -359,6 +380,8 @@ async function enrollWithCode(req: HostEnrollRequest): Promise<HostEnrollOutcome
     if (!code || code.used_at !== null || Number(code.expires_at) <= now) {
       return invalid('invalid_code', 'Invalid or expired enrollment code');
     }
+    const owner = await findByMachine(c, req.machine_id, req.csm_user);
+    if (owner && owner.id !== code.host_id && takesOver(owner, req, null)) return hostConflict();
     await c.query(`UPDATE cs2_fleet_host_enrollment_codes SET used_at = $1 WHERE id = $2`, [
       now,
       code.id,
@@ -444,6 +467,7 @@ async function enrollWithKey(req: HostEnrollRequest): Promise<HostEnrollOutcome>
           403
         );
       }
+      if (takesOver(existing, req, key.id)) return hostConflict();
       hostId = existing.id;
       await c.query(
         `UPDATE cs2_fleet_hosts SET status = 'enrolled', hostname = $2, os = $3, csm_version = $4,
