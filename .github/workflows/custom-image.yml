@@ -14,15 +14,8 @@ concurrency:
   group: custom-image-${{ github.ref_name }}
   cancel-in-progress: false
 
-# vX.Y.Z-beta.N.custom.M (vX.Y.Z-custom.M on a stable vX.Y.Z): the upstream
-# release custom is based on plus a fork build number. The tag
-# is the version baked into the image and the CS2 module in its offline
-# snapshot. Pushed to ghcr.io/<owner>/auto-tournament as :<tag> and :custom.
-#
-# The snapshot is signed with the repository secret MODULE_SIGNING_KEY (an
-# Ed25519 private key, PEM text) when set; instances then trust the matching
-# public key with MODULE_TRUSTED_KEYS. Without it a throwaway key is made and
-# its public half is printed in the job summary.
+# Builds and pushes the fork image. Tag scheme, module signing and image
+# names: FORK.md, "Versions and release".
 
 jobs:
   build:
@@ -31,13 +24,22 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Tag commit is on origin/custom
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/custom:refs/remotes/origin/custom'
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/custom || { echo "::error::$TAG points at a commit that is not on origin/custom"; exit 1; }
+
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
           cache: yarn
@@ -72,6 +74,12 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Lint
+        run: yarn lint
+
+      - name: Typecheck (ratchet)
+        run: yarn typecheck:ratchet
+
       - name: Build the module snapshot (CS2)
         shell: bash
         env:
@@ -88,17 +96,17 @@ jobs:
           fi
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: docker/Dockerfile
