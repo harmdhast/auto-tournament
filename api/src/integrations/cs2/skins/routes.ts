@@ -2,9 +2,12 @@
  * Virtual skins: a player's inventory and loadout, other players' showcases,
  * and the admin settings. Every player route answers 404 while skins are off.
  *
- * GET    /status                   public: on or off
+ * GET    /status                   public: on or off, and whether the catalogue is unlocked
+ * GET    /catalog?q=&weapon=&slot=&category=  signed in: search the catalogue (while it is unlocked)
+ * GET    /catalog/weapons          signed in: every weapon slot (while it is unlocked)
  * GET    /odds                     public: drop odds per rarity and per skin, and when drops happen
- * GET    /me                       signed in: your inventory, showcase and new skins
+ * GET    /me                       signed in: your inventory, showcase, catalogue picks and new skins
+ * PUT    /me/picks                 equip any catalogue skin ({ weapon, paintKit, float, seed, team? })
  * POST   /me/equip                 equip a skin ({ skinId, team?: 0 both | 2 T | 3 CT })
  * DELETE /me/equip/:slot           empty a slot (?team= one side)
  * POST   /me/seen                  the "new skin" reveal was shown ({ ids })
@@ -22,12 +25,13 @@ import { requireAuth } from '../../../middleware/auth';
 import { log } from '../../../utils/logger';
 import { resolveViewerAccount } from '../../../utils/viewerIdentity';
 import { skinImageUrls } from '../assets/localAssets';
+import { WEAPON_DEFINDEX } from './skinDefindex';
+import { catalogWeapons, pickableSkin, searchCatalog } from './catalogSearch';
 import {
   RARITIES,
   SkinError,
   type Rarity,
   skinService,
-  variantOf,
   type SkinsConfig,
   type DropTarget,
 } from './skinService';
@@ -72,9 +76,9 @@ async function playerOrStop(req: Request, res: Response): Promise<string | null>
  * /api/skins/status:
  *   get:
  *     tags: [Skins]
- *     summary: Whether virtual skins are on (public)
+ *     summary: Whether virtual skins are on, and the catalogue unlocked (public)
  *     responses:
- *       200: { description: "{ enabled }" }
+ *       200: { description: "{ enabled, catalogUnlocked, tradeUp }" }
  */
 router.get('/status', async (_req, res) => {
   try {
@@ -82,6 +86,7 @@ router.get('/status', async (_req, res) => {
     return res.json({
       success: true,
       enabled: config.enabled,
+      catalogUnlocked: config.enabled && config.catalogUnlocked,
       tradeUp: config.enabled && config.tradeUp.enabled ? { count: config.tradeUp.count } : null,
     });
   } catch (error) {
@@ -142,7 +147,7 @@ router.get('/tryout', async (req, res) => {
  * /api/skins/me:
  *   get:
  *     tags: [Skins]
- *     summary: Your inventory, showcase, and skins you have not seen yet
+ *     summary: Your inventory, showcase, catalogue picks, and skins you have not seen yet
  *     responses:
  *       200: { description: The inventory }
  *       401: { description: Not signed in }
@@ -157,6 +162,7 @@ router.get('/me', async (req, res) => {
       success: true,
       inventory,
       showcase: await skinService.showcase(uid),
+      picks: await skinService.picks(uid),
       unseen: inventory.filter((s) => !s.seen).map((s) => s.id),
       choices: await skinService.openChoices(uid),
     });
@@ -364,6 +370,123 @@ router.put('/me/showcase', async (req, res) => {
   }
 });
 
+/** The catalogue skins a player can equip: the game plugin needs a definition index for the weapon. */
+async function pickableCatalog() {
+  return (await skinService.catalog()).filter((s) => WEAPON_DEFINDEX[s.weapon]);
+}
+
+/** The signed-in player's account, while skins are on and the catalogue is unlocked. */
+async function catalogPlayerOrStop(req: Request, res: Response): Promise<string | null> {
+  const uid = await playerOrStop(req, res);
+  if (!uid) return null;
+  if (!(await skinService.catalogOn())) {
+    res.status(404).json({ success: false, error: 'The catalogue is not unlocked' });
+    return null;
+  }
+  return uid;
+}
+
+/**
+ * @openapi
+ * /api/skins/catalog/weapons:
+ *   get:
+ *     tags: [Skins]
+ *     summary: Every weapon slot of the catalogue (while it is unlocked)
+ *     responses:
+ *       200: { description: "{ weapons: [{ weapon, weaponName, slot, category, side }] }, knife and gloves first" }
+ *       401: { description: Not signed in }
+ *       404: { description: The catalogue is not unlocked }
+ */
+router.get('/catalog/weapons', async (req, res) => {
+  try {
+    if (!(await catalogPlayerOrStop(req, res))) return;
+    return res.json({ success: true, weapons: catalogWeapons(await pickableCatalog()) });
+  } catch (error) {
+    return fail(res, error, 'Listing the weapons');
+  }
+});
+
+/**
+ * @openapi
+ * /api/skins/catalog:
+ *   get:
+ *     tags: [Skins]
+ *     summary: Search the catalogue to pick a skin (while it is unlocked)
+ *     parameters:
+ *       - { in: query, name: q, schema: { type: string } }
+ *       - { in: query, name: weapon, schema: { type: string }, description: Only this weapon }
+ *       - { in: query, name: slot, schema: { type: string }, description: Only this loadout slot (every knife, every glove) }
+ *       - { in: query, name: category, schema: { type: string, enum: [knives, gloves, pistols, smgs, rifles, heavy] }, description: Only this weapon group (the Zeus is a pistol) }
+ *     responses:
+ *       200: { description: "Up to 60 skins, one per paint kit, each with its slot and the one side that buys the weapon" }
+ *       401: { description: Not signed in }
+ *       404: { description: The catalogue is not unlocked }
+ */
+router.get('/catalog', async (req, res) => {
+  try {
+    if (!(await catalogPlayerOrStop(req, res))) return;
+    const skins = searchCatalog(await pickableCatalog(), {
+      q: req.query.q,
+      weapon: req.query.weapon,
+      slot: req.query.slot,
+      category: req.query.category,
+      all: true,
+    })
+      .slice(0, 60)
+      .map(pickableSkin);
+    return res.json({ success: true, skins });
+  } catch (error) {
+    return fail(res, error, 'Searching the catalogue');
+  }
+});
+
+/**
+ * @openapi
+ * /api/skins/me/picks:
+ *   put:
+ *     tags: [Skins]
+ *     summary: Equip any catalogue skin with a chosen float and seed
+ *     description: >-
+ *       Per side like an earned skin (`team` 0 both, 2 T, 3 CT; a weapon one
+ *       side buys is always both). Replaces that side's pick in the slot and
+ *       never carries StatTrak. Only while the catalogue is unlocked.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [weapon, paintKit, float, seed]
+ *             properties:
+ *               weapon: { type: string }
+ *               paintKit: { type: integer }
+ *               float: { type: number, minimum: 0, maximum: 1 }
+ *               seed: { type: integer, minimum: 0, maximum: 1000 }
+ *               team: { type: integer, enum: [0, 2, 3], description: '0 both sides (default), 2 T, 3 CT' }
+ *     responses:
+ *       200: { description: The equipped pick }
+ *       400: { description: Not in the catalogue, no game definition for it, or float or seed out of range }
+ *       404: { description: The catalogue is not unlocked }
+ */
+router.put('/me/picks', async (req, res) => {
+  try {
+    const uid = await catalogPlayerOrStop(req, res);
+    if (!uid) return;
+    const body = req.body ?? {};
+    const pick = await skinService.setCatalogPick(uid, {
+      weapon: String(body.weapon ?? ''),
+      paintKit: Number(body.paintKit),
+      float: body.float,
+      seed: body.seed,
+      team: body.team,
+    });
+    void loadoutChanged(uid);
+    return res.json({ success: true, pick });
+  } catch (error) {
+    return fail(res, error, 'Equipping a pick');
+  }
+});
+
 /**
  * @openapi
  * /api/skins/players/{steamId}:
@@ -373,7 +496,7 @@ router.put('/me/showcase', async (req, res) => {
  *     parameters:
  *       - { in: path, name: steamId, required: true, schema: { type: string } }
  *     responses:
- *       200: { description: Inventory and showcase }
+ *       200: { description: Inventory, showcase and catalogue picks }
  *       404: { description: Skins are off, or no such player }
  */
 router.get('/players/:steamId', async (req, res) => {
@@ -471,12 +594,17 @@ router.get('/admin/config', requireAuth, async (_req, res) => {
 });
 router.put('/admin/config', requireAuth, async (req, res) => {
   try {
-    const before = (await skinService.config()).enabled;
+    const before = await skinService.config();
     const config = await skinService.setConfig((req.body ?? {}) as Partial<SkinsConfig>);
     // The servers' skins plugin follows the platform's switch.
-    if (config.enabled !== before) {
+    if (config.enabled !== before.enabled) {
       void import('../fleet/push/controls').then(({ syncSkinsPluginEverywhere }) =>
         syncSkinsPluginEverywhere()
+      );
+    } else if (config.enabled && config.catalogUnlocked !== before.catalogUnlocked) {
+      // Connected players get their loadout again, picks in or out.
+      void import('../fleet/push/skins').then(({ repushConnectedLoadouts }) =>
+        repushConnectedLoadouts()
       );
     }
     return res.json({ success: true, config });
@@ -500,31 +628,11 @@ router.put('/admin/config', requireAuth, async (req, res) => {
  */
 router.get('/admin/catalog', requireAuth, async (req, res) => {
   try {
-    const words = String(req.query.q ?? '')
-      .trim()
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(Boolean);
     // `all=1`: every paint kit, so each phase of a Doppler is its own row.
-    const all = req.query.all === '1';
-    const seen = new Set<string>();
-    const skins = (await skinService.catalog())
-      .map((s) => ({
-        ...s,
-        variant: variantOf(s.paintKitName),
-        ...skinImageUrls(s.image),
-      }))
-      .filter((s) => {
-        const text = `${s.weaponName} ${s.name} ${s.variant ?? ''}`.toLowerCase();
-        return words.every((w) => text.includes(w));
-      })
-      .filter((s) => {
-        const key = all ? `${s.weapon}|${s.paintKit}` : `${s.weapon}|${s.name}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, 50);
+    const skins = searchCatalog(await skinService.catalog(), {
+      q: req.query.q,
+      all: req.query.all === '1',
+    }).slice(0, 50);
     return res.json({ success: true, skins });
   } catch (error) {
     return fail(res, error, 'Searching the catalogue');

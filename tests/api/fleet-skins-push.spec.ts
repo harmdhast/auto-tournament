@@ -4,6 +4,7 @@ import { fleetBus } from '../../api/src/integrations/cs2/fleet/service';
 import {
   flushRoundLoadouts,
   pushLoadoutLive,
+  repushConnectedLoadouts,
   skinsTurnedOff,
 } from '../../api/src/integrations/cs2/fleet/push/skins';
 import { skinService } from '../../api/src/integrations/cs2/skins/skinService';
@@ -44,6 +45,7 @@ test.describe('fleet skins push: the linked fleet server', () => {
     sent = [];
     // A matches table joined to cs2_servers the way the SQL asks.
     stub(db, 'queryAsync', (async (sql: string, params: unknown[] = []) => {
+      if (/FROM cs2_fleet_servers\s*$/.test(sql)) return [{ id: SERVER.fleet_server_id }];
       if (!/FROM matches/.test(sql)) return [];
       const joined = /JOIN cs2_servers/.test(sql);
       const rows = [MATCH].map((m) => ({
@@ -90,5 +92,44 @@ test.describe('fleet skins push: the linked fleet server', () => {
     expect(sent).toEqual([
       { serverId: SERVER.fleet_server_id, type: 'skins.invalidate', payload: { steamid64: STEAM } },
     ]);
+  });
+
+  test('catalogue mode flipped: connected players get their loadout again', async () => {
+    stub(fleetBus(), 'isConnected', (id: string) => id === SERVER.fleet_server_id);
+    await repushConnectedLoadouts();
+    expect(sent).toEqual([
+      { serverId: SERVER.fleet_server_id, type: 'skins.invalidate', payload: { steamid64: STEAM } },
+    ]);
+  });
+
+  test('catalogue mode flipped: a player with a loadout gets it sent', async () => {
+    stub(fleetBus(), 'isConnected', (id: string) => id === SERVER.fleet_server_id);
+    stub(skinService, 'loadoutItems', async () => ({
+      paints: [{ team: 0, defindex: 7, paint: 44, wear: 0.1, seed: 1 }],
+    }));
+    await repushConnectedLoadouts();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      serverId: SERVER.fleet_server_id,
+      type: 'skins.loadout',
+      payload: { steamid64: STEAM },
+    });
+  });
+
+  test('catalogue mode flipped: offline fleet servers are skipped', async () => {
+    stub(fleetBus(), 'isConnected', () => false);
+    await repushConnectedLoadouts();
+    expect(sent).toEqual([]);
+  });
+
+  test('catalogue mode flipped: a failing server never rejects', async () => {
+    stub(fleetBus(), 'isConnected', () => {
+      throw new Error('bus down');
+    });
+    await expect(repushConnectedLoadouts()).resolves.toBeUndefined();
+    stub(db, 'queryAsync', (async () => {
+      throw new Error('db down');
+    }) as typeof db.queryAsync);
+    await expect(repushConnectedLoadouts()).resolves.toBeUndefined();
   });
 });

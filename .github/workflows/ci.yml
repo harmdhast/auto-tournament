@@ -316,7 +316,7 @@ jobs:
     # that reset the database cannot collide across shards. Within a shard the
     # suite still runs with workers: 1 (tests/playwright.config.ts).
     env:
-      COMPOSE: docker compose --env-file .env -f docker/docker-compose.local.yml -f docker/docker-compose.ci.yml
+      COMPOSE: docker compose --env-file .env -f docker/docker-compose.local.yml -f docker/docker-compose.ci.yml -f docker/docker-compose.fixtures.yml
       SHARD_TOTAL: ${{ needs.changes.outputs.total }}
       # The affected specs (empty: all of them). tests/ci-shard.mjs reads it.
       CI_SPECS: ${{ needs.changes.outputs.specs }}
@@ -479,6 +479,12 @@ jobs:
       # build job); the app trusts it for this run only.
       - name: Trust this run's module signing key
         run: echo "MODULE_TRUSTED_KEYS=$(cat "${{ runner.temp }}/trusted-key.txt")" >> .env
+
+      # The skin catalogue comes from a fixture, not GitHub (SKINS_JSON_URL).
+      - name: Serve the skin catalogue fixture
+        run: |
+          nohup node scripts/serve-skins-fixture.mjs > /dev/null 2>&1 &
+          echo "SKINS_JSON_URL=http://host.docker.internal:3098/skins.json" >> .env
 
       - name: Start the stack
         run: $COMPOSE up -d --no-build

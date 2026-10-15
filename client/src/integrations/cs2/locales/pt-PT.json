@@ -1840,7 +1840,9 @@
         "given_other": "Gave {{count}} drops."
       },
       "statTrakChance": "StatTrak™ chance (%)",
-      "statTrakHelp": "How often a dropped weapon or knife is StatTrak™ (CS2 cases: 10)."
+      "statTrakHelp": "How often a dropped weapon or knife is StatTrak™ (CS2 cases: 10).",
+      "catalogUnlocked": "Catálogo desbloqueado",
+      "catalogUnlockedHelp": "Os jogadores podem equipar qualquer skin do catálogo, com o float e a seed que escolherem."
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "O que significa",
@@ -1922,7 +1924,23 @@
       "console": "Or paste this in the CS2 console"
     },
     "stattrak": "StatTrak™",
-    "stattrakKills": "StatTrak™ kills"
+    "stattrakKills": "StatTrak™ kills",
+    "picked": "Escolhida",
+    "pickedOrigin": "Escolhida do catálogo",
+    "takeOffLabel": "Retirar {{name}}",
+    "view": {
+      "label": "Vista do inventário",
+      "owned": "Próprias",
+      "catalog": "Catálogo"
+    },
+    "catalog": {
+      "search": "Pesquisar no catálogo",
+      "empty": "Nenhuma skin corresponde.",
+      "loadFailed": "Não foi possível carregar o catálogo",
+      "wear": "Desgaste",
+      "cancel": "Cancelar",
+      "equip": "Equipar"
+    }
   },
   "matchRules": {
     "title": "Regras de partida",
