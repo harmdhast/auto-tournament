@@ -109,4 +109,24 @@ test.describe('test endpoints gate', () => {
       expect(routeStack('post', path), path).toContain('requireLoopback');
     }
   });
+
+  test('admin-notice and marker need the flag', TAGS, () => {
+    for (const path of ['/admin-notice', '/marker']) {
+      const layer = (
+        testRoutes as unknown as {
+          stack: Array<{
+            route?: {
+              path: string;
+              methods: Record<string, boolean>;
+              stack: Array<{ handle: (req: Request, res: Response, next: () => void) => void }>;
+            };
+          }>;
+        }
+      ).stack.find((l) => l.route?.path === path && l.route.methods.post);
+      withEnv({ NODE_ENV: 'development', ENABLE_TEST_ENDPOINTS: undefined }, () => {
+        const first = layer!.route!.stack[0].handle;
+        expect(run(first, {}), path).toEqual({ status: 404, next: false });
+      });
+    }
+  });
 });
