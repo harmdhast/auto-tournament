@@ -18,6 +18,7 @@
 import { log } from '../../../../utils/logger';
 import { onAdminListMaybeChanged } from '../../../../services/adminListEvents';
 import { fleetInbound } from '../inbound';
+import { autoLinkOnEnroll } from '../link';
 import { skinService } from '../../skins/skinService';
 import { onFleetServerReady, setFleetWelcomeRevs } from '../service';
 import { adminsOnHello, syncAdmins } from './admins';
@@ -68,6 +69,11 @@ export function startFleetPush(): void {
         await settingsOnHello(serverId);
       } catch (error) {
         log.warn(`[FLEET] ${serverId}: settings after hello failed: ${(error as Error).message}`);
+      }
+      try {
+        await autoLinkOnEnroll(serverId);
+      } catch (error) {
+        log.warn(`[FLEET] ${serverId}: auto-link after hello failed: ${(error as Error).message}`);
       }
       try {
         await pluginsOnHello(serverId, hello);

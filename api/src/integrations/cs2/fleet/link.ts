@@ -38,6 +38,7 @@ import {
 } from './address';
 import type { HostInfo } from './protocol/v1';
 import { getFleetServer, type FleetServerRow } from './registry';
+import { createdPluginSet } from './push/pluginSets';
 
 export interface FleetLink {
   /** cs2_servers.id (matches.server_id). */
@@ -280,8 +281,76 @@ export async function linkFleetServer(
 }
 
 /**
+ * A server csm created (an admin's Create server, not only the scaler's or a
+ * failover's) joins the match pool on its first hello, unless its plugin set
+ * turns match off (a practice server). Once: a cs2_servers row for it means
+ * it was linked before, and an admin's unlink sets auto_linked_at, so it sticks.
+ */
+async function linkCreatedOnce(serverId: string): Promise<void> {
+  // The scaler and failover link what they create themselves (with their own records).
+  const cmd = await db.queryOneAsync<{ issued_by: string | null }>(
+    `SELECT c.issued_by FROM cs2_fleet_servers s
+       JOIN cs2_fleet_enrollment_keys k ON k.id = s.enrollment_key_id
+       JOIN cs2_fleet_host_commands c ON c.message_id = k.command_id
+      WHERE s.id = ? AND c.type = 'server.create'`,
+    [serverId]
+  );
+  if (!cmd || cmd.issued_by === 'autoscale' || (cmd.issued_by ?? '').startsWith('platform:'))
+    return;
+  const created = await createdPluginSet(serverId);
+  if (!created.created) return;
+  if (created.set && !created.set.plugins.includes('match')) return;
+  const seen = await db.queryOneAsync<{ id: string }>(
+    `SELECT id FROM cs2_servers WHERE id = ? OR fleet_server_id = ?
+     UNION ALL
+     SELECT id FROM cs2_fleet_servers WHERE id = ? AND auto_linked_at IS NOT NULL`,
+    [serverId, serverId, serverId]
+  );
+  if (seen) return;
+  const outcome = await linkFleetServer(serverId);
+  if (outcome.ok) log.info(`[FLEET] ${serverId}: created through csm; joined the match pool`);
+  else log.warn(`[FLEET] ${serverId}: created through csm but not linked: ${outcome.error}`);
+}
+
+/**
+ * A server enrolled with a fleet key set to auto-link joins the match pool on
+ * its first hello, unless the key was revoked or expired since. Once:
+ * cs2_fleet_servers.auto_linked_at is set when the link succeeds, so an
+ * admin's unlink or deleting the server sticks.
+ */
+async function linkKeyEnrolledOnce(serverId: string): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  const key = await db.queryOneAsync<{ id: string }>(
+    `SELECT k.id FROM cs2_fleet_servers s
+       JOIN cs2_fleet_enrollment_keys k ON k.id = s.enrollment_key_id
+      WHERE s.id = ? AND s.auto_linked_at IS NULL AND k.auto_link = 1
+        AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > ?)`,
+    [serverId, now]
+  );
+  if (!key) return;
+  const outcome = await linkFleetServer(serverId);
+  if (!outcome.ok) {
+    log.warn(
+      `[FLEET] ${serverId}: enrolled with auto-link key ${key.id} but not linked: ${outcome.error}`
+    );
+    return;
+  }
+  await db.runAsync('UPDATE cs2_fleet_servers SET auto_linked_at = ? WHERE id = ?', [
+    now,
+    serverId,
+  ]);
+  log.info(`[FLEET] ${serverId}: enrolled with auto-link key ${key.id}; joined the match pool`);
+}
+
+/** First hello of an enrolled server: joins the match pool when its origin says so. */
+export async function autoLinkOnEnroll(serverId: string): Promise<void> {
+  await linkCreatedOnce(serverId);
+  await linkKeyEnrolledOnce(serverId);
+}
+
+/**
  * Undo a link: the server's row goes. `auto_linked_at` is set so the first-hello
- * links (push/controls.ts) do not link it again. Returns the row that was
+ * links (autoLinkOnEnroll) do not link it again. Returns the row that was
  * linked, or null when there was none.
  */
 export async function unlinkFleetServer(fleetServerId: string): Promise<string | null> {
