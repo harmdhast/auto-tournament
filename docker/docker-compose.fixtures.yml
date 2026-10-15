@@ -3,5 +3,7 @@
 
 services:
   auto-tournament:
+    environment:
+      - SKINS_JSON_URL=${SKINS_JSON_URL:-}
     extra_hosts:
       - 'host.docker.internal:host-gateway'

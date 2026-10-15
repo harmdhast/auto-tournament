@@ -140,6 +140,7 @@
   "tests/api/simulation-mid-tournament-veto.spec.ts": 15.1,
   "tests/api/simulation-timescale.spec.ts": 0.5,
   "tests/api/skins-catalog.spec.ts": 1.5,
+  "tests/api/skins-json-url.spec.ts": 1.0,
   "tests/api/sso-no-silent-relink.spec.ts": 0.5,
   "tests/api/stale-loaded-match.spec.ts": 1.6,
   "tests/api/stats-schema.spec.ts": 3.4,
