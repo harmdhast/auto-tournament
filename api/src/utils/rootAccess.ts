@@ -14,7 +14,12 @@ export function isRootRequest(req: Request): boolean {
   const token = (req as AuthedRequest).serviceToken;
   if (token) return token.scope === 'admin';
   const actor = requestActorId(req);
-  return !!actor && (isLocalPlayerId(actor) || isSavedAdminSteamId(actor));
+  return !!actor && adminIsRoot(actor);
+}
+
+/** Whether this player is root once an admin: a local account, or a listed Admin Steam ID. */
+export function adminIsRoot(playerId: string): boolean {
+  return isLocalPlayerId(playerId) || isSavedAdminSteamId(playerId);
 }
 
 /** 403 body when a non-root admin tries to change who is root. */

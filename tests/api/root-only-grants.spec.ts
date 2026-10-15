@@ -40,6 +40,10 @@ test.describe.serial('root-only grants', () => {
   test.afterAll(async ({ request }) => {
     await request.delete(`/api/local-accounts/${user}`, { headers: ROOT });
     await request.delete(`/api/local-accounts/${user}a`, { headers: ROOT });
+    await request.delete(`/api/local-accounts/${user}p`, { headers: ROOT });
+    for (const id of [`local-${user}-new`, `local-${user}-bulk`]) {
+      await request.delete(`/api/players/${id}`, { headers: ROOT });
+    }
   });
 
   test(
@@ -107,6 +111,48 @@ test.describe.serial('root-only grants', () => {
         data: { username: `${user}a`, password, isAdmin: true },
       });
       expect(rootCreate.status(), await rootCreate.text()).toBe(201);
+    }
+  );
+
+  test(
+    'players API: root only to make a local account an admin',
+    TAGS,
+    async ({ request }) => {
+      await plainAdmin(request);
+      const created = await request.post('/api/local-accounts', {
+        data: { username: `${user}p`, password },
+      });
+      expect(created.status(), await created.text()).toBe(201);
+      const { playerId } = (await created.json()).account as { playerId: string };
+      expect(playerId.startsWith('local-')).toBe(true);
+
+      const grant = await request.put(`/api/players/${playerId}`, { data: { isAdmin: true } });
+      expect(grant.status(), await grant.text()).toBe(403);
+      expect((await (await request.get(`/api/players/${playerId}`)).json()).player.isAdmin).toBe(
+        false
+      );
+
+      const create = await request.post('/api/players', {
+        data: { id: `local-${user}-new`, name: 'Local new', isAdmin: true },
+      });
+      expect(create.status(), await create.text()).toBe(403);
+      const bulk = await request.post('/api/players/bulk-import', {
+        data: [{ id: `local-${user}-bulk`, name: 'Local bulk', isAdmin: true }],
+      });
+      expect(bulk.status(), await bulk.text()).toBe(403);
+      expect((await request.get(`/api/players/local-${user}-new`)).status()).toBe(404);
+      expect((await request.get(`/api/players/local-${user}-bulk`)).status()).toBe(404);
+
+      const rename = await request.put(`/api/players/${playerId}`, { data: { name: 'Renamed' } });
+      expect(rename.status(), await rename.text()).toBe(200);
+
+      const rootGrant = await request.put(`/api/players/${playerId}`, {
+        headers: ROOT,
+        data: { isAdmin: true },
+      });
+      expect(rootGrant.status(), await rootGrant.text()).toBe(200);
+      const revoke = await request.put(`/api/players/${playerId}`, { data: { isAdmin: false } });
+      expect(revoke.status(), await revoke.text()).toBe(200);
     }
   );
 });
