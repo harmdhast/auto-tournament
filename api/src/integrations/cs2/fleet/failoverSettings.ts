@@ -30,7 +30,6 @@ export interface FailoverSettings {
   updatedAt: number | null;
 }
 
-
 export async function getFailoverSettings(): Promise<FailoverSettings> {
   const row = await db.queryOneAsync<{ data: string | null; updated_by: string | null; updated_at: number | null }>(
     `SELECT data, updated_by, updated_at FROM cs2_fleet_lists WHERE name = 'failover'`

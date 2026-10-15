@@ -159,7 +159,8 @@ export function startLogRelay(): void {
       getIO().to(logRoom(fleetServerId)).emit('fleet:logs:state', { fleetServerId, live: true });
     });
     onFleetServerClosed((fleetServerId) => {
-      if (!watched.has(fleetServerId)) return;
+      // A reconnect may already have a new session: its ready said live: true.
+      if (!watched.has(fleetServerId) || fleetBus().isConnected(fleetServerId)) return;
       getIO().to(logRoom(fleetServerId)).emit('fleet:logs:state', { fleetServerId, live: false });
     });
   }

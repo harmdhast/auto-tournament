@@ -19,11 +19,18 @@ export function useServerMatches(
   const [matches, setMatches] = useState<Record<string, ServerMatch | null>>({});
   const wanted = useRef<Set<string>>(new Set());
 
+  // Keyed on content: an availability reload with the same pairs must not refetch every match.
+  const pairsKey = (servers ?? [])
+    .filter((s) => s.matchSlug && !s.allocatable)
+    .map((s) => `${s.id}:${s.matchSlug}`)
+    .sort()
+    .join('\n');
   const slugByServer = useMemo(() => {
     const next: Record<string, string> = {};
     for (const s of servers ?? []) if (s.matchSlug && !s.allocatable) next[s.id] = s.matchSlug;
     return next;
-  }, [servers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pairsKey]);
 
   const loadMatch = useCallback(async (slug: string) => {
     try {
