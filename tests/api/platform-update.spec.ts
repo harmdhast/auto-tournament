@@ -5,6 +5,9 @@ import {
   newestRelease,
   resetPlatformUpdateCache,
 } from '../../api/src/services/platform/updateCheck';
+import { settingsService } from '../../api/src/services/settingsService';
+import { adminNoticeService } from '../../api/src/services/adminNoticeService';
+import { sweepPlatformUpdate } from '../../api/src/services/adminNoticeSweep';
 import { moduleUpdatesFrom } from '../../api/src/services/platform/moduleUpdates';
 import type { CatalogItem } from '../../api/src/modules/catalogService';
 
@@ -50,22 +53,33 @@ test('available only when the newest is newer than what runs', TAGS, async () =>
   });
 });
 
-test('with the notice off, a newer release is not announced', TAGS, async () => {
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => releases });
-  resetPlatformUpdateCache();
-  expect(
-    await checkPlatformUpdate({
-      running: '3.0.0-beta.71',
-      fetchImpl,
-      forceRefresh: true,
-      notices: false,
-    })
-  ).toEqual({
-    running: '3.0.0-beta.71',
-    latest: '3.0.0-beta.72',
-    available: false,
-    releaseUrl: 'https://example.test/b72',
+test('with the notice off, the sweep raises no beta_available notice', TAGS, async () => {
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => [
+      { tag_name: 'v3.0.0-beta.72', html_url: 'https://example.test/b72', prerelease: true },
+    ],
   });
+  const sweep = () =>
+    sweepPlatformUpdate({ running: '3.0.0-beta.71', fetchImpl, forceRefresh: true }).then(() =>
+      adminNoticeService
+        .list(200)
+        .then((all) =>
+          all.filter((n) => n.dedupeKey === 'beta_available:3.0.0-beta.72' && n.resolvedAt === null)
+        )
+    );
+  resetPlatformUpdateCache();
+  await settingsService.setSetting('update_notices', 'false');
+  try {
+    expect(await sweep()).toHaveLength(0);
+    await settingsService.setSetting('update_notices', 'true');
+    expect(await sweep()).toHaveLength(1);
+  } finally {
+    await settingsService.setSetting('update_notices', null);
+    await adminNoticeService.resolve('beta_available:3.0.0-beta.72');
+    resetPlatformUpdateCache();
+  }
 });
 
 test('the notice is a setting, on by default', TAGS, async ({ request }) => {

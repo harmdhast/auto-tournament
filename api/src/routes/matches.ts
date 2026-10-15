@@ -47,6 +47,29 @@ import { compareQueueOrder, isQueueable, matchBracketOf } from '../core/allocati
 
 const router = Router();
 
+/** 'team1' / 'team2' when `winnerId` is that side's team, else null. */
+function winnerOf(
+  winnerId: string | null | undefined,
+  team1Id: string | null | undefined,
+  team2Id: string | null | undefined
+): 'team1' | 'team2' | null {
+  if (!winnerId) return null;
+  if (winnerId === team1Id) return 'team1';
+  if (winnerId === team2Id) return 'team2';
+  return null;
+}
+
+/** Live stats for a match that is not completed yet, then its normalised score fields and live status. */
+function applyScoresAndLiveStatus(
+  match: MatchListItem,
+  row: { slug: string; status: string },
+  mapResults: Awaited<ReturnType<typeof getMapResults>>
+): void {
+  const liveStats = row.status !== 'completed' ? matchLiveStatsService.getStats(row.slug) : null;
+  applyScoreFields(match, { status: row.status, mapResults, liveStats });
+  match.liveStatus = liveStats?.status ?? null;
+}
+
 /**
  * Helper: build a rich MatchListItem (teams, maps, results, players) for a single match row.
  * This mirrors the shape used by GET /api/matches so team pages and history views
@@ -280,13 +303,7 @@ async function getMatchDetailsBySlug(slug: string): Promise<MatchListItem | null
 
   // Enrich match with player stats and scores from events
   await enrichMatch(match, row.slug);
-  const liveStats = row.status !== 'completed' ? matchLiveStatsService.getStats(row.slug) : null;
-  applyScoreFields(match, {
-    status: row.status,
-    mapResults,
-    liveStats,
-  });
-  match.liveStatus = liveStats?.status ?? null;
+  applyScoresAndLiveStatus(match, row, mapResults);
 
   // For shuffle tournaments, enrich players with ELO
   if (isShuffleTournament && (enrichedTeam1Players.length > 0 || enrichedTeam2Players.length > 0)) {
@@ -821,14 +838,7 @@ router.get('/', async (req: Request, res: Response) => {
 
         // Normalise score fields: series (maps won), current map rounds, and the
         // headline team1Score/team2Score. See applyScoreFields for semantics.
-        const liveStats =
-          row.status !== 'completed' ? matchLiveStatsService.getStats(row.slug) : null;
-        applyScoreFields(match, {
-          status: row.status,
-          mapResults,
-          liveStats,
-        });
-        match.liveStatus = liveStats?.status ?? null;
+        applyScoresAndLiveStatus(match, row, mapResults);
 
         // For COMPLETED matches, if we still don't have any non‑zero score, fall
         // back to the final map result so the admin never sees "0‑0" after a
@@ -1027,11 +1037,7 @@ router.get('/played', requireAuth, async (req: Request, res: Response) => {
         r.status !== 'completed'
           ? null
           : r.winner_id
-            ? r.winner_id === r.team1_id
-              ? 'team1'
-              : r.winner_id === r.team2_id
-                ? 'team2'
-                : null
+            ? winnerOf(r.winner_id, r.team1_id, r.team2_id)
             : team1Maps > team2Maps
               ? 'team1'
               : team2Maps > team1Maps
@@ -1143,12 +1149,7 @@ router.get('/:slug', async (req: Request, res: Response) => {
         // Kept as they are where the match already has them (tournament matches).
         team1: (match as { team1?: unknown }).team1 ?? teamOf('team1'),
         team2: (match as { team2?: unknown }).team2 ?? teamOf('team2'),
-        winnerSide:
-          row?.winner_id && row.winner_id === row.team1_id
-            ? 'team1'
-            : row?.winner_id && row.winner_id === row.team2_id
-              ? 'team2'
-              : null,
+        winnerSide: winnerOf(row?.winner_id, row?.team1_id, row?.team2_id),
         mapScores,
         // The teams' logos (the team page's), when they have one.
         team1LogoUrl: row?.team1_id ? logoUrl(row.team1_id, row.team1_logo) : null,

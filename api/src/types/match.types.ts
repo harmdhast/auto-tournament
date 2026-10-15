@@ -1,4 +1,4 @@
-import type { LiveStatus } from '../services/matchLiveStatsService';
+export type LiveStatus = 'warmup' | 'knife' | 'live' | 'halftime' | 'postgame';
 
 export interface MatchPlayer {
   [steamId: string]: string; // steamId -> player name

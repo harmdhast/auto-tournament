@@ -7,6 +7,7 @@
 import { db } from '../config/database';
 import { log } from '../utils/logger';
 import { adminNoticeService, type AdminNoticeKind } from './adminNoticeService';
+import { platformUpdate, type PlatformUpdateOptions } from './platform/platformUpdate';
 
 /** How long before a stuck match is worth an admin's look. */
 export const STUCK_AFTER = {
@@ -133,8 +134,12 @@ export async function sweepStuckMatches(now = Math.floor(Date.now() / 1000)): Pr
  * once it no longer applies.
  */
 export async function sweepPlatform(): Promise<void> {
-  const { checkPlatformUpdate } = await import('./platform/updateCheck');
-  const update = await checkPlatformUpdate().catch(() => null);
+  await sweepPlatformUpdate();
+  await sweepLicense();
+}
+
+export async function sweepPlatformUpdate(options?: PlatformUpdateOptions): Promise<void> {
+  const update = await platformUpdate(options).catch(() => null);
   const open = await adminNoticeService.list(200);
   for (const n of open.filter((x) => x.kind === 'beta_available' && x.resolvedAt === null)) {
     if (!update?.available || n.data.version !== update.latest)
@@ -152,8 +157,12 @@ export async function sweepPlatform(): Promise<void> {
       );
     }
   }
+}
+
+async function sweepLicense(): Promise<void> {
   const { licenseService } = await import('./license/licenseService');
   const license = await licenseService.getStatus().catch(() => null);
+  const open = await adminNoticeService.list(200);
   const trouble =
     license &&
     (license.status === 'invalid' ||

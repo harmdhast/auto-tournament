@@ -1780,7 +1780,6 @@ router.post('/wipe-table/:table', async (req: Request, res: Response) => {
       await db.execAsync('DELETE FROM player_match_stats');
       await db.execAsync('DELETE FROM matches');
       matchLiveStatsService.clearAll();
-      matchLiveStatsService.clearAll();
     } else if (table === 'players') {
       // Delete related data first
       await db.execAsync('DELETE FROM player_rating_history');

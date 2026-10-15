@@ -7,8 +7,7 @@ import { Router, Request, Response } from 'express';
 import { requireAuth, requestActorId } from '../middleware/auth';
 import { isSameSiteRequest } from '../utils/accountConnections';
 import { restartSupport, scheduleRestart } from '../utils/restart';
-import { checkPlatformUpdate } from '../services/platform/updateCheck';
-import { settingsService } from '../services/settingsService';
+import { platformUpdate } from '../services/platform/platformUpdate';
 import { listModuleUpdates } from '../services/platform/moduleUpdates';
 
 const router = Router();
@@ -33,10 +32,7 @@ router.use(requireAuth);
  *         description: "{ running, latest, available, releaseUrl, modules }"
  */
 router.get('/update', async (_req: Request, res: Response) => {
-  const [platform, modules] = await Promise.all([
-    settingsService.areUpdateNoticesEnabled().then((notices) => checkPlatformUpdate({ notices })),
-    listModuleUpdates(),
-  ]);
+  const [platform, modules] = await Promise.all([platformUpdate(), listModuleUpdates()]);
   res.json({ success: true, ...platform, modules });
 });
 
