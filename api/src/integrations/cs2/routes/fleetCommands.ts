@@ -9,8 +9,8 @@
  */
 
 import type { Request, Response } from 'express';
-import { requestActorId, type AuthedRequest } from '../../../middleware/auth';
-import { isSavedAdminSteamId } from '../../../utils/adminSteamIds';
+import { requestActorId } from '../../../middleware/auth';
+import { isRootRequest } from '../../../utils/rootAccess';
 import { transportOf } from '../driver';
 import {
   execOnFleetServer,
@@ -66,18 +66,6 @@ export function adminCapabilitiesFor(transport: ServerTransport): {
     };
   }
   return { transport, commands: ['custom'], matchControls: [...ALL_MATCH_CONTROLS] };
-}
-
-/**
- * Root (FLEET.md D10: `exec`), the same rule as core's utils/rootAccess.ts,
- * which the module host bridge does not export: an admin-scope API token, the
- * local admin account, or an admin Steam ID saved in Settings.
- */
-export function isRootRequest(req: Request): boolean {
-  const token = (req as AuthedRequest).serviceToken;
-  if (token) return token.scope === 'admin';
-  const actor = requestActorId(req);
-  return !!actor && (actor.startsWith('local-') || isSavedAdminSteamId(actor));
 }
 
 export function issuedBy(req: Request): IssuedBy & { actor: string | null } {

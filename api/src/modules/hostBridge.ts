@@ -46,6 +46,7 @@ import * as matchStatusHelpers from '../utils/matchStatusHelpers';
 import * as playerTransform from '../utils/playerTransform';
 import * as pluginServerReplies from '../utils/pluginServerReplies';
 import * as publicOrigin from '../utils/publicOrigin';
+import * as rootAccess from '../utils/rootAccess';
 import * as serverAttribution from '../utils/serverAttribution';
 import * as settingFields from '../utils/settingFields';
 import * as simulationTimescale from '../utils/simulationTimescale';
@@ -90,6 +91,7 @@ const MODULES: Record<string, object> = {
   'utils/playerTransform': playerTransform,
   'utils/pluginServerReplies': pluginServerReplies,
   'utils/publicOrigin': publicOrigin,
+  'utils/rootAccess': rootAccess,
   'utils/serverAttribution': serverAttribution,
   'utils/settingFields': settingFields,
   'utils/simulationTimescale': simulationTimescale,
