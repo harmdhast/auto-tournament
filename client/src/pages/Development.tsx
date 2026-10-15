@@ -45,7 +45,24 @@ const Development: React.FC = () => {
   const [customPlayerCount, setCustomPlayerCount] = useState(60);
   const [customServerCount, setCustomServerCount] = useState(3);
   const [resettingSimulation, setResettingSimulation] = useState(false);
+  // The typed confirmation the destructive routes ask for ('wipe', the table, 'reset').
+  const [typedConfirm, setTypedConfirm] = useState('');
+  const [wipeTableTarget, setWipeTableTarget] = useState<string | null>(null);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const { t } = useTranslation();
+
+  const confirmField = (value: string) => (
+    <TextField
+      autoFocus
+      fullWidth
+      size="small"
+      sx={{ mt: 2 }}
+      label={t('devToolsPage.typeToConfirm', { value })}
+      value={typedConfirm}
+      onChange={(e) => setTypedConfirm(e.target.value)}
+      inputProps={{ 'data-testid': 'dev-confirm-input', spellCheck: false }}
+    />
+  );
 
   // Set dynamic page title
   document.title = pageTitle(t('layout.pageTitle.devTools'));
@@ -360,15 +377,13 @@ const Development: React.FC = () => {
     }
   };
 
-  const handleWipeTable = async (table: string) => {
-    if (
-      !(globalThis as { confirm?: (message: string) => boolean }).confirm?.(
-        t('devToolsPage.wipeTable.confirmPrompt', { table })
-      )
-    ) {
-      return;
-    }
+  const handleWipeTable = (table: string) => {
+    setTypedConfirm('');
+    setWipeTableTarget(table);
+  };
 
+  const wipeTable = async (table: string) => {
+    setWipeTableTarget(null);
     setLoading(true);
 
     try {
@@ -389,6 +404,7 @@ const Development: React.FC = () => {
   };
 
   const handleResetSimulationState = async () => {
+    setConfirmResetOpen(false);
     setResettingSimulation(true);
     try {
       const response: { success: boolean; message?: string; error?: string } = await api.post(
@@ -976,7 +992,10 @@ const Development: React.FC = () => {
                   <Button
                     variant="outlined"
                     color="warning"
-                    onClick={handleResetSimulationState}
+                    onClick={() => {
+                      setTypedConfirm('');
+                      setConfirmResetOpen(true);
+                    }}
                     disabled={loading || wiping || resettingSimulation}
                     fullWidth
                     size="small"
@@ -1052,7 +1071,10 @@ const Development: React.FC = () => {
                   <Button
                     variant="contained"
                     color="error"
-                    onClick={() => setConfirmWipeOpen(true)}
+                    onClick={() => {
+                      setTypedConfirm('');
+                      setConfirmWipeOpen(true);
+                    }}
                     disabled={loading || wiping}
                     startIcon={<TrashIcon />}
                     fullWidth
@@ -1098,6 +1120,7 @@ const Development: React.FC = () => {
           <Alert severity="error" sx={{ mt: 2 }}>
             <strong>{t('devToolsPage.wipeDatabase.dialog.cannotUndo')}</strong>
           </Alert>
+          {confirmField('wipe')}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setConfirmWipeOpen(false)} disabled={wiping} variant="outlined">
@@ -1105,15 +1128,74 @@ const Development: React.FC = () => {
           </Button>
           <Button
             onClick={handleWipeDatabase}
-            disabled={wiping}
+            disabled={wiping || typedConfirm.trim() !== 'wipe'}
             variant="contained"
             color="error"
             startIcon={<TrashIcon />}
-            autoFocus
+            data-testid="dev-confirm-submit"
           >
             {wiping
               ? t('devToolsPage.wipeDatabase.dialog.wiping')
               : t('devToolsPage.wipeDatabase.dialog.yesWipe')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={wipeTableTarget !== null}
+        onClose={() => setWipeTableTarget(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          {t('devToolsPage.wipeTable.confirmTitle', { table: wipeTableTarget ?? '' })}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t('devToolsPage.wipeTable.confirmPrompt', { table: wipeTableTarget ?? '' })}
+          </DialogContentText>
+          {confirmField(wipeTableTarget ?? '')}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setWipeTableTarget(null)} variant="outlined">
+            {t('common.cancel')}
+          </Button>
+          <Button
+            onClick={() => wipeTableTarget && void wipeTable(wipeTableTarget)}
+            disabled={!wipeTableTarget || typedConfirm.trim() !== wipeTableTarget}
+            variant="contained"
+            color="error"
+            startIcon={<TrashIcon />}
+            data-testid="dev-confirm-submit"
+          >
+            {t('devToolsPage.wipeTable.confirmButton')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={confirmResetOpen}
+        onClose={() => setConfirmResetOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{t('devToolsPage.simulation.reset.confirmTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{t('devToolsPage.simulation.reset.confirmBody')}</DialogContentText>
+          {confirmField('reset')}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setConfirmResetOpen(false)} variant="outlined">
+            {t('common.cancel')}
+          </Button>
+          <Button
+            onClick={() => void handleResetSimulationState()}
+            disabled={typedConfirm.trim() !== 'reset'}
+            variant="contained"
+            color="warning"
+            data-testid="dev-confirm-submit"
+          >
+            {t('devToolsPage.simulation.reset.confirmButton')}
           </Button>
         </DialogActions>
       </Dialog>
