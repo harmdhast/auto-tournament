@@ -105,6 +105,8 @@ export interface FleetKeyRow {
   revoked_at: number | null;
   auto_link: number;
   skins: number;
+  /** A key minted for one csm machine's command (server.create, server.enroll). */
+  host_id: string | null;
 }
 
 async function tx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
@@ -476,7 +478,9 @@ async function findByInstall(
  * `POST /api/fleet/enroll`, after schema validation. Returns the server
  * record and its new token, or why not. The code or key is checked first; a
  * known `install_id` gets its existing record back (and a new token) from the
- * key that enrolled it, and 409 `install_conflict` from anything else.
+ * key that enrolled it, or from a later key minted for the same csm machine
+ * (its server.enroll after a re-link, a create), and 409 `install_conflict`
+ * from anything else.
  */
 export async function enrollServer(req: EnrollRequest): Promise<EnrollOutcome> {
   if (req.code !== undefined) return enrollWithCode(req);
@@ -540,6 +544,20 @@ async function enrollWithCode(req: EnrollRequest): Promise<EnrollOutcome> {
   });
 }
 
+/** Both keys were minted for the same csm machine's commands. */
+async function sameMachineKey(
+  c: PoolClient,
+  enrolledWith: string | null,
+  key: FleetKeyRow
+): Promise<boolean> {
+  if (!enrolledWith || !key.host_id) return false;
+  const r = await c.query<{ host_id: string | null }>(
+    `SELECT host_id FROM cs2_fleet_enrollment_keys WHERE id = $1 AND tenant_id = $2`,
+    [enrolledWith, FLEET_TENANT]
+  );
+  return r.rows[0]?.host_id === key.host_id;
+}
+
 async function enrollWithKey(req: EnrollRequest): Promise<EnrollOutcome> {
   const parsed = parseFleetKey(req.key);
   if (!parsed) return invalid('invalid_key', 'Invalid fleet enrollment key');
@@ -585,7 +603,11 @@ async function enrollWithKey(req: EnrollRequest): Promise<EnrollOutcome> {
           403
         );
       }
-      if (existing.status === 'enrolled' && existing.enrollment_key_id !== key.id)
+      if (
+        existing.status === 'enrolled' &&
+        existing.enrollment_key_id !== key.id &&
+        !(await sameMachineKey(c, existing.enrollment_key_id, key))
+      )
         return installConflict();
       serverId = existing.id;
       await c.query(
