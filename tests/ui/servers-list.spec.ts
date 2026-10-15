@@ -186,16 +186,6 @@ test.describe('Server list', () => {
     await expect(page.getByTestId('servers-limit')).toContainText('1 machine · 3 servers');
   });
 
-  test('back leaves an old fleetServer link', async ({ page }) => {
-    await stubAll(page);
-    await page.goto('/manage/servers');
-    await expect(page.getByTestId('server-row-r:b')).toBeVisible();
-    await page.goto('/manage/servers?fleetServer=b');
-    await expect(page).toHaveURL(/[?&]server=r%3Ab/);
-    await page.goBack();
-    await expect(page).toHaveURL(/\/manage\/servers$/);
-  });
-
   test('the header counts active servers only', async ({ page }) => {
     await stubAll(page);
     const fleet = [
@@ -422,15 +412,6 @@ test.describe('Server list', () => {
     const panel = page.getByTestId('server-panel');
     await expect(panel.getByTestId('server-panel-readyup')).toBeVisible();
     await expect(panel.getByTestId('server-panel-machine')).toBeVisible();
-  });
-
-  test('old fleetServer link opens the panel', async ({ page }) => {
-    await stubAll(page);
-    await page.goto('/manage/servers?fleetServer=a');
-    const panel = page.getByTestId('server-panel');
-    await expect(panel.getByTestId('server-panel-machine')).toBeVisible();
-    await expect(panel.getByTestId('server-panel-readyup')).toBeVisible();
-    await expect(page).toHaveURL(/[?&]server=m%3Am1%3Aserver-1/);
   });
 
   test('the wizard shows only with no servers', async ({ page }) => {

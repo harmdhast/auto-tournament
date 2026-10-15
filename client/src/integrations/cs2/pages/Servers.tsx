@@ -29,14 +29,14 @@ import { useServerAvailability } from '../servers/useServerAvailability';
 import { MachineSheet } from '../servers/fleet/MachineSheet';
 import { FirstMachine } from '../servers/fleet/FirstMachine';
 import AutoScalePanel from '../servers/AutoScalePanel';
-import FleetPanel from '../servers/FleetPanel';
+import FleetKeysPanel from '../servers/FleetKeysPanel';
 import FleetPushPanel from '../servers/FleetPushPanel';
 import FailoverSettingsPanel from '../servers/FailoverSettingsPanel';
 import { EmbeddedServerSections } from '../servers/ServerSection';
 import { OPEN_EVENT } from '../servers/openServerSection';
 import { ServerList } from '../servers/list/ServerList';
 import { ServerPanel } from '../servers/list/ServerPanel';
-import { buildServerGroups, rowForFleetServer } from '../servers/list/serverGroups';
+import { buildServerGroups } from '../servers/list/serverGroups';
 import { useFleetServerActions } from '../servers/list/useFleetServerActions';
 import { useServerSources } from '../servers/list/useServerSources';
 import {
@@ -93,7 +93,7 @@ export default function Servers() {
       else next.delete('machine');
       return next;
     });
-  // A server's panel is `?server=<row key>`; the older `?fleetServer=<id>` is turned into it.
+  // A server's panel is `?server=<row key>`.
   const serverKey = params.get('server');
   const openServer = (key: string | null) =>
     setParams((prev) => {
@@ -102,22 +102,7 @@ export default function Servers() {
       else next.delete('server');
       return next;
     });
-  const legacyFleetId = params.get('fleetServer');
   const ready = loaded && sources.loaded;
-  useEffect(() => {
-    if (!legacyFleetId || !ready) return;
-    const key = rowForFleetServer(groups, legacyFleetId)?.key ?? `r:${legacyFleetId}`;
-    // Replace: Back must not land on the old link and be sent forward again.
-    setParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('fleetServer');
-        next.set('server', key);
-        return next;
-      },
-      { replace: true }
-    );
-  }, [legacyFleetId, ready, groups, setParams]);
   const panelRow = serverKey
     ? (groups.flatMap((g) => g.rows).find((r) => r.key === serverKey) ?? null)
     : null;
@@ -395,7 +380,7 @@ export default function Servers() {
         </>
       )}
       <EmbeddedServerSections value>
-        {tab === 'keys' && <FleetPanel showSecret={showSecret} />}
+        {tab === 'keys' && <FleetKeysPanel showSecret={showSecret} />}
         {tab === 'push' && <FleetPushPanel />}
         {tab === 'autoscale' && <AutoScalePanel />}
         {tab === 'failover' && <FailoverSettingsPanel />}

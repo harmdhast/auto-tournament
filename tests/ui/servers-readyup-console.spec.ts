@@ -38,14 +38,14 @@ test.describe('Ready Up fleet: console', () => {
 
   test('a root admin sees the input on an unlinked server', async ({ page }) => {
     await asRoot(page, true);
-    await page.goto('/manage/servers?fleetServer=a#fleet');
+    await page.goto('/manage/servers?server=r:a#fleet');
     await expect(page.getByTestId('fleet-console-input')).toBeVisible();
     await expect(page.getByTestId('fleet-console-output')).toBeVisible();
   });
 
   test('other admins see the pane without an input', async ({ page }) => {
     await asRoot(page, false);
-    await page.goto('/manage/servers?fleetServer=a#fleet');
+    await page.goto('/manage/servers?server=r:a#fleet');
     await expect(page.getByTestId('fleet-console-output')).toBeVisible();
     await expect(page.getByTestId('server-panel')).toContainText('Root admins only');
     await expect(page.getByTestId('fleet-console-input')).toHaveCount(0);
@@ -63,7 +63,7 @@ test.describe('Ready Up fleet: console', () => {
         });
       }
     );
-    await page.goto('/manage/servers?fleetServer=a#fleet');
+    await page.goto('/manage/servers?server=r:a#fleet');
     const input = page.getByTestId('fleet-console-input');
     await input.fill('status');
     await input.press('Enter');
@@ -76,7 +76,7 @@ test.describe('Ready Up fleet: console', () => {
   test('a secret in the echo is masked', async ({ page }) => {
     await asRoot(page, true);
     await exec(page, { success: true, transport: 'fleet', status: 'ok', response: '' });
-    await page.goto('/manage/servers?fleetServer=a#fleet');
+    await page.goto('/manage/servers?server=r:a#fleet');
     const input = page.getByTestId('fleet-console-input');
     await input.fill('rcon_password hunter2');
     await input.press('Enter');
@@ -88,7 +88,7 @@ test.describe('Ready Up fleet: console', () => {
   test('a refused line shows its error in the pane', async ({ page }) => {
     await asRoot(page, true);
     await exec(page, { success: false, error: 'The Ready Up server is offline' }, 409);
-    await page.goto('/manage/servers?fleetServer=a#fleet');
+    await page.goto('/manage/servers?server=r:a#fleet');
     const input = page.getByTestId('fleet-console-input');
     await input.fill('status');
     await input.press('Enter');

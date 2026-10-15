@@ -63,13 +63,3 @@ export function buildServerGroups(hosts: FleetHost[], fleet: FleetServer[]): Ser
   if (readyUp.length > 0) groups.push({ key: 'none', host: null, rows: readyUp });
   return groups;
 }
-
-export function rowForFleetServer(groups: ServerGroup[], fleetId: string): ServerRow | null {
-  for (const group of groups) {
-    for (const row of group.rows) {
-      if (row.kind === 'readyup' && row.fleet.id === fleetId) return row;
-      if (row.kind === 'machine' && row.server.fleetServer?.id === fleetId) return row;
-    }
-  }
-  return null;
-}

@@ -38,14 +38,8 @@ import {
 } from '../../../../module-sdk';
 import type { FleetServer } from '../../cs2.types';
 import { insecureFlag, platformIsPlainHttp } from '../insecureLink';
+import type { Secret } from '../secret.types';
 import { formatWhen } from '../time';
-
-export type Secret = {
-  kind: 'code' | 'key';
-  value: string;
-  expiresAt: number | null;
-  name: string;
-};
 
 export interface ServerAction {
   id: 'open' | 'match' | 'newCode' | 'link' | 'address' | 'rotate' | 'revoke' | 'rename' | 'remove';
