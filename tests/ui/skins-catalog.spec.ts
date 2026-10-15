@@ -17,6 +17,17 @@ test.describe.serial('Skins catalogue picker', () => {
   const setConfig = (request: APIRequestContext, data: Record<string, unknown>) =>
     request.put('/api/skins/admin/config', { headers: getAuthHeader(), data });
 
+  let original: Record<string, unknown> = {};
+
+  test.beforeAll(async ({ playwright, baseURL }) => {
+    const admin = await playwright.request.newContext({ baseURL });
+    await signInViaRequest(admin);
+    original = (
+      await (await admin.get('/api/skins/admin/config', { headers: getAuthHeader() })).json()
+    ).config;
+    await admin.dispose();
+  });
+
   test.beforeEach(async ({ page, request }) => {
     await signInViaRequest(request);
     await setConfig(request, { enabled: true, catalogUnlocked: true });
@@ -28,7 +39,7 @@ test.describe.serial('Skins catalogue picker', () => {
   test.afterAll(async ({ playwright, baseURL }) => {
     const admin = await playwright.request.newContext({ baseURL });
     await signInViaRequest(admin);
-    await setConfig(admin, { enabled: false, catalogUnlocked: false });
+    await setConfig(admin, original);
     await admin.dispose();
   });
 

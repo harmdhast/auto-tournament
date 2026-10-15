@@ -27,6 +27,7 @@ test.describe.serial('Skins catalogue unlock', () => {
   let player: APIRequestContext;
   let deagle: Item[] = [];
   let ak: Item[] = [];
+  let original: Record<string, unknown> = {};
 
   const setConfig = (request: APIRequestContext, data: Record<string, unknown>) =>
     request.put('/api/skins/admin/config', { headers: getAuthHeader(), data });
@@ -48,6 +49,9 @@ test.describe.serial('Skins catalogue unlock', () => {
   test.beforeAll(async ({ playwright, baseURL }) => {
     const admin = await playwright.request.newContext({ baseURL });
     await signInViaRequest(admin);
+    original = (
+      await (await admin.get('/api/skins/admin/config', { headers: getAuthHeader() })).json()
+    ).config;
     await setConfig(admin, { enabled: true, catalogUnlocked: true });
     player = await playwright.request.newContext({ baseURL });
     await signInAsPlayerViaRequest(player, STEAM_ID, 'Catalog Tester');
@@ -59,7 +63,7 @@ test.describe.serial('Skins catalogue unlock', () => {
   test.afterAll(async ({ playwright, baseURL }) => {
     const admin = await playwright.request.newContext({ baseURL });
     await signInViaRequest(admin);
-    await setConfig(admin, { enabled: false, catalogUnlocked: false });
+    await setConfig(admin, original);
     await admin.dispose();
     await player.dispose();
   });
