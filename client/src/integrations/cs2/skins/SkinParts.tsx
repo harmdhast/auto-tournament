@@ -2,7 +2,7 @@ import { useEffect, useState, type DragEvent } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Box, Button, ButtonBase, Dialog, IconButton, Link, Typography } from '@mui/material';
 import {
-  InfoIcon,
+  WarningIcon,
   EyeIcon,
   PlayCircleIcon,
   PlusIcon,
@@ -34,29 +34,37 @@ export function sourceLabel(label: string): string {
 /** The fixed notice: skins exist only here. Admins cannot change it. */
 export function VirtualNotice({ compact = false }: { compact?: boolean }) {
   const { t } = useModuleTranslation('cs2');
+  // A warning, not a footnote: players (kids too) must not think a real CS2 skin is being given
+  // away, by this site or by anyone running a tournament on it.
   return (
     <Box
       data-testid="skins-notice"
+      role="note"
       sx={{
         // Wraps on a narrow inventory instead of being cut off (a pill can't hold two lines).
-        display: 'inline-flex',
+        display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
         maxWidth: '100%',
         minWidth: 0,
         boxSizing: 'border-box',
         gap: 1.25,
-        px: compact ? 0 : 2,
-        py: compact ? 0 : 1.25,
+        px: compact ? 1.5 : 2,
+        py: compact ? 1 : 1.25,
         borderRadius: radii.lg,
-        bgcolor: compact ? 'transparent' : color.paper2,
-        border: compact ? 'none' : `1px solid ${color.rule}`,
+        bgcolor: withAlpha(color.warning, 0.1),
+        border: `1px solid ${withAlpha(color.warning, 0.5)}`,
         fontSize: '0.8125rem',
-        color: compact ? color.muted : color.ink2,
+        color: color.ink,
       }}
     >
-      {!compact && <InfoIcon size={16} aria-hidden />}
-      {t('skins.notice')}
+      <WarningIcon size={18} weight="fill" color={color.warning} aria-hidden />
+      <Box component="span" sx={{ flex: '1 1 16rem', minWidth: 0 }}>
+        <Box component="strong" sx={{ fontWeight: 700 }}>
+          {t('skins.notReal')}
+        </Box>{' '}
+        {t('skins.notice')}
+      </Box>
       {!compact && <WhatThisMeans />}
     </Box>
   );
@@ -120,6 +128,16 @@ function WhatThisMeans() {
   );
 }
 
+/**
+ * The 256 px copy of a skin picture, for cards and lists (the platform serves it; a wear look has
+ * none and gets the full picture). Full-size stays for the inspect view and the reveal.
+ */
+export function skinCardUrl(url: string): string {
+  return url.startsWith('/api/game/cs2/img/skins/')
+    ? `/api/game/cs2/img/skins-256/${url.slice('/api/game/cs2/img/skins/'.length)}`
+    : url;
+}
+
 /** The skin picture on a dark tile. */
 export function SkinImage({
   skin,
@@ -131,7 +149,7 @@ export function SkinImage({
   return (
     <Box
       component="img"
-      src={height <= 96 ? (skin.imageSmallUrl ?? skin.imageUrl) : skin.imageUrl}
+      src={height <= 160 ? (skin.imageSmallUrl ?? skinCardUrl(skin.imageUrl)) : skin.imageUrl}
       alt=""
       loading="lazy"
       sx={{
@@ -357,112 +375,139 @@ export function SlotTile({
   skin,
   onClick,
   onDrop,
+  onTakeOff,
+  takeOffLabel,
 }: {
   label: string;
   skin: OwnedSkin | null;
   onClick?: () => void;
   /** Set while a skin that fits this slot is being dragged: dropping equips it here. */
   onDrop?: () => void;
+  /** Takes the skin off this side in one click (the x in the corner of an equipped slot). */
+  onTakeOff?: () => void;
+  takeOffLabel?: string;
 }) {
   const { t } = useModuleTranslation('cs2');
   const [over, setOver] = useState(false);
   return (
-    <Box
-      data-testid="loadout-slot"
-      data-drop-target={onDrop ? 'true' : undefined}
-      component={onClick ? 'button' : 'div'}
-      type={onClick ? 'button' : undefined}
-      onClick={onClick}
-      onDragOver={
-        onDrop
-          ? (e: DragEvent) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'move';
-              setOver(true);
-            }
-          : undefined
-      }
-      onDragLeave={onDrop ? () => setOver(false) : undefined}
-      onDrop={
-        onDrop
-          ? (e: DragEvent) => {
-              e.preventDefault();
-              setOver(false);
-              onDrop();
-            }
-          : undefined
-      }
-      aria-label={
-        onClick ? (skin ? `${label}: ${skin.weaponName} ${skin.name}` : label) : undefined
-      }
-      sx={{
-        ...(onClick
-          ? {
-              all: 'unset',
-              cursor: 'pointer',
-              boxSizing: 'border-box',
-              '&:hover': { borderColor: color.muted },
-              '&:focus-visible': { outline: `2px solid ${color.focus}`, outlineOffset: 2 },
-            }
-          : {}),
-        borderRadius: '14px',
-        overflow: 'hidden',
-        bgcolor: color.paper2,
-        border: `1px ${skin ? 'solid' : 'dashed'} ${skin ? rarityColor[skin.rarity] : color.rule}`,
-        display: 'flex',
-        flexDirection: 'column',
-        ...(onDrop && {
-          outline: `2px dashed ${over ? color.accent : color.muted}`,
-          outlineOffset: 2,
-        }),
-      }}
-    >
-      {skin ? (
-        <Box
-          component="img"
-          src={skin.imageSmallUrl ?? skin.imageUrl}
-          alt=""
-          sx={{
-            width: '100%',
-            height: 64,
-            objectFit: 'contain',
-            bgcolor: color.paper3,
-            p: 0.75,
-            boxSizing: 'border-box',
-          }}
-        />
-      ) : (
-        <Box
-          sx={{
-            height: 64,
-            display: 'grid',
-            placeItems: 'center',
-            bgcolor: color.paper3,
-            color: color.muted,
-          }}
-          aria-hidden
-        >
-          <PlusIcon size={20} />
-        </Box>
-      )}
-      <Typography
+    <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      <Box
+        data-testid="loadout-slot"
+        data-drop-target={onDrop ? 'true' : undefined}
+        component={onClick ? 'button' : 'div'}
+        type={onClick ? 'button' : undefined}
+        onClick={onClick}
+        onDragOver={
+          onDrop
+            ? (e: DragEvent) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                setOver(true);
+              }
+            : undefined
+        }
+        onDragLeave={onDrop ? () => setOver(false) : undefined}
+        onDrop={
+          onDrop
+            ? (e: DragEvent) => {
+                e.preventDefault();
+                setOver(false);
+                onDrop();
+              }
+            : undefined
+        }
+        aria-label={
+          onClick ? (skin ? `${label}: ${skin.weaponName} ${skin.name}` : label) : undefined
+        }
         sx={{
-          fontSize: '0.75rem',
-          color: color.muted,
-          px: 1.25,
-          py: 1,
-          whiteSpace: 'nowrap',
+          ...(onClick
+            ? {
+                all: 'unset',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+                '&:hover': { borderColor: color.muted },
+                '&:focus-visible': { outline: `2px solid ${color.focus}`, outlineOffset: 2 },
+              }
+            : {}),
+          borderRadius: '14px',
           overflow: 'hidden',
-          textOverflow: 'ellipsis',
+          bgcolor: color.paper2,
+          border: `1px ${skin ? 'solid' : 'dashed'} ${skin ? rarityColor[skin.rarity] : color.rule}`,
+          display: 'flex',
+          flexDirection: 'column',
+          ...(onDrop && {
+            outline: `2px dashed ${over ? color.accent : color.muted}`,
+            outlineOffset: 2,
+          }),
         }}
       >
-        {skin?.source === 'catalog' && (
-          <Box component="span" data-testid="slot-picked" sx={{ color: color.accent }}>
-            {t('skins.picked')}{' '}
+        {skin ? (
+          <Box
+            component="img"
+            src={skin.imageSmallUrl ?? skinCardUrl(skin.imageUrl)}
+            alt=""
+            sx={{
+              width: '100%',
+              height: 64,
+              objectFit: 'contain',
+              bgcolor: color.paper3,
+              p: 0.75,
+              boxSizing: 'border-box',
+            }}
+          />
+        ) : (
+          <Box
+            sx={{
+              height: 64,
+              display: 'grid',
+              placeItems: 'center',
+              bgcolor: color.paper3,
+              color: color.muted,
+            }}
+            aria-hidden
+          >
+            <PlusIcon size={20} />
           </Box>
         )}
-        {label}
-      </Typography>
+        <Typography
+          sx={{
+            fontSize: '0.75rem',
+            color: color.muted,
+            px: 1.25,
+            py: 1,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {skin?.source === 'catalog' && (
+            <Box component="span" data-testid="slot-picked" sx={{ color: color.accent }}>
+              {t('skins.picked')}{' '}
+            </Box>
+          )}
+          {label}
+        </Typography>
+      </Box>
+      {skin && onTakeOff && (
+        <IconButton
+          aria-label={takeOffLabel}
+          title={takeOffLabel}
+          onClick={onTakeOff}
+          data-testid="loadout-slot-take-off"
+          sx={{
+            position: 'absolute',
+            top: 4,
+            right: 4,
+            width: 24,
+            height: 24,
+            bgcolor: withAlpha(color.paper, 0.85),
+            border: `1px solid ${color.rule}`,
+            '&:hover': { bgcolor: color.paper3 },
+          }}
+        >
+          <XIcon size={12} />
+        </IconButton>
+      )}
     </Box>
   );
 }
@@ -579,14 +624,13 @@ export function InspectSkinDialog({
               <Typography sx={{ color: color.muted }}>
                 {skin.weaponName} · {t(`skins.wear.${wearKey(skin.float)}`)}
               </Typography>
+              <WearBar float={skin.float} pattern={skin.pattern} />
               <Typography sx={{ fontFamily: fontDisplay, fontSize: '2rem', fontWeight: 700 }}>
                 {skin.name}
               </Typography>
             </Box>
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 1 }}>
               {[
-                [t('skins.float'), skin.float.toFixed(4)],
-                [t('skins.pattern'), String(skin.pattern)],
                 ...(skin.stattrak !== null && skin.stattrak !== undefined
                   ? [[t('skins.stattrakKills'), String(skin.stattrak)]]
                   : []),
@@ -685,5 +729,77 @@ export function InspectSkinDialog({
         </Box>
       )}
     </Dialog>
+  );
+}
+
+/** CS2's wear ranges, Factory New to Battle-Scarred, in the colours trading sites use (CSFloat). */
+const WEAR_RANGES: Array<{
+  key: 'fn' | 'mw' | 'ft' | 'ww' | 'bs';
+  from: number;
+  to: number;
+  tone: string;
+}> = [
+  { key: 'fn', from: 0, to: 0.07, tone: '#3a7d2c' },
+  { key: 'mw', from: 0.07, to: 0.15, tone: '#5a9f32' },
+  { key: 'ft', from: 0.15, to: 0.38, tone: '#a5c23f' },
+  { key: 'ww', from: 0.38, to: 0.45, tone: '#c46a62' },
+  { key: 'bs', from: 0.45, to: 1, tone: '#d63c34' },
+];
+
+/**
+ * The float bar, as CSFloat draws it: the five wear ranges in their real
+ * widths with a handle at the skin's float, and under it the float to 12
+ * places and the pattern (#seed).
+ */
+export function WearBar({
+  float,
+  pattern,
+  height = 8,
+}: {
+  float: number;
+  pattern?: number | null;
+  height?: number;
+}) {
+  const { t } = useModuleTranslation('cs2');
+  const at = Math.min(1, Math.max(0, float));
+  return (
+    <Box data-testid="wear-bar" sx={{ mt: 1, mb: 0.5 }}>
+      <Box
+        role="img"
+        aria-label={`${t(`skins.wear.${wearKey(float)}`)} · ${float.toFixed(4)}`}
+        sx={{ position: 'relative' }}
+      >
+        <Box sx={{ display: 'flex', height, borderRadius: radii.pill, overflow: 'hidden' }}>
+          {WEAR_RANGES.map((r) => (
+            <Box key={r.key} sx={{ width: `${(r.to - r.from) * 100}%`, bgcolor: r.tone }} />
+          ))}
+        </Box>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -3,
+            left: `clamp(0px, calc(${at * 100}% - 3px), calc(100% - 6px))`,
+            width: 6,
+            height: height + 6,
+            borderRadius: radii.pill,
+            bgcolor: '#e8e8e8',
+            boxShadow: '0 0 0 1px rgba(0,0,0,0.45)',
+          }}
+        />
+      </Box>
+      <Typography
+        component="div"
+        sx={{ ...mono, mt: 0.75, fontSize: '0.8125rem', color: tokens.color.ink }}
+        data-testid="wear-bar-float"
+      >
+        {float.toFixed(12)}
+        {typeof pattern === 'number' && (
+          <Box component="span" sx={{ color: tokens.color.muted }}>
+            {' '}
+            (#{pattern})
+          </Box>
+        )}
+      </Typography>
+    </Box>
   );
 }

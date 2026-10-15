@@ -340,6 +340,61 @@ router.get('/:id/bracket', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/tournament/:id/shuffle-round
+ * A shuffle tournament's current round (public, like the bracket): who plays in
+ * which match and who sits it out, so the overview can tell each player.
+ * { round, matches: [{ slug, status, teams: [{ name, steamIds }] }], sittingOut: steamIds }
+ */
+router.get('/:id/shuffle-round', async (req: Request, res: Response) => {
+  try {
+    const tournamentId = await readableTournamentId(req.params.id);
+    if (tournamentId === null)
+      return res.status(404).json({ success: false, error: 'Tournament not found' });
+    const top = await db.queryOneAsync<{ round: number | null }>(
+      'SELECT MAX(round) AS round FROM matches WHERE tournament_id = ?',
+      [tournamentId]
+    );
+    const round = top?.round ?? null;
+    if (round === null)
+      return res.json({ success: true, round: null, matches: [], sittingOut: [] });
+    const rows = await db.queryAsync<{
+      slug: string;
+      status: string;
+      t1_name: string | null;
+      t1_players: string | null;
+      t2_name: string | null;
+      t2_players: string | null;
+    }>(
+      `SELECT m.slug, m.status, t1.name AS t1_name, t1.players AS t1_players,
+              t2.name AS t2_name, t2.players AS t2_players
+         FROM matches m
+         LEFT JOIN teams t1 ON t1.id = m.team1_id
+         LEFT JOIN teams t2 ON t2.id = m.team2_id
+        WHERE m.tournament_id = ? AND m.round = ?
+        ORDER BY m.slug`,
+      [tournamentId, round]
+    );
+    const ids = (json: string | null) =>
+      (JSON.parse(json || '[]') as Array<{ steamId: string }>).map((p) => p.steamId);
+    const matches = rows.map((r) => ({
+      slug: r.slug,
+      status: r.status,
+      teams: [
+        { name: r.t1_name, steamIds: ids(r.t1_players) },
+        { name: r.t2_name, steamIds: ids(r.t2_players) },
+      ],
+    }));
+    const playing = new Set(matches.flatMap((m) => m.teams.flatMap((t) => t.steamIds)));
+    const registered = await getRegisteredPlayers(tournamentId);
+    const sittingOut = registered.map((p) => p.id).filter((id) => !playing.has(id));
+    return res.json({ success: true, round, matches, sittingOut });
+  } catch (error) {
+    log.error('Error reading the shuffle round', { error });
+    return res.status(500).json({ success: false, error: 'Could not read the round' });
+  }
+});
+
+/**
  * GET /api/tournament/:id/pause
  * Whether the bracket is paused (public: the bracket shows it): { pausedAt, reason, resumeAt }.
  */
@@ -706,7 +761,32 @@ function validateEventPageSettings(
       return { valid: false, error: 'settings.maxTeams must be a whole number from 2 to 256' };
     }
   }
-  for (const key of ['registrationClosesAt', 'checkInOpensAt', 'checkInClosesAt'] as const) {
+  // The start time: reminders before it and, with autoStart, the start (services/tournamentSchedule.ts).
+  if (s.autoStart !== undefined && typeof s.autoStart !== 'boolean') {
+    return { valid: false, error: 'settings.autoStart must be true or false' };
+  }
+  if (s.startReminders !== undefined && s.startReminders !== null) {
+    const r = s.startReminders;
+    if (
+      !Array.isArray(r) ||
+      r.length > 6 ||
+      r.some((m) => typeof m !== 'number' || !Number.isInteger(m) || m < 1 || m > 10080)
+    ) {
+      return {
+        valid: false,
+        error: 'settings.startReminders must be up to 6 whole numbers of minutes (1 to 10080)',
+      };
+    }
+  }
+  if (s.autoStart === true && (typeof s.startsAt !== 'string' || !s.startsAt)) {
+    return { valid: false, error: 'settings.autoStart needs settings.startsAt' };
+  }
+  for (const key of [
+    'registrationClosesAt',
+    'checkInOpensAt',
+    'checkInClosesAt',
+    'startsAt',
+  ] as const) {
     const value = s[key];
     if (value === undefined || value === null || value === '') continue;
     if (typeof value !== 'string' || Number.isNaN(new Date(value).getTime())) {
@@ -843,6 +923,14 @@ router.post('/', async (req: Request, res: Response) => {
           error: `Unknown game '${input.game}'; use a slug from /api/games/playable`,
         });
       }
+    }
+
+    // 2v2 and 1v1 are short: no map veto unless the request asks for one (each match
+    // draws its map from the pool), as the setup page's wingman preset does.
+    const smallTeams = Number((input as { teamSize?: unknown }).teamSize);
+    const cs2Input = (input?.settings as { cs2?: Record<string, unknown> } | undefined)?.cs2;
+    if (cs2Input && smallTeams > 0 && smallTeams <= 2 && typeof cs2Input.veto !== 'boolean') {
+      cs2Input.veto = false;
     }
 
     // What the request must carry is the picked game's module's business: CS2
@@ -2352,7 +2440,6 @@ router.post('/:id/manual-matches', async (req: Request, res: Response) => {
       // manual matches will normalize this further (matchid, spectators, etc.).
       const config: MatchConfig = {
         matchid: 0,
-        skip_veto: true,
         players_per_team: playersPerTeam,
         num_maps: 1,
         maplist: [resolvedMap],

@@ -17,7 +17,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowsLeftRightIcon, CheckCircleIcon, ProhibitIcon } from '@phosphor-icons/react';
 import { VetoMapCard } from './VetoMapCard';
 import { getMapData, getMapDisplayName } from '../maps/mapData';
-import type { MapSide, VetoMapInfo, VetoState, VetoStateResponse } from '../cs2.types';
+import type { MapSide, VetoMapInfo, VetoState, VetoStateResponse, VetoStep } from '../cs2.types';
 import { FadeInImage } from '../common/FadeInImage';
 import { mapImageFallback, mapImageUrl } from '../maps/cs2Assets';
 import {
@@ -27,16 +27,24 @@ import {
   mono,
   withAlpha,
   useModuleTranslation,
+  useAuth,
 } from '../../../module-sdk';
 import type { PreMatchViewProps as VetoInterfaceProps } from '../../types';
 
 const { color, radius } = tokens;
 
+/** The steps this match uses and whose they are (GET /api/veto/:slug): Valve's or the organizer's. */
+interface VetoOrderInfo {
+  steps: VetoStep[];
+  source: 'valve' | 'standard' | 'custom';
+  maps?: number;
+}
+
 export const VetoInterface: React.FC<VetoInterfaceProps> = ({
   matchSlug,
   team1Name: propTeam1Name,
   team2Name: propTeam2Name,
-  currentTeamSlug,
+  currentTeamSlug: viewerTeamSlug,
   onComplete,
   hideMatchHeader = false,
 }) => {
@@ -71,6 +79,14 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
   // Errors from a refused ban/pick/side action are transient: they must not
   // replace the veto board, or the team loses the UI they were acting in.
   const [actionError, setActionError] = useState('');
+  // An admin who does not play in the match can act for either team.
+  const { isAuthenticated: isAdmin } = useAuth();
+  const [actFor, setActFor] = useState<'team1' | 'team2' | null>(null);
+  const actingForTeam = !viewerTeamSlug && isAdmin ? actFor : null;
+  const currentTeamSlug =
+    actingForTeam && vetoState
+      ? ((actingForTeam === 'team1' ? vetoState.team1Id : vetoState.team2Id) ?? undefined)
+      : viewerTeamSlug;
   const [allMaps, setAllMaps] = useState<
     Map<string, { id: string; displayName: string; imageUrl: string | null }>
   >(new Map());
@@ -90,6 +106,8 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     setAllMaps(new Map(maps.map((map) => [map.id, map])));
   }, []);
 
+  const [order, setOrder] = useState<VetoOrderInfo | null>(null);
+
   const vetoRequest = useCallback(
     async (path = '', body?: Record<string, unknown>) => {
       const response = await fetch(
@@ -102,7 +120,10 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
               body: JSON.stringify(body),
             }
       );
-      return (await response.json()) as VetoStateResponse & { veto: VetoState };
+      return (await response.json()) as VetoStateResponse & {
+        veto: VetoState;
+        order?: VetoOrderInfo;
+      };
     },
     [matchSlug]
   );
@@ -114,6 +135,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
         .then((data) => {
           if (!data.success || !data.veto) return;
           storeMapInfo(data.maps);
+          if (data.order) setOrder(data.order);
           setVetoState(data.veto);
           if (announceCompleted && data.veto.status === 'completed') onCompleteRef.current?.();
         })
@@ -131,6 +153,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
 
       if (data.success) {
         storeMapInfo(data.maps);
+        if (data.order) setOrder(data.order);
         setVetoState(data.veto);
         if (data.veto.status === 'completed') {
           onCompleteRef.current?.();
@@ -225,8 +248,12 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vetoState?.allMaps?.join(','), allMaps.size]);
 
+  // A click in flight: no second one until it answers (a slow answer made a
+  // player click both sides, and the last click won).
+  const [submitting, setSubmitting] = useState(false);
+
   const handleMapAction = async (mapName: string) => {
-    if (!vetoState || vetoState.status === 'completed' || !isMyTurn) return;
+    if (!vetoState || vetoState.status === 'completed' || !isMyTurn || submitting) return;
 
     const currentAction = vetoState.currentAction;
 
@@ -236,10 +263,12 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     }
 
     // For ban/pick actions, submit immediately
+    setSubmitting(true);
     try {
       const data = await vetoRequest('/action', {
         mapName,
         teamSlug: currentTeamSlug, // Send which team is making the action
+        ...(actingForTeam ? { actAs: actingForTeam } : {}),
       });
 
       if (!data.success) {
@@ -252,6 +281,8 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     } catch (err) {
       console.error('Error submitting veto action:', err);
       setActionError(t('vetoInterface.errors.failedToSubmitVetoAction'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -260,11 +291,14 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
       console.error('No veto state');
       return;
     }
+    if (submitting) return;
 
+    setSubmitting(true);
     try {
       const data = await vetoRequest('/action', {
         side,
         teamSlug: currentTeamSlug, // Send which team is making the action
+        ...(actingForTeam ? { actAs: actingForTeam } : {}),
       });
 
       if (data.success) {
@@ -278,6 +312,8 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     } catch (err) {
       console.error('Error picking side:', err);
       setActionError(t('vetoInterface.errors.failedToPickSide'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -369,7 +405,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     );
   }
 
-  const vetoOrder = vetoState.vetoOrder ?? [];
+  const vetoOrder = order?.steps ?? vetoState.vetoOrder ?? [];
   const currentStepConfig = vetoOrder[vetoState.currentStep - 1];
   const currentAction = vetoState.currentAction ?? currentStepConfig?.action;
   const currentTurn =
@@ -406,7 +442,23 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
         : ArrowsLeftRightIcon;
 
   return (
-    <Box data-testid="veto-interface">
+    <Box
+      data-testid="veto-interface"
+      sx={{
+        // Before the veto opens (the break between matches) the countdown is the page: the
+        // map pool under it is faded and cannot be clicked (2026-10-15 drafts, board 6).
+        ...(vetoState.opensAt
+          ? {
+              '& [data-testid="veto-opens-countdown"] ~ *': {
+                opacity: 0.25,
+                filter: 'grayscale(0.6)',
+                pointerEvents: 'none',
+                userSelect: 'none',
+              },
+            }
+          : {}),
+      }}
+    >
       {actionError && (
         <Alert
           severity="error"
@@ -497,10 +549,31 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
               {team2Name}
             </Typography>
           </Box>
-          <Box display="flex" justifyContent="center" mt={1.5}>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            gap={1}
+            flexWrap="wrap"
+            mt={1.5}
+          >
             <Chip size="small" label={vetoState.format.toUpperCase()} />
+            {order && (
+              <Typography variant="caption" color="text.secondary" data-testid="veto-order-source">
+                {order.source === 'valve'
+                  ? t('vetoInterface.orderValve')
+                  : order.source === 'standard'
+                    ? t('vetoInterface.orderStandard', { count: order.maps ?? 0 })
+                    : t('vetoInterface.orderCustom')}
+              </Typography>
+            )}
           </Box>
         </Paper>
+      )}
+
+      {/* The break between matches: the veto opens after a countdown. */}
+      {vetoState.opensAt && (
+        <VetoOpensCountdown opensAt={vetoState.opensAt} onOpen={loadVetoState} />
       )}
 
       {/* The turn's time, for everyone (both teams and spectators), every
@@ -619,6 +692,48 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
             )}
           </Box>
 
+          {!viewerTeamSlug && isAdmin && (
+            <Box
+              role="group"
+              aria-label={t('vetoInterface.actFor.label')}
+              data-testid="veto-act-for"
+              sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                {t('vetoInterface.actFor.label')}
+              </Typography>
+              {([null, 'team1', 'team2'] as const).map((team) => (
+                <Box
+                  key={team ?? 'none'}
+                  component="button"
+                  type="button"
+                  onClick={() => setActFor(team)}
+                  aria-pressed={actFor === team}
+                  data-testid={`veto-act-for-${team ?? 'none'}`}
+                  sx={{
+                    all: 'unset',
+                    cursor: 'pointer',
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 999,
+                    fontSize: '0.8125rem',
+                    fontWeight: actFor === team ? 600 : 400,
+                    bgcolor: actFor === team ? color.ink : 'transparent',
+                    color: actFor === team ? color.paper : color.ink2,
+                    border: `1px solid ${color.rule}`,
+                    '&:focus-visible': { outline: `2px solid ${color.focus}`, outlineOffset: 2 },
+                  }}
+                >
+                  {team === null
+                    ? t('vetoInterface.actFor.watch')
+                    : team === 'team1'
+                      ? vetoState.team1Name || propTeam1Name
+                      : vetoState.team2Name || propTeam2Name}
+                </Box>
+              ))}
+            </Box>
+          )}
+
           {/* Every step in one strip (draft "Veto B"): what each one did, whose turn now, what is left. */}
           <VetoStepStrip
             vetoState={vetoState}
@@ -735,7 +850,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
                       color="info"
                       size="large"
                       onClick={() => handleSidePick('CT')}
-                      disabled={!isMyTurn}
+                      disabled={!isMyTurn || submitting}
                       sx={{
                         py: 2,
                         fontSize: '1.05rem',
@@ -755,7 +870,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
                       color="warning"
                       size="large"
                       onClick={() => handleSidePick('T')}
-                      disabled={!isMyTurn}
+                      disabled={!isMyTurn || submitting}
                       sx={{
                         py: 2,
                         fontSize: '1.05rem',
@@ -845,7 +960,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
                       mapNumber={pickedMap?.mapNumber}
                       side={displaySide}
                       onClick={() => handleMapAction(map.name)}
-                      disabled={mapState !== 'available' || !isMyTurn}
+                      disabled={mapState !== 'available' || !isMyTurn || submitting}
                       isCurrentTurn={isMyTurn && mapState === 'available'}
                       currentAction={currentAction}
                       isDecider={mapState === 'picked' && isDeciderMap(map.name)}
@@ -1111,5 +1226,69 @@ function VetoStepStrip({
         );
       })}
     </Box>
+  );
+}
+
+/**
+ * "The veto opens in 4:32": the break between a team's matches, counting
+ * down; at zero the veto is loaded again (the navbar plays the sound).
+ */
+function VetoOpensCountdown({ opensAt, onOpen }: { opensAt: string; onOpen: () => void }) {
+  const { t } = useModuleTranslation('cs2');
+  const target = Date.parse(opensAt);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  useEffect(() => {
+    if (!Number.isFinite(target)) return;
+    const id = window.setTimeout(onOpen, Math.max(0, target - Date.now()) + 1500);
+    return () => window.clearTimeout(id);
+  }, [target, onOpen]);
+  if (!Number.isFinite(target)) return null;
+  const left = Math.max(0, Math.round((target - now) / 1000));
+  const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  return (
+    <Paper
+      variant="outlined"
+      role="timer"
+      aria-live="polite"
+      data-testid="veto-opens-countdown"
+      sx={{
+        px: 3,
+        py: { xs: 4, md: 5 },
+        mb: 3,
+        textAlign: 'center',
+        borderWidth: 2,
+        borderColor: tokens.color.warning,
+        display: 'grid',
+        justifyItems: 'center',
+        gap: 1.5,
+      }}
+    >
+      <Typography variant="overline" sx={{ color: tokens.color.warning, lineHeight: 1.4 }}>
+        {t('vetoInterface.breakEyebrow')}
+      </Typography>
+      <Typography sx={{ fontWeight: 600, fontSize: '1.25rem', color: 'text.secondary' }}>
+        {left > 0 ? t('vetoInterface.opensInTitle') : t('vetoInterface.opening')}
+      </Typography>
+      {left > 0 && (
+        <Typography
+          sx={{
+            ...mono,
+            fontWeight: 600,
+            fontSize: { xs: '4rem', md: '6rem' },
+            lineHeight: 1,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {clock}
+        </Typography>
+      )}
+      <Typography color="text.secondary" sx={{ maxWidth: 560 }}>
+        {t('vetoInterface.opensBreak')}
+      </Typography>
+    </Paper>
   );
 }

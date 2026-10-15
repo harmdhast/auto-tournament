@@ -2,8 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { PUBLIC_DIR } from '../../../config/publicPaths';
 
-export const SKIN_IMAGES_BASE =
-  'https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/skin_images';
+/** The platform's picture route (routes/images.ts): full size and 256 px. */
+export const SKIN_IMAGES_BASE = '/api/game/cs2/img/skins';
+const SKIN_SMALL_BASE = '/api/game/cs2/img/skins-256';
 
 export interface LocalAssets {
   sha: string;
@@ -59,6 +60,6 @@ export function skinImageUrls(
       imageSmallUrl: `${assets.base}/${entry.small}`,
     };
   }
-  const remote = `${SKIN_IMAGES_BASE}/${image}`;
-  return { imageUrl: remote, imageSmallUrl: remote };
+  if (/^https?:\/\//.test(image)) return { imageUrl: image, imageSmallUrl: image };
+  return { imageUrl: `${SKIN_IMAGES_BASE}/${image}`, imageSmallUrl: `${SKIN_SMALL_BASE}/${image}` };
 }

@@ -32,6 +32,24 @@ import { connectPasswordFor, fleetServerStatus } from '../fleet/driver';
 import { recentMove } from '../fleet/failover';
 import { liveStateStore } from '../fleet/state';
 import { pauseView } from '../fleet/pauseView';
+import { connectChoice } from '../fleet/connectChoice';
+
+/**
+ * Whether the move no longer concerns this viewer: they are connected again (a player), or every
+ * connected-able roster player is (anyone else). False with no players known.
+ */
+function backOnServer(state: unknown, steamId: string | null | undefined): boolean {
+  const teams = (
+    state as {
+      teams?: Record<string, { players?: Record<string, { connected?: boolean }> }>;
+    } | null
+  )?.teams;
+  const players = Object.values(teams ?? {}).flatMap((t) => Object.entries(t?.players ?? {}));
+  if (players.length === 0) return false;
+  const mine = steamId ? players.find(([id]) => id === steamId) : undefined;
+  if (mine) return mine[1].connected === true;
+  return players.every(([, p]) => p.connected === true);
+}
 
 const router = Router();
 
@@ -165,10 +183,24 @@ router.get('/matches/:slug/connect', async (req: Request, res: Response) => {
         password = await connectPasswordFor(match.slug);
         const live = await liveStateStore.getLiveState(match.slug).catch(() => null);
         pause = pauseView(live?.state ?? null);
+        // The viewer is back on the server (or, for an admin, everyone is): the move is done, no
+        // "reconnect" notice (it stayed up while the player was playing again, 2026-10-15).
+        if (moved && backOnServer(live?.state ?? null, effectiveSteamId)) moved = null;
       } else {
         status = await serverStatus(match.server_id, match.slug);
       }
     }
+
+    // A LAN address and a public one: the viewer gets the one for where they are (on the
+    // server's network: LAN), and both are listed to pick from (fleet/connectChoice.ts).
+    const viewerIp = req.get('cf-connecting-ip') || req.ip || null;
+    const choice =
+      canSeeServer && match.server_id && onFleet
+        ? await connectChoice(match.server_id, viewerIp).catch(() => null)
+        : null;
+    const chosen = choice?.options.find((o) => o.kind === choice.recommended) ?? null;
+    const host = chosen?.host ?? match.server_host;
+    const port = chosen?.port ?? match.server_port;
 
     return res.json({
       success: true,
@@ -182,9 +214,16 @@ router.get('/matches/:slug/connect', async (req: Request, res: Response) => {
           ? {
               id: match.server_id,
               name: match.server_name,
-              host: match.server_host,
-              ip: await connectIp(match.server_host),
-              port: match.server_port,
+              host,
+              ip: await connectIp(host),
+              port,
+              // Where to connect from: the LAN address and the public one, when they differ.
+              addresses: choice
+                ? await Promise.all(
+                    choice.options.map(async (o) => ({ ...o, ip: await connectIp(o.host) }))
+                  )
+                : null,
+              recommended: choice?.recommended ?? null,
               // RCON servers have no join password; the RCON password is never
               // sent. Ready Up servers: this assignment's sv_password.
               password,

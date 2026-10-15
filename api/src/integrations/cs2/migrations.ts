@@ -1568,6 +1568,55 @@ export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
     `,
   },
   {
+    // The demo a highlight came from (demos/highlights.ts saveMoments): a newer
+    // demo of the map replaces the clips of rounds that were played again.
+    id: '055-highlight-demo',
+    up: `
+      ALTER TABLE cs2_highlights ADD COLUMN IF NOT EXISTS demo_path TEXT;
+    `,
+  },
+  {
+    // The match a live record was written for (fleet/state.ts isLeftOver):
+    // slugs come back with every tournament, and a new r1m1 must not show the
+    // last one's live state.
+    id: '056-live-state-match',
+    up: `
+      ALTER TABLE cs2_match_live_state ADD COLUMN IF NOT EXISTS match_row_id INTEGER;
+    `,
+  },
+  {
+    // The address players outside the machine's network connect to (its public IP or a
+    // host name), set by an admin on the Servers page. csm reports the machine's own
+    // (LAN) address, which remote players cannot reach (2026-10-15, #348).
+    id: '057-fleet-host-public-address',
+    up: `
+      ALTER TABLE cs2_fleet_hosts ADD COLUMN IF NOT EXISTS public_address TEXT;
+    `,
+  },
+  {
+    // Surf / bhop / kz records (movement/records.ts): each player's best per map,
+    // mode and course (0 = the map run, N = bonus N), from Ready Up's movement.record.
+    id: '058-movement-records',
+    up: `
+      CREATE TABLE IF NOT EXISTS cs2_movement_records (
+        map TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        course INTEGER NOT NULL DEFAULT 0,
+        steamid64 TEXT NOT NULL,
+        name TEXT NOT NULL DEFAULT '',
+        time_ms INTEGER NOT NULL,
+        teleports INTEGER NOT NULL DEFAULT 0,
+        finished_at BIGINT NOT NULL,
+        server_id TEXT,
+        runs INTEGER NOT NULL DEFAULT 1,
+        updated_at BIGINT NOT NULL,
+        PRIMARY KEY (map, mode, course, steamid64)
+      );
+      CREATE INDEX IF NOT EXISTS cs2_movement_records_board
+        ON cs2_movement_records(map, mode, course, time_ms);
+    `,
+  },
+  {
     // Why a Ready Up server is busy (fleet/busyReason.ts): the reason and its
     // detail from hello, state.snapshot and server.availability.
     id: CS2_FLEET_AVAILABILITY_REASON_MIGRATION_ID,

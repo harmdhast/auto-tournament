@@ -67,16 +67,6 @@ export interface Server {
   cs2VersionString?: string | null;
   /** Unix timestamp when version/build was last fetched via RCON. */
   cs2VersionFetchedAt?: number | null;
-  /** Best-effort: MatchZy Enhanced DB reachable. */
-  atDbOk?: boolean | null;
-  /** Best-effort: 'sqlite' | 'mysql'. */
-  atDbType?: string | null;
-  /** Best-effort: last DB error message (if any). */
-  atDbError?: string | null;
-  /** Unix timestamp when DB was last reported OK. */
-  atDbLastOkAt?: number | null;
-  /** Unix timestamp when DB health was last reported. */
-  atDbLastSeenAt?: number | null;
   /** Unix timestamp when server last successfully sent any event to /api/events. */
   serverCanReachApiAt?: number | null;
   // Optional real-time status values reported by MatchZy Enhanced and
@@ -181,6 +171,15 @@ export interface MatchServer {
   moved?: { at: number; reason: string; inPlace: boolean } | null;
   /** Ready Up: the match is paused (its type), and the lineup players not connected. */
   pause?: { type: string | null; waitingFor: string[] } | null;
+  /** The server's LAN address and its machine's public one, when they differ. */
+  addresses?: Array<{
+    kind: 'lan' | 'public';
+    host: string;
+    ip?: string | null;
+    port: number;
+  }> | null;
+  /** Which of them suits this viewer: LAN when they are on the server's network. */
+  recommended?: 'lan' | 'public' | null;
 }
 
 /** `GET /api/game/cs2/matches/:slug/connect`: how the viewer joins one match. */
@@ -277,6 +276,8 @@ export interface VetoState {
   turnSeconds?: number;
   /** The steps this veto runs, which depend on the map pool and the match's custom order. */
   vetoOrder?: Omit<VetoStep, 'description'>[];
+  /** The break between a team's matches: the veto opens then (ISO); no actions until. */
+  opensAt?: string;
 }
 
 export interface VetoStep {
@@ -287,6 +288,13 @@ export interface VetoStep {
 }
 
 /** A map's name, from the built-in list (`maps/mapData.ts`). */
+export interface PluginVersionSummary {
+  /** Distinct plugin versions reported by enabled servers that have reported one. */
+  versions: string[];
+  /** The single version every reporting server is on, when they agree. */
+  commonVersion: string | null;
+}
+
 export interface CS2MapData {
   name: string;
   displayName: string;
@@ -589,6 +597,8 @@ export interface FleetHost {
     };
   } | null;
   inventoryAt: number | null;
+  /** The admin's public address: where players outside the machine's network connect. */
+  publicAddress?: string | null;
   token: {
     id: string;
     createdAt: number;

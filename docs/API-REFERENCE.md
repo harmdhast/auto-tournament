@@ -11,7 +11,7 @@
 
 # API reference
 
-Every endpoint this API serves — 718 of them, 418 behind auth —
+Every endpoint this API serves — 735 of them, 423 behind auth —
 read directly from the routers rather than written down, so it cannot drift.
 
 For *how* to authenticate a bot or script, and a task-oriented tour of the
@@ -78,17 +78,11 @@ Virtual CS2 skins: inventories, loadouts, showcases and the admin inventory mana
 | `GET` | `/api/skins/admin/stats` | admin |
 | `GET` | `/api/skins/admin/players` | admin |
 | `GET` | `/api/skins/admin/players/:steamId/inventory` | admin |
+| `POST` | `/api/skins/admin/players/:steamId/equip` | admin |
+| `DELETE` | `/api/skins/admin/players/:steamId/equip/:slot` | admin |
 | `POST` | `/api/skins/admin/players/:steamId/skins` | admin |
 | `POST` | `/api/skins/admin/drops` | admin |
 | `DELETE` | `/api/skins/admin/skins/:id` | admin |
-
-### Server bootstrap
-
-Self-registration for a CS2 server coming online.
-
-| Method | Path | Auth |
-| --- | --- | --- |
-| `GET` | `/api/servers/:id/bootstrap` | server token |
 
 ### Update hold
 
@@ -115,8 +109,6 @@ The CS2 server fleet — add, edit, enable, remove.
 | `POST` | `/api/servers/bulk-delete` | admin |
 | `POST` | `/api/servers/:id/enable` | admin |
 | `POST` | `/api/servers/:id/disable` | admin |
-| `POST` | `/api/servers/:id/reset-initialization` | admin |
-| `POST` | `/api/servers/reset-all-initialization` | admin |
 
 ### Server status
 
@@ -134,8 +126,6 @@ Direct server control — pause, say, end match, raw commands.
 | --- | --- | --- |
 | `GET` | `/api/rcon/test/:serverId` | admin |
 | `GET` | `/api/rcon/capabilities/:serverId` | admin |
-| `GET` | `/api/rcon/test` | admin |
-| `POST` | `/api/rcon/test-connection` | admin |
 | `POST` | `/api/rcon/practice-mode` | admin |
 | `POST` | `/api/rcon/start-match` | admin |
 | `POST` | `/api/rcon/change-map` | admin |
@@ -150,7 +140,6 @@ Direct server control — pause, say, end match, raw commands.
 | `POST` | `/api/rcon/broadcast` | admin |
 | `POST` | `/api/rcon/swap-teams` | admin |
 | `POST` | `/api/rcon/restore-backup` | admin |
-| `POST` | `/api/rcon/skip-veto` | admin |
 | `POST` | `/api/rcon/restart-round` | admin |
 | `POST` | `/api/rcon/add-time` | admin |
 | `POST` | `/api/rcon/end-match` | admin |
@@ -169,9 +158,9 @@ Demo upload from the game server, and download.
 | `GET` | `/api/demos/:matchSlug/info` | admin |
 | `GET` | `/api/demos/archive.tar` | admin |
 
-### MatchZy Enhanced
+### Ready Up version
 
-MatchZy Enhanced version information.
+The latest Ready Up release, for update checks.
 
 | Method | Path | Auth |
 | --- | --- | --- |
@@ -179,14 +168,10 @@ MatchZy Enhanced version information.
 
 ### Events
 
-MatchZy Enhanced webhooks in, and the recorded event log out.
+The recorded match event log: Ready Up events and server console lines.
 
 | Method | Path | Auth |
 | --- | --- | --- |
-| `GET` | `/api/events/test` | public |
-| `POST` | `/api/events` | server token |
-| `POST` | `/api/events/report` | server token |
-| `POST` | `/api/events/:matchSlugOrServerId` | server token |
 | `GET` | `/api/events/connections/:matchSlug` | public |
 | `GET` | `/api/events/live/:matchSlug` | public |
 | `GET` | `/api/events/server/:serverId` | admin |
@@ -291,6 +276,15 @@ Players ranked by rating, ADR, K/D, headshots, opening duels, clutches and KAST.
 | --- | --- | --- |
 | `GET` | `/api/game/cs2/leaderboards` | public |
 
+### Movement records
+
+Surf, bhop and kz times: each player's best per map and course, across the servers.
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `GET` | `/api/game/cs2/movement/maps` | public |
+| `GET` | `/api/game/cs2/movement/records` | public |
+
 ### Highlights
 
 Each player's best moments, picked from the demo analysis, and the clips the recorder makes of them.
@@ -361,6 +355,14 @@ Each player's best moments, picked from the demo analysis, and the clips the rec
 | `PUT` | `/api/game/cs2/recorders/:name` | admin |
 | `DELETE` | `/api/game/cs2/recorders/:name` | admin |
 
+### Map and skin pictures
+
+Map screenshots, map icons and skin pictures in the sizes the site shows, served by the platform (bundled with the CS2 module, or fetched once and cached).
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `GET` | `/api/game/cs2/img/:set/:file` | public |
+
 ### Map radars
 
 Map radar images and coordinates for the 2D replay, read from a CS2 install's own files by the worker.
@@ -388,6 +390,8 @@ The admin match page: a match's live state, server and event log, and the Ready 
 | --- | --- | --- |
 | `GET` | `/api/game/cs2/matches/:slug/manage` | admin |
 | `POST` | `/api/game/cs2/matches/:slug/manage/command` | admin |
+| `GET` | `/api/game/cs2/matches/:slug/manage/servers` | admin |
+| `POST` | `/api/game/cs2/matches/:slug/manage/allocate` | admin |
 | `POST` | `/api/game/cs2/matches/:slug/manage/restart-server` | admin |
 
 ### Round backups
@@ -416,6 +420,7 @@ A Ready Up server trades a one-time code or fleet key for its server token; csm 
 
 | Method | Path | Auth |
 | --- | --- | --- |
+| `GET` | `/api/fleet/install-csm.sh` | public |
 | `POST` | `/api/fleet/enroll` | public |
 
 ### Fleet
@@ -508,14 +513,18 @@ E2E helpers that stand in for a CS2 server. Disabled in production unless ENABLE
 
 | Method | Path | Auth |
 | --- | --- | --- |
-| `POST` | `/api/test/server-status` | admin |
 | `POST` | `/api/test/highlights/status` | admin |
 | `POST` | `/api/test/fleet/reset-enroll-rate-limit` | admin |
 | `POST` | `/api/test/fleet/age-token` | admin |
 | `POST` | `/api/test/fleet/expire-key` | admin |
 | `POST` | `/api/test/fleet/assign` | admin |
+| `POST` | `/api/test/highlights/repick` | admin |
+| `POST` | `/api/test/fleet/snapshot` | admin |
 | `POST` | `/api/test/fleet/stattrak` | admin |
 | `GET` | `/api/test/fleet/skins-loadout/:steamId` | admin |
+| `POST` | `/api/test/fleet/movement-record` | admin |
+| `POST` | `/api/test/fleet/events` | admin |
+| `GET` | `/api/test/fleet/assign-config/:slug` | admin |
 | `POST` | `/api/test/fleet/send` | admin |
 | `GET` | `/api/test/fleet/live-state/:slug` | admin |
 | `GET` | `/api/test/fleet/events/:serverId` | admin |
@@ -581,6 +590,7 @@ Create, load, restart and cancel matches; read match state.
 | `GET` | `/api/matches/:slug/hold` | public |
 | `POST` | `/api/matches/:slug/hold` | admin |
 | `DELETE` | `/api/matches/:slug/hold` | admin |
+| `POST` | `/api/matches/:slug/maps/:map/result` | admin |
 | `POST` | `/api/matches/:slug/restart-countdown` | admin |
 | `POST` | `/api/matches/:slug/reallocate` | admin |
 | `PATCH` | `/api/matches/:slug/status` | admin |
@@ -610,6 +620,7 @@ The tournament itself — setup, bracket, rounds, standings.
 | `GET` | `/api/tournament/allocation-status` | public |
 | `GET` | `/api/tournament/game` | public |
 | `GET` | `/api/tournament/:id/bracket` | public |
+| `GET` | `/api/tournament/:id/shuffle-round` | public |
 | `GET` | `/api/tournament/:id/pause` | public |
 | `GET` | `/api/tournament/:id/banner` | public |
 | `PUT` | `/api/tournament/banner` | admin |
@@ -675,6 +686,8 @@ Teams signing themselves up with a lineup, and check-in on the day.
 | Method | Path | Auth |
 | --- | --- | --- |
 | `GET` | `/api/tournament-signup/:id` | public |
+| `POST` | `/api/tournament-signup/:id/join` | public |
+| `DELETE` | `/api/tournament-signup/:id/join` | public |
 | `GET` | `/api/tournament-signup/:id/me` | public |
 | `POST` | `/api/tournament-signup/:id/remind` | public |
 | `POST` | `/api/tournament-signup/:id/register` | public |
@@ -726,6 +739,11 @@ Friends, friend requests, finding players, and the signed-in player's notificati
 | `GET` | `/api/social/notifications` | public |
 | `GET` | `/api/social/notifications/settings` | public |
 | `PUT` | `/api/social/notifications/settings` | public |
+| `GET` | `/api/social/notifications/channels` | public |
+| `PUT` | `/api/social/notifications/channels` | public |
+| `GET` | `/api/social/push/key` | public |
+| `POST` | `/api/social/push/subscription` | public |
+| `DELETE` | `/api/social/push/subscription` | public |
 | `POST` | `/api/social/notifications/read` | public |
 | `POST` | `/api/social/news` | admin |
 
@@ -796,6 +814,12 @@ Instance-wide settings.
 | Method | Path | Auth |
 | --- | --- | --- |
 | `GET` | `/api/settings/version` | public |
+| `GET` | `/api/settings/site-url` | admin |
+| `GET` | `/api/settings/discord-bot` | admin |
+| `PUT` | `/api/settings/discord-bot` | admin |
+| `GET` | `/api/settings/api-tokens` | admin |
+| `POST` | `/api/settings/api-tokens` | admin |
+| `DELETE` | `/api/settings/api-tokens/:id` | admin |
 | `GET` | `/api/settings` | admin |
 | `PUT` | `/api/settings` | admin |
 
@@ -847,6 +871,7 @@ Player records, ratings, match history and profiles.
 
 | Method | Path | Auth |
 | --- | --- | --- |
+| `GET` | `/api/players/presence` | public |
 | `GET` | `/api/players/find` | public |
 | `GET` | `/api/players/public-selection` | public |
 | `GET` | `/api/players/selection` | admin |
@@ -861,11 +886,11 @@ Player records, ratings, match history and profiles.
 | `GET` | `/api/players/:playerId` | public |
 | `GET` | `/api/players/:playerId/rating-history` | public |
 | `GET` | `/api/players/:playerId/matches` | public |
+| `POST` | `/api/players/import` | integrator token or admin |
 | `GET` | `/api/players/:playerId/accounts` | admin |
 | `GET` | `/api/players` | admin |
 | `GET` | `/api/players/by-discord-id/:discordId` | admin |
 | `POST` | `/api/players` | admin |
-| `POST` | `/api/players/import` | admin |
 | `POST` | `/api/players/bulk-import` | admin |
 | `POST` | `/api/players/bulk-delete` | admin |
 | `PUT` | `/api/players/:playerId` | admin |
@@ -1148,7 +1173,6 @@ E2E helpers. Off unless ENABLE_TEST_ENDPOINTS is set.
 | `POST` | `/api/test/marker` | admin |
 | `POST` | `/api/test/reset-database` | admin |
 | `POST` | `/api/test/match-state` | admin |
-| `POST` | `/api/test/match-report` | admin |
 | `POST` | `/api/test/series-result` | admin |
 | `POST` | `/api/test/passkey-verifier` | admin |
 | `POST` | `/api/test/login-admin` | public |

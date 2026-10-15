@@ -1,4 +1,5 @@
 import { useCallback, type ReactNode } from 'react';
+import { PresenceDot } from '../../social/PresenceDot';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { ClockIcon, PlayCircleIcon, TrophyIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
@@ -157,6 +158,7 @@ function InServerList({
             >
               {!player.avatar && player.name.slice(0, 1).toUpperCase()}
             </Box>
+            <PresenceDot playerId={player.steamid} />
             <Typography
               sx={{
                 flex: 1,
@@ -188,7 +190,8 @@ function InServerList({
  * that changes with the match. A picture of the map once it is known, your
  * team against theirs with the score, one status line saying what happens now,
  * then the part that matters at that moment: the map veto, who is in the
- * server, or the scoreboard. The maps of the series sit at the bottom.
+ * server, or the scoreboard. The maps of the series sit at the bottom: the
+ * game's map cards (`mapsView`, from the match room) or, without them, pills.
  *
  * It is the player's part of the match room (`/match/:slug`), the one place
  * a match is played from. With `matchSlug`, it shows only while that match is
@@ -199,10 +202,13 @@ export function YourMatchCard({
   teamId,
   matchSlug,
   fallback = null,
+  mapsView,
 }: {
   teamId: string;
   matchSlug?: string;
   fallback?: ReactNode;
+  /** The series' maps as cards (the module's seriesMapsView), in place of the pills. */
+  mapsView?: ReactNode;
 }) {
   const { t } = useTranslation();
   const { team, match, hasMatch, loading, tournamentStatus, loadTeamMatch } =
@@ -594,10 +600,20 @@ export function YourMatchCard({
 
         {body}
 
-        {phase !== 'veto' && match.maps?.length > 0 && (
-          <Box sx={{ pt: 2.25, borderTop: `1px solid ${color.rule}` }}>
-            <MatchMapChips match={match} currentMapNumber={mapNumber} />
+        {mapsView ? (
+          <Box
+            sx={{ pt: 2.25, borderTop: `1px solid ${color.rule}` }}
+            data-testid="your-match-maps"
+          >
+            {mapsView}
           </Box>
+        ) : (
+          phase !== 'veto' &&
+          match.maps?.length > 0 && (
+            <Box sx={{ pt: 2.25, borderTop: `1px solid ${color.rule}` }}>
+              <MatchMapChips match={match} currentMapNumber={mapNumber} />
+            </Box>
+          )
         )}
       </Box>
     </Box>

@@ -152,5 +152,18 @@
  *
  * 0.2.22 (additive): `useTopic` (re-read on the server's page topics and
  * socket events, and after a reconnect, instead of polling).
+ *
+ * 0.2.23 (additive): `adminPlayerAction` (a module's action on each row of
+ * Manage → Players, opening its own dialog) with `AdminPlayerActionProps`.
+ *
+ * 0.2.24 (additive): `matchPanels.seriesMapsView` with `MatchSeriesMapsProps`
+ * (the series' maps on a match's page), and `PublicMatch.maps`, `mapNumber`,
+ * `team1LogoUrl`, `team2LogoUrl`.
+ *
+ * 0.2.25 (additive): `playNotificationSound()`, the site's notification sound
+ * (the player's own volume), for a module's alerts.
+ *
+ * 0.2.26 (additive): `tournamentPrizesView` with `TournamentPrizesViewProps`
+ * ("What you can win" on the tournament overview).
  */
-export const CLIENT_API_VERSION = '0.2.22';
+export const CLIENT_API_VERSION = '0.2.26';

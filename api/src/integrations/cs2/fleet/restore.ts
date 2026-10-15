@@ -97,9 +97,6 @@ export interface RestoreDeps {
   getLiveState(matchSlug: string): Promise<LiveMatchRecord | null>;
   sendCmd(serverId: string, payload: CmdPayload, epoch: number): Promise<ReliableSendResult>;
   awaitResult(id: string, timeoutMs: number): Promise<FleetCommandRecord | null>;
-  /** The match's RCON server (matches.server_id), or null. */
-  rconServerFor(matchSlug: string): Promise<string | null>;
-  rconRestore(serverId: string, round: number): Promise<{ success: boolean; error?: string }>;
   now(): number;
 }
 
@@ -118,17 +115,15 @@ export interface RestoreResult {
   delivered: boolean;
 }
 
-/** Where a match's restores go: the fleet server of its assignment, else its RCON server. */
+/** Where a match's restores go: the fleet server of its assignment. */
 export async function restoreTransportFor(
-  deps: Pick<RestoreDeps, 'getLiveState' | 'rconServerFor'>,
+  deps: Pick<RestoreDeps, 'getLiveState'>,
   matchSlug: string
 ): Promise<{ transport: RestoreTransport | null; serverId: string | null; epoch: number | null }> {
   const record = await deps.getLiveState(matchSlug);
   if (record && record.serverId && record.epoch >= 1) {
     return { transport: 'fleet', serverId: record.serverId, epoch: record.epoch };
   }
-  const rcon = await deps.rconServerFor(matchSlug);
-  if (rcon) return { transport: 'rcon', serverId: rcon, epoch: null };
   return { transport: null, serverId: null, epoch: null };
 }
 
@@ -171,23 +166,6 @@ export async function restoreRoundBackup(
     createdAt: Math.floor(deps.now() / 1000),
     answeredAt: null,
   };
-
-  if (target.transport === 'rcon') {
-    await deps.audit.insert(base);
-    const result = await deps.rconRestore(target.serverId, req.round);
-    const done: RestoreRecord = {
-      ...base,
-      status: result.success ? 'ok' : 'failed',
-      errorCode: result.success ? null : 'rcon',
-      errorMessage: result.success ? null : (result.error ?? 'RCON command failed').slice(0, 500),
-      answeredAt: Math.floor(deps.now() / 1000),
-    };
-    await deps.audit.update(base.id, done);
-    log.info(
-      `[RESTORE] ${req.matchSlug}: rcon restore to round ${req.round} on ${target.serverId} by ${req.actor.id ?? 'unknown'} -> ${done.status}`
-    );
-    return { restore: done, delivered: result.success };
-  }
 
   const backup = await deps.backups.get(req.matchSlug, req.mapNumber, req.round);
   if (!backup) {
@@ -453,18 +431,6 @@ export function defaultRestoreDeps(): RestoreDeps {
     async awaitResult(id, timeoutMs) {
       const { awaitCommandResult } = await import('./commands');
       return awaitCommandResult(id, timeoutMs);
-    },
-    async rconServerFor(slug) {
-      const row = await db.queryOneAsync<{ server_id: string | null }>(
-        'SELECT server_id FROM matches WHERE slug = ?',
-        [slug]
-      );
-      return row?.server_id ?? null;
-    },
-    async rconRestore(serverId, round) {
-      const { rconService } = await import('../services/rconService');
-      const result = await rconService.sendCommand(serverId, `css_restore ${round}`);
-      return { success: result.success, ...(result.error ? { error: result.error } : {}) };
     },
     now: () => Date.now(),
   };

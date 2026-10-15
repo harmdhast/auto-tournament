@@ -4,6 +4,8 @@
  */
 
 import { vetoMapPickers } from './veto/vetoMapPickers';
+import { Cs2RulesSummary } from './rules/Cs2RulesSummary';
+import { TournamentPrizes } from './skins/TournamentPrizes';
 import { Cs2ProfileStats } from './profile/Cs2ProfileStats';
 import { useCs2PlayerHighlights } from './profile/useCs2PlayerHighlights';
 import { Cs2TeamProfileStats } from './profile/Cs2TeamProfileStats';
@@ -13,11 +15,13 @@ import {
   SlidersHorizontalIcon,
   KnifeIcon,
 } from '@phosphor-icons/react';
+import { GiveDropToPlayer } from './skins/GiveDropsAdmin';
 import type { ClientGameIntegration, PlayerProfileViewProps } from '../types';
 import { links } from '../../module-sdk';
 import { SERVER_AVAILABILITY_ENDPOINT } from './cs2.types';
 import { MatchServerPanel } from './match/MatchServerPanel';
 import { Cs2MatchAdminView } from './match/Cs2MatchAdminView';
+import { SeriesMaps } from './match/SeriesMaps';
 import { ServerAllocationWidget } from './servers/ServerAllocationWidget';
 import { ServersOverviewCard } from './servers/ServersOverviewCard';
 import { ServerGrid } from './servers/ServerGrid';
@@ -115,6 +119,8 @@ export const cs2ClientIntegration: ClientGameIntegration = {
     adminMatchView: Cs2MatchAdminView,
     // A finished match's public page: team reels, scoreboard, highlights.
     publicView: MatchPublicPanel,
+    // The series' maps in play order: picture, pick, winner and rounds.
+    seriesMapsView: SeriesMaps,
   },
 
   preMatchView: VetoInterface,
@@ -123,6 +129,12 @@ export const cs2ClientIntegration: ClientGameIntegration = {
 
   // The player profile: aim, utility, impact and the map strength radar.
   playerProfileView: Cs2ProfileView,
+  // Manage → Players: give a player a skin drop from their row.
+  adminPlayerAction: {
+    key: 'give-drop',
+    labelKey: 'skins.admin.drops.rowAction',
+    Dialog: GiveDropToPlayer,
+  },
   // The team page: map strength, and the maps the team bans and picks.
   teamProfileView: Cs2TeamProfileStats,
 
@@ -131,6 +143,8 @@ export const cs2ClientIntegration: ClientGameIntegration = {
   rosterMemberStatus: Cs2RosterSteamStatus,
 
   // A team's jobs and size, for the team pages (strings: teamPositions.*).
+  tournamentRulesView: Cs2RulesSummary,
+  tournamentPrizesView: TournamentPrizes,
   teamPositions: ['rifler', 'awper', 'igl', 'entry', 'support', 'lurker'],
   teamSize: 5,
 

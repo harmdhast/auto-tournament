@@ -22,7 +22,9 @@ export type GameMessageKey =
   | 'serverBack'
   | 'skinsOn'
   | 'skinsOff'
-  | 'loadoutUpdated';
+  | 'loadoutUpdated'
+  | 'nextMatchReady'
+  | 'nextMatchSoon';
 
 type Params = Record<string, string | number | null | undefined>;
 
@@ -52,6 +54,10 @@ const TEXT: Record<GameMessageKey, (params: Params) => string> = {
   skinsOn: () => 'Skins are on: your loadout from the site is applied.',
   skinsOff: () => 'Skins are off for this match.',
   loadoutUpdated: () => 'Your loadout is updated.',
+  nextMatchSoon: (x) =>
+    `Next: ${p(x, 'name', 'your next match')}. The map veto opens in ${p(x, 'minutes', 'a few')} min at ${p(x, 'url', 'the site')}`,
+  nextMatchReady: (x) =>
+    `Your next match is ready: ${p(x, 'name', 'next match')}. The map veto is open at ${p(x, 'url', 'the site')}`,
 };
 
 /** Which messages also take the center panel, and for how long (seconds). */
@@ -60,6 +66,8 @@ const CENTER: Partial<Record<GameMessageKey, number>> = {
   seriesOver: 8,
   serverBack: 10,
   roundRestored: 5,
+  nextMatchReady: 10,
+  nextMatchSoon: 8,
 };
 
 /** The line for a message, at most 190 bytes (what Ready Up's say takes). */
@@ -70,6 +78,9 @@ export function gameMessageText(key: GameMessageKey, params: Params = {}): strin
 }
 
 /** Say it on a fleet server: to everyone, or to one player (`to`, SteamID64). */
+/** Lines nobody may miss: the player's next match. */
+const IMPORTANT = new Set<GameMessageKey>(['nextMatchReady', 'nextMatchSoon']);
+
 export async function sayInGame(
   fleetServerId: string,
   key: GameMessageKey,
@@ -86,6 +97,8 @@ export async function sayInGame(
           text: gameMessageText(key, params),
           ...(options.to ? { to: options.to } : {}),
           ...(center ? { center_seconds: center } : {}),
+          // Ready Up beta.36+: gold, three times (a line nobody may miss); older ones ignore it.
+          ...(IMPORTANT.has(key) ? { important: true } : {}),
         },
         issued_by: { user_id: 'platform', name: 'Auto Tournament', root: false },
         expires_at: Date.now() + 60_000,

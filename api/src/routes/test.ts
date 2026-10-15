@@ -9,7 +9,7 @@ import {
   testEndpointsAllowed,
   testEndpointsFlag,
 } from '../utils/testEndpoints';
-import { integrationForMatch, listIntegrations } from '../integrations/registry';
+import { listIntegrations } from '../integrations/registry';
 import type { ModuleMigration, ResultMeta, SeriesResult } from '../integrations/types';
 import { matchLifecycle } from '../core/matchLifecycle';
 import { db } from '../config/database';
@@ -271,7 +271,7 @@ router.post(
     const { slug, status, serverId, loadedAt } = (req.body || {}) as {
       slug?: string;
       status?: string;
-      serverId?: string;
+      serverId?: string | null;
       loadedAt?: number;
     };
 
@@ -290,6 +290,8 @@ router.post(
       sets.push('server_id = ?');
       params.push(serverId);
     }
+    // null: take the match off its server (a match still in its veto has none).
+    if (serverId === null) sets.push('server_id = NULL');
     if (typeof loadedAt === 'number') {
       sets.push('loaded_at = ?');
       params.push(loadedAt);
@@ -303,44 +305,6 @@ router.post(
     params.push(slug);
     await db.runAsync(`UPDATE matches SET ${sets.join(', ')} WHERE slug = ?`, params);
     log.warn(`[DEV-TOOLS] Set match state for ${slug}: ${sets.join(', ')}`);
-    res.json({ success: true });
-  }
-);
-
-/**
- * Test-only helper: apply a MatchZy Enhanced match report as if it arrived from a server.
- *
- * POST /api/test/match-report  { slug, report }
- *
- * Match reports reach MAT over RCON, and `rconService` short-circuits fake test
- * servers (host 0.0.0.0) with a canned non-JSON response — so the whole
- * `applyMatchReport` path, including the plugin-phase mapping that decides
- * whether a match reads as WARMUP or LIVE, is otherwise unreachable from the
- * suite. This injects a report directly.
- *
- * NOTE: This endpoint is only available in non-production environments.
- */
-router.post(
-  '/match-report',
-  requireAuth,
-  requireTestEndpoints({
-    tier: 'production',
-    body: { success: false, error: 'Disabled in production' },
-  }),
-  async (req: Request, res: Response): Promise<void> => {
-    const { slug, report } = (req.body || {}) as { slug?: string; report?: unknown };
-
-    if (!slug || !report || typeof report !== 'object') {
-      res.status(400).json({ success: false, error: 'slug and report are required' });
-      return;
-    }
-
-    const match = await db.queryOneAsync<{ game?: string | null }>(
-      'SELECT game FROM matches WHERE slug = ?',
-      [slug]
-    );
-    await integrationForMatch(match ?? {}).syncMatchState?.(slug, { report });
-    log.warn(`[DEV-TOOLS] Applied injected match report for ${slug}`);
     res.json({ success: true });
   }
 );

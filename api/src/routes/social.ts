@@ -3,6 +3,8 @@
  * services/notificationService). Every write is same-site JSON. Party invites
  * live with the party, under /api/matchmaking/party/invites.
  */
+import { ChannelError, notifyChannels } from '../services/notifyChannels';
+import { PushError, webPush } from '../services/webPush';
 import { Router, Request, Response, NextFunction } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { resolveViewerIdentity } from '../utils/viewerIdentity';
@@ -49,6 +51,9 @@ function handle(what: string, fn: (req: Request, res: Response) => Promise<unkno
     try {
       return await fn(req, res);
     } catch (error) {
+      if (error instanceof ChannelError) {
+        return res.status(error.status).json({ success: false, error: error.message });
+      }
       if (error instanceof SocialError) {
         return res
           .status(error.status)
@@ -356,6 +361,125 @@ router.put(
       settings: await notificationService.saveSettings(me(req), req.body ?? {}),
     })
   )
+);
+
+/**
+ * @openapi
+ * /api/social/notifications/channels:
+ *   get:
+ *     tags: [Social]
+ *     summary: Your notifications outside the site (Discord DM, email), per event
+ *     description: >
+ *       `events`: for match_ready, veto_turn, checkin_open and new_tournament,
+ *       whether each channel (discord, email) is on. `channels`: whether each can
+ *       reach you now, and why not (no_bot, no_discord, email_off, no_email,
+ *       email_unverified).
+ *     responses:
+ *       200: { description: "`events` and `channels`" }
+ *   put:
+ *     tags: [Social]
+ *     summary: Turn one event's channel on or off
+ *     description: Same-site JSON.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [event, channel, on]
+ *             properties:
+ *               event: { type: string, enum: [match_ready, veto_turn, checkin_open, new_tournament] }
+ *               channel: { type: string, enum: [discord, email, push] }
+ *               on: { type: boolean }
+ *     responses:
+ *       200: { description: "The settings, saved" }
+ *       400: { description: Not an event, channel or boolean }
+ */
+router.get(
+  '/notifications/channels',
+  requirePlayer,
+  handle('load where you get notifications', async (req, res) =>
+    res.json({ success: true, ...(await notifyChannels.prefs(me(req))) })
+  )
+);
+
+router.put(
+  '/notifications/channels',
+  requirePlayer,
+  sameSiteJson,
+  handle('save where you get notifications', async (req, res) => {
+    const body = (req.body ?? {}) as { event?: unknown; channel?: unknown; on?: unknown };
+    return res.json({
+      success: true,
+      ...(await notifyChannels.set(me(req), body.event, body.channel, body.on)),
+    });
+  })
+);
+
+/**
+ * @openapi
+ * /api/social/push/key:
+ *   get:
+ *     tags: [Social]
+ *     summary: The site's public key for browser notifications (Web Push, VAPID)
+ *     responses:
+ *       200: { description: "{ publicKey }" }
+ * /api/social/push/subscription:
+ *   post:
+ *     tags: [Social]
+ *     summary: Get notifications in this browser (its PushSubscription)
+ *     description: Same-site JSON. The body is the browser's PushSubscription (endpoint, keys).
+ *     responses:
+ *       200: { description: Saved }
+ *       400: { description: Not a push subscription }
+ *   delete:
+ *     tags: [Social]
+ *     summary: Stop notifications in this browser
+ *     description: Same-site JSON. `{ endpoint }`.
+ *     responses:
+ *       200: { description: Removed }
+ */
+router.get(
+  '/push/key',
+  requirePlayer,
+  handle('load the notification key', async (_req, res) =>
+    res.json({ success: true, publicKey: await webPush.publicKey() })
+  )
+);
+
+router.post(
+  '/push/subscription',
+  requirePlayer,
+  sameSiteJson,
+  handle('turn on notifications in this browser', async (req, res) => {
+    try {
+      await webPush.subscribe(me(req), req.body, req.get('user-agent'));
+    } catch (error) {
+      if (error instanceof PushError)
+        return res.status(error.status).json({ success: false, error: error.message });
+      throw error;
+    }
+    return res.json({ success: true });
+  })
+);
+
+router.delete(
+  '/push/subscription',
+  requirePlayer,
+  sameSiteJson,
+  handle('turn off notifications in this browser', async (req, res) => {
+    try {
+      await webPush.unsubscribe(
+        me(req),
+        (req.body as { endpoint?: unknown } | undefined)?.endpoint
+      );
+    } catch (error) {
+      if (error instanceof PushError)
+        return res.status(error.status).json({ success: false, error: error.message });
+      throw error;
+    }
+    return res.json({ success: true });
+  })
 );
 
 /**

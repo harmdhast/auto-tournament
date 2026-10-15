@@ -671,12 +671,15 @@
       "defaultPool": {
         "5v5": "Active Duty",
         "2v2": "Wingman maps",
-        "1v1": "Active Duty"
+        "1v1": "Wingman maps"
       },
       "searchAnyone": "Few players searching: you'll be matched with anyone available ({{count}} searching, {{total}} needed)",
-      "searchRating": "Finding a close match for your rating · {{count}} searching",
+      "searchRating": "Finding a close match for your rating (±{{elo}}) · {{count}} searching",
       "botFill": "Fill empty seats with bots",
-      "botFillUnrated": "Bots fill the empty seats · unrated: no rating, XP or drops"
+      "botFillUnrated": "Bots fill the empty seats · unrated: no rating, XP or drops",
+      "searchRatingPlain": "Finding a close match for your rating · {{count}} searching",
+      "searchWidening": "Widening the search: ±{{elo}} · {{count}} searching",
+      "searchAnyRating": "Searching every rating now · {{count}} searching"
     },
     "queue": {
       "searching": "Searching {{mode}}",
@@ -1097,5 +1100,12 @@
     "resetVetoBody": "Every ban, pick and side so far is cleared and the teams start the veto again. Both teams see it in the match chat.",
     "vetoReset": "The veto starts over",
     "vetoResetFailed": "Could not restart the veto"
+  },
+  "addressMismatch": {
+    "open": "Open {{host}}",
+    "text": "You're on {{current}}, but this site is set up for {{host}}: Steam sign-in, emails and the game servers use that address."
+  },
+  "siteFooter": {
+    "trademarks": "Counter-Strike, CS2 and Steam are trademarks of Valve Corporation. Other game names are trademarks of their owners. Auto Tournament is not affiliated with or endorsed by Valve or any game publisher."
   }
 }

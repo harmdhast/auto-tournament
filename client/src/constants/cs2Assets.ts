@@ -18,8 +18,8 @@ declare global {
   var __AT_CS2_ASSETS__: Cs2AssetsManifest | undefined;
 }
 
-const MAP_IMAGE_BASE =
-  'https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/map_thumbnails';
+/** The platform's picture route (the CS2 module's bundled copies, else csm's). */
+const MAP_IMAGE_BASE = '/api/game/cs2/img';
 const UPLOAD_PREFIX = '/map-images/';
 const LOAD_TIMEOUT_MS = 1500;
 
@@ -49,7 +49,9 @@ export const isUploadedMapImage = (url?: string | null): boolean =>
   !!url && url.startsWith(UPLOAD_PREFIX);
 
 export const isCatalogMapImage = (url?: string | null): boolean =>
-  !!url && url.includes('cs2-server-manager') && url.includes('map_thumbnails');
+  !!url &&
+  ((url.includes('cs2-server-manager') && url.includes('map_thumbnails')) ||
+    url.startsWith(`${MAP_IMAGE_BASE}/`));
 
 /** A picture of the map's own: an upload or any other URL that is not the catalogue's. */
 export const isCustomMapImage = (url?: string | null): url is string =>
@@ -66,10 +68,10 @@ const uploadedSmall = (url: string): string => {
 /** The catalogue's own picture, what an unlisted map shows and a reset goes back to. */
 export const mapCatalogUrl = (id: string, size: MapImageSize): string =>
   size === 'small'
-    ? `${MAP_IMAGE_BASE}/${id}_thumb.webp`
+    ? `${MAP_IMAGE_BASE}/maps-480/${id}.webp`
     : size === 'icon'
-      ? `${MAP_IMAGE_BASE}/${id}_icon.svg`
-      : `${MAP_IMAGE_BASE}/${id}.webp`;
+      ? `${MAP_IMAGE_BASE}/map-icons/${id}_icon.svg`
+      : `${MAP_IMAGE_BASE}/maps-1280/${id}.webp`;
 
 const bundledUrl = (id: string, size: MapImageSize): string | undefined => {
   const manifest = globalThis.__AT_CS2_ASSETS__;

@@ -324,6 +324,19 @@ export function InventoryPage() {
                                   }
                                 : undefined
                             }
+                            onTakeOff={
+                              own && skin
+                                ? () => void mine.equip(skin, team).catch(equipFailed)
+                                : undefined
+                            }
+                            takeOffLabel={
+                              skin
+                                ? t('skins.takeOffSide', {
+                                    name: `${skin.weaponName} | ${skin.name}`,
+                                    side: team === 3 ? t('skins.side.ct') : t('skins.side.t'),
+                                  })
+                                : undefined
+                            }
                             onClick={() => {
                               if (skin) {
                                 setInspect(skin.id);
@@ -549,6 +562,11 @@ export function InventoryPage() {
             setPicking(null);
             void mine.equipOn(skin, team).catch(equipFailed);
           }}
+          onTakeOffSide={(team) => {
+            const skin = inventory.find((x) => x.id === picking.id) ?? picking;
+            setPicking(null);
+            void mine.equip(skin, team).catch(equipFailed);
+          }}
           onTakeOff={() => {
             const skin = inventory.find((x) => x.id === picking.id) ?? picking;
             setPicking(null);
@@ -605,6 +623,7 @@ export function SidePicker({
   skin,
   onPick,
   onTakeOff,
+  onTakeOffSide,
   onClose,
   oneSide = false,
   again = false,
@@ -615,6 +634,8 @@ export function SidePicker({
   skin: Pick<OwnedSkin, 'weaponName' | 'name' | 'equippedSides' | 'equipped'>;
   onPick: (team: LoadoutTeam) => void;
   onTakeOff?: () => void;
+  /** Off one side (CT or T), kept on the other. */
+  onTakeOffSide?: (team: 2 | 3) => void;
   onClose: () => void;
   oneSide?: boolean;
   again?: boolean;
@@ -637,6 +658,7 @@ export function SidePicker({
           done: !again && skin.equippedSides.includes(0),
         },
       ];
+  const sideName = (team: LoadoutTeam) => (team === 3 ? t('skins.side.ct') : t('skins.side.t'));
   return (
     <Dialog
       open
@@ -659,18 +681,32 @@ export function SidePicker({
         </Typography>
         {children}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {actions.map((a) => (
-            <Button
-              key={a.id}
-              variant={a.done ? 'outlined' : 'contained'}
-              disabled={a.done || disabled}
-              onClick={() => onPick(a.team)}
-              data-testid={`${testId}-${a.id}`}
-              sx={{ borderRadius: radii.pill, justifyContent: 'center' }}
-            >
-              {a.label}
-            </Button>
-          ))}
+          {actions.map((a) =>
+            // A side it is on (not "both") takes it off that side in one click.
+            onTakeOffSide && a.done && a.team !== 0 ? (
+              <Button
+                key={a.id}
+                variant="outlined"
+                disabled={disabled}
+                onClick={() => onTakeOffSide(a.team as 2 | 3)}
+                data-testid={`${testId}-off-${a.id}`}
+                sx={{ borderRadius: radii.pill, justifyContent: 'center' }}
+              >
+                {t('skins.takeOffOn', { side: sideName(a.team) })}
+              </Button>
+            ) : (
+              <Button
+                key={a.id}
+                variant={a.done ? 'outlined' : 'contained'}
+                disabled={a.done || disabled}
+                onClick={() => onPick(a.team)}
+                data-testid={`${testId}-${a.id}`}
+                sx={{ borderRadius: radii.pill, justifyContent: 'center' }}
+              >
+                {a.label}
+              </Button>
+            )
+          )}
           {again && (
             <Button
               onClick={onClose}

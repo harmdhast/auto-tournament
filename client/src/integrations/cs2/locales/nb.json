@@ -43,7 +43,11 @@
       "none": "Ingen servere tilkoblet enda.",
       "busy": "Opptatt",
       "spare": "Reserve",
-      "draining": "Tømmes"
+      "draining": "Tømmes",
+      "readyUp": "Ready Up",
+      "readyUpCurrent": "{{version}}, alle oppdatert",
+      "pluginMixed": "{{count}} plugin-versjoner i bruk",
+      "pluginSame": "{{version}}, alle servere matcher"
     },
     "setup": {
       "serversDone": "{{count}} server lagt til",
@@ -245,6 +249,9 @@
     }
   },
   "vetoInterface": {
+    "orderValve": "Valves offisielle rekkefølge (Major-regelverket)",
+    "orderCustom": "Arrangørens egen veto-rekkefølge",
+    "orderStandard": "Standardrekkefølge for {{count}} kart (samme oppbygning som Valves)",
     "vetoNotAvailable": "Veto ikke tilgjengelig for denne kampen",
     "vetoUnavailable": "Veto-detaljer er ikke tilgjengelige for denne kontoen. Logg inn som spiller på ett av de to lagene for å fortsette vetoen.",
     "vetoCompleted": "Veto fullført!",
@@ -313,7 +320,16 @@
       "you": "dere",
       "them": "de",
       "timedOut": "tiden gikk ut"
-    }
+    },
+    "actFor": {
+      "label": "Handle for:",
+      "watch": "Bare se"
+    },
+    "opensIn": "Vetoen åpner om {{clock}}",
+    "opening": "Vetoen åpner …",
+    "opensBreak": "En kort pause mellom kampene. Gjør deg klar – første tur får ekstra tid.",
+    "breakEyebrow": "Pause mellom kampene",
+    "opensInTitle": "Kartvetoen åpner om"
   },
   "matchInfo": {
     "server": {
@@ -344,7 +360,11 @@
       "resumedTitle": "The server restarted",
       "resumedBody": "Connect again: the match continues from the last round backup.",
       "noPassword": "Uten passord: dere står på listen.",
-      "startsGame": "Er ikke CS2 åpent? Knappen starter det."
+      "startsGame": "Er ikke CS2 åpent? Knappen starter det.",
+      "via": "Koble til via",
+      "viaLan": "LAN",
+      "viaPublic": "Internett",
+      "viaRecommended": "for deg"
     }
   },
   "serversPage": {
@@ -490,6 +510,12 @@
     "saved": "Innstillinger lagret",
     "saveFailed": "Kunne ikke lagre innstillingene",
     "loadFailed": "Kunne ikke laste innstillingene",
+    "webhook": {
+      "title": "Plattform-URL",
+      "description": "Webhook-URL som CS2-serverne kan nå.",
+      "label": "Webhook-URL",
+      "helper": "Eksempel: https://ditt-domene.no"
+    },
     "mapSync": {
       "title": "Kartsynkronisering",
       "description": "Synk CS2-kart og Active Duty-poolen fra kartlisten i cs2-server-manager-repositoriet.",
@@ -510,6 +536,10 @@
     "atCore": {
       "title": "Kampstandarder",
       "description": "Sendes til Ready Up-servere med hver kamp.",
+      "expert": {
+        "title": "Ekspertinnstillinger",
+        "description": "Disse innstillingene kan gi uventet serveroppførsel hvis de settes feil."
+      },
       "ready": {
         "title": "Ready / kampstart",
         "minimumReadyLabel": "Minimum antall ready-spillere",
@@ -526,6 +556,11 @@
       "autostart": {
         "label": "Start kamper etter (minutter i oppvarming)",
         "helper": "0 = vent til alle er klare. Ellers går en lastet kamp live etter så mange minutter, klar eller ikke; spillerne varsles 1 minutt og 10 sekunder før."
+      },
+      "seriesEnd": {
+        "title": "Timing ved serieslutt",
+        "kickDelayNoDemoLabel": "Ekstra kick-forsinkelse når demoer er av (sekunder)",
+        "kickDelayHelper": "Legges oppå mp_match_restart_delay."
       }
     },
     "atEnhanced": {
@@ -549,7 +584,8 @@
       "sideSelection": {
         "title": "Sidevalg‑timer",
         "timeLabel": "Tid (sekunder)",
-        "timeHelper": "Tid etter knivrunde til å velge side"
+        "timeHelper": "Tid etter knivrunde til å velge side",
+        "enabled": "Aktiver timer for sidevalg"
       },
       "gg": {
         "title": "Tidlig avslutning (.gg)",
@@ -668,6 +704,14 @@
         "redrawFailed": "Could not queue the redraw."
       },
       "moved": "Highlight settings, the recorders and how to add one are on their own page now:"
+    },
+    "vetoFirstTurn": {
+      "label": "Første tur i vetoen (sekunder)",
+      "helper": "Lengre enn de andre turene, siden spillerne kommer fra forrige kamp. 0 = vanlig tur."
+    },
+    "matchBreak": {
+      "label": "Pause mellom et lags kamper (minutter)",
+      "helper": "Vetoen til neste kamp åpner så lenge etter at lagets forrige kamp var ferdig. 0 = rett videre."
     }
   },
   "roster": {
@@ -866,11 +910,11 @@
     },
     "enrolledElsewhere": "Enrolled from this machine: {{names}}",
     "activity": "Recent actions",
-    "addHelp": "You get one command to run on the machine. It needs CS2 Server Manager (csm) installed.",
+    "addHelp": "Du får én linje å lime inn på maskinen (Linux): den installerer CS2 Server Manager (csm) om nødvendig og kobler til maskinen.",
     "name": "Name (optional)",
     "getCommand": "Get the command",
     "linkTitle": "Run this on {{name}}",
-    "linkHelp": "Run it on the machine as the user that runs csm (not root). The code works once and until {{time}}.",
+    "linkHelp": "Lim den inn i en terminal på Linux-maskinen, som brukeren CS2-serverne skal kjøre som (ikke root). Den installerer csm om nødvendig, ber om sudo én gang, kobler til maskinen og starter agenten. Koden virker én gang og frem til {{time}}.",
     "copy": "Copy",
     "linkConnected": "Connected. The machine is ready.",
     "linkWaiting": "Waiting for the machine to connect…",
@@ -979,7 +1023,16 @@
     "noReportHelp": "csm sender hva maskinen har og kjører innen ett minutt etter tilkobling.",
     "licenseNote": "Lisensen din dekker opptil {{count}} servere. Hver server teller, også reserveservere.",
     "progress": "Kommandofremdrift",
-    "waitingFor": "{{count}} handling(er) venter på den"
+    "waitingFor": "{{count}} handling(er) venter på den",
+    "publicAddress": {
+      "title": "Offentlig adresse",
+      "lanOnly": "Spillerne kobler til {{address}}, en lokal adresse: bare spillere på samme nettverk kommer inn. Legg inn adressen spillere utenfor nettverket bruker.",
+      "help": "IP-adressen eller vertsnavnet spillere utenfor dette nettverket kobler til (videresend spillportene i ruteren). Tomt: adressen maskinen rapporterer.",
+      "label": "Offentlig IP eller vertsnavn",
+      "save": "Lagre",
+      "clear": "Bruk den rapporterte adressen",
+      "failed": "Kunne ikke lagre adressen"
+    }
   },
   "failover": {
     "title": "Failover",
@@ -1043,6 +1096,7 @@
     "empty": "Failover trenger minst én Ready Up-server."
   },
   "pluginSets": {
+    "tryoutLicense": "En server for å prøve skins bruker en serverplass på lisensen, som alle andre servere. Den kjører ingen kamper.",
     "presetLabel": "Utvidelsesoppsett",
     "preset": {
       "tournament": "Turnering",
@@ -1051,7 +1105,8 @@
       "tryout": "Skin-prøving",
       "custom": "Egendefinert",
       "default": "Standard for flåten",
-      "none": "Ingen"
+      "none": "Ingen",
+      "movement": "Movement"
     },
     "plugin": {
       "fleet": "Flåtekobling",
@@ -1062,7 +1117,10 @@
       "skins": "Skins",
       "midas": "Midas",
       "deathmatch": "Deathmatch",
-      "addons": "Addons"
+      "mapvote": "Kartavstemning",
+      "community": "Fellesskap",
+      "addons": "Addons",
+      "movement": "Movement"
     },
     "pluginHelp": {
       "essentials": "Administratorer, kartbytte, omlasting og omstart",
@@ -1071,7 +1129,10 @@
       "skins": "Spillernes våpenskins, kniver og hansker",
       "midas": "Våpenmodeller i gull",
       "deathmatch": "Deathmatch-moduser",
-      "addons": "Workshop-tillegg"
+      "mapvote": "Kartavstemning: .rtv, .nominate og avstemning ved kartslutt",
+      "community": "Fellesskapskommandoer: .rank, .top, .speclist, admin .kick",
+      "addons": "Workshop-tillegg",
+      "movement": "Surf, bhop og kz: timer, rekorder og ledertavler"
     },
     "required": "Alltid på",
     "usesDefault": "Bruker standarden for flåten: {{plugins}}.",
@@ -1280,7 +1341,14 @@
     "ttdLine": "Tid til skade {{ms}} ms"
   },
   "skins": {
-    "notice": "Virtuelle skins. De finnes bare på Auto Tournament, har ingen pengeverdi og kan ikke byttes eller selges. Du ser dem i spillet på denne sidens servere.",
+    "prizes": {
+      "title": "Dette kan du vinne",
+      "intro": "Eksempler på hva du kan få av å spille i denne turneringen, fra skinsene på dette nettstedet:",
+      "pickOne": "et {{rarity}}-skin du velger selv (velg 1 av 3)",
+      "matchDrops": "Hver turneringskamp du spiller, kan også gi et skin."
+    },
+    "notReal": "Ikke ekte CS2-skins.",
+    "notice": "De finnes bare på dette nettstedet: de er ikke Steam-gjenstander, har ingen pengeverdi og kan ikke byttes eller selges, og ingen arrangør eller sponsor deler ut ekte skins gjennom dem. Du ser dem i spillet på serverne til dette nettstedet.",
     "equipLabel": "Ta i bruk {{name}}",
     "equippedLabel": "{{name}}, i bruk",
     "new": "NY",
@@ -1439,9 +1507,16 @@
       "rewardTitle": "Premie for {{place}}",
       "done": "Ferdig",
       "fiveVsFive": "Disse gjelder 5v5. Mindre moduser gir sjeldnere:",
-      "fairRules": "Bare spillere som spilte hele kampen kan få noe: ingenting for en kamp noen forlot eller som sluttet tidlig, og samme motstandere igjen samme døgn gir mye sjeldnere. Plasseringspremier i turneringer går bare til spillere som spilte i turneringen.",
+      "fairRules": "En spiller som forlater en kamp får ingenting; de som ble igjen har fortsatt sjansen sin. En kamp som er over etter under 8 runder gir ingen drop (slik ser farming ut). Med bryteren over på gir den tredje kampen mot samme motstandere samme døgn mye sjeldnere drop. Plasseringspremier i turneringer går bare til spillere som spilte i turneringen.",
       "tournamentMatchDrops": "Turneringskamper gir også drops (ikke i esport-modus)",
       "levelUpDrops": "Et drop for hvert nye nivå",
+      "tryoutServer": "Hold en server for å prøve skins",
+      "tryoutWhat": "Hva er dette?",
+      "tryoutHelpTitle": "Server for å prøve skins",
+      "tryoutHelpWhat": "En CS2-server bare for å prøve skins: spillerne kobler til fra inventaret («Prøv dem i spillet») og ser det de har utstyrt, med en gang. Den kjører ingen kamper; den venter på et surf-kart og går tilbake til det når den er tom.",
+      "tryoutHelpHow": "Når dette er på og automatisk skalering er på (Servere → Flåteinnstillinger), lager plattformen en på en maskin med plass når det ikke finnes noen. Du kan også sette hvilken som helst server på forhåndsinnstillingen for skin-prøving selv.",
+      "tryoutHelpCost": "Den bruker en serverplass på lisensen, som alle andre servere, og litt minne og CPU på maskinen. Derfor er den av til du slår den på.",
+      "tryoutServerLicense": "Den bruker en serverplass på lisensen, som alle andre servere.",
       "tradeUp": "Bytte opp: skins av én grad for én av neste",
       "tradeUpCount": "Skins per bytte",
       "drops": {
@@ -1451,12 +1526,8 @@
           "online": "Alle pålogget",
           "player": "En spiller",
           "team": "Et lag",
-          "match": "En kamp"
-        },
-        "idLabel": {
-          "player": "Steam-ID",
-          "team": "Lag-id",
-          "match": "Kamp-id (slug)"
+          "match": "En kamp",
+          "tournament": "En turnering"
         },
         "start": "Gi en drop…",
         "cancel": "Avbryt",
@@ -1472,12 +1543,24 @@
         "give_one": "Gi 1 drop",
         "give_other": "Gi {{count}} drops",
         "given_one": "Ga 1 drop.",
-        "given_other": "Ga {{count}} drops."
+        "given_other": "Ga {{count}} drops.",
+        "pick": {
+          "player": "Spiller (søk på navn)",
+          "team": "Lag",
+          "match": "Kamp",
+          "tournament": "Turnering"
+        },
+        "typeName": "Skriv minst to bokstaver av navnet",
+        "noneFound": "Fant ingen",
+        "whoTournament_one": "Gi en drop til turneringens ene spiller?",
+        "whoTournament_other": "Gi en drop til turneringens {{count}} spillere?",
+        "rowAction": "Gi en drop"
       },
       "statTrakChance": "StatTrak™-sjanse (%)",
       "statTrakHelp": "Hvor ofte et våpen eller en kniv som droppes er StatTrak™ (CS2-kasser: 10).",
       "catalogUnlocked": "Åpne katalogen",
-      "catalogUnlockedHelp": "Spillere kan ta i bruk hvilken som helst skin fra katalogen, med float og seed de velger selv."
+      "catalogUnlockedHelp": "Spillere kan ta i bruk hvilken som helst skin fra katalogen, med float og seed de velger selv.",
+      "repeatOpponentCut": "Sjeldnere fra den tredje kampen mot samme motstandere samme døgn (slå av for en liten plattform eller et LAN)"
     },
     "tournamentRewardsSwitch": "Skin-premier for topp tre (når skins er slått på)",
     "whatThisMeans": "Hva dette betyr",
@@ -1524,7 +1607,7 @@
       "whenPlacement": "For topp tre i en turnering",
       "chanceTitle": "Sjanse for drop etter en kamp",
       "mode": "Modus",
-      "fair": "Ingenting dropper fra en kamp noen forlot eller som sluttet tidlig. Samme motstandere igjen samme døgn gir mye sjeldnere drop.",
+      "fair": "En spiller som forlater en kamp får ingenting; resten har fortsatt sjansen sin. Ingenting dropper fra en kamp som er over etter under 8 runder, og den tredje kampen mot samme motstandere samme døgn gir mye sjeldnere drop.",
       "rarityTitle": "Sjanse per sjeldenhet",
       "skins_one": "{{count}} skin",
       "skins_other": "{{count}} skins",
@@ -1533,7 +1616,8 @@
       "placementTitle": "Turneringsplasseringer",
       "pickOfRarity": "et valg blant {{rarity}}-skins",
       "rarityOdds": "Sjanse for sjeldenheten",
-      "skinOdds": "Denne skinen"
+      "skinOdds": "Denne skinen",
+      "fairNoRepeat": "En spiller som forlater en kamp får ingenting; resten har fortsatt sjansen sin. Ingenting dropper fra en kamp som er over etter under 8 runder."
     },
     "rewards": {
       "title": "Premier",
@@ -1553,7 +1637,7 @@
     },
     "tryout": {
       "title": "Prøv dem i spillet",
-      "hint": "En treningsserver med skinsene dine. Utrust her, så endres de i spillet etter noen sekunder.",
+      "hint": "En surf-server med skinsene dine, med tidtaker og rekorder. Utrust her, så endres de i spillet etter noen sekunder.",
       "join": "Bli med",
       "joinLabel": "Bli med på {{name}}",
       "console": "Eller lim dette inn i CS2-konsollen"
@@ -1575,7 +1659,10 @@
       "wear": "Slitasje",
       "cancel": "Avbryt",
       "equip": "Ta i bruk"
-    }
+    },
+    "takeOffSide": "Ta {{name}} av på {{side}}",
+    "takeOffOn": "Ta av på {{side}}",
+    "keepAll": "Behold alle {{count}}"
   },
   "matchRules": {
     "title": "Kampregler",
@@ -2281,5 +2368,60 @@
   },
   "serverAllocation": {
     "readyIn": "Tid til serveren er klar"
+  },
+  "seriesMaps": {
+    "title": "Kart",
+    "mapN": "Kart {{n}}",
+    "pickedBy": "valgt av {{team}}",
+    "decider": "avgjørende kart",
+    "live": "Direkte",
+    "upNext": "Neste",
+    "notPlayed": "Ikke spilt",
+    "won": "{{team}} vant",
+    "draw": "Uavgjort",
+    "regulation": "Uten overtid",
+    "overtime": "Etter overtid",
+    "onDamage": "Likt etter overtid, avgjort på skade"
+  },
+  "dropped": {
+    "title": "Du mistet tilkoblingen",
+    "body": "Det ser ut som du forlot kampserveren (krasj eller brudd i forbindelsen). Laget ditt venter: koble til igjen for å komme tilbake.",
+    "reconnect": "Koble til igjen",
+    "later": "Senere"
+  },
+  "rules": {
+    "mode": "{{size}}v{{size}} konkurranse.",
+    "modeWingman": "Wingman: 2v2 på ett bombested.",
+    "series_one": "Ett kart per kamp.",
+    "series_other": "Best av {{count}}: først til {{win}} kart vinner kampen.",
+    "rounds": "{{rounds}} runder: først til {{win}} vinner kartet. Lagene bytter side etter {{half}}.",
+    "overtime": "Ved {{half}}-{{half}}: ekstraomganger (6 runder, først til 4) til noen vinner.",
+    "overtimeLimited_one": "Ved {{half}}-{{half}}: én ekstraomgang (6 runder, først til 4); står det likt etter den, blir kartet uavgjort.",
+    "overtimeLimited_other": "Ved {{half}}-{{half}}: opptil {{count}} ekstraomganger (6 runder hver, først til 4); står det likt etter dem, blir kartet uavgjort.",
+    "noOvertime": "Ved {{half}}-{{half}} blir kartet uavgjort (ingen ekstraomganger).",
+    "veto": "Kart: lagene bannlyser (og velger) dem i kartvetoen før hver kamp.",
+    "mapsDrawn": "Kart: hver kamp trekker ett fra kartpoolen. Ingen veto.",
+    "shuffleMaps": "Kart: hver runde spiller neste kart på listen, med nye lag hver runde.",
+    "bots": "Ledige plasser fylles med boter."
+  },
+  "movement": {
+    "title": "Surf- og KZ-rekorder",
+    "map": "Kart",
+    "course": "Løype",
+    "mainCourse": "Kart",
+    "bonus": "Bonus {{n}}",
+    "explain": "Hver spillers beste tid på kartets løype eller en bonus, fra alle servere med Movement-oppsettet. I spillet: .rs starter på nytt, .b 1 går til bonus 1, .pb og .wr viser tider.",
+    "empty": "Ingen tider på denne løypa ennå.",
+    "time": "Tid",
+    "teleports": "TP",
+    "pro": "Pro",
+    "date": "Dato",
+    "runs_one": "{{count}} fullført runde",
+    "runs_other": "{{count}} fullførte runder",
+    "mode": {
+      "surf": "Surf",
+      "bhop": "Bhop",
+      "kz": "KZ"
+    }
   }
 }

@@ -168,10 +168,7 @@ export function parseServiceTokens(
  * length mismatch and the comparison leaks nothing about how much of a guess
  * was right.
  */
-export function findServiceToken(
-  presented: string,
-  tokens: ServiceToken[]
-): ServiceToken | null {
+export function findServiceToken(presented: string, tokens: ServiceToken[]): ServiceToken | null {
   if (!presented || presented.length === 0) return null;
 
   const presentedHash = sha256(presented);
@@ -226,6 +223,29 @@ export function extractPresentedToken(headers: {
  */
 let cache: { key: string; parsed: ParsedServiceTokens } | null = null;
 
+/** Tokens an admin made in Settings (services/apiTokenService), loaded from the database. */
+let stored: ServiceToken[] = [];
+
+/** Tokens the platform made for its own child processes (the built-in demo worker): memory only. */
+let internal: ServiceToken[] = [];
+
+/** Add a token for one of the platform's own processes; it lives until the API exits. */
+export function addInternalServiceToken(label: string, secret: string): void {
+  const hash = sha256(secret);
+  internal = [
+    ...internal.filter((t) => t.label !== label),
+    { label, scope: 'admin', hash, fingerprint: fingerprintOf(hash) },
+  ];
+  cache = null;
+}
+
+/** Replace the Settings-made tokens (services/apiTokenService calls this after every change). */
+export function setStoredServiceTokens(tokens: ServiceToken[]): void {
+  stored = tokens;
+  cache = null;
+}
+
+/** The env tokens and the Settings-made ones together; an env token wins a duplicate. */
 export function getServiceTokens(): ParsedServiceTokens {
   const adminRaw = process.env.API_TOKENS;
   const readonlyRaw = process.env.API_TOKENS_READONLY;
@@ -235,8 +255,23 @@ export function getServiceTokens(): ParsedServiceTokens {
   if (cache && cache.key === key) return cache.parsed;
 
   const parsed = parseServiceTokens(adminRaw, readonlyRaw, integratorRaw);
+  const seen = new Set(parsed.tokens.map((t) => t.hash.toString('hex')));
+  for (const token of [...stored, ...internal]) {
+    if (!seen.has(token.hash.toString('hex'))) parsed.tokens.push(token);
+  }
   cache = { key, parsed };
   return parsed;
+}
+
+/** Whether a token was made in Settings (so its last use is worth noting). */
+export function isStoredServiceToken(fingerprint: string): boolean {
+  return stored.some((t) => t.fingerprint === fingerprint);
+}
+
+/** SHA-256 and fingerprint of a new secret, for storing it (the secret is never kept). */
+export function hashServiceToken(secret: string): { hash: Buffer; fingerprint: string } {
+  const hash = sha256(secret);
+  return { hash, fingerprint: fingerprintOf(hash) };
 }
 
 /** True when at least one usable token is configured. */

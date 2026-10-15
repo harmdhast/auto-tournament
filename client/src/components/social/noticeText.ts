@@ -69,6 +69,8 @@ export function describeNotice(notice: Notice, t: TFunction, viewerId: string | 
       out.text = t('social.notice.skin');
       out.tail = str(d.name);
       out.detail = [str(d.rarity), str(d.source)].filter(Boolean).join(' · ');
+      // The skin's picture (older notices kept only a file name: no picture).
+      out.thumb = /^https?:\/\//.test(str(d.image)) ? str(d.image) : null;
       // The game's own link (the inventory on that skin); older notices have none.
       out.to =
         (str(d.url).startsWith('/') ? str(d.url) : '') ||
@@ -96,15 +98,31 @@ export function describeNotice(notice: Notice, t: TFunction, viewerId: string | 
       break;
     case 'tournament':
       out.lead = str(d.name);
+      // Your own match: it is ready, or it is your team's turn in its veto.
+      if ((d.event === 'match_ready' || d.event === 'veto_turn') && str(d.matchSlug)) {
+        out.text =
+          d.event === 'match_ready' ? t('social.notice.matchReady') : t('social.notice.vetoTurn');
+        out.to = `/match/${encodeURIComponent(str(d.matchSlug))}`;
+        break;
+      }
       out.text =
         d.event === 'started'
           ? t('social.notice.tournamentStarted')
-          : d.event === 'lineupGap'
-            ? t('social.notice.lineupGap', { minutes: Number(d.minutes) || 15 })
-            : t('social.notice.checkInOpen');
+          : d.event === 'starts_soon'
+            ? t(
+                (Number(d.minutes) || 5) >= 15
+                  ? 'social.notice.startsSoonUpdate'
+                  : 'social.notice.startsSoon',
+                { minutes: Number(d.minutes) || 5 }
+              )
+            : d.event === 'lineupGap'
+              ? t('social.notice.lineupGap', { minutes: Number(d.minutes) || 15 })
+              : t('social.notice.checkInOpen');
       // A lineup gap: the captain picks a sub on the sign-up page.
       out.to = d.tournamentId
-        ? `/tournament/${Number(d.tournamentId)}${d.event === 'started' ? '/match' : '/signup'}`
+        ? `/tournament/${Number(d.tournamentId)}${
+            d.event === 'started' ? '/match' : d.event === 'starts_soon' ? '' : '/signup'
+          }`
         : null;
       break;
     case 'report':

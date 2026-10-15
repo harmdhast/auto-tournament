@@ -24,6 +24,7 @@ import { formatBadge } from '../utils/tournamentSummary';
 import { paths, tournamentTabPath } from '../paths';
 import { tokens, radii, fontDisplay, fontMono } from '../theme/tokens';
 import { mapImageUrl } from '../constants/cs2Assets';
+import { StartCountdown } from '../components/tournament/StartCountdown';
 
 const { color } = tokens;
 
@@ -585,6 +586,9 @@ export default function Home() {
                           .filter(Boolean)
                           .join(' · ')}
                       </Typography>
+                      {tour.startsAt ? (
+                        <StartCountdown at={tour.startsAt} color={color.accent} />
+                      ) : null}
                       {tour.maxEntries ? (
                         <Progress value={tour.entries ?? 0} max={tour.maxEntries} />
                       ) : null}
@@ -869,6 +873,9 @@ function HeroCard({ tour, when }: { tour: TournamentSummary; when: When }) {
               ]
                 .filter(Boolean)
                 .join(' · ')}
+          {!tour.isLive && tour.startsAt ? (
+            <StartCountdown at={tour.startsAt} color={color.accent} />
+          ) : null}
           {!tour.isLive && (
             <Box
               component="span"
@@ -946,6 +953,9 @@ function SideCard({ tour, when }: { tour: TournamentSummary; when: When }) {
                 .filter(Boolean)
                 .join(' · ')}
         </Typography>
+        {!tour.isLive && tour.startsAt ? (
+          <StartCountdown at={tour.startsAt} color={color.accent} />
+        ) : null}
       </Box>
     </Box>
   );

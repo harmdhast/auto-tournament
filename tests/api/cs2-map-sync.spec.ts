@@ -176,7 +176,7 @@ test.describe('CS2 map catalogue (maps.json)', () => {
       for (const id of bundled.activeDuty) expect(ids).toContain(id);
       expect(ids.every(isPlayableMapId)).toBe(true);
       for (const map of bundled.maps)
-        expect(map.imageUrl).toMatch(/^https:\/\/cdn\.jsdelivr\.net\/gh\/.+\.webp$/);
+        expect(map.imageUrl).toMatch(/^\/api\/game\/cs2\/img\/maps-1280\/.+\.webp$/);
     }
   );
 

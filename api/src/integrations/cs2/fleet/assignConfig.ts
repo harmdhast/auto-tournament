@@ -317,9 +317,16 @@ export function buildAssignConfig(
   const admins = (config.admins ?? []).filter((id) => typeof id === 'string' && U64.test(id));
   if (admins.length) out.admins = [...new Set(admins)].slice(0, 64);
   const cvars = engineCvars(config.cvars) ?? {};
-  // Pause when a player drops (5v5, no bot fill: bots never leave a seat empty):
-  // the engine pauses at the next freeze time, Ready Up goes on once the side is full.
-  if (pausesOnDisconnect(config) && cvars.sv_matchpause_auto_5v5 === undefined) {
+  // Pause when a player drops (5v5): the engine pauses at the next freeze time,
+  // Ready Up goes on once the side is full. With bot fill too: Ready Up keeps a
+  // live player's seat empty while they are gone (no bot takes it). CS2 counts
+  // only people, so a bot-filled side with fewer than five on its roster would
+  // be paused at every freeze time: no auto pause then.
+  if (
+    pausesOnDisconnect(config) &&
+    (config.bot_fill !== true || rostersFull(out)) &&
+    cvars.sv_matchpause_auto_5v5 === undefined
+  ) {
     cvars.sv_matchpause_auto_5v5 = 1;
   }
   if (Object.keys(cvars).length) out.cvars = cvars;
@@ -328,12 +335,22 @@ export function buildAssignConfig(
 
 /** Whether a match pauses when a side is short (pure: tested on its own). */
 export function pausesOnDisconnect(
-  config: Pick<MatchConfig, 'cvars' | 'bot_fill' | 'wingman' | 'players_per_team'>
+  config: Pick<MatchConfig, 'cvars' | 'bot_fill' | 'wingman' | 'players_per_team' | 'simulation'>
 ): boolean {
   if (flag(config.cvars?.at_pause_on_disconnect) === false) return false;
-  if (config.bot_fill === true || config.wingman === true) return false;
+  // A simulated match is bots only: the rostered players never connect, and
+  // CS2's auto pause would hold round 1's freeze time forever.
+  if (config.simulation === true) return false;
+  if (config.wingman === true) return false;
   const size = num(config.players_per_team);
   return size === undefined || size === 5;
+}
+
+/** Both sides have five players on the roster (subs and coaches not counted). */
+export function rostersFull(config: Pick<AssignConfig, 'team1' | 'team2'>): boolean {
+  return (['team1', 'team2'] as const).every(
+    (t) => config[t].players.filter((p) => roleOf(p) === 'player').length >= 5
+  );
 }
 
 function rosterOf(

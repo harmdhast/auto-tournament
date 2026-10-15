@@ -1,7 +1,13 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
+import { currentTournamentId, currentTournamentMatches } from '../helpers/slugs';
 import { setupTournament } from '../helpers/tournamentSetup';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { computeRoundRobinStandings } from '../../api/src/utils/roundRobinStandings';
+import {
+  sendReadyUpEvents,
+  seriesEnd as readyUpSeriesEnd,
+  mapResult as readyUpMapResult,
+} from '../helpers/readyUp';
 
 /**
  * Round robin ends with a champion and a strict order (#225).
@@ -17,7 +23,13 @@ import { computeRoundRobinStandings } from '../../api/src/utils/roundRobinStandi
  * @tag regression
  */
 
-const done = (team1Id: string, team2Id: string, winnerId: string | null, t1: number, t2: number) => ({
+const done = (
+  team1Id: string,
+  team2Id: string,
+  winnerId: string | null,
+  t1: number,
+  t2: number
+) => ({
   team1Id,
   team2Id,
   winnerId,
@@ -76,14 +88,22 @@ test.describe('Round robin standings', () => {
 
   test('level on wins, head-to-head and round difference: rounds won, then seed', () => {
     // A cycle where every game is 13-11: same round difference for all three.
-    const cycle = [done('a', 'b', 'a', 13, 11), done('b', 'c', 'b', 13, 11), done('c', 'a', 'c', 13, 11)];
+    const cycle = [
+      done('a', 'b', 'a', 13, 11),
+      done('b', 'c', 'b', 13, 11),
+      done('c', 'a', 'c', 13, 11),
+    ];
     expect(computeRoundRobinStandings(['c', 'b', 'a'], cycle).map((s) => s.teamId)).toEqual([
       'c',
       'b',
       'a',
     ]);
     // Same, but c's win was 16-14 in overtime: more rounds won, same difference.
-    const overtime = [done('a', 'b', 'a', 13, 11), done('b', 'c', 'b', 13, 11), done('c', 'a', 'c', 16, 14)];
+    const overtime = [
+      done('a', 'b', 'a', 13, 11),
+      done('b', 'c', 'b', 13, 11),
+      done('c', 'a', 'c', 16, 14),
+    ];
     // a and c won 27 rounds, b 24: b is last despite the top seed; c and a
     // are still level and split on seed.
     const standings = computeRoundRobinStandings(['b', 'c', 'a'], overtime);
@@ -98,7 +118,16 @@ test.describe('Round robin standings', () => {
   test('unfinished matches count for nothing', () => {
     const standings = computeRoundRobinStandings(
       ['a', 'b'],
-      [{ team1Id: 'a', team2Id: 'b', winnerId: null, status: 'live', team1Rounds: 9, team2Rounds: 2 }]
+      [
+        {
+          team1Id: 'a',
+          team2Id: 'b',
+          winnerId: null,
+          status: 'live',
+          team1Rounds: 9,
+          team2Rounds: 2,
+        },
+      ]
     );
     expect(standings.map((s) => [s.teamId, s.wins, s.roundDiff])).toEqual([
       ['a', 0, 0],
@@ -106,11 +135,6 @@ test.describe('Round robin standings', () => {
     ]);
   });
 });
-
-const SERVER_HEADERS = {
-  'Content-Type': 'application/json',
-  'X-Auto-Tournament-Token': process.env.SERVER_TOKEN ?? 'server123',
-};
 
 type ListedMatch = {
   slug: string;
@@ -127,33 +151,20 @@ async function playBo1(
   t1: number,
   t2: number
 ) {
-  const mapRes = await request.post(`/api/events/${match.slug}`, {
-    headers: SERVER_HEADERS,
-    data: {
-      event: 'map_result',
-      matchid: match.slug,
-      map_number: 0,
-      map_name: 'de_mirage',
-      team1_score: t1,
-      team2_score: t2,
-      winner: { side: winner === 'team1' ? '3' : '2', team: winner },
-      team1: { score: t1, series_score: winner === 'team1' ? 1 : 0 },
-      team2: { score: t2, series_score: winner === 'team2' ? 1 : 0 },
-    },
-  });
-  expect(mapRes.ok(), `map_result ${match.slug}: ${await mapRes.text()}`).toBe(true);
-  const endRes = await request.post(`/api/events/${match.slug}`, {
-    headers: SERVER_HEADERS,
-    data: {
-      event: 'series_end',
-      matchid: match.slug,
-      team1_series_score: winner === 'team1' ? 1 : 0,
-      team2_series_score: winner === 'team2' ? 1 : 0,
-      winner: { side: winner === 'team1' ? '3' : '2', team: winner },
-      time_until_restore: 0,
-    },
-  });
-  expect(endRes.status(), `series_end ${match.slug}: ${await endRes.text()}`).toBe(200);
+  await sendReadyUpEvents(request, match.slug, [
+    readyUpMapResult({
+      team1: t1,
+      team2: t2,
+      series: [winner === 'team1' ? 1 : 0, winner === 'team2' ? 1 : 0],
+      winner,
+      seriesOver: true,
+    }),
+    readyUpSeriesEnd({
+      winner,
+      team1: winner === 'team1' ? 1 : 0,
+      team2: winner === 'team2' ? 1 : 0,
+    }),
+  ]);
 }
 
 test.describe.serial('Round robin completion', () => {
@@ -185,9 +196,12 @@ test.describe.serial('Round robin completion', () => {
       ];
 
       const res = await request.get('/api/matches', { headers: getAuthHeader() });
-      const matches = ((await res.json()) as { matches: ListedMatch[] }).matches.filter((m) =>
-        /^r\d+m\d+$/.test(m.slug)
-      );
+      const matches = (
+        await currentTournamentMatches(
+          request,
+          ((await res.json()) as { matches: ListedMatch[] }).matches
+        )
+      ).filter((m) => /^(t\d+-)?r\d+m\d+$/.test(m.slug));
       expect(matches).toHaveLength(6);
       for (const match of matches) {
         const ids = [match.team1!.id, match.team2!.id];
@@ -223,19 +237,31 @@ test.describe.serial('Round robin completion', () => {
       const expected = [delta, alpha, charlie, bravo];
       const bracketRes = await request.get('/api/tournament/bracket', { headers: getAuthHeader() });
       const bracket = (await bracketRes.json()) as {
-        roundRobinStandings?: Array<{ rank: number; teamId: string; wins: number; roundDiff: number }>;
+        roundRobinStandings?: Array<{
+          rank: number;
+          teamId: string;
+          wins: number;
+          roundDiff: number;
+        }>;
       };
       expect(bracket.roundRobinStandings, 'bracket carries roundRobinStandings').toBeTruthy();
-      expect(bracket.roundRobinStandings!.map((s) => [s.rank, s.teamId, s.wins, s.roundDiff])).toEqual([
+      expect(
+        bracket.roundRobinStandings!.map((s) => [s.rank, s.teamId, s.wins, s.roundDiff])
+      ).toEqual([
         [1, delta, 2, 14],
         [2, alpha, 2, 7],
         [3, charlie, 2, 0],
         [4, bravo, 0, -21],
       ]);
 
-      const lbRes = await request.get('/api/tournament/1/leaderboard');
+      const lbRes = await request.get(
+        `/api/tournament/${await currentTournamentId(request)}/leaderboard`
+      );
       const lb = (await lbRes.json()) as { teams?: Array<{ teamId: string; rank?: number }> };
-      expect(lb.teams?.map((t) => t.teamId), 'leaderboard uses the same order').toEqual(expected);
+      expect(
+        lb.teams?.map((t) => t.teamId),
+        'leaderboard uses the same order'
+      ).toEqual(expected);
       expect(lb.teams?.map((t) => t.rank)).toEqual([1, 2, 3, 4]);
     }
   );
@@ -264,9 +290,12 @@ test.describe.serial('Round robin completion', () => {
 
       const listed = async () => {
         const res = await request.get('/api/matches', { headers: getAuthHeader() });
-        return ((await res.json()) as { matches: ListedMatch[] }).matches.filter((m) =>
-          /^r\d+m\d+$/.test(m.slug)
-        );
+        return (
+          await currentTournamentMatches(
+            request,
+            ((await res.json()) as { matches: ListedMatch[] }).matches
+          )
+        ).filter((m) => /^(t\d+-)?r\d+m\d+$/.test(m.slug));
       };
 
       // Started, and every match — round 1 included — waits for its veto.
@@ -280,10 +309,14 @@ test.describe.serial('Round robin completion', () => {
       }
 
       await expect
-        .poll(async () => (await listed()).filter((m) => m.round === 1 && m.status === 'completed').length, {
-          message: 'round 1 should complete',
-          timeout: 20_000,
-        })
+        .poll(
+          async () =>
+            (await listed()).filter((m) => m.round === 1 && m.status === 'completed').length,
+          {
+            message: 'round 1 should complete',
+            timeout: 20_000,
+          }
+        )
         .toBe(2);
 
       // Round 2 is still the veto's to open, exactly as before.

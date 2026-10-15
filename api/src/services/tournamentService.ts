@@ -13,6 +13,7 @@ import {
 } from '../utils/matchIntegration';
 import { applyScoreFields, enrichMatch } from '../utils/matchEnrichment';
 import { getMapResults } from './matchMapResultService';
+import { forgetMatches } from './forgetMatches';
 import { matchLiveStatsService } from './matchLiveStatsService';
 import { getSwissStandings, getSwissStandingEntries } from './swissProgressionService';
 import { getRoundRobinStandings, getRoundRobinStandingEntries } from './roundRobinStandingsService';
@@ -31,7 +32,11 @@ import type {
   BracketMatch,
   BracketResponse,
 } from '../types/tournament.types';
-import { refreshCurrentTournamentId } from './currentTournament';
+import {
+  nextTournamentId,
+  noteTournamentId,
+  refreshCurrentTournamentId,
+} from './currentTournament';
 import { playerEmailService } from './playerEmailService';
 import {
   bareSlug,
@@ -230,7 +235,11 @@ class TournamentService {
     options: { game?: GameId; draft?: boolean } = {}
   ): Promise<TournamentResponse> {
     const { name, type, format, teamIds, settings } = input;
-    const teamSize = validTeamSize(input.teamSize);
+    // The team size can come in the settings too (the MCP tool, older clients): the row's
+    // column is what matches and rosters use, so it takes either (it stayed 5 for a 2v2).
+    const teamSize = validTeamSize(
+      input.teamSize ?? (settings as { teamSize?: unknown } | undefined)?.teamSize
+    );
     // A draft with no teams yet: no count check and no bracket until it has some.
     const emptyDraft = options.draft === true && (teamIds?.length ?? 0) === 0;
 
@@ -256,8 +265,30 @@ class TournamentService {
 
     const now = Math.floor(Date.now() / 1000);
 
-    // Delete existing tournament (if any) - we only support one tournament at a time
-    await db.runAsync('DELETE FROM tournament WHERE id = ?', [tournamentId]);
+    // A tournament id whose matches were played is never given again: the new
+    // tournament's slugs (t<id>-r1m1) must not meet the old ones' demos,
+    // clips and analyses. A finished one at this id stays, with its matches;
+    // a running one is replaced and its matches forgotten. A draft nobody
+    // played (its matches never loaded) is replaced in place.
+    const existing = await db.queryOneAsync<{ status: string }>(
+      'SELECT status FROM tournament WHERE id = ?',
+      [tournamentId]
+    );
+    if (existing) {
+      const played = await tournamentWasPlayed(tournamentId);
+      if (existing.status === 'completed') {
+        await noteTournamentId(tournamentId);
+      } else {
+        const gone = await db.queryAsync<{ slug: string }>(
+          'SELECT slug FROM matches WHERE tournament_id = ?',
+          [tournamentId]
+        );
+        if (played) await noteTournamentId(tournamentId);
+        await db.runAsync('DELETE FROM tournament WHERE id = ?', [tournamentId]);
+        await forgetMatches(gone.map((r) => r.slug));
+      }
+      if (existing.status === 'completed' || played) tournamentId = await nextTournamentId();
+    }
 
     // Insert new tournament
     await db.insertAsync('tournament', {
@@ -351,7 +382,9 @@ class TournamentService {
     if (type) updates.type = type;
     if (format) updates.format = format;
     if (teamIds) updates.team_ids = JSON.stringify(teamIds);
-    const teamSize = validTeamSize(input.teamSize);
+    const teamSize = validTeamSize(
+      input.teamSize ?? (input.settings as { teamSize?: unknown } | undefined)?.teamSize
+    );
     if (teamSize !== null && (type ?? existing.type) !== 'shuffle') updates.team_size = teamSize;
     // settings.matchFormat mirrors `format`, so settings are rewritten when
     // either changes (or an edited format leaves the old value behind in
@@ -450,6 +483,7 @@ class TournamentService {
     // standalone match) and keep its name in played_in. Their slugs carry the
     // tournament's id, so that id is never given out again
     // (currentTournament.nextTournamentId).
+    const keptSlugs = new Set<string>();
     if (options.keepPlayed) {
       const kept = await db.queryAsync<{ slug: string }>(
         `UPDATE matches SET tournament_id = NULL,
@@ -458,18 +492,22 @@ class TournamentService {
           WHERE tournament_id = ? AND status = 'completed' RETURNING slug`,
         [tournamentId, tournamentId, tournamentId]
       );
+      for (const { slug } of kept) keptSlugs.add(slug);
       if (kept.length > 0) {
         log.info(`Kept ${kept.length} played match(es) of deleted tournament ${tournamentId}`);
       }
     }
 
+    // A played tournament's id is not given out again (its slugs had data).
+    if (await tournamentWasPlayed(tournamentId)) await noteTournamentId(tournamentId);
+
     // Delete tournament (CASCADE will also delete matches and events)
     await db.runAsync('DELETE FROM tournament WHERE id = ?', [tournamentId]);
     log.debug('Tournament deleted from database');
 
-    // Live stats are keyed by slug, and a replacing bracket reuses slugs (r1m1...):
-    // without this a new r1m1 started with the old one's series score.
-    for (const { slug } of slugs) matchLiveStatsService.clear(slug);
+    // The next tournament gets this id and so these slugs: the gone matches
+    // leave nothing under them. Kept ones keep theirs (and their id stays taken).
+    await forgetMatches(slugs.map((r) => r.slug).filter((slug) => !keptSlugs.has(slug)));
     await refreshCurrentTournamentId();
   }
 
@@ -685,13 +723,13 @@ class TournamentService {
     // history before the matches go. (deleteTournament keeps both.)
     await discardTournamentRatings(tournamentId);
 
-    // This tournament's live stats go, so its new bracket does not inherit
-    // stale scores; other tournaments' stay.
+    // The new bracket reuses these slugs: the old matches leave nothing under
+    // them (live stats, clips, demos); other tournaments' stay.
     const resetSlugs = await db.queryAsync<{ slug: string }>(
       'SELECT slug FROM matches WHERE tournament_id = ?',
       [tournamentId]
     );
-    for (const { slug } of resetSlugs) matchLiveStatsService.clear(slug);
+    await forgetMatches(resetSlugs.map((r) => r.slug));
 
     // Delete all matches (this also clears all veto states stored in matches)
     await db.runAsync('DELETE FROM matches WHERE tournament_id = ?', [tournamentId]);
@@ -1055,6 +1093,21 @@ class TournamentService {
       eloTemplateId: row.elo_template_id ?? null,
     };
   }
+}
+
+/**
+ * Whether any match of the tournament was played: put on a server, live or
+ * over (kept matches count too: they still carry its slugs).
+ */
+async function tournamentWasPlayed(tournamentId: number): Promise<boolean> {
+  const row = await db.queryOneAsync<{ one: number }>(
+    `SELECT 1 AS one FROM matches
+      WHERE (tournament_id = ? OR played_in_id = ?)
+        AND (status NOT IN ('pending', 'ready') OR loaded_at IS NOT NULL)
+      LIMIT 1`,
+    [tournamentId, tournamentId]
+  );
+  return !!row;
 }
 
 export const tournamentService = new TournamentService();

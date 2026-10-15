@@ -22,7 +22,9 @@
     "setup": {
       "title": "Fullfør oppsettet",
       "openSettings": "Åpne innstillinger",
-      "signIn": "Innloggingsleverandør"
+      "signIn": "Innloggingsleverandør",
+      "game": "Installer et spill (CS2) under Moduler",
+      "discordBot": "Legg inn din egen Discord-bot (tokenet), så kan nettstedet sende spillerne meldinger om kampene deres"
     },
     "tournaments": {
       "title": "Turnering",
@@ -425,6 +427,10 @@
         "name": "Integrasjoner",
         "hint": "Webhooks"
       },
+      "apitokens": {
+        "name": "API-nøkler",
+        "hint": "For skript og MCP"
+      },
       "advanced": {
         "name": "Avansert",
         "hint": "Eksperimentelt, utvikler"
@@ -644,7 +650,14 @@
       "change": "Endre",
       "changeTitle": "Endre hvordan denne instansen brukes",
       "changeNote": "Velg på nytt og skriv I AGREE. Endringen lagres med dato og kontoen din.",
-      "commercialNoKey": "Denne instansen brukes kommersielt, så du trenger en lisens. Kopier nøkkelen fra <consoleLink>lisensene dine i Auto Tournament-konsollen</consoleLink> og lim den inn nedenfor. Ingenting låses mens den mangler."
+      "commercialNoKey": "Denne instansen brukes kommersielt, så du trenger en lisens. Kopier nøkkelen fra <consoleLink>lisensene dine i Auto Tournament-konsollen</consoleLink> og lim den inn nedenfor. Ingenting låses mens den mangler.",
+      "readHeading": "Les dette før du godtar, og kryss av for hvert punkt:",
+      "readItem": "Jeg har lest",
+      "readLinks": {
+        "license": "hele lisensen",
+        "rules": "reglene for kommersiell bruk",
+        "pricing": "prisene"
+      }
     },
     "checkin": {
       "last": "Siste lisensinnsjekk: {{time}}",
@@ -815,5 +828,49 @@
     "groupHelp": "Velg gruppen som skal rendre kampen. Deaktiverte grupper venter til de aktiveres.",
     "groupDisabled": "Deaktivert",
     "notCs2Demo": "{{name}} er ikke en CS2-demo (CS:GO-demoer kan ikke importeres)."
+  },
+  "apiTokens": {
+    "title": "API-nøkler",
+    "hint": "For skript, botter og Auto Tournaments MCP-server. En lesenøkkel kan bare lese; en adminnøkkel kan det en admin kan. Hemmeligheten vises bare én gang, når nøkkelen lages.",
+    "line": "{{scope}} · {{fingerprint}} · sist brukt {{used}}",
+    "never": "aldri",
+    "none": "Ingen API-nøkler ennå.",
+    "name": "Navn",
+    "nameHelp": "1–32 bokstaver, tall, - eller _",
+    "scopeLabel": "Tilgang",
+    "scope": {
+      "readonly": "Bare lese",
+      "admin": "Admin"
+    },
+    "make": "Lag nøkkel",
+    "madeTitle": "Nøkkel «{{label}}»",
+    "madeHelp": "Kopier den nå: den vises bare denne ene gangen. Lim den inn der skriptet eller MCP-serveren leser den (AT_TOKEN).",
+    "copy": "Kopier nøkkel",
+    "copied": "Kopiert",
+    "done": "Ferdig",
+    "revoke": "Trekk tilbake {{label}}",
+    "revokeTitle": "Trekke tilbake «{{label}}»?",
+    "revokeHelp": "Alt som bruker den slutter å virke med en gang.",
+    "revokeConfirm": "Trekk tilbake",
+    "revoked": "Trakk tilbake {{label}}",
+    "cancel": "Avbryt",
+    "loadFailed": "Kunne ikke laste API-nøklene",
+    "makeFailed": "Kunne ikke lage nøkkelen",
+    "revokeFailed": "Kunne ikke trekke tilbake nøkkelen"
+  },
+  "discordBot": {
+    "title": "Discord-bot",
+    "hint": "Din egen Discord-bot: nettstedet sender spillerne meldinger gjennom den (Konto → Varsler). En spiller får dem når hen er på en Discord-server sammen med boten din.",
+    "token": "Bot-token",
+    "replace": "Ny bot-token",
+    "save": "Lagre",
+    "remove": "Fjern",
+    "connected": "Koblet til som {{name}}",
+    "setNoAnswer": "Et token er satt, men Discord svarte ikke nå.",
+    "saved": "Discord-bot lagret: {{name}}",
+    "cleared": "Discord-bot fjernet",
+    "saveFailed": "Kunne ikke lagre bot-token.",
+    "howTo": "Lag en applikasjon, legg til en bot, kopier tokenet og inviter den til Discord-serveren din:",
+    "portal": "Discord Developer Portal"
   }
 }

@@ -17,6 +17,7 @@ import { db } from '../../../../config/database';
 import { log } from '../../../../utils/logger';
 import { skinService } from '../../skins/skinService';
 import { sendReliable } from '../reliable';
+import { getLiveState } from '../state';
 import type { SkinsLoadoutPayload } from '../protocol/v1';
 
 /** Whether this fleet server takes skins, and why not when it does not. */
@@ -72,6 +73,50 @@ export async function pushSkinsOnConnect(
       error: (error as Error).message,
     });
   }
+}
+
+/**
+ * A match was (re)assigned to a server: the players already on it get their loadout now. They
+ * joined before the match, so no player_connect event will bring it (a reload after a restart
+ * left a roster player with a vanilla knife, 2026-10-15).
+ */
+export async function pushSkinsForPresent(fleetServerId: string, matchSlug: string): Promise<void> {
+  for (const id of presentOn.get(fleetServerId) ?? []) {
+    await pushSkinsOnConnect(fleetServerId, matchSlug, id);
+  }
+}
+
+/**
+ * Who each server says is on it (ping.health.steamids). A server with no
+ * match (skin tryout, practice) sends no player_connect event, so this is how
+ * its players get their skins: a newcomer gets their loadout, and a change on
+ * the site reaches them at once (pushLoadoutLive).
+ */
+const presentOn = new Map<string, Set<string>>();
+
+/** A ping named the players on a server (null: its link closed). */
+export async function playersSeen(fleetServerId: string, steamids: string[] | null): Promise<void> {
+  if (steamids === null) {
+    presentOn.delete(fleetServerId);
+    return;
+  }
+  const before = presentOn.get(fleetServerId) ?? new Set<string>();
+  const now = new Set(steamids.filter((id) => /^\d{17}$/.test(id)));
+  presentOn.set(fleetServerId, now);
+  const arrived = [...now].filter((id) => !before.has(id));
+  if (arrived.length === 0) return;
+  // A match's players get theirs from its player_connect events.
+  if (await hasMatch(fleetServerId)) return;
+  for (const id of arrived) await pushSkinsOnConnect(fleetServerId, '', id);
+}
+
+async function hasMatch(fleetServerId: string): Promise<boolean> {
+  const row = await db.queryOneAsync<{ slug: string }>(
+    `SELECT m.slug FROM matches m JOIN cs2_servers s ON s.id = m.server_id
+      WHERE s.fleet_server_id = ? AND m.status IN ('loaded', 'live') LIMIT 1`,
+    [fleetServerId]
+  );
+  return !!row;
 }
 
 /**
@@ -207,6 +252,20 @@ const pendingByServer = new Map<string, Map<string, string>>();
 const OUTSIDE_LIVE_DELAY_MS = 500;
 const outsideLiveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+/**
+ * Whether a loadout change waits for the round to end: only while a round is
+ * being played (the match live and its map's phase `live`; an unknown phase
+ * counts as live). Warmup, knife, between maps or before the match: at once.
+ */
+export function waitsForRoundEnd(
+  matchStatus: string,
+  mapPhase: string | null | undefined
+): boolean {
+  return (
+    matchStatus === 'live' && (mapPhase === 'live' || mapPhase === null || mapPhase === undefined)
+  );
+}
+
 /** The round ended on a fleet server: its waiting loadout changes go out. */
 export async function flushRoundLoadouts(fleetServerId: string): Promise<void> {
   const pending = pendingByServer.get(fleetServerId);
@@ -221,8 +280,9 @@ export async function flushRoundLoadouts(fleetServerId: string): Promise<void> {
 
 /**
  * A player changed their loadout on the site: if they are in a match right
- * now, their server gets it at the end of the round (a few seconds later
- * outside a live map), the latest change only.
+ * now, their server gets it at the end of the round being played, or half a
+ * second later in warmup, knife and between maps (the map's phase, not the
+ * match's status), the latest change only.
  */
 export async function pushLoadoutLive(steamid64: string): Promise<void> {
   try {
@@ -241,7 +301,14 @@ export async function pushLoadoutLive(steamid64: string): Promise<void> {
       const pending = pendingByServer.get(row.fleet_server_id) ?? new Map<string, string>();
       pending.set(steamid64, row.slug);
       pendingByServer.set(row.fleet_server_id, pending);
-      if (row.status !== 'live' && !outsideLiveTimers.has(row.fleet_server_id)) {
+      // Only a round being played waits for its end. A match is `live` from its
+      // first map to its last, so warmup, knife and between maps go by the
+      // map's own phase: there no round ends to carry the change.
+      const phase =
+        row.status === 'live'
+          ? (await getLiveState(row.slug).catch(() => null))?.state?.phase
+          : null;
+      if (!waitsForRoundEnd(row.status, phase) && !outsideLiveTimers.has(row.fleet_server_id)) {
         outsideLiveTimers.set(
           row.fleet_server_id,
           setTimeout(() => {
@@ -250,6 +317,11 @@ export async function pushLoadoutLive(steamid64: string): Promise<void> {
           }, OUTSIDE_LIVE_DELAY_MS)
         );
       }
+    }
+    // Servers with no match where a ping saw them: no round to wait for.
+    for (const [serverId, ids] of presentOn) {
+      if (ids.has(steamid64) && !(await hasMatch(serverId)))
+        await pushSkinsOnConnect(serverId, '', steamid64);
     }
   } catch (error) {
     log.warn('[FLEET] skins: live loadout not sent', {

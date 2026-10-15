@@ -1053,6 +1053,52 @@ export function getSchemaSQL(): string {
     -- (a stuck match, a crashed server, a failing recorder). One feed for
     -- every admin; a repeat of an open notice (same dedupe_key) counts up
     -- instead of adding a row. resolved_at: it fixed itself or was dismissed.
+    -- API tokens an admin made in Settings (services/apiTokenService): only the
+    -- SHA-256 of the secret is kept. scope: 'admin' | 'readonly'.
+    -- Notifications outside the site (services/notifyChannels.ts): a player's
+    -- switch per event and channel (a missing row is the event's default),
+    -- and what was sent, once per player, event key and channel.
+    CREATE TABLE IF NOT EXISTS player_notify_channels (
+      player_id TEXT NOT NULL,
+      event TEXT NOT NULL, -- match_ready | veto_turn | checkin_open | new_tournament
+      channel TEXT NOT NULL, -- discord | email | push
+      enabled INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (player_id, event, channel)
+    );
+
+    CREATE TABLE IF NOT EXISTS notify_deliveries (
+      player_id TEXT NOT NULL,
+      dedupe_key TEXT NOT NULL,
+      channel TEXT NOT NULL,
+      sent_at INTEGER NOT NULL,
+      PRIMARY KEY (player_id, dedupe_key, channel)
+    );
+
+    -- Browser and phone notifications (Web Push): one row per browser a player turned them on in.
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      endpoint TEXT PRIMARY KEY,
+      player_id TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      user_agent TEXT,
+      created_at INTEGER NOT NULL,
+      last_sent_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_player ON push_subscriptions(player_id);
+
+    CREATE TABLE IF NOT EXISTS api_tokens (
+      id SERIAL PRIMARY KEY,
+      label TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      fingerprint TEXT NOT NULL,
+      created_by TEXT,
+      created_at INTEGER NOT NULL,
+      last_used_at INTEGER,
+      revoked_at INTEGER
+    );
+
     CREATE TABLE IF NOT EXISTS admin_notices (
       id SERIAL PRIMARY KEY,
       kind TEXT NOT NULL,

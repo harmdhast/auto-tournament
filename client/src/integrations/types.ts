@@ -19,7 +19,7 @@
  */
 
 import type { PlayerHighlightsFeed } from '../components/highlights/feed';
-import type { ComponentType, ReactElement } from 'react';
+import type { ComponentType, ReactElement, ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 
 /** Integration id, the same value as the API's `game` column. */
@@ -113,6 +113,25 @@ export interface PublicMatch {
   }>;
   completedAt?: number | null;
   tournament?: string | null;
+  /** The tournament's id, for a link to its page (null for a match outside one). */
+  tournamentId?: number | null;
+  /** The series' maps in play order, once known (after the veto). */
+  maps?: string[];
+  /** The map being played (0-based), while the match runs. */
+  mapNumber?: number | null;
+  team1LogoUrl?: string | null;
+  team2LogoUrl?: string | null;
+}
+
+/**
+ * The series' maps on a match's page (client API 0.2.24): every map in play
+ * order, the one being played and, for each played one, who won it.
+ */
+export interface MatchSeriesMapsProps {
+  matchSlug: string;
+  match: PublicMatch;
+  /** Core's per-map controls (the game's `matchMapAction`), for the module to place on each card. */
+  renderMapAction?: (mapNumber: number) => ReactNode;
 }
 
 export interface MatchPublicPanelProps {
@@ -822,6 +841,12 @@ export interface TournamentStatsViewProps {
  * built-in facts (CS2: aim, utility, impact and map strength). The view
  * fetches its own numbers and renders nothing when there are none.
  */
+/** What an `adminPlayerActions` dialog gets: the player the admin picked on Manage → Players. */
+export interface AdminPlayerActionProps {
+  player: { id: string; name: string };
+  onClose: () => void;
+}
+
 export interface PlayerProfileViewProps {
   playerId: string;
   /** The viewer is this player (client API 0.2.14). */
@@ -1040,6 +1065,12 @@ export interface ClientGameIntegration {
      * scoreboard and the highlight clips.
      */
     publicView?: ComponentType<MatchPublicPanelProps>;
+    /**
+     * A match's page (client API 0.2.24): the series' maps as the game draws
+     * them (CS2: map pictures in play order, who picked each, the winner and
+     * rounds of each played map). Core's text cards without it.
+     */
+    seriesMapsView?: ComponentType<MatchSeriesMapsProps>;
   };
 
   /** Team page: an admin-only control this integration needs (D7: captains). */
@@ -1058,6 +1089,20 @@ export interface ClientGameIntegration {
 
   /** Players a team fields in this game (CS2: 5), for "Looking for N" on the team list. */
   teamSize?: number;
+
+  /**
+   * "How matches are played", from the tournament's settings in this game's words
+   * (CS2: the mode, rounds, overtime, veto or drawn maps, bots). The Rules tab shows
+   * it in full, the overview as one line (`compact`). Left empty: neither shows it.
+   */
+  tournamentRulesView?: ComponentType<TournamentRulesViewProps>;
+
+  /**
+   * "What you can win" on the tournament overview, in this game's words (CS2: the placement
+   * skins and match drops, with the notice that they are not real skins). Renders nothing when
+   * the tournament gives nothing. Left empty: the overview shows no prizes.
+   */
+  tournamentPrizesView?: ComponentType<TournamentPrizesViewProps>;
 
   /**
    * The admin shell, every page: a setting this module needs before its
@@ -1158,6 +1203,17 @@ export interface ClientGameIntegration {
 
   /** The player profile: this game's own statistics. */
   playerProfileView?: ComponentType<PlayerProfileViewProps>;
+
+  /**
+   * An action on each player's row on Manage → Players (client API 0.2.23):
+   * the label (a key in the module's namespace) and the dialog it opens.
+   * CS2: "Give a drop".
+   */
+  adminPlayerAction?: {
+    key: string;
+    labelKey: string;
+    Dialog: ComponentType<AdminPlayerActionProps>;
+  };
 
   /**
    * A player's highlight videos from this game (client API 0.2.14): a hook
@@ -1302,4 +1358,21 @@ export interface ClientGameIntegration {
    * them (see Layout, ManageRail and SiteLinksGrid).
    */
   navItems: IntegrationNavItem[];
+}
+
+/** A game module's rules summary (`GameIntegration.tournamentRulesView`). */
+/** A game module's prizes view (`GameIntegration.tournamentPrizesView`). */
+export interface TournamentPrizesViewProps {
+  tournament: { id: number; status: string; settings?: unknown };
+}
+
+export interface TournamentRulesViewProps {
+  tournament: {
+    type: string;
+    format: string;
+    teamSize?: number | null;
+    settings?: unknown;
+  };
+  /** One line for the overview instead of the list. */
+  compact?: boolean;
 }

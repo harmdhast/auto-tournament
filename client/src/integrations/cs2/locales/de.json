@@ -43,7 +43,11 @@
       "none": "No servers connected yet.",
       "busy": "Belegt",
       "spare": "Reserve",
-      "draining": "Wird geleert"
+      "draining": "Wird geleert",
+      "readyUp": "Ready Up",
+      "readyUpCurrent": "{{version}}, all up to date",
+      "pluginMixed": "{{count}} plugin versions in use",
+      "pluginSame": "{{version}}, all servers match"
     },
     "setup": {
       "serversDone": "{{count}} server added",
@@ -245,6 +249,9 @@
     }
   },
   "vetoInterface": {
+    "orderValve": "Valve's official order (Major rulebook)",
+    "orderCustom": "The organizer's own veto order",
+    "orderStandard": "The standard order for {{count}} maps (Valve's, fitted to the pool)",
     "vetoNotAvailable": "Veto für dieses Match nicht verfügbar",
     "vetoUnavailable": "Veto-Details sind für dieses Konto nicht verfügbar. Melde dich als Spieler eines der beiden Teams an, um das Veto fortzusetzen.",
     "vetoCompleted": "Veto abgeschlossen!",
@@ -313,7 +320,16 @@
       "you": "ihr",
       "them": "sie",
       "timedOut": "Zeit abgelaufen"
-    }
+    },
+    "actFor": {
+      "label": "Act for:",
+      "watch": "Just watch"
+    },
+    "opensIn": "The veto opens in {{clock}}",
+    "opening": "The veto is opening…",
+    "opensBreak": "A short break between matches: get ready, the first turn gets extra time.",
+    "breakEyebrow": "Break between matches",
+    "opensInTitle": "The map veto opens in"
   },
   "matchInfo": {
     "server": {
@@ -344,7 +360,11 @@
       "resumedTitle": "The server restarted",
       "resumedBody": "Connect again: the match continues from the last round backup.",
       "noPassword": "No password: you're on the list.",
-      "startsGame": "CS2 nicht offen? Der Button startet es."
+      "startsGame": "CS2 nicht offen? Der Button startet es.",
+      "via": "Verbinden über",
+      "viaLan": "LAN",
+      "viaPublic": "Internet",
+      "viaRecommended": "für dich"
     }
   },
   "serversPage": {
@@ -486,6 +506,12 @@
     "title": "Counter-Strike 2 servers"
   },
   "settings": {
+    "webhook": {
+      "title": "Platform URL",
+      "description": "The address your CS2 servers, links and webhooks use to reach the platform.",
+      "label": "Webhook-URL",
+      "helper": "Beispiel: https://deine-domain.de"
+    },
     "mapSync": {
       "title": "Map-Synchronisierung",
       "description": "CS2-Maps aus dem GitHub-Repository synchronisieren.",
@@ -509,6 +535,10 @@
     "atCore": {
       "title": "Match-Standardwerte",
       "description": "Wird bei jedem Match an die Ready-Up-Server gesendet.",
+      "expert": {
+        "title": "Experteneinstellungen",
+        "description": "Diese Einstellungen können bei falscher Konfiguration zu unerwartetem Serververhalten führen. Nur ändern, wenn du weißt, dass du sie brauchst."
+      },
       "ready": {
         "title": "Ready / Matchstart",
         "minimumReadyLabel": "Mindestanzahl bereit gemeldeter Spieler",
@@ -525,6 +555,11 @@
       "autostart": {
         "label": "Start matches after (minutes in warmup)",
         "helper": "0 = wait for everyone to ready up. Otherwise a loaded match goes live after this many minutes, ready or not; players are warned 1 minute and 10 seconds before."
+      },
+      "seriesEnd": {
+        "title": "Timing am Serienende",
+        "kickDelayNoDemoLabel": "Zusätzliche Kick-Verzögerung wenn Demos deaktiviert sind (Sekunden)",
+        "kickDelayHelper": "Wird zusätzlich zu mp_match_restart_delay addiert."
       }
     },
     "atEnhanced": {
@@ -548,7 +583,8 @@
       "sideSelection": {
         "title": "Side-Selection Timer",
         "timeLabel": "Zeit (Sekunden)",
-        "timeHelper": "Zeit nach der Knife-Runde, um Seiten zu wählen"
+        "timeHelper": "Zeit nach der Knife-Runde, um Seiten zu wählen",
+        "enabled": "Timer für Side-Selection aktivieren"
       },
       "gg": {
         "title": "Frühes Match-Ende (.gg)",
@@ -668,6 +704,14 @@
         "redrawFailed": "Could not queue the redraw."
       },
       "moved": "Highlight settings, the recorders and how to add one are on their own page now:"
+    },
+    "vetoFirstTurn": {
+      "label": "First veto turn (seconds)",
+      "helper": "Longer than the other turns: players are coming from their last match. 0 = the usual turn."
+    },
+    "matchBreak": {
+      "label": "Break between a team's matches (minutes)",
+      "helper": "The next match's veto opens this long after the team's last match ended. 0 = straight on."
     }
   },
   "roster": {
@@ -979,7 +1023,16 @@
     "noReportHelp": "csm meldet innerhalb einer Minute nach dem Verbinden, was die Maschine hat und ausführt.",
     "licenseNote": "Ihre Lizenz deckt bis zu {{count}} Server ab. Jeder Server zählt, auch Reserveserver.",
     "progress": "Befehlsfortschritt",
-    "waitingFor": "{{count}} Aktion(en) warten darauf"
+    "waitingFor": "{{count}} Aktion(en) warten darauf",
+    "publicAddress": {
+      "title": "Public address",
+      "lanOnly": "Players connect to {{address}}, a local address: only players on the same network can join. Set the address players outside it use.",
+      "help": "The IP address or host name players outside this network connect to (forward the game ports on your router). Empty: the address the machine reports.",
+      "label": "Public IP or host name",
+      "save": "Save",
+      "clear": "Use the reported address",
+      "failed": "Could not save the address"
+    }
   },
   "failover": {
     "title": "Failover",
@@ -1043,6 +1096,7 @@
     "empty": "Failover braucht mindestens einen Ready-Up-Server."
   },
   "pluginSets": {
+    "tryoutLicense": "A Skin tryout server takes a server seat on your license, like any other server. It runs no matches.",
     "presetLabel": "Plugin-Vorlage",
     "preset": {
       "tournament": "Turnier",
@@ -1051,7 +1105,8 @@
       "custom": "Eigene Auswahl",
       "default": "Flotten-Standard",
       "none": "Keine",
-      "tryout": "Skin tryout"
+      "tryout": "Skin tryout",
+      "movement": "Movement"
     },
     "plugin": {
       "fleet": "Flotten-Verbindung",
@@ -1062,7 +1117,10 @@
       "skins": "Skins",
       "midas": "Midas",
       "deathmatch": "Deathmatch",
-      "addons": "Addons"
+      "addons": "Addons",
+      "mapvote": "Map vote",
+      "community": "Community",
+      "movement": "Movement"
     },
     "pluginHelp": {
       "essentials": "Admins, Kartenwechsel, Neuladen und Neustart",
@@ -1071,7 +1129,10 @@
       "skins": "Waffen-Skins, Messer und Handschuhe der Spieler",
       "midas": "Goldene Waffenmodelle",
       "deathmatch": "Deathmatch-Modi",
-      "addons": "Workshop-Addons"
+      "addons": "Workshop-Addons",
+      "mapvote": "Map voting: .rtv, .nominate, end-of-map vote",
+      "community": "Community commands: .rank, .top, .speclist, admin .kick",
+      "movement": "Surf, bhop and kz: run timer, records and leaderboards"
     },
     "required": "Immer an",
     "usesDefault": "Nutzt den Flotten-Standard: {{plugins}}.",
@@ -1280,7 +1341,14 @@
     "ttdLine": "Time to damage {{ms}} ms"
   },
   "skins": {
-    "notice": "Virtual skins. They only exist on Auto Tournament, have no money value and can't be traded or sold. You see them in game on this site's servers.",
+    "prizes": {
+      "title": "Was du gewinnen kannst",
+      "intro": "Beispiele dafür, was dir die Teilnahme an diesem Turnier bringen kann, aus den Skins dieser Seite:",
+      "pickOne": "ein {{rarity}}-Skin deiner Wahl (1 aus 3)",
+      "matchDrops": "Jedes Turnierspiel, das du spielst, kann auch einen Skin droppen."
+    },
+    "notReal": "Keine echten CS2-Skins.",
+    "notice": "Sie existieren nur auf dieser Seite: Sie sind keine Steam-Gegenstände, haben keinen Geldwert, können weder getauscht noch verkauft werden, und kein Turnierveranstalter oder Sponsor verschenkt darüber echte Skins. Du siehst sie im Spiel auf den Servern dieser Seite.",
     "equipLabel": "Equip {{name}}",
     "equippedLabel": "{{name}}, equipped",
     "new": "NEW",
@@ -1442,6 +1510,13 @@
       "fairRules": "Only players who played the whole game get a chance: nothing for an abandoned game or one that ended early, and a repeat against the same opponents within a day drops much less. Tournament placement rewards go only to players who played in the tournament.",
       "tournamentMatchDrops": "Tournament matches drop too (not in esports mode)",
       "levelUpDrops": "A drop for every new level",
+      "tryoutServer": "Keep a Skin tryout server (created on a machine with room while automatic scaling is on)",
+      "tryoutWhat": "What is this?",
+      "tryoutHelpTitle": "Skin tryout server",
+      "tryoutHelpWhat": "A CS2 server just for trying skins: players join from their inventory (\"Try them in game\") and see what they equipped, live. It runs no matches; it waits on a surf map and goes back to it when it is empty.",
+      "tryoutHelpHow": "With this on and automatic scaling on (Servers → Fleet settings), the platform creates one on a machine with room when there is none. You can also put any server on the Skin tryout preset yourself.",
+      "tryoutHelpCost": "It takes a server seat on your license, like any other server, and a little memory and CPU on its machine. That's why it is off unless you turn it on.",
+      "tryoutServerLicense": "It takes a server seat on your license, like any other server.",
       "tradeUp": "Trade-ups: Skins einer Stufe gegen einen der nächsten",
       "tradeUpCount": "Skins pro Trade-up",
       "drops": {
@@ -1451,12 +1526,8 @@
           "online": "Everyone online",
           "player": "A player",
           "team": "A team",
-          "match": "A match"
-        },
-        "idLabel": {
-          "player": "Steam ID",
-          "team": "Team id",
-          "match": "Match id (slug)"
+          "match": "A match",
+          "tournament": "A tournament"
         },
         "start": "Give a drop…",
         "cancel": "Cancel",
@@ -1472,12 +1543,24 @@
         "give_one": "Give 1 drop",
         "give_other": "Give {{count}} drops",
         "given_one": "Gave 1 drop.",
-        "given_other": "Gave {{count}} drops."
+        "given_other": "Gave {{count}} drops.",
+        "pick": {
+          "player": "Player (search by name)",
+          "team": "Team",
+          "match": "Match",
+          "tournament": "Tournament"
+        },
+        "typeName": "Type at least two letters of the name",
+        "noneFound": "Nothing found",
+        "whoTournament_one": "Give a drop to the tournament's 1 player?",
+        "whoTournament_other": "Give a drop to the tournament's {{count}} players?",
+        "rowAction": "Give a drop"
       },
       "statTrakChance": "StatTrak™ chance (%)",
       "statTrakHelp": "How often a dropped weapon or knife is StatTrak™ (CS2 cases: 10).",
       "catalogUnlocked": "Katalog freischalten",
-      "catalogUnlockedHelp": "Spieler können jeden Skin aus dem Katalog ausrüsten, mit selbst gewähltem Float und Seed."
+      "catalogUnlockedHelp": "Spieler können jeden Skin aus dem Katalog ausrüsten, mit selbst gewähltem Float und Seed.",
+      "repeatOpponentCut": "Less from the third game against the same opponents in a day (turn off for a small platform or a LAN)"
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "Was das heißt",
@@ -1533,7 +1616,8 @@
       "placementTitle": "Tournament placements",
       "pickOfRarity": "a pick of {{rarity}} skins",
       "rarityOdds": "Rarity odds",
-      "skinOdds": "This skin"
+      "skinOdds": "This skin",
+      "fairNoRepeat": "A player who leaves a game gets nothing; the rest still get their chance. Nothing drops from a game over in under 8 rounds."
     },
     "rewards": {
       "title": "Rewards",
@@ -1553,7 +1637,7 @@
     },
     "tryout": {
       "title": "Try them in game",
-      "hint": "A practice server with your skins. Equip here and they change in game within seconds.",
+      "hint": "A surf server with your skins, with a run timer and records. Equip here and they change in game within seconds.",
       "join": "Join",
       "joinLabel": "Join {{name}}",
       "console": "Or paste this in the CS2 console"
@@ -1575,7 +1659,10 @@
       "wear": "Abnutzung",
       "cancel": "Abbrechen",
       "equip": "Ausrüsten"
-    }
+    },
+    "takeOffSide": "Take {{name}} off {{side}}",
+    "takeOffOn": "Take off {{side}}",
+    "keepAll": "Alle {{count}} behalten"
   },
   "matchRules": {
     "title": "Matchregeln",
@@ -2281,5 +2368,60 @@
   },
   "serverAllocation": {
     "readyIn": "Zeit, bis der Server bereit ist"
+  },
+  "seriesMaps": {
+    "title": "Maps",
+    "mapN": "Map {{n}}",
+    "pickedBy": "{{team}}'s pick",
+    "decider": "Decider",
+    "live": "Live",
+    "upNext": "Up next",
+    "notPlayed": "To play",
+    "won": "{{team}} won",
+    "draw": "Draw",
+    "regulation": "In regulation",
+    "overtime": "After overtime",
+    "onDamage": "Level after overtime, won on damage"
+  },
+  "dropped": {
+    "title": "You lost connection",
+    "body": "Looks like you left the match server (a crash or a dropped connection). Your team is waiting: reconnect to get back in.",
+    "reconnect": "Reconnect",
+    "later": "Later"
+  },
+  "rules": {
+    "mode": "{{size}}v{{size}} competitive.",
+    "modeWingman": "Wingman: 2v2 on one bomb site.",
+    "series_one": "One map per match.",
+    "series_other": "Best of {{count}}: first to {{win}} maps wins the match.",
+    "rounds": "{{rounds}} rounds: first to {{win}} wins the map. Sides switch after {{half}}.",
+    "overtime": "At {{half}}-{{half}}: overtime (6 rounds, first to 4), as many as it takes.",
+    "overtimeLimited_one": "At {{half}}-{{half}}: one overtime (6 rounds, first to 4); still level after it, the map is a draw.",
+    "overtimeLimited_other": "At {{half}}-{{half}}: up to {{count}} overtimes (6 rounds each, first to 4); still level after them, the map is a draw.",
+    "noOvertime": "At {{half}}-{{half}} the map ends in a draw (no overtime).",
+    "veto": "Maps: the two teams ban (and pick) them in the map veto before each match.",
+    "mapsDrawn": "Maps: each match draws one from the pool. No veto.",
+    "shuffleMaps": "Maps: every round plays the next map in the list, with new teams each round.",
+    "bots": "Empty seats are filled with bots."
+  },
+  "movement": {
+    "title": "Surf & KZ records",
+    "map": "Map",
+    "course": "Course",
+    "mainCourse": "Map",
+    "bonus": "Bonus {{n}}",
+    "explain": "Each player's best time on the map's run or a bonus, from every server that runs the Movement preset. In game: .rs restarts, .b 1 goes to bonus 1, .pb and .wr show times.",
+    "empty": "No times on this course yet.",
+    "time": "Time",
+    "teleports": "TP",
+    "pro": "Pro",
+    "date": "Date",
+    "runs_one": "{{count}} finished run",
+    "runs_other": "{{count}} finished runs",
+    "mode": {
+      "surf": "Surf",
+      "bhop": "Bhop",
+      "kz": "KZ"
+    }
   }
 }

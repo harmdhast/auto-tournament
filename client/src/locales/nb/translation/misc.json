@@ -671,12 +671,15 @@
       "defaultPool": {
         "5v5": "Active Duty",
         "2v2": "Wingman-kart",
-        "1v1": "Active Duty"
+        "1v1": "Wingman-kart"
       },
       "searchAnyone": "Få spillere søker: du blir satt opp mot hvem som helst ({{count}} søker, {{total}} trengs)",
-      "searchRating": "Finner en jevn kamp for ratingen din · {{count}} søker",
+      "searchRating": "Finner en jevn kamp for ratingen din (±{{elo}}) · {{count}} søker",
       "botFill": "Fyll tomme plasser med boter",
-      "botFillUnrated": "Boter fyller tomme plasser · urangert: ingen rating, XP eller drops"
+      "botFillUnrated": "Boter fyller tomme plasser · urangert: ingen rating, XP eller drops",
+      "searchRatingPlain": "Finner en jevn kamp for ratingen din · {{count}} søker",
+      "searchWidening": "Utvider søket: ±{{elo}} · {{count}} søker",
+      "searchAnyRating": "Søker nå blant alle ratinger · {{count}} søker"
     },
     "queue": {
       "searching": "Søker {{mode}}",
@@ -1097,5 +1100,12 @@
     "resetVetoBody": "Alle bans, picks og sider så langt slettes, og lagene starter vetoen på nytt. Begge lag ser det i kampchatten.",
     "vetoReset": "Vetoen starter på nytt",
     "vetoResetFailed": "Kunne ikke starte vetoen på nytt"
+  },
+  "addressMismatch": {
+    "open": "Åpne {{host}}",
+    "text": "Du bruker {{current}}, men nettstedet er satt opp for {{host}}. Steam-innlogging, e-post og spillserverne bruker den adressen."
+  },
+  "siteFooter": {
+    "trademarks": "Counter-Strike, CS2 og Steam er varemerker som tilhører Valve Corporation. Andre spillnavn er varemerker som tilhører eierne sine. Auto Tournament er ikke tilknyttet eller godkjent av Valve eller noen spillutgiver."
   }
 }

@@ -156,6 +156,7 @@ export async function setPlugins(
   issuedBy: IssuedBy,
   updatedBy: string | null
 ): Promise<{ id: string; seq: number; delivered: boolean }> {
+  const previous = (await readPrefs(serverId)).plugins?.preset;
   await writePref(serverId, 'plugins', value, updatedBy);
   const fleetCmds = await runsFleetCmds(serverId);
   const sent = await sendPluginsSet(serverId, value, issuedBy, fleetCmds);
@@ -167,7 +168,7 @@ export async function setPlugins(
     await writePref(serverId, 'practice', true, updatedBy);
     const practice = await sendCmd(serverId, {
       name: 'practice.set',
-      args: fleetCmds ? { on: true, always: true } : { on: true },
+      args: practiceServerArgs(fleetCmds),
       issued_by: issuedBy,
       expires_at: Date.now() + PRACTICE_TTL_MS,
     });
@@ -175,7 +176,27 @@ export async function setPlugins(
   } else if (fleetCmds && value.enable.includes('practice')) {
     await sendPracticeAlways(serverId, false, issuedBy);
   }
+  // A Skin tryout server from before it ran movement (practice with a surf hub map): practice
+  // forgets the hub map, so a later Practice set stays on its own map.
+  if (
+    fleetCmds &&
+    previous === 'tryout' &&
+    value.preset !== 'tryout' &&
+    value.enable.includes('essentials')
+  ) {
+    await sendCmd(serverId, {
+      name: 'practice.set',
+      args: { home_map: '', home_cvars: [] },
+      issued_by: issuedBy,
+      expires_at: Date.now() + PRACTICE_TTL_MS,
+    });
+  }
   return sent;
+}
+
+/** practice.set for a practice server: on, always=1. */
+function practiceServerArgs(fleetCmds: boolean): Record<string, unknown> {
+  return fleetCmds ? { on: true, always: true } : { on: true };
 }
 
 /** Send a server its plugins.set lists (what is stored is not changed). */
@@ -247,7 +268,7 @@ export async function pluginsOnHello(
   if (fleetCmds && prefs.plugins.preset === 'practice') {
     await sendCmd(serverId, {
       name: 'practice.set',
-      args: { on: true, always: true },
+      args: practiceServerArgs(fleetCmds),
       issued_by: PLATFORM_ISSUER,
       expires_at: Date.now() + PRACTICE_TTL_MS,
     });

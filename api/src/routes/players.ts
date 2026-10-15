@@ -1,3 +1,4 @@
+import { logoUrl } from '../services/teamSelfService';
 import { randomBytes } from 'crypto';
 /**
  * Players API Routes
@@ -15,7 +16,7 @@ import {
 import { abbreviateId, isValidDiscordId, parseDiscordIdEdit } from '../utils/discordId';
 import { getRatingHistory } from '../services/ratingService';
 import { steamService } from '../services/steamService';
-import { requireAuth, requestActorId } from '../middleware/auth';
+import { requireAuth, requireIntegratorAuth, requestActorId } from '../middleware/auth';
 import { bulkRemovesEveryAdmin, removesLastAdmin } from '../utils/adminRules';
 import { log } from '../utils/logger';
 import { db } from '../config/database';
@@ -94,6 +95,35 @@ router.param('playerId', async (req: Request, res: Response, next, playerId: str
 // ============================================================================
 // PUBLIC ROUTES (no authentication required)
 // ============================================================================
+
+/**
+ * @openapi
+ * /api/players/presence:
+ *   get:
+ *     tags: [Players]
+ *     summary: What players are doing now (online, searching, playing)
+ *     description: For player names anywhere on the site. Up to 100 ids, comma-separated.
+ *     parameters:
+ *       - { in: query, name: ids, required: true, schema: { type: string } }
+ *     responses:
+ *       200: { description: "`presence`: { [playerId]: { online, activity } }" }
+ *       400: { description: No ids }
+ */
+router.get('/presence', async (req: Request, res: Response) => {
+  try {
+    const ids = String(req.query.ids ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => /^[A-Za-z0-9_:.-]{1,64}$/.test(s));
+    if (ids.length === 0) return res.status(400).json({ success: false, error: 'ids is required' });
+    const { presenceOf } = await import('../services/presenceService');
+    const presence = Object.fromEntries(await presenceOf(ids));
+    return res.json({ success: true, presence });
+  } catch (error) {
+    log.error('Failed to read presence', error as Error);
+    return res.status(500).json({ success: false, error: 'Failed to read presence' });
+  }
+});
 
 /**
  * GET /api/players/find
@@ -454,6 +484,12 @@ router.get('/:playerId/team', async (req: Request, res: Response) => {
  * its lobby. With no match coming up, a tournament they are still in (its
  * Overview says what is next), else nothing.
  */
+/**
+ * A match's config names its players as `"<steam id>": "<name>"` in each
+ * team's players; the same id elsewhere in it (`admins`, coaches) is not a
+ * player. The queries below match `"<id>":` only (an admin who runs the site
+ * was sent to a bots' match as "your match").
+ */
 export async function matchNowPath(steamId: string): Promise<string | null> {
   const like = `%${steamId}%`;
   const match = await db.queryOneAsync<{
@@ -471,7 +507,7 @@ export async function matchNowPath(steamId: string): Promise<string | null> {
        LEFT JOIN teams t1 ON m.team1_id = t1.id
        LEFT JOIN teams t2 ON m.team2_id = t2.id
       WHERE m.status IN ('pending', 'ready', 'loaded', 'live')
-        AND ((t1.players LIKE ? ESCAPE '\\') OR (t2.players LIKE ? ESCAPE '\\') OR (m.config LIKE ? ESCAPE '\\'))
+        AND ((t1.players LIKE ? ESCAPE '\\') OR (t2.players LIKE ? ESCAPE '\\') OR (m.config LIKE ('%"' || TRIM(BOTH '%' FROM ?) || '":%')))
       ORDER BY CASE WHEN m.status IN ('loaded', 'live') THEN 0 ELSE 1 END, m.round ASC, m.match_number ASC
       LIMIT 1`,
     [like, like, like, like]
@@ -549,7 +585,7 @@ router.get('/me/match-status', async (req: Request, res: Response) => {
     let match = await db.queryOneAsync<
       DbMatchRow & { team1_players?: string | null; team2_players?: string | null }
     >(
-      `SELECT m.id, m.slug, m.status, m.config, m.veto_state, m.team1_id, m.team2_id,
+      `SELECT m.id, m.slug, m.status, m.config, m.veto_state, m.held_until, m.team1_id, m.team2_id,
               m.round, m.tournament_id,
               t1.players as team1_players, t2.players as team2_players
        FROM matches m
@@ -559,7 +595,7 @@ router.get('/me/match-status', async (req: Request, res: Response) => {
          AND (
            (t1.players LIKE ? ESCAPE '\\')
            OR (t2.players LIKE ? ESCAPE '\\')
-           OR (m.config LIKE ? ESCAPE '\\')
+           OR (m.config LIKE ('%"' || TRIM(BOTH '%' FROM ?) || '":%'))
          )
        ORDER BY m.loaded_at DESC
        LIMIT 1`,
@@ -570,7 +606,7 @@ router.get('/me/match-status', async (req: Request, res: Response) => {
       match = await db.queryOneAsync<
         DbMatchRow & { team1_players?: string | null; team2_players?: string | null }
       >(
-        `SELECT m.id, m.slug, m.status, m.config, m.veto_state, m.team1_id, m.team2_id,
+        `SELECT m.id, m.slug, m.status, m.config, m.veto_state, m.held_until, m.team1_id, m.team2_id,
                 m.round, m.tournament_id,
                 t1.players as team1_players, t2.players as team2_players
          FROM matches m
@@ -580,7 +616,7 @@ router.get('/me/match-status', async (req: Request, res: Response) => {
            AND (
              (t1.players LIKE ? ESCAPE '\\')
              OR (t2.players LIKE ? ESCAPE '\\')
-             OR (m.config LIKE ? ESCAPE '\\')
+             OR (m.config LIKE ('%"' || TRIM(BOTH '%' FROM ?) || '":%'))
            )
          ORDER BY m.round ASC, m.match_number ASC
          LIMIT 1`,
@@ -612,6 +648,26 @@ router.get('/me/match-status', async (req: Request, res: Response) => {
     const in1Json = team1Json.includes(steamId);
     const in2Json = team2Json.includes(steamId);
     const isTeam1 = in1 || (in1Json && !in2Json) || (!in2 && !in2Json);
+
+    // Your team against theirs, with logos: the next-match dialog shows the matchup.
+    const logos = await db.queryAsync<{ id: string; logo_updated_at: number | null }>(
+      'SELECT id, logo_updated_at FROM teams WHERE id IN (?, ?)',
+      [match.team1_id ?? '', match.team2_id ?? '']
+    );
+    const sideOf = (side: 'team1' | 'team2') => {
+      const id = side === 'team1' ? match!.team1_id : match!.team2_id;
+      const d = side === 'team1' ? description.team1 : description.team2;
+      const row = logos.find((l) => l.id === id);
+      return {
+        name: d.name ?? null,
+        tag: (d as { tag?: string | null }).tag ?? null,
+        logoUrl: id && row ? logoUrl(id, row.logo_updated_at) : null,
+      };
+    };
+    const matchup = {
+      you: sideOf(isTeam1 ? 'team1' : 'team2'),
+      opponent: sideOf(isTeam1 ? 'team2' : 'team1'),
+    };
 
     if (!in1 && !in2 && !in1Json && !in2Json) {
       return res.json({
@@ -655,12 +711,73 @@ router.get('/me/match-status', async (req: Request, res: Response) => {
       : ((await integrationForMatch(match).preMatchTurn?.(match)) ?? null);
 
     if (['loaded', 'live'].includes(match.status)) {
+      // On the server, or dropped off it (the site offers to reconnect).
+      const connection = playerConnectionService.connectionOf(match.slug, steamId);
       return res.json({
         success: true,
         status: 'match_ready',
         matchSlug: match.slug,
         label: 'match_ready',
+        connection: connection.state,
+        droppedAt: connection.droppedAt,
         matchName,
+        matchup,
+      });
+    }
+
+    // A tournament without a veto (2v2, shuffle): the break and the wait are for the match, never
+    // "waiting for veto" (the navbar said "Veto in 3:12" for a veto-off final, 2026-10-15).
+    const tournamentSettings = match.tournament_id
+      ? await db.queryOneAsync<{ settings: string | null }>(
+          'SELECT settings FROM tournament WHERE id = ?',
+          [match.tournament_id]
+        )
+      : null;
+    let vetoOff = false;
+    try {
+      vetoOff = !(
+        integrationForMatch(match).usesPreMatchPhase?.({
+          settings: tournamentSettings?.settings ? JSON.parse(tournamentSettings.settings) : {},
+        }) ?? true
+      );
+    } catch {
+      vetoOff = false;
+    }
+
+    // Held before its veto started (the break between a team's matches, or an
+    // admin's hold): "the veto opens at …", with the time for a countdown.
+    const heldUntil = Number((match as { held_until?: number | null }).held_until ?? 0);
+    const vetoStarted = Array.isArray(vetoState?.actions) && vetoState.actions.length > 0;
+    if (
+      (match.status === 'pending' || match.status === 'ready') &&
+      !vetoCompleted &&
+      !vetoStarted &&
+      heldUntil > Math.floor(Date.now() / 1000)
+    ) {
+      return res.json({
+        success: true,
+        status: 'veto_soon',
+        matchSlug: match.slug,
+        label: 'veto_soon',
+        // No veto: the countdown is to the match itself.
+        vetoOff,
+        matchName,
+        matchup,
+        viewerTeam: isTeam1 ? 'team1' : 'team2',
+        vetoActionCount: 0,
+        lastVetoActionTeam: null,
+        opensAt: new Date(heldUntil * 1000).toISOString(),
+      });
+    }
+
+    if ((match.status === 'pending' || match.status === 'ready') && vetoOff) {
+      return res.json({
+        success: true,
+        status: 'waiting_server',
+        matchSlug: match.slug,
+        label: 'waiting_server',
+        matchName,
+        matchup,
       });
     }
 
@@ -678,6 +795,7 @@ router.get('/me/match-status', async (req: Request, res: Response) => {
         matchSlug: match.slug,
         label: myTurn ? 'your_turn_veto' : 'waiting_veto',
         matchName,
+        matchup,
         viewerTeam: isTeam1 ? 'team1' : 'team2',
         vetoActionCount: vetoActions.length,
         lastVetoActionTeam: lastTeam === 'team1' || lastTeam === 'team2' ? lastTeam : null,
@@ -691,6 +809,7 @@ router.get('/me/match-status', async (req: Request, res: Response) => {
         matchSlug: match.slug,
         label: 'waiting_server',
         matchName,
+        matchup,
       });
     }
 
@@ -700,6 +819,7 @@ router.get('/me/match-status', async (req: Request, res: Response) => {
       matchSlug: match.slug,
       label: 'match_ready',
       matchName,
+      matchup,
     });
   } catch (e) {
     log.error('Failed to compute match status for /me/match-status', e as Error);
@@ -874,7 +994,7 @@ router.get('/:playerId/current-match', async (req: Request, res: Response) => {
         AND (
           (t1.players LIKE ? ESCAPE '\\')
           OR (t2.players LIKE ? ESCAPE '\\')
-          OR (m.config LIKE ? ESCAPE '\\')
+          OR (m.config LIKE ('%"' || TRIM(BOTH '%' FROM ?) || '":%'))
         )
       ORDER BY m.loaded_at DESC
       LIMIT 1`,
@@ -909,7 +1029,7 @@ router.get('/:playerId/current-match', async (req: Request, res: Response) => {
           AND (
             (t1.players LIKE ? ESCAPE '\\')
             OR (t2.players LIKE ? ESCAPE '\\')
-            OR (m.config LIKE ? ESCAPE '\\')
+            OR (m.config LIKE ('%"' || TRIM(BOTH '%' FROM ?) || '":%'))
           )
         ORDER BY m.round ASC, m.match_number ASC
         LIMIT 1`,
@@ -1097,10 +1217,11 @@ router.get('/:playerId/current-match', async (req: Request, res: Response) => {
     }
 
     // Get tournament status and format
-    const tournament = await db.queryOneAsync<{ status: string; format: string }>(
-      'SELECT status, format FROM tournament WHERE id = ?',
-      [match.tournament_id]
-    );
+    const tournament = await db.queryOneAsync<{
+      status: string;
+      format: string;
+      settings: unknown;
+    }>('SELECT status, format, settings FROM tournament WHERE id = ?', [match.tournament_id]);
 
     // Note: We're NOT exposing RCON password to players
     const serverPassword = null;
@@ -1290,7 +1411,20 @@ router.get('/:playerId/current-match', async (req: Request, res: Response) => {
           expected_players_total: cfg.playersPerTeam !== undefined ? cfg.playersPerTeam * 2 : 10,
           expected_players_team1: cfg.playersPerTeam ?? 5,
           expected_players_team2: cfg.playersPerTeam ?? 5,
-          vetoDisabled: cfg.skipPreMatchPhase,
+          // Before the match has a config (a later round in its break), the tournament says
+          // whether there is a veto: the page showed one for a tournament without (2026-10-15).
+          vetoDisabled:
+            cfg.skipPreMatchPhase ??
+            (tournament
+              ? !(
+                  integrationForMatch(match).usesPreMatchPhase?.({
+                    settings:
+                      typeof tournament.settings === 'string'
+                        ? JSON.parse(tournament.settings)
+                        : tournament.settings,
+                  }) ?? true
+                )
+              : undefined),
           team1: {
             id: cfg.team1.id,
             name: cfg.team1.name,
@@ -1737,6 +1871,12 @@ router.get('/:playerId/matches', async (req: Request, res: Response) => {
 // ============================================================================
 
 // All player management routes require authentication (admin only)
+// The players import (documented below) takes an integrator token too: an event site sends its
+// players with the same token as its teams (/api/integrations/teams).
+router.post('/import', requireIntegratorAuth, (req: Request, res: Response) =>
+  importPlayers(req, res)
+);
+
 router.use(requireAuth);
 
 /**
@@ -1915,47 +2055,6 @@ router.post('/', async (req: Request, res: Response) => {
  *       400:
  *         description: No players, or a player without steamId or name
  */
-router.post('/import', async (req: Request, res: Response) => {
-  const body = req.body as unknown;
-  const list = Array.isArray(body)
-    ? body
-    : body && typeof body === 'object' && Array.isArray((body as { players?: unknown }).players)
-      ? (body as { players: unknown[] }).players
-      : null;
-  if (!list || list.length === 0) {
-    return res.status(400).json({ success: false, error: 'Send an array of players' });
-  }
-  const players: CreatePlayerInput[] = [];
-  for (const raw of list) {
-    const p = (raw ?? {}) as Record<string, unknown>;
-    const steamId = typeof p.steamId === 'string' ? p.steamId.trim() : '';
-    const name = typeof p.name === 'string' ? p.name.trim() : '';
-    if (!/^\d{17}$/.test(steamId) || !name) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'Each player needs a steamId (SteamID64) and a name' });
-    }
-    players.push({
-      id: steamId,
-      name,
-      ...(p.discordId !== undefined ? { discordId: p.discordId } : {}),
-      ...(p.oidcSubject !== undefined ? { oidcSubject: p.oidcSubject } : {}),
-    } as CreatePlayerInput);
-  }
-  try {
-    const result = await playerService.bulkImportPlayers(players);
-    return res.status(result.errors.length > 0 ? 207 : 200).json({
-      success: result.errors.length === 0,
-      created: result.created,
-      updated: result.updated,
-      errors: result.errors.map((e) => ({ steamId: e.player.id, error: e.error })),
-      ...(result.warnings.length > 0 ? { warnings: result.warnings } : {}),
-    });
-  } catch (error) {
-    log.error('Error importing players', { error });
-    return res.status(500).json({ success: false, error: 'Could not import the players' });
-  }
-});
 
 /**
  * POST /api/players/bulk-import
@@ -2221,5 +2320,48 @@ router.delete('/:playerId', async (req: Request, res: Response) => {
     });
   }
 });
+
+/** POST /api/players/import (the @openapi block for /api/players/import documents it). */
+async function importPlayers(req: Request, res: Response) {
+  const body = req.body as unknown;
+  const list = Array.isArray(body)
+    ? body
+    : body && typeof body === 'object' && Array.isArray((body as { players?: unknown }).players)
+      ? (body as { players: unknown[] }).players
+      : null;
+  if (!list || list.length === 0) {
+    return res.status(400).json({ success: false, error: 'Send an array of players' });
+  }
+  const players: CreatePlayerInput[] = [];
+  for (const raw of list) {
+    const p = (raw ?? {}) as Record<string, unknown>;
+    const steamId = typeof p.steamId === 'string' ? p.steamId.trim() : '';
+    const name = typeof p.name === 'string' ? p.name.trim() : '';
+    if (!/^\d{17}$/.test(steamId) || !name) {
+      return res
+        .status(400)
+        .json({ success: false, error: 'Each player needs a steamId (SteamID64) and a name' });
+    }
+    players.push({
+      id: steamId,
+      name,
+      ...(p.discordId !== undefined ? { discordId: p.discordId } : {}),
+      ...(p.oidcSubject !== undefined ? { oidcSubject: p.oidcSubject } : {}),
+    } as CreatePlayerInput);
+  }
+  try {
+    const result = await playerService.bulkImportPlayers(players);
+    return res.status(result.errors.length > 0 ? 207 : 200).json({
+      success: result.errors.length === 0,
+      created: result.created,
+      updated: result.updated,
+      errors: result.errors.map((e) => ({ steamId: e.player.id, error: e.error })),
+      ...(result.warnings.length > 0 ? { warnings: result.warnings } : {}),
+    });
+  } catch (error) {
+    log.error('Error importing players', { error });
+    return res.status(500).json({ success: false, error: 'Could not import the players' });
+  }
+}
 
 export default router;

@@ -1,6 +1,8 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { setupTournament } from '../helpers/tournamentSetup';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
+import { currentSlug } from '../helpers/slugs';
+import { sendReadyUpEvents, seriesEnd as readyUpSeriesEnd } from '../helpers/readyUp';
 
 /**
  * A later round of a BO1 bracket opens its own veto and waits for it.
@@ -29,11 +31,6 @@ const MAPS = [
   'de_nuke',
 ];
 
-const SERVER_HEADERS = {
-  'Content-Type': 'application/json',
-  'X-Auto-Tournament-Token': process.env.SERVER_TOKEN ?? 'server123',
-};
-
 type ListedMatch = {
   slug: string;
   status: string;
@@ -45,25 +42,17 @@ async function bracketMatch(
   request: APIRequestContext,
   slug: string
 ): Promise<ListedMatch | undefined> {
+  const wanted = await currentSlug(request, slug);
   const res = await request.get('/api/matches', { headers: getAuthHeader() });
   expect(res.ok(), `listing matches failed: ${await res.text()}`).toBe(true);
   const body = (await res.json()) as { matches?: ListedMatch[] };
-  return (body.matches ?? []).find((m) => m.slug === slug);
+  return (body.matches ?? []).find((m) => m.slug === wanted);
 }
 
 async function seriesEnd(request: APIRequestContext, slug: string) {
-  const res = await request.post(`/api/events/${slug}`, {
-    headers: SERVER_HEADERS,
-    data: {
-      event: 'series_end',
-      matchid: slug,
-      team1_series_score: 1,
-      team2_series_score: 0,
-      winner: { side: '3', team: 'team1' },
-      time_until_restore: 0,
-    },
-  });
-  expect(res.status(), `series_end for ${slug}: ${await res.text()}`).toBe(200);
+  await sendReadyUpEvents(request, slug, [
+    readyUpSeriesEnd({ winner: 'team1', team1: 1, team2: 0 }),
+  ]);
 }
 
 test.describe.serial('Next-round veto', () => {
@@ -72,7 +61,14 @@ test.describe.serial('Next-round veto', () => {
     // Simulation off (the state that got stuck); a 1 s turn so the veto timer
     // plays the final's veto for both teams (veto/timer.ts), as it did for the
     // bot teams in the live test.
-    await request.put('/api/settings', { data: { simulateMatches: false, vetoTurnSeconds: 1 } });
+    await request.put('/api/settings', {
+      data: {
+        simulateMatches: false,
+        vetoTurnSeconds: 1,
+        matchBreakMinutes: 0,
+        vetoFirstTurnSeconds: 0,
+      },
+    });
   });
 
   test.afterEach(async ({ request }) => {
@@ -94,8 +90,8 @@ test.describe.serial('Next-round veto', () => {
       });
       expect(setup, 'tournament setup failed').toBeTruthy();
 
-      await seriesEnd(request, 'r1m1');
-      await seriesEnd(request, 'r1m2');
+      await seriesEnd(request, await currentSlug(request, 'r1m1'));
+      await seriesEnd(request, await currentSlug(request, 'r1m2'));
 
       let final: ListedMatch | undefined;
       await expect

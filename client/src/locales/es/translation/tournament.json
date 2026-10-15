@@ -436,7 +436,14 @@
       "maxTeams": "Team spots",
       "checkInOpensAt": "Check-in opens",
       "checkInClosesAt": "Check-in closes",
-      "signupHelp": "A team's owner or captain signs up with a lineup. Lineup players check in on the day."
+      "signupHelp": "A team's owner or captain signs up with a lineup. Lineup players check in on the day.",
+      "startLabel": "Start time",
+      "startsAtLabel": "Starts at",
+      "startsAtHelp": "Your local time. The site counts down to it.",
+      "autoStartLabel": "Start the tournament automatically at this time",
+      "remindersLabel": "Remind players before it starts",
+      "reminderMinutes_one": "{{count}} minute before",
+      "reminderMinutes_other": "{{count}} minutes before"
     },
     "setup": {
       "steps": {
@@ -549,7 +556,9 @@
         }
       },
       "teams": {
-        "shuffleBeforeCreate": "Players sign up after you create the tournament. Come back to this step to choose them."
+        "shuffleBeforeCreate": "Players sign up after you create the tournament. Come back to this step to choose them.",
+        "shuffleSelfSignup": "Los jugadores se apuntan solos",
+        "shuffleSelfSignupHelp": "Mientras esté activado, se apuntan con «Unirme» en la página del torneo; aquí puedes seguir añadiendo jugadores."
       },
       "maps": {
         "vetoTitle": "Veto",
@@ -687,6 +696,11 @@
       "done_one": "Tournament ended, {{count}} match cancelled",
       "done_other": "Tournament ended, {{count}} matches cancelled",
       "failed": "Could not end the tournament"
+    },
+    "countdown": {
+      "days": "Starts in {{d}}d {{h}}h",
+      "hours": "Starts in {{h}}h {{m}}m",
+      "minutes": "Starts in {{m}}:{{s}}"
     }
   },
   "bracket": {
@@ -808,7 +822,9 @@
         "finished": "Finished",
         "eliminated": "Eliminated",
         "waiting": "Waiting for next match",
-        "registered": "Registered"
+        "registered": "Registered",
+        "won": "Winner",
+        "out": "Out"
       }
     },
     "prizes": {
@@ -872,7 +888,11 @@
     "scheduleSoon": "El organizador aún no ha publicado el horario.",
     "checkInWindow": "Check-in",
     "mapPoolSoonTitle": "Mapas",
-    "mapPoolSoon": "El organizador aún no ha elegido los mapas."
+    "mapPoolSoon": "El organizador aún no ha elegido los mapas.",
+    "adminBanner": "You are an admin of this tournament. Running it happens in Manage; this page is what players see.",
+    "manageTournament": "Manage tournament",
+    "fullBracket": "Full bracket",
+    "allRules": "All rules"
   },
   "roundStatusCard": {
     "roundOf": "Round {{current}} of {{total}}",
@@ -1067,6 +1087,90 @@
     "bestOf_other": "Al mejor de {{count}}",
     "winnerOf": "Ganador {{match}}",
     "loserOf": "Perdedor {{match}}",
-    "tbd": "Por decidir"
+    "tbd": "Por decidir",
+    "you": "Tú"
+  },
+  "placement": {
+    "outTitle": "Your run in {{tournament}} is over",
+    "wonTitle": "You won {{tournament}}!",
+    "yourTeamPlaced": "{{team}} placed",
+    "yourTeam": "Your team",
+    "outBody": "Your team is out of the tournament, so there are no more matches for you. Follow the rest in the bracket.",
+    "wonBody": "Your team won the tournament. Well played!",
+    "close": "Close",
+    "seeBracket": "See the bracket",
+    "outBodyPlay": "You have no more matches in this tournament. Thanks for playing! Fancy another game? Matchmaking puts you in a match in a minute or two."
+  },
+  "whatsNext": {
+    "eyebrow": "What's next",
+    "champions": "Champions",
+    "outTitle": "Your team is out. You placed {{place}}",
+    "outBody": "That was your last match in {{tournament}}. Good games! Want to keep playing? Matchmaking finds you a match with other players right now.",
+    "playMatchmaking": "Play matchmaking",
+    "watchLive": "Watch a live match",
+    "nextMatch": "{{stage}} vs {{opponent}}",
+    "nextMatchReady": "Your match is ready: open the match room to connect.",
+    "nextMatchSoon": "Your next match is set. After a short break it opens, and we ping you. The navbar shows the countdown wherever you are.",
+    "openMatchRoom": "Open the match room",
+    "throughTo": "You're through to the {{stage}}",
+    "waitingTitle": "Waiting for your next opponent",
+    "waitingBody": "Your opponent comes from a match still being played. When it ends there is a short break, then your next match opens. We ping you.",
+    "watchOpponent": "Watch your next opponent live",
+    "shuffleTitle": "Next round: new teams",
+    "shuffleBody": "When every match of this round is done, new teams are drawn and your next match shows up here.",
+    "stayHere": "Stay on this page: it updates by itself.",
+    "openTournament": "Open the tournament",
+    "winsToTitle_one": "One more win for the title",
+    "winsToTitle_other": "{{count}} more wins to the title"
+  },
+  "navStatus": {
+    "placed": "Placed",
+    "placedPlay": "{{place}} · Play matchmaking",
+    "waiting": "Waiting for opponent",
+    "vetoIn": "Veto in",
+    "vetoOpening": "Veto opening",
+    "matchIn": "Match in",
+    "matchLoading": "Match loading"
+  },
+  "advance": {
+    "title": "¡Bien, seguís dentro!",
+    "opponent": "Siguiente: {{opponent}}.",
+    "feederTitle": "Vuestro próximo rival sale de",
+    "vs": "contra",
+    "tbd": "Por decidir",
+    "feederNotStarted": "Esa partida aún no ha empezado.",
+    "feederMinutes_one": "Queda aproximadamente {{count}} minuto.",
+    "feederMinutes_other": "Quedan unos {{count}} minutos.",
+    "feederAlmost": "Casi ha terminado.",
+    "watch": "Verla en directo"
+  },
+  "shuffleJoin": {
+    "title": "Únete a este shuffle",
+    "body": "No necesitas equipo: apúntate tú solo. En cada ronda la plataforma sortea equipos nuevos y equilibrados.",
+    "youreIn": "Estás dentro",
+    "inBody": "Cuando empiece el torneo se sorteará tu primer equipo y tu partida aparecerá aquí. Deja esta página abierta.",
+    "join": "Unirme",
+    "leave": "Salir",
+    "full": "Completo",
+    "signInToJoin": "Inicia sesión para unirte",
+    "count_one": "{{count}} jugador inscrito",
+    "count_other": "{{count}} jugadores inscritos",
+    "countOf_one": "{{count}} de {{spots}} jugadores inscritos",
+    "countOf_other": "{{count}} de {{spots}} jugadores inscritos",
+    "playingTitle": "You're playing round {{round}}",
+    "playingBody": "Your team this round: {{team}}. Open the match to connect.",
+    "sittingOutTitle": "You sit out round {{round}}",
+    "sittingOutBody": "There aren't enough players for every team this round. You're in the draw for round {{next}}, and the ones who played most sit out first.",
+    "goToMatch": "Go to match",
+    "tagPlaying": "Playing",
+    "tagSittingOut": "Sitting out",
+    "roundHeading": "Round {{round}}",
+    "versus": "vs",
+    "sittingOutList": "Sitting out: {{names}}",
+    "status": {
+      "live": "Live",
+      "done": "Done",
+      "waiting": "Starting"
+    }
   }
 }

@@ -78,6 +78,8 @@ interface Config {
   modeChances: Record<'2v2' | '1v1', { win: number; play: number }>;
   tournamentMatchDrops: boolean;
   levelUpDrops: boolean;
+  tryoutServer: boolean;
+  repeatOpponentCut: boolean;
   rarityWeights: Record<Rarity, number>;
   tournamentRewards: boolean;
   rewards: Reward[];
@@ -693,6 +695,7 @@ const PODIUM = [
  * saves itself a moment later.
  */
 export function SkinsAdminPage() {
+  const [tryoutHelp, setTryoutHelp] = useState(false);
   const { t } = useModuleTranslation('cs2');
   const { showSuccess, showError } = useSnackbar();
   const [config, setConfig] = useState<Config | null>(null);
@@ -932,6 +935,44 @@ export function SkinsAdminPage() {
               label={t('skins.admin.levelUpDrops')}
               data-testid="skins-level-up-drops"
             />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={config.tryoutServer === true}
+                    onChange={(e) => set({ tryoutServer: e.target.checked })}
+                  />
+                }
+                label={t('skins.admin.tryoutServer')}
+                data-testid="skins-tryout-server"
+              />
+              <Button
+                size="small"
+                onClick={() => setTryoutHelp(true)}
+                data-testid="skins-tryout-help"
+              >
+                {t('skins.admin.tryoutWhat')}
+              </Button>
+            </Box>
+            <Dialog open={tryoutHelp} onClose={() => setTryoutHelp(false)} maxWidth="sm" fullWidth>
+              <DialogTitle>{t('skins.admin.tryoutHelpTitle')}</DialogTitle>
+              <DialogContent>
+                <Stack spacing={1.5} data-testid="skins-tryout-help-body">
+                  <Typography variant="body2">{t('skins.admin.tryoutHelpWhat')}</Typography>
+                  <Typography variant="body2">{t('skins.admin.tryoutHelpHow')}</Typography>
+                  <Typography variant="body2">{t('skins.admin.tryoutHelpCost')}</Typography>
+                </Stack>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setTryoutHelp(false)}>{t('common.close')}</Button>
+              </DialogActions>
+            </Dialog>
+            {config.tryoutServer === true && (
+              <Typography variant="body2" color="text.secondary" data-testid="skins-tryout-license">
+                {t('skins.admin.tryoutServerLicense')}
+              </Typography>
+            )}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
               <FormControlLabel
                 control={
@@ -986,6 +1027,17 @@ export function SkinsAdminPage() {
                 htmlInput: { min: 0, max: 100, 'data-testid': 'skins-stattrak-chance' },
               }}
               sx={{ maxWidth: 260 }}
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={config.repeatOpponentCut !== false}
+                  onChange={(e) => set({ repeatOpponentCut: e.target.checked })}
+                />
+              }
+              label={t('skins.admin.repeatOpponentCut')}
+              data-testid="skins-repeat-opponent-cut"
             />
             <Typography sx={{ fontSize: '0.75rem', color: color.muted }}>
               {t('skins.admin.fairRules')}
