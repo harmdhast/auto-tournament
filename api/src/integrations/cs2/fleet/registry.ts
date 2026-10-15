@@ -424,6 +424,14 @@ const invalid = (code: string, error: string, status: 401 | 403 | 409 = 401): En
   error,
 });
 
+/** An install enrolled as another server: only the key that enrolled it, or an admin's delete, frees it. */
+const installConflict = (): EnrollOutcome =>
+  invalid(
+    'install_conflict',
+    'This install is enrolled as another server. Enroll it with the key that enrolled it, or delete that server first.',
+    409
+  );
+
 async function issueTokenFor(c: PoolClient, serverId: string): Promise<string> {
   const now = nowS();
   // A (re-)enrollment replaces every token the server had.
@@ -467,7 +475,8 @@ async function findByInstall(
 /**
  * `POST /api/fleet/enroll`, after schema validation. Returns the server
  * record and its new token, or why not. The code or key is checked first; a
- * known `install_id` gets its existing record back (and a new token).
+ * known `install_id` gets its existing record back (and a new token) from the
+ * key that enrolled it, and 409 `install_conflict` from anything else.
  */
 export async function enrollServer(req: EnrollRequest): Promise<EnrollOutcome> {
   if (req.code !== undefined) return enrollWithCode(req);
@@ -493,6 +502,9 @@ async function enrollWithCode(req: EnrollRequest): Promise<EnrollOutcome> {
     if (!code || code.used_at !== null || Number(code.expires_at) <= now) {
       return invalid('invalid_code', 'Invalid or expired enrollment code');
     }
+    const owner = await findByInstall(c, req.install_id);
+    if (owner && owner.id !== code.server_id && owner.status === 'enrolled')
+      return installConflict();
     await c.query(`UPDATE cs2_fleet_enrollment_codes SET used_at = $1 WHERE id = $2`, [
       now,
       code.id,
@@ -573,6 +585,8 @@ async function enrollWithKey(req: EnrollRequest): Promise<EnrollOutcome> {
           403
         );
       }
+      if (existing.status === 'enrolled' && existing.enrollment_key_id !== key.id)
+        return installConflict();
       serverId = existing.id;
       await c.query(
         `UPDATE cs2_fleet_servers SET status = 'enrolled', host = $2, versions = COALESCE($3, versions),

@@ -162,17 +162,22 @@ mapStats, mapRounds: { "<map>": RoundSummary[] }, needsSnapshot, updatedAt }`.
 
 Rules (the notes §3), applied by the gateway through `inbound.ts`:
 
-- `state.snapshot` replaces the state when its epoch is ≥ the stored one
-  (lower = `stale_epoch`, ignored). `periodic` / `hello` at the same
+- `state.snapshot` replaces the state when its sender holds the match at
+  that epoch, the stored one (anything else = `stale_epoch`, ignored).
+  `periodic` / `hello` at the same
   `live_rev` are a drift check (logged). `state: null` = idle server.
   `map_stats`, when present, seeds that map's round summaries.
 - `state.patch` / `event.*`: `rev == liveRev + 1` applied, `rev <= liveRev`
   duplicate, `rev > liveRev + 1` gap → held + `state.request`; the snapshot
   releases the held patches that follow on from it. No state yet for the
   epoch (before the `assign` snapshot) is handled like a gap.
-- Epoch fence: an envelope epoch below the match's current one is ignored
-  (the event is not ingested either); `fleetInbound.onEvent` still reports
-  it with `patch: 'stale_epoch'` so the driver can unassign the zombie.
+- Epoch fence: an envelope epoch below the match's current one, or from a
+  server that does not hold the match at it (no epoch = the sender's), is
+  ignored (the event is not ingested either; `event.admin_called` is kept
+  from a server that ever held the match); `fleetInbound.onEvent` still
+  reports it with `patch: 'stale_epoch'` so the driver can unassign the
+  zombie. An HTTP demo upload with a fleet token needs the same: a server
+  that never held the match gets 403.
 
 ## Receiving: `inbound.ts`
 
@@ -481,7 +486,9 @@ Up, logs); Ready Up's own link stays for the match.
 - **Enroll**: Servers → Machines → Add machine gives one command,
   `csm link <url> <code>`. csm posts `{kind: "host", code | key, machine_id,
 hostname, os, csm_version}` to `/api/fleet/enroll` and gets `rhs_…`. The
-  same `machine_id` gets its record back. A fleet key (`rfk_`) enrolls a
+  same `machine_id` (and csm user) gets its record back from the key that
+  enrolled it; another key, or a code for another placeholder, gets 409
+  `host_conflict` until an admin removes the machine. A fleet key (`rfk_`) enrolls a
   machine too, except the keys minted for a `server.create`.
 - **Commands** (`POST /api/fleet/hosts/:id/commands {type, payload, force?}`)
   are recorded in `cs2_fleet_host_commands` (the audit row, `forced_by` /
@@ -513,7 +520,10 @@ set_launch_args`, `host.update_game/update_plugins`) for a server whose
   idle servers onto what is installed. The admin page shows the last plan
   per machine (`autoUpdate`).
 - **Inventory join** (§18.3): each `server-N` joins its Ready Up server on
-  `readyup.install_id`, else `readyup.server_id`.
+  `readyup.install_id`, else `readyup.server_id`: one enrolled with a key
+  minted for that machine, or one no other machine's inventory names. The
+  join decides the machine's address for the server and what a
+  `server.remove` deletes.
 
 ## Automatic scaling: `autoscale/`
 

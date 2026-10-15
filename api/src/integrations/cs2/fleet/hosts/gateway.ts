@@ -28,7 +28,9 @@ import type { IncomingMessage, Server as HttpServer } from 'http';
 import type { Duplex } from 'stream';
 import { WebSocketServer, WebSocket, type RawData } from 'ws';
 import { log } from '../../../../utils/logger';
-import { redactFleetSecrets, ulid } from '../credentials';
+import { parseHostToken, redactFleetSecrets, ulid } from '../credentials';
+import { peerAddressOf } from '../address';
+import { PendingUpgrades, rejectUpgrade, upgradeAfter } from '../upgradeGate';
 import { FLEET_CLOSE, type Envelope } from '../protocol/v1';
 import {
   HOST_MESSAGES,
@@ -121,16 +123,23 @@ class HostSession {
     auth: Promise<Auth>,
     private readonly timings: HostGatewayTimings
   ) {
-    this.helloTimer = setTimeout(() => this.close(FLEET_CLOSE.PROTOCOL_ERROR, 'hello timeout'), timings.helloTimeoutMs);
+    this.helloTimer = setTimeout(
+      () => this.close(FLEET_CLOSE.PROTOCOL_ERROR, 'hello timeout'),
+      timings.helloTimeoutMs
+    );
     this.bumpDeadTimer();
     ws.on('message', (data, isBinary) => this.onFrame(data, isBinary));
     ws.on('close', () => this.onClosed());
-    ws.on('error', (error) => log.warn(`[FLEET-HOST] socket error (${this.hostId ?? 'unauthenticated'}): ${error.message}`));
+    ws.on('error', (error) =>
+      log.warn(`[FLEET-HOST] socket error (${this.hostId ?? 'unauthenticated'}): ${error.message}`)
+    );
     this.queue = auth
       .then((result) => {
         if (!result.ok) {
           const code = result.reason === 'revoked' ? FLEET_CLOSE.REVOKED : FLEET_CLOSE.BAD_TOKEN;
-          log.warn(`[FLEET-HOST] rejected a connection: ${result.reason === 'revoked' ? 'revoked or expired token' : 'invalid token'}`);
+          log.warn(
+            `[FLEET-HOST] rejected a connection: ${result.reason === 'revoked' ? 'revoked or expired token' : 'invalid token'}`
+          );
           this.close(code, result.reason === 'revoked' ? 'token revoked' : 'invalid token');
           return;
         }
@@ -152,7 +161,9 @@ class HostSession {
   private onFrame(data: RawData, isBinary: boolean): void {
     if (this.closed) return;
     this.bumpDeadTimer();
-    const size = Array.isArray(data) ? data.reduce((n, b) => n + b.length, 0) : (data as Buffer).byteLength;
+    const size = Array.isArray(data)
+      ? data.reduce((n, b) => n + b.length, 0)
+      : (data as Buffer).byteLength;
     const limited = this.rateLimited(size);
     if (limited !== null) {
       this.close(FLEET_CLOSE.RATE_LIMITED, JSON.stringify({ retry_after_ms: limited }));
@@ -166,14 +177,19 @@ class HostSession {
     this.queue = this.queue
       .then(() => (this.closed || !this.hostId ? undefined : this.handle(text)))
       .catch((error) => {
-        log.error(`[FLEET-HOST] ${this.hostId}: handling a message failed: ${redactFleetSecrets((error as Error).message)}`);
+        log.error(
+          `[FLEET-HOST] ${this.hostId}: handling a message failed: ${redactFleetSecrets((error as Error).message)}`
+        );
         this.close(1011, 'internal error');
       });
   }
 
   private rateLimited(bytes: number): number | null {
     const now = Date.now();
-    this.tokens = Math.min(RATE.burst, this.tokens + ((now - this.tokensAt) / 1000) * RATE.perSecond);
+    this.tokens = Math.min(
+      RATE.burst,
+      this.tokens + ((now - this.tokensAt) / 1000) * RATE.perSecond
+    );
     this.tokensAt = now;
     if (now - this.bytesWindowStart >= 60_000) {
       this.bytesWindowStart = now;
@@ -230,8 +246,10 @@ class HostSession {
 
   /** Is this a host → platform type we know? Else the reason. */
   private checkInbound(msg: Envelope): { ok: true } | { ok: false; code: string; message: string } {
-    const known = isKnownHostMessageType(msg.type) && HOST_MESSAGES[msg.type]?.direction !== 'platform_to_host';
-    if (!known) return { ok: false, code: 'unknown_type', message: `unknown message type ${msg.type}` };
+    const known =
+      isKnownHostMessageType(msg.type) && HOST_MESSAGES[msg.type]?.direction !== 'platform_to_host';
+    if (!known)
+      return { ok: false, code: 'unknown_type', message: `unknown message type ${msg.type}` };
     const check = validateHostPayload(msg.type, msg.payload);
     if (!check.ok) return { ok: false, code: 'invalid_payload', message: check.errors.join('; ') };
     return { ok: true };
@@ -282,7 +300,9 @@ class HostSession {
         return;
       case 'error': {
         const p = msg.payload as { code?: unknown; message?: unknown };
-        log.warn(`[FLEET-HOST] ${this.hostId} reported an error: ${String(p.code)} ${redactFleetSecrets(String(p.message ?? ''))}`);
+        log.warn(
+          `[FLEET-HOST] ${this.hostId} reported an error: ${String(p.code)} ${redactFleetSecrets(String(p.message ?? ''))}`
+        );
         return;
       }
       default: {
@@ -300,23 +320,37 @@ class HostSession {
   }
 
   /** Apply one validated host → platform message inside `c`; returns the events to emit after commit. */
-  private async apply(c: Parameters<Parameters<typeof registry.tx>[0]>[0], msg: Envelope): Promise<Array<() => void>> {
+  private async apply(
+    c: Parameters<Parameters<typeof registry.tx>[0]>[0],
+    msg: Envelope
+  ): Promise<Array<() => void>> {
     const hostId = this.hostId as string;
     switch (msg.type) {
       case 'host.inventory': {
         const payload = msg.payload as unknown as HostInventoryPayload;
         if (payload.host_id !== hostId) {
-          log.warn(`[FLEET-HOST] ${hostId}: inventory names host ${payload.host_id}; stored under the session's host`);
+          log.warn(
+            `[FLEET-HOST] ${hostId}: inventory names host ${payload.host_id}; stored under the session's host`
+          );
         }
         await registry.applyInventory(c, hostId, payload);
         return [() => hostEvents.emit('inventory', hostId, payload)];
       }
       case 'host.health': {
         const payload = msg.payload as unknown as HostHealthPayload;
-        const inserted = await registry.applyHealth(c, hostId, this.rxStreamId, msg.seq ?? null, payload);
+        const inserted = await registry.applyHealth(
+          c,
+          hostId,
+          this.rxStreamId,
+          msg.seq ?? null,
+          payload
+        );
         if (!inserted) return [];
-        const level = payload.event === 'recovered' || payload.event === 'restarted' ? 'info' : 'warn';
-        log[level](`[FLEET-HOST] ${hostId}: ${payload.server} ${payload.event}${payload.detail ? ` (${redactFleetSecrets(payload.detail)})` : ''}`);
+        const level =
+          payload.event === 'recovered' || payload.event === 'restarted' ? 'info' : 'warn';
+        log[level](
+          `[FLEET-HOST] ${hostId}: ${payload.server} ${payload.event}${payload.detail ? ` (${redactFleetSecrets(payload.detail)})` : ''}`
+        );
         return [() => hostEvents.emit('health', hostId, payload)];
       }
       case 'host.result': {
@@ -324,7 +358,12 @@ class HostSession {
           log.warn(`[FLEET-HOST] ${hostId}: host.result without ref ignored`);
           return [];
         }
-        const record = await registry.applyResult(c, hostId, msg.ref, msg.payload as unknown as HostResultPayload);
+        const record = await registry.applyResult(
+          c,
+          hostId,
+          msg.ref,
+          msg.payload as unknown as HostResultPayload
+        );
         if (!record) {
           log.warn(`[FLEET-HOST] ${hostId}: host.result for unknown command ${msg.ref}`);
           return [];
@@ -370,11 +409,16 @@ class HostSession {
       return;
     }
     if (this.machineId && hello.machine_id !== this.machineId) {
-      log.warn(`[FLEET-HOST] ${hostId}: hello machine_id does not match the enrolled one; copied credentials?`);
+      log.warn(
+        `[FLEET-HOST] ${hostId}: hello machine_id does not match the enrolled one; copied credentials?`
+      );
       this.close(FLEET_CLOSE.REVOKED, 'machine_id does not match the enrollment');
       return;
     }
-    if (hello.protocol.min > HOST_PROTOCOL_SUPPORTED.max || hello.protocol.max < HOST_PROTOCOL_SUPPORTED.min) {
+    if (
+      hello.protocol.min > HOST_PROTOCOL_SUPPORTED.max ||
+      hello.protocol.max < HOST_PROTOCOL_SUPPORTED.min
+    ) {
       this.close(
         FLEET_CLOSE.UNSUPPORTED_PROTOCOL,
         `protocol ${hello.protocol.min}-${hello.protocol.max} unsupported; platform speaks ${HOST_PROTOCOL_SUPPORTED.min}-${HOST_PROTOCOL_SUPPORTED.max}`
@@ -433,17 +477,25 @@ class HostSession {
     const welcome: HostWelcomePayload = {
       session_id: this.sessionId,
       protocol,
-      heartbeat: { interval_ms: this.timings.heartbeatIntervalMs, timeout_ms: this.timings.heartbeatTimeoutMs },
+      heartbeat: {
+        interval_ms: this.timings.heartbeatIntervalMs,
+        timeout_ms: this.timings.heartbeatTimeoutMs,
+      },
       resume: { result, platform_last_rx_seq: this.rxSeq },
       host_id: hostId,
     };
     this.ready = true;
     this.sendEphemeral('welcome', welcome as unknown as Record<string, unknown>, msg.id);
-    log.info(`[FLEET-HOST] ${hostId} online (session ${this.sessionId}, csm ${hello.versions.csm}, resume ${result})`);
+    log.info(
+      `[FLEET-HOST] ${hostId} online (session ${this.sessionId}, csm ${hello.versions.csm}, resume ${result})`
+    );
 
     this.lastSentSeq = hello.stream.last_rx_seq;
     await this.flushOutbox();
-    this.pingTimer = setInterval(() => this.sendEphemeral('ping', { t: Date.now() }), this.timings.heartbeatIntervalMs);
+    this.pingTimer = setInterval(
+      () => this.sendEphemeral('ping', { t: Date.now() }),
+      this.timings.heartbeatIntervalMs
+    );
     hostEvents.emit('online', hostId);
     await this.gateway.onReady(hostId);
   }
@@ -469,7 +521,14 @@ class HostSession {
   }
 
   sendEphemeral(type: string, payload: Record<string, unknown>, ref?: string): boolean {
-    const text = this.frame({ v: 1, type, id: ulid(), ts: Date.now(), ...(ref ? { ref } : {}), payload });
+    const text = this.frame({
+      v: 1,
+      type,
+      id: ulid(),
+      ts: Date.now(),
+      ...(ref ? { ref } : {}),
+      payload,
+    });
     if (text === null) return false;
     this.write(text);
     return true;
@@ -506,7 +565,10 @@ class HostSession {
         return false;
       }
       out = { ...env, payload: { token, old_valid_until: p.old_valid_until } };
-    } else if (env.type === 'server.create' && (env.payload as { enroll?: boolean }).enroll === true) {
+    } else if (
+      env.type === 'server.create' &&
+      (env.payload as { enroll?: boolean }).enroll === true
+    ) {
       const p = env.payload as { count?: number };
       const key = await registry.mintCreateKey({
         hostId: this.hostId as string,
@@ -523,7 +585,11 @@ class HostSession {
   }
 
   private sendError(about: Envelope, code: string, message: string): void {
-    this.sendEphemeral('error', { code, message: message.slice(0, 2000), type: about.type }, about.id);
+    this.sendEphemeral(
+      'error',
+      { code, message: message.slice(0, 2000), type: about.type },
+      about.id
+    );
   }
 
   private owe(now = false): void {
@@ -545,7 +611,9 @@ class HostSession {
   private bumpDeadTimer(): void {
     if (this.deadTimer) clearTimeout(this.deadTimer);
     this.deadTimer = setTimeout(() => {
-      log.warn(`[FLEET-HOST] ${this.hostId ?? 'connection'}: no frame for ${this.timings.heartbeatTimeoutMs} ms; link dead`);
+      log.warn(
+        `[FLEET-HOST] ${this.hostId ?? 'connection'}: no frame for ${this.timings.heartbeatTimeoutMs} ms; link dead`
+      );
       this.closed = true;
       this.ws.terminate();
     }, this.timings.heartbeatTimeoutMs);
@@ -591,6 +659,7 @@ export class HostGateway {
   private readonly wss: WebSocketServer;
   private readonly sessions = new Map<string, HostSession>();
   private readonly connections = new Set<HostSession>();
+  private readonly pending = new PendingUpgrades();
   private server: HttpServer | null = null;
   private readyListeners: Array<(hostId: string) => Promise<void> | void> = [];
   private readonly timings: HostGatewayTimings;
@@ -601,7 +670,11 @@ export class HostGateway {
       heartbeatTimeoutMs: timings.heartbeatTimeoutMs ?? HOST_HEARTBEAT.timeout_ms,
       helloTimeoutMs: timings.helloTimeoutMs ?? HELLO_TIMEOUT_MS,
     };
-    this.wss = new WebSocketServer({ noServer: true, maxPayload: HOST_MAX_FRAME_BYTES, perMessageDeflate: false });
+    this.wss = new WebSocketServer({
+      noServer: true,
+      maxPayload: HOST_MAX_FRAME_BYTES,
+      perMessageDeflate: false,
+    });
   }
 
   private readonly onUpgrade = (req: IncomingMessage, socket: Duplex, head: Buffer): void => {
@@ -613,12 +686,20 @@ export class HostGateway {
     }
     if (pathname !== FLEET_HOST_WS_PATH) return;
     const token = bearer(req);
-    const auth: Promise<Auth> = token
-      ? registry.verifyHostToken(token)
-      : Promise.resolve({ ok: false as const, reason: 'bad' as const });
-    this.wss.handleUpgrade(req, socket, head, (ws) => {
-      this.connections.add(new HostSession(this, ws, auth, this.timings));
-    });
+    if (!parseHostToken(token)) return rejectUpgrade(socket, 401);
+    const release = this.pending.acquire(peerAddressOf(req));
+    if (!release) return rejectUpgrade(socket, 429);
+    const auth: Promise<Auth> = registry.verifyHostToken(token);
+    upgradeAfter(
+      auth,
+      socket,
+      release,
+      () => this.server !== null,
+      () =>
+        this.wss.handleUpgrade(req, socket, head, (ws) => {
+          this.connections.add(new HostSession(this, ws, auth, this.timings));
+        })
+    );
   };
 
   attach(server: HttpServer): void {

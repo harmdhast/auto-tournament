@@ -100,18 +100,11 @@ test.describe.serial('Fleet hosts (csm)', () => {
     expect(again.status).toBe(401);
     expect(again.body.code).toBe('invalid_code');
 
-    // The same machine linking again (a new code) gets its record back.
+    // A code for another placeholder does not take the enrolled machine.
     const second = await createPendingHost(request, 'rack-1 again');
     const re = await enrollHost(request, { code: second.code }, machineId);
-    expect(re.status, JSON.stringify(re.body)).toBe(201);
-    expect(re.body.host_id).toBe(pending.hostId);
-    expect(re.body.reenrolled).toBe(true);
-    const hosts = (await (await request.get('/api/fleet/hosts')).json()).hosts;
-    expect(hosts.find((h: { id: string }) => h.id === second.hostId)).toBeUndefined();
-
-    // The old token was replaced.
-    const old = await FleetTestClient.connect(first.body.token, {}, hostWsUrl());
-    expect(await old.waitClosed()).toMatchObject({ code: 4403 });
+    expect(re.status, JSON.stringify(re.body)).toBe(409);
+    expect(re.body.code).toBe('host_conflict');
   });
 
   test('a fleet key enrolls a machine; a host token is not a server token', async ({ request }) => {
@@ -120,8 +113,7 @@ test.describe.serial('Fleet hosts (csm)', () => {
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     expect(res.body.token.startsWith('rhs_')).toBe(true);
     // Wrong channel: the server gateway rejects a host token.
-    const wrong = await FleetTestClient.connect(res.body.token);
-    expect(await wrong.waitClosed()).toMatchObject({ code: 4401 });
+    await expect(FleetTestClient.connect(res.body.token)).rejects.toThrow('unexpected HTTP 401');
   });
 
   test("two csm users on one machine are two hosts; an older csm keeps the machine's", async ({
