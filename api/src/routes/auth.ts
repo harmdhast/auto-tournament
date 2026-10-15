@@ -10,6 +10,7 @@ import { passport, isStrategyConfigured } from '../config/passport';
 import { settingsService } from '../services/settingsService';
 import { authIdentityService, AuthProvider } from '../services/authIdentityService';
 import { signPlayerSteamId, getVerifiedPlayerSteamId } from '../utils/signedPlayerCookie';
+import { readCookies } from '../utils/cookieHeader';
 import {
   PENDING_STEAM_LINK_COOKIE_NAME,
   PENDING_STEAM_LINK_TTL_MS,
@@ -52,17 +53,7 @@ function getBaseUrl(req: Request): string {
 }
 
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
-  if (!cookieHeader) return {};
-  return Object.fromEntries(
-    cookieHeader
-      .split(';')
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .map((part) => {
-        const [name, ...rest] = part.split('=');
-        return [name, decodeURIComponent(rest.join('='))];
-      })
-  );
+  return readCookies(cookieHeader);
 }
 
 function getFrontendBaseUrl(req: Request): string {

@@ -4,6 +4,7 @@ import type { Request } from 'express';
 import { log, onLogEntry } from '../utils/logger';
 import { getRealViewerSteamId } from '../utils/viewerIdentity';
 import { checkAdminAccess } from '../middleware/auth';
+import { configuredSocketOrigins, socketOriginAllowed } from '../utils/socketOrigin';
 import { matchChanged } from '../core/matchChangeBus';
 import type {
   AdminCall,
@@ -101,8 +102,15 @@ export function initializeSocket(
 ): SocketIOServer {
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: process.env.CORS_ORIGIN || '*',
+      origin: configuredSocketOrigins() ?? '*',
       methods: ['GET', 'POST'],
+    },
+    allowRequest: (req, callback) => {
+      const allowed = socketOriginAllowed(req.headers.origin, req.headers);
+      if (!allowed) {
+        log.warn('Socket handshake refused: foreign Origin', { origin: req.headers.origin });
+      }
+      callback(null, allowed);
     },
   });
 
@@ -159,7 +167,13 @@ export function initializeSocket(
     // an anonymous socket. The client asks again on every `connect`.
     socket.on('player:subscribe', (ack?: unknown) => {
       const reply = typeof ack === 'function' ? (ack as (body: unknown) => void) : () => undefined;
-      const playerId = getRealViewerSteamId(handshakeAsRequest(socket));
+      let playerId: string | null;
+      try {
+        playerId = getRealViewerSteamId(handshakeAsRequest(socket));
+      } catch (error) {
+        log.error('Socket player subscribe failed', error as Error);
+        return reply({ ok: false });
+      }
       if (!playerId) return reply({ ok: false });
       const wasOnline = isPlayerOnline(playerId);
       void Promise.resolve(socket.join(playerRoom(playerId))).then(() => {
