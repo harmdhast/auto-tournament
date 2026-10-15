@@ -157,4 +157,42 @@ test.describe.serial('inventory claims across machines', () => {
     }>;
     expect(servers.some((s) => s.id === serverId)).toBe(true);
   });
+
+  test("another machine's public address does not readdress a server", async ({ request }) => {
+    const key = await createFleetKey(request, { name: 'public-owner' });
+    const installId = newInstallId();
+    const ru = await enroll(request, { key: key.value }, installId);
+    expect(ru.status).toBe(201);
+    const serverId = ru.body.server_id;
+
+    const a = await linkMachine(request, 'pub-owner-a');
+    const b = await linkMachine(request, 'pub-owner-b');
+    machines.push(a, b);
+    a.csm.sendEphemeral('host.inventory', {
+      ...inventory(a.hostId, [named(installId)]),
+      address: '198.51.100.20',
+    });
+    await expect.poll(() => connectHost(request, serverId)).toBe('198.51.100.20');
+    // The public address goes to linked servers (link.ts syncLinkedAddress).
+    const linked = await request.post(`/api/fleet/servers/${serverId}/link`, { data: {} });
+    expect([200, 201], await linked.text()).toContain(linked.status());
+    const own = await request.patch(`/api/fleet/hosts/${a.hostId}`, {
+      data: { publicAddress: '198.51.100.21' },
+    });
+    expect(own.ok(), await own.text()).toBe(true);
+    await expect.poll(() => connectHost(request, serverId)).toBe('198.51.100.21');
+
+    b.csm.sendEphemeral('host.inventory', {
+      ...inventory(b.hostId, [named(installId, serverId)]),
+      address: '203.0.113.70',
+    });
+    await expect.poll(async () => (await hostView(request, b.hostId)).servers?.length).toBe(1);
+    const theirs = await request.patch(`/api/fleet/hosts/${b.hostId}`, {
+      data: { publicAddress: '203.0.113.71' },
+    });
+    expect(theirs.ok(), await theirs.text()).toBe(true);
+    // Named by both machines and enrolled with neither's key: neither machine's address applies.
+    expect(await connectHost(request, serverId)).not.toBe('203.0.113.71');
+    await request.delete(`/api/fleet/servers/${serverId}/link`);
+  });
 });
