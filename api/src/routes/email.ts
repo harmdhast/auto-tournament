@@ -36,10 +36,6 @@ function guardWrite(req: Request, res: Response, next: NextFunction): void {
 }
 
 /** The request's own origin, for links when no site address is set. */
-function originOf(req: Request): string {
-  return req.get('origin') || `${req.protocol}://${req.get('host') ?? 'localhost'}`;
-}
-
 function sendError(res: Response, error: unknown, fallback: string): Response {
   if (error instanceof PlayerEmailError) {
     return res
@@ -244,7 +240,7 @@ meEmailRouter.put('/', guardWrite, async (req: Request, res: Response) => {
   try {
     return res.json({
       success: true,
-      email: await playerEmailService.setEmail(playerId, (req.body ?? {}).email, originOf(req)),
+      email: await playerEmailService.setEmail(playerId, (req.body ?? {}).email),
     });
   } catch (error) {
     return sendError(res, error, 'Could not save your email');
