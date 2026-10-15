@@ -632,14 +632,14 @@ export function InspectSkinDialog({
                     ? skin.place
                       ? t('skins.place', { n: skin.place })
                       : t('skins.tournamentMatch')
-                    : skin.source === 'catalog'
-                      ? t('skins.pickedOrigin')
-                      : skin.source === 'level'
-                        ? t('skins.levelUp')
-                        : skin.source === 'tradeup'
-                          ? t('skins.tradeUp.origin')
-                          : skin.source === 'admin'
-                            ? t('skins.givenByAdmin')
+                    : skin.source === 'level'
+                      ? t('skins.levelUp')
+                      : skin.source === 'tradeup'
+                        ? t('skins.tradeUp.origin')
+                        : skin.source === 'admin'
+                          ? t('skins.givenByAdmin')
+                          : skin.source === 'catalog'
+                            ? t('skins.pickedOrigin')
                             : t('skins.wonMatchmaking')}
                 </Typography>
                 <Typography sx={{ fontSize: '0.8125rem', color: color.ink2 }}>

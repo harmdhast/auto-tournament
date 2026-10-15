@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Box, CircularProgress, Slider, TextField, Typography } from '@mui/material';
 import { api, useModuleTranslation, useSnackbar, tokens, radii } from '../../../module-sdk';
 import { SkinCard } from './SkinParts';
-import { SidePicker } from './SidePicker';
+import { SidePicker } from './InventoryPage';
 import { wearKey, type CatalogSkin, type OwnedSkin, type PickInput } from './useSkins';
 
 const { color } = tokens;
