@@ -32,7 +32,7 @@ import { useServerAvailability } from './useServerAvailability';
 export const ServerGrid: React.FC<ManageResourcesProps> = () => {
   const { availability, answers } = useServerAvailability();
   const servers = availability?.servers ?? [];
-  const matches = useServerMatches();
+  const matches = useServerMatches(availability?.servers);
   return <ServerGridView servers={servers} matches={matches} answers={answers} />;
 };
 

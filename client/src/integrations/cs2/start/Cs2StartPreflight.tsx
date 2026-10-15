@@ -26,6 +26,7 @@ import { Alert, Typography } from '@mui/material';
 import { Trans } from 'react-i18next';
 import { ConfirmDialog, api, links, useModuleTranslation } from '../../../module-sdk';
 import type { TournamentStartPreflightProps } from '../../types';
+import { SERVER_AVAILABILITY_ENDPOINT } from '../cs2.types';
 
 export const Cs2StartPreflight: React.FC<TournamentStartPreflightProps> = ({
   open,
@@ -61,14 +62,15 @@ export const Cs2StartPreflight: React.FC<TournamentStartPreflightProps> = ({
           availableServerCount: number;
           /** Stopped csm servers the platform starts once the matches need them (older APIs: missing). */
           startableServerCount?: number;
-        }>('/api/tournament/server-availability');
+        }>(SERVER_AVAILABILITY_ENDPOINT);
 
         if (cancelled) return;
 
         if (availabilityResponse.success) {
           // Stopped csm servers count: the platform starts them for the matches.
           const available =
-            availabilityResponse.availableServerCount + (availabilityResponse.startableServerCount ?? 0);
+            availabilityResponse.availableServerCount +
+            (availabilityResponse.startableServerCount ?? 0);
 
           // If we don't have enough available servers to cover the first
           // round's concurrent matches, ask so the admin explicitly accepts
@@ -110,8 +112,8 @@ export const Cs2StartPreflight: React.FC<TournamentStartPreflightProps> = ({
         noServers
           ? t('tournament.dialogs.start.titleNoServers')
           : insufficientServers
-          ? t('tournament.dialogs.start.titleInsufficient')
-          : t('tournament.dialogs.start.titleUncertain')
+            ? t('tournament.dialogs.start.titleInsufficient')
+            : t('tournament.dialogs.start.titleUncertain')
       }
       message={
         <>
