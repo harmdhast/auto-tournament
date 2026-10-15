@@ -50,6 +50,7 @@ export const HOST_MODULES: readonly string[] = [
   'utils/playerTransform',
   'utils/pluginServerReplies',
   'utils/publicOrigin',
+  'utils/rootAccess',
   'utils/serverAttribution',
   'utils/settingFields',
   'utils/simulationTimescale',

@@ -5,8 +5,9 @@
  * the same switch as the core test helpers.
  */
 
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { requireAuth } from '../../../middleware/auth';
+import { isRconEnabled } from '../rconEnabled';
 import { log } from '../../../utils/logger';
 import { primeServerStatusForTests, ServerStatus } from '../services/serverStatusService';
 import { db } from '../../../config/database';
@@ -17,9 +18,13 @@ import { scanForFailovers } from '../fleet/failover';
 
 const router = Router();
 
-function isE2eTestHelperEnabled(): boolean {
-  const enabled = (process.env.ENABLE_TEST_ENDPOINTS || '').toLowerCase();
-  return enabled === '1' || enabled === 'true' || enabled === 'yes';
+/** Production runs refuse the helpers unless ENABLE_TEST_ENDPOINTS is set. */
+function requireTestHelpers(_req: Request, res: Response, next: NextFunction): void {
+  if (process.env.NODE_ENV === 'production' && !isRconEnabled()) {
+    res.status(403).json({ success: false, error: 'Disabled in production' });
+    return;
+  }
+  next();
 }
 
 /**
@@ -33,41 +38,43 @@ function isE2eTestHelperEnabled(): boolean {
  *
  * NOTE: This endpoint is only available in non-production environments.
  */
-router.post('/server-status', requireAuth, (req: Request, res: Response): void => {
-  if (process.env.NODE_ENV === 'production' && !isE2eTestHelperEnabled()) {
-    res.status(403).json({ success: false, error: 'Disabled in production' });
-    return;
+router.post(
+  '/server-status',
+  requireAuth,
+  requireTestHelpers,
+  (req: Request, res: Response): void => {
+    const { serverId, status, updatedAt, online, matchSlug } = (req.body || {}) as {
+      serverId?: string;
+      status?: string;
+      updatedAt?: number;
+      online?: boolean;
+      matchSlug?: string;
+    };
+
+    if (!serverId) {
+      res.status(400).json({ success: false, error: 'serverId is required' });
+      return;
+    }
+
+    const allowed = Object.values(ServerStatus) as string[];
+    if (status !== undefined && status !== null && !allowed.includes(status)) {
+      res
+        .status(400)
+        .json({ success: false, error: `status must be one of: ${allowed.join(', ')}` });
+      return;
+    }
+
+    primeServerStatusForTests(serverId, {
+      status: (status as ServerStatus) ?? null,
+      updatedAt: updatedAt ?? null,
+      online: online ?? true,
+      matchSlug: matchSlug ?? null,
+    });
+
+    log.warn(`[DEV-TOOLS] Primed server status for ${serverId}: ${status ?? 'null'}`);
+    res.json({ success: true });
   }
-
-  const { serverId, status, updatedAt, online, matchSlug } = (req.body || {}) as {
-    serverId?: string;
-    status?: string;
-    updatedAt?: number;
-    online?: boolean;
-    matchSlug?: string;
-  };
-
-  if (!serverId) {
-    res.status(400).json({ success: false, error: 'serverId is required' });
-    return;
-  }
-
-  const allowed = Object.values(ServerStatus) as string[];
-  if (status !== undefined && status !== null && !allowed.includes(status)) {
-    res.status(400).json({ success: false, error: `status must be one of: ${allowed.join(', ')}` });
-    return;
-  }
-
-  primeServerStatusForTests(serverId, {
-    status: (status as ServerStatus) ?? null,
-    updatedAt: updatedAt ?? null,
-    online: online ?? true,
-    matchSlug: matchSlug ?? null,
-  });
-
-  log.warn(`[DEV-TOOLS] Primed server status for ${serverId}: ${status ?? 'null'}`);
-  res.json({ success: true });
-});
+);
 
 /**
  * Test-only helper: set clips' status (a recorder that failed them).
@@ -77,11 +84,8 @@ router.post('/server-status', requireAuth, (req: Request, res: Response): void =
 router.post(
   '/highlights/status',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (process.env.NODE_ENV === 'production' && !isE2eTestHelperEnabled()) {
-      res.status(403).json({ success: false, error: 'Disabled in production' });
-      return;
-    }
     const { ids, status } = (req.body || {}) as { ids?: unknown; status?: unknown };
     const list = Array.isArray(ids) ? ids.map(Number).filter(Number.isInteger) : [];
     if (list.length === 0 || typeof status !== 'string') {
@@ -104,40 +108,39 @@ router.post(
  *   so the next connect (or the hourly job) rotates them
  * POST /api/test/fleet/expire-key { keyId }   make a fleet key's expiry pass
  */
-router.post('/fleet/reset-enroll-rate-limit', requireAuth, (_req: Request, res: Response): void => {
-  if (process.env.NODE_ENV === 'production' && !isE2eTestHelperEnabled()) {
-    res.status(403).json({ success: false, error: 'Disabled in production' });
-    return;
+router.post(
+  '/fleet/reset-enroll-rate-limit',
+  requireAuth,
+  requireTestHelpers,
+  (_req: Request, res: Response): void => {
+    resetEnrollRateLimit();
+    res.json({ success: true });
   }
-  resetEnrollRateLimit();
-  res.json({ success: true });
-});
+);
 
-router.post('/fleet/age-token', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (process.env.NODE_ENV === 'production' && !isE2eTestHelperEnabled()) {
-    res.status(403).json({ success: false, error: 'Disabled in production' });
-    return;
+router.post(
+  '/fleet/age-token',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { serverId, days } = (req.body || {}) as { serverId?: string; days?: number };
+    if (!serverId || typeof days !== 'number' || days <= 0) {
+      res.status(400).json({ success: false, error: 'serverId and a positive days are required' });
+      return;
+    }
+    const result = await db.runAsync(
+      'UPDATE cs2_fleet_tokens SET created_at = created_at - ? WHERE server_id = ? AND revoked_at IS NULL',
+      [Math.floor(days * 86400), serverId]
+    );
+    res.json({ success: true, tokens: result.changes });
   }
-  const { serverId, days } = (req.body || {}) as { serverId?: string; days?: number };
-  if (!serverId || typeof days !== 'number' || days <= 0) {
-    res.status(400).json({ success: false, error: 'serverId and a positive days are required' });
-    return;
-  }
-  const result = await db.runAsync(
-    'UPDATE cs2_fleet_tokens SET created_at = created_at - ? WHERE server_id = ? AND revoked_at IS NULL',
-    [Math.floor(days * 86400), serverId]
-  );
-  res.json({ success: true, tokens: result.changes });
-});
+);
 
 router.post(
   '/fleet/expire-key',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (process.env.NODE_ENV === 'production' && !isE2eTestHelperEnabled()) {
-      res.status(403).json({ success: false, error: 'Disabled in production' });
-      return;
-    }
     const { keyId } = (req.body || {}) as { keyId?: string };
     if (!keyId) {
       res.status(400).json({ success: false, error: 'keyId is required' });
@@ -163,85 +166,89 @@ router.post(
  * POST /api/test/fleet/failover/scan { liveSeconds?, preLiveSeconds? }   one failover detection pass
  *   with its own grace (default 0 / 0: a server that is down now counts as down)
  */
-function fleetTestGuard(res: Response): boolean {
-  if (process.env.NODE_ENV === 'production' && !isE2eTestHelperEnabled()) {
-    res.status(403).json({ success: false, error: 'Disabled in production' });
-    return false;
+router.post(
+  '/fleet/assign',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { matchSlug, serverId, configRev } = (req.body || {}) as {
+      matchSlug?: string;
+      serverId?: string;
+      configRev?: number;
+    };
+    if (!matchSlug || !serverId) {
+      res.status(400).json({ success: false, error: 'matchSlug and serverId are required' });
+      return;
+    }
+    await db.runAsync(
+      `INSERT INTO matches (slug, tournament_id, round, match_number, config) VALUES (?, NULL, 0, 0, '{}') ON CONFLICT (slug) DO NOTHING`,
+      [matchSlug]
+    );
+    const record = await liveStateStore.beginAssignment(matchSlug, serverId, configRev ?? 1);
+    res.json({ success: true, epoch: record.epoch, record });
   }
-  return true;
-}
-
-router.post('/fleet/assign', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (!fleetTestGuard(res)) return;
-  const { matchSlug, serverId, configRev } = (req.body || {}) as {
-    matchSlug?: string;
-    serverId?: string;
-    configRev?: number;
-  };
-  if (!matchSlug || !serverId) {
-    res.status(400).json({ success: false, error: 'matchSlug and serverId are required' });
-    return;
-  }
-  await db.runAsync(
-    `INSERT INTO matches (slug, tournament_id, round, match_number, config) VALUES (?, NULL, 0, 0, '{}') ON CONFLICT (slug) DO NOTHING`,
-    [matchSlug]
-  );
-  const record = await liveStateStore.beginAssignment(matchSlug, serverId, configRev ?? 1);
-  res.json({ success: true, epoch: record.epoch, record });
-});
+);
 
 /** POST /api/test/fleet/stattrak  { increments }: a skins.stattrak report, as from a server. */
-router.post('/fleet/stattrak', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (!fleetTestGuard(res)) return;
-  const { skinService } = await import('../skins/skinService');
-  const increments = Array.isArray(req.body?.increments) ? req.body.increments : [];
-  res.json({ success: true, counted: await skinService.addStatTrakKills(increments) });
-});
+router.post(
+  '/fleet/stattrak',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { skinService } = await import('../skins/skinService');
+    const increments = Array.isArray(req.body?.increments) ? req.body.increments : [];
+    res.json({ success: true, counted: await skinService.addStatTrakKills(increments) });
+  }
+);
 
 /** GET /api/test/fleet/skins-loadout/:steamId: the `skins.loadout` items a server would get for a player. */
 router.get(
   '/fleet/skins-loadout/:steamId',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const { skinService } = await import('../skins/skinService');
     res.json({ success: true, items: await skinService.loadoutItems(req.params.steamId) });
   }
 );
 
-router.post('/fleet/send', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  if (!fleetTestGuard(res)) return;
-  const { serverId, type, payload, epoch } = (req.body || {}) as {
-    serverId?: string;
-    type?: ReliableType;
-    payload?: Record<string, unknown>;
-    epoch?: number;
-  };
-  if (!serverId || !type || !payload) {
-    res.status(400).json({ success: false, error: 'serverId, type and payload are required' });
-    return;
-  }
-  try {
-    const sent = await sendReliable(serverId, {
-      type,
-      payload: payload as never,
-      ...(epoch !== undefined ? { epoch } : {}),
-    });
-    res.json({ success: true, ...sent });
-  } catch (error) {
-    if (error instanceof FleetSendError) {
-      res.status(400).json({ success: false, error: error.message });
+router.post(
+  '/fleet/send',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { serverId, type, payload, epoch } = (req.body || {}) as {
+      serverId?: string;
+      type?: ReliableType;
+      payload?: Record<string, unknown>;
+      epoch?: number;
+    };
+    if (!serverId || !type || !payload) {
+      res.status(400).json({ success: false, error: 'serverId, type and payload are required' });
       return;
     }
-    throw error;
+    try {
+      const sent = await sendReliable(serverId, {
+        type,
+        payload: payload as never,
+        ...(epoch !== undefined ? { epoch } : {}),
+      });
+      res.json({ success: true, ...sent });
+    } catch (error) {
+      if (error instanceof FleetSendError) {
+        res.status(400).json({ success: false, error: error.message });
+        return;
+      }
+      throw error;
+    }
   }
-});
+);
 
 router.get(
   '/fleet/live-state/:slug',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const record = await liveStateStore.getLiveState(String(req.params.slug));
     if (!record) {
       res.status(404).json({ success: false, error: 'No live state' });
@@ -254,8 +261,8 @@ router.get(
 router.get(
   '/fleet/events/:serverId',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const rows = await db.queryAsync(
       `SELECT id, stream_id, seq, message_id, type, match_slug, epoch, rev, ref, processed_at, error
        FROM cs2_fleet_events WHERE server_id = ? ORDER BY id ASC`,
@@ -268,8 +275,8 @@ router.get(
 router.post(
   '/fleet/failover/scan',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const { liveSeconds, preLiveSeconds } = (req.body || {}) as {
       liveSeconds?: number;
       preLiveSeconds?: number;
@@ -287,8 +294,8 @@ router.post(
 router.get(
   '/fleet/commands/:id',
   requireAuth,
+  requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    if (!fleetTestGuard(res)) return;
     const command = await getCommand(String(req.params.id));
     if (!command) {
       res.status(404).json({ success: false, error: 'No such command' });

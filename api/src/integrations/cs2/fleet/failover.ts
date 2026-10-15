@@ -62,7 +62,12 @@ import { liveStateStore } from './state';
 import { cs2ServerIdOf } from './link';
 import { hostEvents, hostServers } from './hosts/service';
 import { getFailoverSettings, reserveCount } from './failoverSettings';
-import { createWhenNoneFree, linkCreatedServers, restartBeforeMove } from './failoverRecovery';
+import {
+  createWhenNoneFree,
+  linkCreatedServers,
+  RECOVERY_ACTOR,
+  restartBeforeMove,
+} from './failoverRecovery';
 import {
   buildResume,
   detectFailure,
@@ -80,11 +85,9 @@ import {
 import type { HostHealthPayload } from './protocol/host/v1';
 import type { HelloPayload, MapStats, MatchPhase, MatchState, Score } from './protocol/v1';
 import { fleetChanged } from './adminTopics';
+import { nowS, parseJson } from './util';
 
 const CHECK_MS = Number(process.env.FLEET_FAILOVER_CHECK_MS) || 10_000;
-
-/** Who auto-failover acts as in the records. */
-export const FAILOVER_PLATFORM_ACTOR = 'platform:auto-failover';
 
 export type FailoverStatus = 'open' | 'moving' | 'moved' | 'dismissed' | 'withdrawn';
 
@@ -152,17 +155,7 @@ interface ProposalRow {
   updated_at: number;
 }
 
-const nowS = () => Math.floor(Date.now() / 1000);
 const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
-
-function parseJson<T>(text: string | null): T | null {
-  if (!text) return null;
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    return null;
-  }
-}
 
 function fromRow(row: ProposalRow): FailoverProposal {
   return {
@@ -548,7 +541,7 @@ const failedTargets = new Map<string, Set<string>>();
 async function autoAccept(proposal: FailoverProposal): Promise<AcceptOutcome> {
   const exclude = [...(failedTargets.get(proposal.id) ?? [])];
   const outcome = await acceptFailover(proposal.id, {
-    actor: FAILOVER_PLATFORM_ACTOR,
+    actor: RECOVERY_ACTOR,
     auto: true,
     exclude,
   });

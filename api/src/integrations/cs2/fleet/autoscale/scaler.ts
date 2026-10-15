@@ -54,6 +54,7 @@ import {
 import { configuredReserve, getAutoscaleSettings, type StoredAutoscaleSettings } from './settings';
 import { fleetChanged } from '../adminTopics';
 import { matchPluginDisabled } from '../push/pluginSets';
+import { nowS, parseJson } from '../util';
 
 /** `issued_by` on the scaler's host commands. */
 export const AUTOSCALE_ACTOR = 'autoscale';
@@ -73,8 +74,6 @@ const UPDATE_TYPES: ReadonlySet<string> = new Set([
   'server.restart',
   'server.set_launch_args',
 ]);
-
-const nowS = () => Math.floor(Date.now() / 1000);
 
 /** Unix s each managed server was first seen idle (in this process). */
 const idleSince = new Map<string, number>();
@@ -192,15 +191,6 @@ interface MatchRow {
   team2_from_match_id: number | null;
   transport: string | null;
   tournament_id: number | null;
-}
-
-function parseJson<T>(raw: string | null | undefined): T | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
 }
 
 interface StateLike {

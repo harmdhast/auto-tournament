@@ -37,6 +37,7 @@ import type {
   RoundSummary,
   StateSnapshotPayload,
 } from './protocol/v1';
+import { nowS } from './util';
 
 /** What the platform knows about one match's live state. */
 export interface LiveMatchRecord {
@@ -108,8 +109,6 @@ interface HeldPatch {
   patch: MatchStatePatch;
   type: string;
 }
-
-const nowS = () => Math.floor(Date.now() / 1000);
 
 function emptyRecord(matchSlug: string): LiveMatchRecord {
   return {

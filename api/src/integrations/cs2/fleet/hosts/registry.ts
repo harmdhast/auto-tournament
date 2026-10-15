@@ -41,11 +41,10 @@ import type {
   HostProgressPayload,
   HostResultPayload,
 } from '../protocol/host/v1';
+import { nowS, parseJson } from '../util';
 
 /** How long a fleet key minted for a `server.create` stays usable (FLEET.md §4.1 B). */
 export const CREATE_KEY_TTL_S = 24 * 3600;
-
-const nowS = () => Math.floor(Date.now() / 1000);
 
 export type FleetHostStatus = 'pending' | 'enrolled' | 'revoked';
 
@@ -106,15 +105,6 @@ export async function tx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> 
       throw error;
     }
   });
-}
-
-function parseJson<T>(raw: string | null): T | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
 }
 
 function newHostId(): string {

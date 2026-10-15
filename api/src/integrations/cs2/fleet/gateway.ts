@@ -723,7 +723,6 @@ export class FleetGateway {
   private server: HttpServer | null = null;
   private readyListeners: Array<(serverId: string, hello: HelloPayload) => Promise<void> | void> =
     [];
-  private offlineListeners: Array<(serverId: string) => void> = [];
   private closedListeners: Array<(serverId: string) => void> = [];
   private welcomeRevsProvider: ((serverId: string) => Promise<WelcomeRevs>) | null = null;
   private assignmentResolver: AssignmentResolver | null = null;
@@ -787,11 +786,6 @@ export class FleetGateway {
   /** After a server's welcome (and the outbox replay): `hello` is what it said it holds. */
   onServerReady(listener: (serverId: string, hello: HelloPayload) => Promise<void> | void): void {
     this.readyListeners.push(listener);
-  }
-
-  /** After a server's live session ended (not when a newer session replaced it). */
-  onServerOffline(listener: (serverId: string) => void): void {
-    this.offlineListeners.push(listener);
   }
 
   /** Run `listener` when a server's session goes (it is offline now). */
@@ -864,13 +858,6 @@ export class FleetGateway {
     this.sessions.delete(serverId);
     if (session.sessionId) {
       log.info(`[FLEET] ${serverId} offline`);
-      for (const listener of this.offlineListeners) {
-        try {
-          listener(serverId);
-        } catch (error) {
-          log.warn(`[FLEET] ${serverId}: offline task failed: ${(error as Error).message}`);
-        }
-      }
       void registry
         .markDisconnected(serverId, session.sessionId)
         .catch((error) => {

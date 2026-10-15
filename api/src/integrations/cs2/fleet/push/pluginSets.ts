@@ -27,6 +27,8 @@ import { db } from '../../../../config/database';
 import { log } from '../../../../utils/logger';
 import type { HelloPayload } from '../protocol/v1';
 import type { Validated } from './controls';
+import { capabilitiesOf } from '../registry';
+import { nowS } from '../util';
 
 /** The plugins an admin can pick, in display order. */
 export const PLUGIN_CATALOG = [
@@ -186,16 +188,7 @@ export function pluginsStateOf(hello: Pick<HelloPayload, 'plugins_state'>): Plug
 
 /** Whether a fleet server announced `fleet.cmds.v1` in its last hello. */
 export async function runsFleetCmds(fleetServerId: string): Promise<boolean> {
-  const row = await db.queryOneAsync<{ capabilities: string | null }>(
-    'SELECT capabilities FROM cs2_fleet_servers WHERE id = ?',
-    [fleetServerId]
-  );
-  try {
-    const caps = row?.capabilities ? (JSON.parse(row.capabilities) as unknown) : [];
-    return Array.isArray(caps) && caps.includes(FLEET_CMDS_CAPABILITY);
-  } catch {
-    return false;
-  }
+  return ((await capabilitiesOf(fleetServerId)) ?? []).includes(FLEET_CMDS_CAPABILITY);
 }
 
 /**
@@ -258,8 +251,6 @@ export async function matchDisabledServerIds(): Promise<Set<string>> {
 // ---------------------------------------------------------------------------
 // The fleet default set
 // ---------------------------------------------------------------------------
-
-const nowS = () => Math.floor(Date.now() / 1000);
 
 function parseSet(raw: string | null | undefined): PluginSet | null {
   if (!raw) return null;

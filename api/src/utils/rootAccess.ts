@@ -1,5 +1,6 @@
 import type { Request } from 'express';
 import { checkAdminAccess, requestActorId, type AuthedRequest } from '../middleware/auth';
+import { isLocalPlayerId } from '../services/localAccountSteamLink';
 import { isSavedAdminSteamId } from './adminSteamIds';
 
 /**
@@ -13,7 +14,7 @@ export function isRootRequest(req: Request): boolean {
   const token = (req as AuthedRequest).serviceToken;
   if (token) return token.scope === 'admin';
   const actor = requestActorId(req);
-  return !!actor && (actor.startsWith('local-') || isSavedAdminSteamId(actor));
+  return !!actor && (isLocalPlayerId(actor) || isSavedAdminSteamId(actor));
 }
 
 /** isRootRequest for a route without requireAuth (/api/auth/me): an admin first. */

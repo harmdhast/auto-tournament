@@ -48,6 +48,7 @@ import type { AdminCalledEvent } from '../events/plugin-events.types';
 import { ulid } from './credentials';
 import {
   AssignConfigError,
+  type AssignDefaults,
   buildAssignConfig,
   diffAssignConfig,
   generateMatchPassword,
@@ -62,18 +63,18 @@ import {
   type FleetCommandRecord,
 } from './reliable';
 import { liveStateStore } from './state';
+import { dropOrphanAssignment, type OrphanDeps } from './orphans';
 import {
-  bindOrphanDeps,
   claimUnassign,
   claimUnassignForConnection,
+  forgetConnectionClaims,
   releaseUnassign,
-  dropOrphanAssignment,
-  forgetDroppedOrphans,
-} from './orphans';
+  unassignKey,
+} from './unassignClaims';
 import { roundBackupStore } from './backups';
 import { DEMO_STREAM_CAPABILITY } from './limits';
 import { matchPluginDisabled } from './push/pluginSets';
-import { effectiveBusyReason, parseBusyDetail, parseBusyReason } from './busyReason';
+import { effectiveBusyReason, holdsLocalCopy, parseBusy, parseBusyReason } from './busyReason';
 import type { BusyReason } from './protocol/v1/types';
 import { fleetBus, onFleetServerReady, setFleetAssignmentResolver } from './service';
 import type {
@@ -88,6 +89,8 @@ import type {
   UnassignReason,
   WelcomePayload,
 } from './protocol/v1';
+import { capabilitiesOf } from './registry';
+import { nowS } from './util';
 
 /** How long the allocator waits for Ready Up to accept a `match.assign`. */
 const ASSIGN_TIMEOUT_MS = Number(process.env.FLEET_ASSIGN_TIMEOUT_MS) || 15_000;
@@ -141,8 +144,6 @@ interface AssignmentRow {
   config: string | null;
   ended_at: number | null;
 }
-
-const nowS = () => Math.floor(Date.now() / 1000);
 
 function fromRow(row: AssignmentRow): FleetAssignment {
   let config: FleetAssignment['config'] = null;
@@ -417,33 +418,20 @@ async function servedMatchConfig(match: DbMatchRow): Promise<MatchConfig> {
 
 /** The server announced `demo.stream.v1` in its hello (./limits.ts). */
 async function streamsDemos(fleetServerId: string): Promise<boolean> {
-  const row = await db.queryOneAsync<{ capabilities: string | null }>(
-    'SELECT capabilities FROM cs2_fleet_servers WHERE id = ?',
-    [fleetServerId]
-  );
-  try {
-    const caps = row?.capabilities ? (JSON.parse(row.capabilities) as unknown) : [];
-    return Array.isArray(caps) && caps.includes(DEMO_STREAM_CAPABILITY);
-  } catch {
-    return false;
-  }
+  return ((await capabilitiesOf(fleetServerId)) ?? []).includes(DEMO_STREAM_CAPABILITY);
 }
 
 async function joinPasswordEnabled(): Promise<boolean> {
   try {
     const { cs2Settings } = await import('../settingsReaders');
     return await cs2Settings.isAtJoinPasswordEnabled();
-  } catch {
+  } catch (error) {
+    log.warn(`[FLEET] join password setting not read, none set: ${(error as Error).message}`);
     return false;
   }
 }
 
-async function assignDefaults(): Promise<{
-  allowForceReady?: boolean;
-  pauseAfterRestore?: boolean;
-  stopCommandAvailable?: boolean;
-  stopCommandNoDamage?: boolean;
-}> {
+async function assignDefaults(): Promise<AssignDefaults> {
   try {
     const { cs2Settings } = await import('../settingsReaders');
     const core = await cs2Settings.getAtCoreDefaults();
@@ -453,7 +441,8 @@ async function assignDefaults(): Promise<{
       stopCommandAvailable: core.stopCommandAvailable,
       stopCommandNoDamage: core.stopCommandNoDamage,
     };
-  } catch {
+  } catch (error) {
+    log.warn(`[FLEET] match defaults not read, stop rules left out: ${(error as Error).message}`);
     return {};
   }
 }
@@ -1031,12 +1020,11 @@ export function isUnsupportedAnswer(o: FleetCommandOutcome): boolean {
 // Hooks on the link
 // ---------------------------------------------------------------------------
 
-/** Zombie unassigns already sent: `${server}:${slug}:${epoch}`. */
-bindOrphanDeps({
+const orphanDeps: OrphanDeps = {
   unassign: (fleetServerId, slug, epoch, reason) =>
     unassignEpoch(fleetServerId, slug, epoch, reason),
   epochOf: async (slug) => (await getAssignment(slug))?.epoch ?? null,
-});
+};
 
 async function supersede(
   fleetServerId: string,
@@ -1044,7 +1032,7 @@ async function supersede(
   epoch: number,
   why: string
 ): Promise<void> {
-  const key = `${fleetServerId}:${matchSlug}:${epoch}`;
+  const key = unassignKey(fleetServerId, matchSlug, epoch);
   // A failover is moving the match off this server right now: its epoch is
   // not dead until the target accepts (the move fences it then, failover.ts);
   // if the target refuses, this server keeps the match.
@@ -1081,14 +1069,13 @@ export async function fenceEpoch(
   epoch: number,
   reason: 'superseded' | 'moved' = 'superseded'
 ): Promise<string> {
-  claimUnassign(`${fleetServerId}:${matchSlug}:${epoch}`);
+  claimUnassign(unassignKey(fleetServerId, matchSlug, epoch));
   return unassignEpoch(fleetServerId, matchSlug, epoch, reason, MOVED_KICK_MESSAGE);
 }
 
 /** `welcome.assignment`: the match this server holds on the platform's side, still being played. */
 export async function resolveWelcomeAssignment(
-  fleetServerId: string,
-  _hello: HelloPayload
+  fleetServerId: string
 ): Promise<WelcomePayload['assignment']> {
   for (const assignment of await openAssignmentsOf(fleetServerId)) {
     const record = await liveStateStore.getLiveState(assignment.matchSlug);
@@ -1124,10 +1111,10 @@ const toldToDrop = new Map<string, Set<string>>();
  */
 export async function supersedeStaleLocalCopy(
   fleetServerId: string,
-  reason: string | null,
+  reason: BusyReason | null,
   detail: string | null
 ): Promise<boolean> {
-  if (!detail || (reason !== 'local_match' && reason !== 'awaiting_reset')) return false;
+  if (!detail || !holdsLocalCopy(reason)) return false;
   const told = toldToDrop.get(fleetServerId) ?? new Set<string>();
   if (told.has(detail)) return false;
   const known = await db.queryOneAsync<{ slug: string }>(
@@ -1143,7 +1130,7 @@ export async function supersedeStaleLocalCopy(
     [detail, fleetServerId]
   );
   const epoch = Number(moved?.from_epoch ?? assignment?.epoch ?? 1);
-  const key = `${fleetServerId}:${detail}:${epoch}`;
+  const key = unassignKey(fleetServerId, detail, epoch);
   if (!claimUnassignForConnection(key)) return false;
   told.add(detail);
   toldToDrop.set(fleetServerId, told);
@@ -1165,14 +1152,11 @@ export async function supersedeStaleLocalCopy(
 
 async function checkHello(fleetServerId: string, hello: HelloPayload): Promise<void> {
   toldToDrop.delete(fleetServerId);
-  forgetDroppedOrphans(fleetServerId);
+  forgetConnectionClaims(fleetServerId);
   const state = hello.state as { match_id?: unknown; epoch?: unknown } | null | undefined;
   if (!state && hello.availability !== 'available') {
-    await supersedeStaleLocalCopy(
-      fleetServerId,
-      parseBusyReason(hello.reason),
-      parseBusyDetail(hello.detail)
-    );
+    const busy = parseBusy(hello);
+    await supersedeStaleLocalCopy(fleetServerId, busy.reason, busy.detail);
   }
   if (state && typeof state.match_id === 'string' && typeof state.epoch === 'number') {
     // A match the platform never assigned (a local `ru match load`) has no
@@ -1187,7 +1171,7 @@ async function checkHello(fleetServerId: string, hello: HelloPayload): Promise<v
       );
     }
   } else {
-    const assignment = await resolveWelcomeAssignment(fleetServerId, hello);
+    const assignment = await resolveWelcomeAssignment(fleetServerId);
     if (assignment) {
       log.warn(
         `[FLEET] ${fleetServerId} came back without ${assignment.match_id} (epoch ${assignment.epoch}) loaded; ` +
@@ -1195,11 +1179,15 @@ async function checkHello(fleetServerId: string, hello: HelloPayload): Promise<v
       );
     }
   }
-  void dropOrphanAssignment(fleetServerId, {
-    reason: typeof hello.reason === 'string' ? hello.reason : null,
-    detail: typeof hello.detail === 'string' ? hello.detail : null,
-    state: matchState(hello.state),
-  }).catch((error) => {
+  void dropOrphanAssignment(
+    fleetServerId,
+    {
+      reason: typeof hello.reason === 'string' ? hello.reason : null,
+      detail: typeof hello.detail === 'string' ? hello.detail : null,
+      state: matchState(hello.state),
+    },
+    orphanDeps
+  ).catch((error) => {
     log.warn(`[FLEET] ${fleetServerId}: orphan check failed: ${(error as Error).message}`);
   });
   if (hello.availability === 'available' && (await cs2ServerIdOf(fleetServerId))) {
@@ -1355,11 +1343,15 @@ export function startFleetDriver(): void {
     });
   });
   fleetInbound.onSnapshot(({ serverId, payload }) => {
-    void dropOrphanAssignment(serverId, {
-      reason: payload.availability_reason ?? null,
-      detail: payload.availability_detail ?? null,
-      state: matchState(payload.state),
-    }).catch((error) => {
+    void dropOrphanAssignment(
+      serverId,
+      {
+        reason: payload.availability_reason ?? null,
+        detail: payload.availability_detail ?? null,
+        state: matchState(payload.state),
+      },
+      orphanDeps
+    ).catch((error) => {
       log.warn(`[FLEET] ${serverId}: orphan check failed: ${(error as Error).message}`);
     });
   });

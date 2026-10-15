@@ -13,6 +13,7 @@
 
 import { db } from '../../../../config/database';
 import type { StoredPlugins } from './pluginSets';
+import { nowS } from '../util';
 
 export type ListName = 'admins' | 'server_config';
 
@@ -51,8 +52,6 @@ export interface ServerPrefs {
   updatedBy: string | null;
   updatedAt: number | null;
 }
-
-const nowS = () => Math.floor(Date.now() / 1000);
 
 function parse<T>(raw: string | null | undefined): T | null {
   if (!raw) return null;

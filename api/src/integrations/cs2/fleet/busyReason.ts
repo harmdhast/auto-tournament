@@ -1,20 +1,5 @@
 import type { BusyReason } from './protocol/v1/types';
 
-/**
- * Why a Ready Up server takes no match. Ready Up reports `local_match`,
- * `awaiting_reset`, `match_disabled` and `draining` with its availability;
- * older Ready Up sends free text (`assigned`, `series_end`), read as none.
- * `reserved` (a spare held back for failover) and `match_disabled` (the
- * plugin set turns match off) also come from the platform itself.
- */
-export const BUSY_REASONS: readonly BusyReason[] = [
-  'local_match',
-  'awaiting_reset',
-  'match_disabled',
-  'draining',
-  'reserved',
-];
-
 const REPORTED = new Set<string>(['local_match', 'awaiting_reset', 'match_disabled', 'draining']);
 const DETAIL_MAX = 128;
 
@@ -32,6 +17,19 @@ export function parseBusyDetail(raw: unknown): string | null {
     .trim()
     .slice(0, DETAIL_MAX);
   return clean || null;
+}
+
+/** Reason and detail as Ready Up sent them (`reason`/`detail`, or the snapshot's `availability_*`), parsed. */
+export function parseBusy(raw: { reason?: unknown; detail?: unknown }): {
+  reason: BusyReason | null;
+  detail: string | null;
+} {
+  return { reason: parseBusyReason(raw.reason), detail: parseBusyDetail(raw.detail) };
+}
+
+/** A server that holds a platform match as its own copy, or waits for its reset. */
+export function holdsLocalCopy(reason: BusyReason | null): boolean {
+  return reason === 'local_match' || reason === 'awaiting_reset';
 }
 
 /** The reason to show: match off first, then what the server said, then a held spare. */

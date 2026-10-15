@@ -6,14 +6,10 @@
  */
 
 import { log } from '../../../utils/logger';
-import { db } from '../../../config/database';
-import {
-  getIO,
-  onSocketConnection,
-  socketHasAdminAccess,
-} from '../../../services/socketService';
+import { capabilitiesOf } from './registry';
+import { getIO, onSocketConnection, socketHasAdminAccess } from '../../../services/socketService';
 import { registerInboundHandler } from './inbound';
-import { fleetBus, onFleetServerOffline, onFleetServerReady } from './service';
+import { fleetBus, onFleetServerClosed, onFleetServerReady } from './service';
 import type { Socket } from 'socket.io';
 import type { LogsLinesPayload } from './protocol/v1';
 
@@ -38,34 +34,22 @@ let hooked = false;
 
 export const logRoom = (fleetServerId: string): string => `fleet-logs:${fleetServerId}`;
 
-function requestStream(fleetServerId: string, backlog: boolean): void {
+function sendStreamControl(
+  fleetServerId: string,
+  type: 'logs.start' | 'logs.stop',
+  payload: { backlog?: boolean }
+): void {
   void fleetBus()
-    .send(fleetServerId, { type: 'logs.start', payload: { backlog }, reliable: false })
+    .send(fleetServerId, { type, payload, reliable: false })
     .catch((error) =>
-      log.warn(`[FLEET] ${fleetServerId}: logs.start failed: ${(error as Error).message}`)
+      log.warn(`[FLEET] ${fleetServerId}: ${type} failed: ${(error as Error).message}`)
     );
 }
 
-function stopStream(fleetServerId: string): void {
-  void fleetBus()
-    .send(fleetServerId, { type: 'logs.stop', payload: {}, reliable: false })
-    .catch((error) =>
-      log.warn(`[FLEET] ${fleetServerId}: logs.stop failed: ${(error as Error).message}`)
-    );
-}
-
-async function capabilitiesOf(fleetServerId: string): Promise<string[] | null> {
-  const row = await db.queryOneAsync<{ capabilities: string | null }>(
-    'SELECT capabilities FROM cs2_fleet_servers WHERE id = ?',
-    [fleetServerId]
-  );
-  if (!row) return null;
-  try {
-    return JSON.parse(row.capabilities ?? '[]') as string[];
-  } catch {
-    return [];
-  }
-}
+const requestStream = (fleetServerId: string, backlog: boolean): void =>
+  sendStreamControl(fleetServerId, 'logs.start', { backlog });
+const stopStream = (fleetServerId: string): void =>
+  sendStreamControl(fleetServerId, 'logs.stop', {});
 
 export async function subscribeLogs(
   socketId: string,
@@ -174,7 +158,7 @@ export function startLogRelay(): void {
       requestStream(fleetServerId, true);
       getIO().to(logRoom(fleetServerId)).emit('fleet:logs:state', { fleetServerId, live: true });
     });
-    onFleetServerOffline((fleetServerId) => {
+    onFleetServerClosed((fleetServerId) => {
       if (!watched.has(fleetServerId)) return;
       getIO().to(logRoom(fleetServerId)).emit('fleet:logs:state', { fleetServerId, live: false });
     });

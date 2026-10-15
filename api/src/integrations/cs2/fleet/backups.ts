@@ -40,6 +40,7 @@ import { log } from '../../../utils/logger';
 import { fleetInbound, type FleetEventNotice } from './inbound';
 import { isLivePhase } from './failoverPlan';
 import type { FleetEventData, FleetEventPayload, InlineBackup, MatchPhase, Score } from './protocol/v1';
+import { nowS } from './util';
 
 /** The schema's limit for a whole backup file (`inlineBackup.size`). */
 export const MAX_BACKUP_BYTES = 4 * 1024 * 1024;
@@ -148,7 +149,6 @@ export interface RoundBackupPersistence {
   prune(endedBefore: number, partsBefore: number): Promise<number>;
 }
 
-const nowS = () => Math.floor(Date.now() / 1000);
 
 /** Base64 that round-trips (Node's decoder skips junk silently). */
 function decodeBase64(data: string): Buffer | null {

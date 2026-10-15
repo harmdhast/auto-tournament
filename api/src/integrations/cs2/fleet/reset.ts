@@ -11,6 +11,7 @@ import {
   unassignAll,
   type IssuedBy,
 } from './driver';
+import { holdsLocalCopy, parseBusyReason } from './busyReason';
 import { cs2ServerIdOf } from './link';
 import * as registry from './registry';
 import { fleetBus } from './service';
@@ -109,8 +110,7 @@ export async function resetFleetServer(
         ? 'assignment'
         : said === 'local' || said === 'assignment' || said === 'none'
           ? said
-          : stored?.availability_reason === 'local_match' ||
-              stored?.availability_reason === 'awaiting_reset'
+          : holdsLocalCopy(parseBusyReason(stored?.availability_reason))
             ? 'local'
             : 'none';
     log.info(`[FLEET] ${fleetServerId}: reset by ${who.actor ?? 'unknown'} (ended ${ended})`);
