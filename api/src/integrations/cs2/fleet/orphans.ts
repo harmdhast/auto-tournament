@@ -4,6 +4,12 @@ import { ulid } from './credentials';
 import { cs2ServerIdOf } from './link';
 import { awaitCommandResult } from './reliable';
 import { activeProposal } from './failover';
+import {
+  claimUnassignOnConnection,
+  isClaimed,
+  releaseUnassign,
+  unassignKey,
+} from './unassignClaims';
 
 export type OrphanReason = 'cancelled' | 'ended' | 'superseded';
 
@@ -16,7 +22,7 @@ export interface OrphanReport {
 const ANSWER_TIMEOUT_MS = 10_000;
 const nowS = () => Math.floor(Date.now() / 1000);
 
-interface OrphanDeps {
+export interface OrphanDeps {
   unassign(
     fleetServerId: string,
     slug: string,
@@ -24,41 +30,6 @@ interface OrphanDeps {
     reason: OrphanReason
   ): Promise<string>;
   epochOf(slug: string): Promise<number | null>;
-}
-
-let deps: OrphanDeps;
-
-export function bindOrphanDeps(bound: OrphanDeps): void {
-  deps = bound;
-}
-
-/** Unassigns already sent or in flight: `${server}:${slug}:${epoch}`. Shared with the stale-epoch check. */
-const sent = new Set<string>();
-/** The keys the orphan path claimed, cleared per server on hello. */
-const claimedHere = new Set<string>();
-
-/** True when this unassign was not sent yet; the caller then owns it. */
-export function claimUnassign(key: string): boolean {
-  if (sent.has(key)) return false;
-  sent.add(key);
-  if (sent.size > 10_000) sent.clear();
-  return true;
-}
-
-/**
- * Claims an unassign for the current connection: released on hello (forgetDroppedOrphans) or by
- * releaseUnassign. A fence's earlier claim does not block it (a server that lost the fence is told again).
- */
-export function claimUnassignForConnection(key: string): boolean {
-  if (claimedHere.has(key)) return false;
-  claimedHere.add(key);
-  sent.add(key);
-  return true;
-}
-
-export function releaseUnassign(key: string): void {
-  sent.delete(key);
-  claimedHere.delete(key);
 }
 
 /** The platform's own assignment of `slug` to this fleet server is still open (unlink and relink keep it). */
@@ -88,31 +59,23 @@ export async function orphanReason(
   return null;
 }
 
-export function forgetDroppedOrphans(fleetServerId: string): void {
-  for (const key of claimedHere) {
-    if (!key.startsWith(`${fleetServerId}:`)) continue;
-    claimedHere.delete(key);
-    sent.delete(key);
-  }
-}
-
 /** A server reporting a platform assignment the platform no longer runs gets `match.unassign`. */
 export async function dropOrphanAssignment(
   fleetServerId: string,
-  report: OrphanReport
+  report: OrphanReport,
+  deps: OrphanDeps
 ): Promise<boolean> {
   if (report.reason !== 'assigned' && report.reason !== 'awaiting_reset') return false;
   const slug = report.state?.match_id ?? report.detail;
   if (!slug) return false;
   const epoch = report.state?.epoch ?? (await deps.epochOf(slug));
   if (!epoch) return false;
-  const key = `${fleetServerId}:${slug}:${epoch}`;
-  if (sent.has(key)) return false;
+  const key = unassignKey(fleetServerId, slug, epoch);
+  if (isClaimed(key)) return false;
   if ((await activeProposal(slug))?.status === 'moving') return false;
   const reason = await orphanReason(slug, fleetServerId);
   if (!reason) return false;
-  if (!claimUnassign(key)) return false;
-  claimedHere.add(key);
+  if (!claimUnassignOnConnection(key)) return false;
 
   const command = `match.unassign ${slug} (${reason})`;
   const auditId = ulid();

@@ -23,6 +23,7 @@ admin actions): what exists, and the calls to use.
 | `inbound.ts`                                            | server → platform: persist-before-ack, apply, hooks (`fleetInbound`)                                                                                                                                           |
 | `busyReason.ts`                                         | why a server takes no match: parse what Ready Up reports, add `match_disabled` / `reserved`                                                                                                                    |
 | `state.ts`                                              | **the live match state store** (`liveStateStore`)                                                                                                                                                              |
+| `unassignClaims.ts`                                     | unassigns already sent or in flight, keyed `server:slug:epoch`                                                                                                                                                 |
 | `mergePatch.ts`                                         | RFC 7386 merge patch, diff for the drift check                                                                                                                                                                 |
 | `normalize.ts`                                          | fleet `event.*` → `NormalizedEvent[]` (pure)                                                                                                                                                                   |
 | `ingest.ts`                                             | normalize → `events/matchEvents.applyNormalizedEvents` → `matchLifecycle.ingest`                                                                                                                               |
@@ -473,7 +474,7 @@ Up, logs); Ready Up's own link stays for the match.
 | `protocol/host/v1/` | host JSON Schemas, adopted unchanged from csm's `protocol/host-v1/` (csm PR #66); csm copies them back from here               |
 | `hosts/gateway.ts`  | the socket: same transport as `gateway.ts`; `hostEvents` (`online`, `offline`, `inventory`, `health`, `result`, `progress`)    |
 | `hosts/registry.ts` | machines, `rhs_` tokens, one-time machine codes, the outbox, commands, health (`cs2_fleet_host*`, migration `009-fleet-hosts`) |
-| `hosts/service.ts`  | **`sendHostCommand(hostId, type, payload, { issuedBy, force })`**, the inventory join, rotation, revoke     |
+| `hosts/service.ts`  | **`sendHostCommand(hostId, type, payload, { issuedBy, force })`**, the inventory join, rotation, revoke                        |
 | `hosts/join.ts`     | pure: inventory ↔ Ready Up join (§18.3), command targets, new servers after a create                                           |
 | `hosts/routes.ts`   | `/api/fleet/hosts*` (admin) and the `kind: "host"` branch of `POST /api/fleet/enroll`                                          |
 

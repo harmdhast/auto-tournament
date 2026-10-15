@@ -62,14 +62,14 @@ import {
   type FleetCommandRecord,
 } from './reliable';
 import { liveStateStore } from './state';
+import { dropOrphanAssignment, type OrphanDeps } from './orphans';
 import {
-  bindOrphanDeps,
   claimUnassign,
   claimUnassignForConnection,
+  forgetConnectionClaims,
   releaseUnassign,
-  dropOrphanAssignment,
-  forgetDroppedOrphans,
-} from './orphans';
+  unassignKey,
+} from './unassignClaims';
 import { roundBackupStore } from './backups';
 import { DEMO_STREAM_CAPABILITY } from './limits';
 import { matchPluginDisabled } from './push/pluginSets';
@@ -1031,12 +1031,11 @@ export function isUnsupportedAnswer(o: FleetCommandOutcome): boolean {
 // Hooks on the link
 // ---------------------------------------------------------------------------
 
-/** Zombie unassigns already sent: `${server}:${slug}:${epoch}`. */
-bindOrphanDeps({
+const orphanDeps: OrphanDeps = {
   unassign: (fleetServerId, slug, epoch, reason) =>
     unassignEpoch(fleetServerId, slug, epoch, reason),
   epochOf: async (slug) => (await getAssignment(slug))?.epoch ?? null,
-});
+};
 
 async function supersede(
   fleetServerId: string,
@@ -1044,7 +1043,7 @@ async function supersede(
   epoch: number,
   why: string
 ): Promise<void> {
-  const key = `${fleetServerId}:${matchSlug}:${epoch}`;
+  const key = unassignKey(fleetServerId, matchSlug, epoch);
   // A failover is moving the match off this server right now: its epoch is
   // not dead until the target accepts (the move fences it then, failover.ts);
   // if the target refuses, this server keeps the match.
@@ -1081,7 +1080,7 @@ export async function fenceEpoch(
   epoch: number,
   reason: 'superseded' | 'moved' = 'superseded'
 ): Promise<string> {
-  claimUnassign(`${fleetServerId}:${matchSlug}:${epoch}`);
+  claimUnassign(unassignKey(fleetServerId, matchSlug, epoch));
   return unassignEpoch(fleetServerId, matchSlug, epoch, reason, MOVED_KICK_MESSAGE);
 }
 
@@ -1142,7 +1141,7 @@ export async function supersedeStaleLocalCopy(
     [detail, fleetServerId]
   );
   const epoch = Number(moved?.from_epoch ?? assignment?.epoch ?? 1);
-  const key = `${fleetServerId}:${detail}:${epoch}`;
+  const key = unassignKey(fleetServerId, detail, epoch);
   if (!claimUnassignForConnection(key)) return false;
   told.add(detail);
   toldToDrop.set(fleetServerId, told);
@@ -1164,7 +1163,7 @@ export async function supersedeStaleLocalCopy(
 
 async function checkHello(fleetServerId: string, hello: HelloPayload): Promise<void> {
   toldToDrop.delete(fleetServerId);
-  forgetDroppedOrphans(fleetServerId);
+  forgetConnectionClaims(fleetServerId);
   const state = hello.state as { match_id?: unknown; epoch?: unknown } | null | undefined;
   if (!state && hello.availability !== 'available') {
     const busy = parseBusy(hello);
@@ -1191,11 +1190,15 @@ async function checkHello(fleetServerId: string, hello: HelloPayload): Promise<v
       );
     }
   }
-  void dropOrphanAssignment(fleetServerId, {
-    reason: typeof hello.reason === 'string' ? hello.reason : null,
-    detail: typeof hello.detail === 'string' ? hello.detail : null,
-    state: matchState(hello.state),
-  }).catch((error) => {
+  void dropOrphanAssignment(
+    fleetServerId,
+    {
+      reason: typeof hello.reason === 'string' ? hello.reason : null,
+      detail: typeof hello.detail === 'string' ? hello.detail : null,
+      state: matchState(hello.state),
+    },
+    orphanDeps
+  ).catch((error) => {
     log.warn(`[FLEET] ${fleetServerId}: orphan check failed: ${(error as Error).message}`);
   });
   if (hello.availability === 'available' && (await cs2ServerIdOf(fleetServerId))) {
@@ -1351,11 +1354,15 @@ export function startFleetDriver(): void {
     });
   });
   fleetInbound.onSnapshot(({ serverId, payload }) => {
-    void dropOrphanAssignment(serverId, {
-      reason: payload.availability_reason ?? null,
-      detail: payload.availability_detail ?? null,
-      state: matchState(payload.state),
-    }).catch((error) => {
+    void dropOrphanAssignment(
+      serverId,
+      {
+        reason: payload.availability_reason ?? null,
+        detail: payload.availability_detail ?? null,
+        state: matchState(payload.state),
+      },
+      orphanDeps
+    ).catch((error) => {
       log.warn(`[FLEET] ${serverId}: orphan check failed: ${(error as Error).message}`);
     });
   });
