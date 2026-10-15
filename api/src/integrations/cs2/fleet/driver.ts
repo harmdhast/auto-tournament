@@ -48,6 +48,7 @@ import type { AdminCalledEvent } from '../events/plugin-events.types';
 import { ulid } from './credentials';
 import {
   AssignConfigError,
+  type AssignDefaults,
   buildAssignConfig,
   diffAssignConfig,
   generateMatchPassword,
@@ -424,17 +425,13 @@ async function joinPasswordEnabled(): Promise<boolean> {
   try {
     const { cs2Settings } = await import('../settingsReaders');
     return await cs2Settings.isAtJoinPasswordEnabled();
-  } catch {
+  } catch (error) {
+    log.warn(`[FLEET] join password setting not read, none set: ${(error as Error).message}`);
     return false;
   }
 }
 
-async function assignDefaults(): Promise<{
-  allowForceReady?: boolean;
-  pauseAfterRestore?: boolean;
-  stopCommandAvailable?: boolean;
-  stopCommandNoDamage?: boolean;
-}> {
+async function assignDefaults(): Promise<AssignDefaults> {
   try {
     const { cs2Settings } = await import('../settingsReaders');
     const core = await cs2Settings.getAtCoreDefaults();
@@ -444,7 +441,8 @@ async function assignDefaults(): Promise<{
       stopCommandAvailable: core.stopCommandAvailable,
       stopCommandNoDamage: core.stopCommandNoDamage,
     };
-  } catch {
+  } catch (error) {
+    log.warn(`[FLEET] match defaults not read, stop rules left out: ${(error as Error).message}`);
     return {};
   }
 }
