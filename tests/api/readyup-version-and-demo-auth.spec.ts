@@ -235,8 +235,14 @@ const okFleet = (id: string) => async (): Promise<TokenCheck> =>
   ({ ok: true, server: { id } as never, token: {} as never });
 
 test.describe('demo upload authentication', () => {
+  let savedServerToken: string | undefined;
   test.beforeAll(() => {
+    savedServerToken = process.env.SERVER_TOKEN;
     process.env.SERVER_TOKEN = 'legacy-secret';
+  });
+  test.afterAll(() => {
+    if (savedServerToken === undefined) delete process.env.SERVER_TOKEN;
+    else process.env.SERVER_TOKEN = savedServerToken;
   });
 
   test('the old SERVER_TOKEN still works and never touches the fleet check', { tag: ['@api'] }, async () => {
