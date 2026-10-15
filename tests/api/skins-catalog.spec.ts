@@ -140,6 +140,22 @@ test.describe.serial('Skins catalogue unlock', () => {
     expect(slots.slice(0, 2)).toEqual(['knife', 'gloves']);
   });
 
+  test(
+    'skins the game has no definition for are not offered',
+    { tag: ['@api'] },
+    async ({ request }) => {
+      const { weapons } = await (await player.get('/api/skins/catalog/weapons')).json();
+      expect(weapons.map((w: { slot: string }) => w.slot)).not.toContain('weapon_decoy');
+      expect(await search('q=decoy')).toEqual([]);
+      expect(await search('weapon=weapon_decoy')).toEqual([]);
+      // The admin picker still lists the whole catalogue.
+      const admin = await (
+        await request.get('/api/skins/admin/catalog?q=decoy', { headers: getAuthHeader() })
+      ).json();
+      expect(admin.skins.length).toBeGreaterThan(0);
+    }
+  );
+
   test('a pick equips with the chosen float and seed', { tag: ['@api'] }, async () => {
     const res = await put({ ...pickOf(DEAGLE, 0), float: 0.0123, seed: 661 });
     expect(res.status()).toBe(200);

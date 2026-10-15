@@ -25,6 +25,7 @@ import { requireAuth } from '../../../middleware/auth';
 import { log } from '../../../utils/logger';
 import { resolveViewerAccount } from '../../../utils/viewerIdentity';
 import { skinImageUrls } from '../assets/localAssets';
+import { WEAPON_DEFINDEX } from './skinDefindex';
 import { catalogWeapons, pickableSkin, searchCatalog } from './catalogSearch';
 import {
   RARITIES,
@@ -369,6 +370,11 @@ router.put('/me/showcase', async (req, res) => {
   }
 });
 
+/** The catalogue skins a player can equip: the game plugin needs a definition index for the weapon. */
+async function pickableCatalog() {
+  return (await skinService.catalog()).filter((s) => WEAPON_DEFINDEX[s.weapon]);
+}
+
 /** The signed-in player's account, while skins are on and the catalogue is unlocked. */
 async function catalogPlayerOrStop(req: Request, res: Response): Promise<string | null> {
   const uid = await playerOrStop(req, res);
@@ -394,7 +400,7 @@ async function catalogPlayerOrStop(req: Request, res: Response): Promise<string 
 router.get('/catalog/weapons', async (req, res) => {
   try {
     if (!(await catalogPlayerOrStop(req, res))) return;
-    return res.json({ success: true, weapons: catalogWeapons(await skinService.catalog()) });
+    return res.json({ success: true, weapons: catalogWeapons(await pickableCatalog()) });
   } catch (error) {
     return fail(res, error, 'Listing the weapons');
   }
@@ -419,7 +425,7 @@ router.get('/catalog/weapons', async (req, res) => {
 router.get('/catalog', async (req, res) => {
   try {
     if (!(await catalogPlayerOrStop(req, res))) return;
-    const skins = searchCatalog(await skinService.catalog(), {
+    const skins = searchCatalog(await pickableCatalog(), {
       q: req.query.q,
       weapon: req.query.weapon,
       slot: req.query.slot,
