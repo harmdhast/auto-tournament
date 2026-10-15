@@ -7,6 +7,8 @@ import {
   testEndpointsAllowed,
 } from '../../api/src/utils/testEndpoints';
 import testRoutes from '../../api/src/routes/test';
+import { fakeEventRoutes } from '../../api/src/integrations/fake/routes';
+import { manualReportTestRoutes } from '../../api/src/integrations/manual-report/routes';
 
 /**
  * The /api/test helpers: on only with ENABLE_TEST_ENDPOINTS, whatever
@@ -143,5 +145,21 @@ test.describe('test endpoints gate', () => {
     withEnv({ NODE_ENV: 'development', ENABLE_TEST_ENDPOINTS: undefined }, () => {
       expect(run(first.handle, {})).toEqual({ status: 404, next: false });
     });
+  });
+
+  test('the fake and manual-report test helpers need the flag too', TAGS, () => {
+    for (const router of [fakeEventRoutes, manualReportTestRoutes]) {
+      const gate = (
+        router as unknown as {
+          stack: Array<{
+            name: string;
+            handle: (req: Request, res: Response, next: () => void) => void;
+          }>;
+        }
+      ).stack.find((l) => l.name === 'requireTestEndpoints');
+      withEnv({ NODE_ENV: 'development', ENABLE_TEST_ENDPOINTS: undefined }, () => {
+        expect(run(gate!.handle, {})).toEqual({ status: 403, next: false });
+      });
+    }
   });
 });

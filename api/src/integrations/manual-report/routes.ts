@@ -27,6 +27,7 @@
 import { Router, type Request, type Response } from 'express';
 import { db } from '../../config/database';
 import { requireAuth } from '../../middleware/auth';
+import { testEndpointsFlag } from '../../utils/testEndpoints';
 import { log } from '../../utils/logger';
 import { resolveViewerAccount } from '../../utils/viewerIdentity';
 import { teamMembers } from '../../services/teamMembers';
@@ -61,12 +62,10 @@ const FORMATS = ['bo1', 'bo3', 'bo5'];
 
 /** The E2E test endpoints switch, the same gate `routes/test.ts` uses. */
 function isEnabled(): boolean {
-  if (process.env.NODE_ENV !== 'production') return true;
-  const flag = (process.env.ENABLE_TEST_ENDPOINTS || '').toLowerCase();
-  return flag === '1' || flag === 'true' || flag === 'yes';
+  return testEndpointsFlag();
 }
 
-manualReportTestRoutes.use(requireAuth, (_req, res, next) => {
+manualReportTestRoutes.use(requireAuth, function requireTestEndpoints(_req, res, next) {
   if (!isEnabled()) {
     res.status(403).json({ success: false, error: 'Disabled in production' });
     return;
