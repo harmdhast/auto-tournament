@@ -329,11 +329,29 @@ test.describe.serial('setup, local login, TOTP and reset-admin', () => {
     await anon.dispose();
   });
 
+  test('TOTP: a code signs in once, even twice at the same time', TAGS, async ({ playwright }) => {
+    test.setTimeout(60_000);
+    // The enrolment test spent the next step: wait for a fresh one.
+    const startStep = totpStep();
+    while (totpStep() <= startStep) await new Promise((r) => setTimeout(r, 500));
+    const totp = totpAt(totpSecret, totpStep() + 1);
+    const a = await fresh(playwright);
+    const b = await fresh(playwright);
+    const results = await Promise.all(
+      [a, b].map((ctx) =>
+        ctx.post('/api/auth/local/login', { data: { username: USER, password: PASSWORD, totp } })
+      )
+    );
+    expect(results.map((r) => r.status()).sort()).toEqual([200, 401]);
+    await a.dispose();
+    await b.dispose();
+  });
+
   test(
     'TOTP: turned off from the account with the password and a code',
     TAGS,
     async ({ playwright }) => {
-      test.setTimeout(60_000);
+      test.setTimeout(120_000);
       // Signed in with the password and a code; the enrolment test may have
       // spent the next step already, so wait for a later one when it has.
       const ctx = await fresh(playwright);
