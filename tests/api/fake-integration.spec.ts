@@ -178,6 +178,13 @@ test.describe.serial('Fake integration: a tournament without CS2', () => {
   test.afterAll(async ({ request }) => {
     await signInViaRequest(request);
     await request.delete('/api/tournament');
+    // A finished tournament stays when the next one is made: delete every fake
+    // one, or the newest becomes the featured tournament for the specs after.
+    const res = await request.get('/api/tournaments');
+    const { tournaments } = (await res.json()) as { tournaments: { id: number; game: string }[] };
+    for (const t of tournaments.filter((t) => t.game === 'fake')) {
+      await request.delete(`/api/tournament?tournamentId=${t.id}`);
+    }
   });
 
   test(
