@@ -18,7 +18,11 @@ export function isLoopbackAddress(address: string | undefined): boolean {
   return address === '::1' || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v4);
 }
 
-/** Only a peer on this machine: the socket's address, never X-Forwarded-For. */
+/**
+ * Only a peer on this machine: the socket's address, never X-Forwarded-For.
+ * A guard for source runs only: behind the image's Caddy every request comes
+ * from loopback, so there ENABLE_TEST_ENDPOINTS is the only gate.
+ */
 export function requireLoopback(req: Request, res: Response, next: NextFunction): void {
   if (!isLoopbackAddress(req.socket?.remoteAddress)) {
     res.status(403).json({ success: false, error: 'Test helper is loopback only' });

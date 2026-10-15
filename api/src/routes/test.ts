@@ -460,7 +460,8 @@ router.post(
  *
  * POST /api/test/login-admin
  *
- * Only with ENABLE_TEST_ENDPOINTS, and only from loopback.
+ * Only with ENABLE_TEST_ENDPOINTS (the gate); also loopback only, which holds
+ * on a source run (behind the image's Caddy every request is loopback).
  */
 router.post(
   '/login-admin',
@@ -545,7 +546,8 @@ router.post(
  *
  * POST /api/test/login-player
  *
- * Only with ENABLE_TEST_ENDPOINTS, and only from loopback.
+ * Only with ENABLE_TEST_ENDPOINTS (the gate); also loopback only, which holds
+ * on a source run (behind the image's Caddy every request is loopback).
  */
 router.post(
   '/login-player',
