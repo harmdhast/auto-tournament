@@ -15,7 +15,9 @@ test.describe('Add machine', () => {
     // A machine already listed: Add machine opens the dialog (not the first-machine guide).
     await createPendingHost(request, `listed-${Date.now()}`);
     await page.goto('/manage/servers', { waitUntil: 'domcontentloaded' });
-    await page.getByTestId('machines-add').click();
+    // Servers page: Add → Machine.
+    await page.getByTestId('servers-add').click();
+    await page.getByTestId('servers-add-machine').click();
     await page.getByTestId('machines-create-code').click();
     const command = page.getByTestId('machines-link-command');
     await expect(command).toBeVisible({ timeout: 15000 });
