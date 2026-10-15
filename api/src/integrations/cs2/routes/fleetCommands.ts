@@ -19,6 +19,7 @@ import {
   type IssuedBy,
 } from '../fleet/driver';
 import type { CmdName } from '../fleet/protocol/v1';
+import { hasControlChars } from '../fleet/push/settings';
 import type { ServerTransport } from '../../../types/server.types';
 
 export type MatchControlId =
@@ -127,7 +128,12 @@ export async function answerUnsupportedOnFleet(
 
 export function execLineError(line: string): string | null {
   const text = line.trim();
-  if (!text || text.includes('\n') || Buffer.byteLength(text, 'utf8') > 512) {
+  if (
+    !text ||
+    hasControlChars(text) ||
+    text.includes('\n') ||
+    Buffer.byteLength(text, 'utf8') > 512
+  ) {
     return 'exec takes one line of at most 512 bytes';
   }
   return null;

@@ -75,6 +75,15 @@ test.describe.serial('Fleet exec by id', () => {
     expect(res.status()).toBe(400);
   });
 
+  test('a carriage return or other control character gets 400', async ({ request }) => {
+    const fake = await online(request);
+    for (const command of ['status\rquit', 'status\u0000', 'say \u001b[2J']) {
+      expect((await exec(request, fake.serverId, command)).status(), JSON.stringify(command)).toBe(
+        400
+      );
+    }
+  });
+
   test('unknown server gets 404', async ({ request }) => {
     const res = await exec(request, 'does-not-exist', 'status');
     expect(res.status()).toBe(404);
