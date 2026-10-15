@@ -27,6 +27,7 @@ Dropped or re-ported by the beta.132 sync:
 - Upstream's match-less call for help (a practice server) is recorded; a call naming a match still needs a server that held it.
 - The `/api/test/fleet/events` and `/fleet/snapshot` helpers give their sender the match (and a pending fleet record when it has none), since only the holder moves a match.
 - Upstream's join a running shuffle (#977) left its spec expecting a refusal; `shuffle-tournament.spec.ts` now expects the player registered.
+- Upstream's kept finished tournaments (#902) left fake-integration's fake tournaments behind, the featured one for the specs after; its cleanup deletes them all.
 - Versions: client API 0.2.26 (upstream), server API 0.1.3 (fork: host bridge `utils/rootAccess`, `utils/accountConnections`).
 
 Dropped by the beta.100 sync:
