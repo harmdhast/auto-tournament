@@ -1251,11 +1251,20 @@ async function onFleetEvent(notice: FleetEventNotice): Promise<void> {
   const payload = env.payload as unknown as FleetEventPayload;
   const slug = payload.match_id;
 
-  if (env.type === 'event.admin_called' && (await heldEver(notice.serverId, slug))) {
+  const calledMatch =
+    env.type === 'event.admin_called'
+      ? ((await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [slug])) ??
+        null)
+      : null;
+  // A call names a match only from a server that holds or held it; one with no
+  // match (a practice server) is the server's own.
+  if (
+    env.type === 'event.admin_called' &&
+    (!calledMatch || (await heldEver(notice.serverId, slug)))
+  ) {
     // Recorded whatever the epoch: a player asking for help is never dropped.
     const data = payload.data as FleetEventData['admin_called'];
-    const match =
-      (await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [slug])) ?? null;
+    const match = calledMatch;
     const cs2ServerId = await cs2ServerIdOf(notice.serverId);
     const event: AdminCalledEvent = {
       event: 'admin_called',
