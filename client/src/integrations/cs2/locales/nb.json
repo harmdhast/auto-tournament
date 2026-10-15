@@ -772,7 +772,12 @@
     "connectGuessed": "Gjettet ut fra hvor serveren kobler seg til fra. Sjekk den, eller sett adressen spillerne bruker.",
     "updateAvailable": "Oppdatering tilgjengelig: {{version}}",
     "upToDate": "Oppdatert",
-    "noUpdateCheck": "Ingen oppdateringssjekk ennå"
+    "noUpdateCheck": "Ingen oppdateringssjekk ennå",
+    "unlinked": "Brukes ikke lenger til kamper",
+    "linked": "Brukes til kamper",
+    "unlink": "Slutt å bruke til kamper",
+    "link": "Bruk til kamper",
+    "save": "Lagre"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -971,7 +976,10 @@
     "noReportYet": "Koblet, venter på første rapport fra csm",
     "pendingHelp": "På maskinen, som brukeren som kjører csm, kjør csm link med en ny kode. CPU, disk, CS2-versjon og servere vises her når csm kobler til.",
     "revokedHelp": "Tokenet virker ikke lenger. Fjern den, eller legg til maskinen på nytt.",
-    "noReportHelp": "csm sender hva maskinen har og kjører innen ett minutt etter tilkobling."
+    "noReportHelp": "csm sender hva maskinen har og kjører innen ett minutt etter tilkobling.",
+    "licenseNote": "Lisensen din dekker opptil {{count}} servere. Hver server teller, også reserveservere.",
+    "progress": "Kommandofremdrift",
+    "waitingFor": "{{count}} handling(er) venter på den"
   },
   "failover": {
     "title": "Failover",
@@ -1084,10 +1092,133 @@
   "autoscale": {
     "summaryOn": "På",
     "summaryOff": "Av",
-    "empty": "Automatisk skalering trenger en maskin koblet med csm."
+    "empty": "Automatisk skalering trenger en maskin koblet med csm.",
+    "saveFailed": "Kunne ikke lagre skaleringsinnstillingene",
+    "title": "Automatisk skalering",
+    "enabled": "Start og stopp servere automatisk",
+    "help": "Stoppede Ready Up-servere på maskinene dine startes før en runde trenger dem, og inaktive stoppes etter nedkjølingstiden. Når alle serverne er i bruk og en maskin har plass, opprettes en ny server og legges til i puljen. Servere slettes aldri. Hver server teller mot lisensen din.",
+    "leadTime": "Start i forkant med",
+    "cooldown": "Stopp etter inaktivitet i",
+    "maxPerHost": "Maks. servere per maskin",
+    "status": "{{warm}} klare, {{desired}} trengs: {{running}} kjører, {{waiting}} venter, {{soon}} snart klare, {{reserve}} i reserve",
+    "activity": "Nylig aktivitet",
+    "noActivity": "Ingenting er startet eller stoppet ennå.",
+    "state": {
+      "busy": "opptatt",
+      "idle": "ledig",
+      "starting": "starter",
+      "stopping": "stopper",
+      "stopped": "stoppet",
+      "updating": "oppdaterer",
+      "unreachable": "utilgjengelig",
+      "practice": "trening"
+    },
+    "action": {
+      "start": "start",
+      "stop": "stopp",
+      "create": "opprett",
+      "link": "koble",
+      "note": "merknad"
+    }
   },
   "fleetPush": {
-    "summary": "Administratorer, innstillinger og programtillegg sendt til Ready Up-servere"
+    "summary": "Administratorer, innstillinger og programtillegg sendt til Ready Up-servere",
+    "errors": {
+      "save": "Kunne ikke lagre innstillingene",
+      "admins": "Kunne ikke lagre adminene",
+      "push": "Sending mislyktes",
+      "practice": "Kunne ikke bytte treningsmodus",
+      "whitelist": "Kunne ikke sette hvitelisten",
+      "plugins": "Kunne ikke endre pluginene"
+    },
+    "savedDefaults": "Lagret; sendt til {{count}} server(e)",
+    "badAdminLine": "Ikke «SteamID64 navn»: {{line}}",
+    "adminsPushed": "Adminliste rev. {{rev}} sendt",
+    "adminsUnchanged": "Adminlisten er uendret",
+    "adminsPushedTo": "Sendt til {{count}} server(e)",
+    "title": "Flåteinnstillinger",
+    "editDefaults": "Standardinnstillinger for flåten",
+    "adminsTitle": "Admins i spillet",
+    "adminsRev": "rev. {{rev}} · {{count}} admin(er)",
+    "editExtras": "Ekstra admins i spillet",
+    "pushAgain": "Send på nytt",
+    "adminsHelp": "Nettstedsadmins med Steam-konto, pluss de ekstra adminene i spillet. Hver Ready Up-server får denne listen når den endres og når den kobler til igjen med en eldre.",
+    "extrasHelp": "Admins i spillet som ikke er nettstedsadmins (dommere, kommentatorer). Én per linje: SteamID64, deretter et navn.",
+    "saveAndPush": "Lagre og send",
+    "notSent": "Sendes ikke",
+    "inheritValue": "Flåtestandard ({{value}})",
+    "inherit": "Flåtestandard",
+    "notAppliedYet": "Lagret på serveren; Ready Up bruker det ikke ennå",
+    "on": "På",
+    "off": "Av",
+    "tokenSet": "Satt (la stå tomt for å beholde det)",
+    "clearToken": "Fjern",
+    "overrideHelp": "Tomme felt bruker flåtestandarden. Et felt du tømmer beholder sin siste verdi på serveren til noe setter det på nytt.",
+    "defaultHelp": "Sendes til hver Ready Up-server (server.config og settings.set) når du lagrer, og igjen når en server kobler til på nytt med en eldre versjon. Tomme felt sendes ikke.",
+    "serverConfig": "Serverkonfigurasjon",
+    "matchSettings": "Innstillinger for kampplugin",
+    "clearOverride": "Bruk flåtestandarden",
+    "status": {
+      "acked": "bekreftet",
+      "queued": "i kø",
+      "ok": "ok",
+      "pending": "venter",
+      "rejected": "avvist",
+      "failed": "mislyktes",
+      "expired": "utløpt"
+    },
+    "sentNoAnswer": "Sendt; ingen svar ennå",
+    "queuedOffline": "I kø: serveren får det når den kobler til igjen",
+    "savedServer": "Lagret og sendt til {{name}}",
+    "pushed": "Sendt",
+    "practiceOn": "Treningsmodus på",
+    "practiceOff": "Treningsmodus av",
+    "whitelistSet": "Hvitelisten er oppdatert",
+    "pluginsSet": "Pluginene er oppdatert",
+    "hasOverride": "Egne innstillinger",
+    "usesDefault": "Standardinnstillinger for flåten",
+    "practice": "Trening",
+    "settings": "Innstillinger",
+    "whitelist": "Hviteliste",
+    "plugins": "Plugins",
+    "serverSettingsTitle": "Innstillinger: {{name}}",
+    "whitelistTitle": "Hviteliste: {{name}}",
+    "whitelistHelp": "Erstatter listen og bryteren til hvitelisteplugin på denne serveren (whitelist.set). Én SteamID64 per linje, maks. 1000. Servere uten hvitelisteplugin svarer «unsupported».",
+    "whitelistEnabled": "Hviteliste på",
+    "send": "Send",
+    "pluginsTitle": "Plugins: {{name}}",
+    "kind": {
+      "admins": "admins",
+      "serverConfig": "serverkonfig",
+      "settings": "innstillinger",
+      "whitelist": "hviteliste",
+      "practice": "trening",
+      "plugins": "plugins"
+    },
+    "fields": {
+      "config_hostname_format": "Format for vertsnavn",
+      "config_scrim_knife": "Knivrunde i scrims",
+      "config_series_end_kick_delay_no_demo": "Utkastingsforsinkelse ved seriens slutt, uten demo (s)",
+      "config_series_end_kick_delay_demo_no_upload": "Utkastingsforsinkelse ved seriens slutt, demo ikke lastet opp (s)",
+      "config_series_end_kick_delay_demo_upload": "Utkastingsforsinkelse ved seriens slutt, demo lastet opp (s)",
+      "config_chat_prefix": "Chatprefiks",
+      "config_admin_chat_prefix": "Prefiks for admin-chat",
+      "config_demo_path": "Demomappe",
+      "config_demo_name_format": "Format for demofilnavn",
+      "config_offline_pause_minutes": "Pause ved frakobling (minutter)",
+      "config_scrim_when_idle": "Scrim-modus når ledig",
+      "config_warmup_respawn": "Respawn i oppvarmingen",
+      "config_warmup_money": "Penger i oppvarmingen",
+      "config_warmup_message_html": "Oppvarmingsmelding (HTML)",
+      "config_status_http_token": "Status-HTTP-token",
+      "match_minimum_ready_required": "Minimum klare spillere",
+      "match_playout_enabled_default": "Spill alle runder som standard",
+      "match_autoready_enabled": "Automatisk klar",
+      "match_use_pause_command_for_tactical_pause": "Bruk pausekommandoen for taktiske pauser",
+      "match_kick_when_no_match_loaded": "Kast ut spillere når ingen kamp er lastet",
+      "match_whitelist_enabled_default": "Hviteliste på som standard",
+      "match_reset_cvars_on_series_end": "Tilbakestill cvars ved seriens slutt"
+    }
   },
   "profile": {
     "title": "Prestasjon",
@@ -1744,7 +1875,9 @@
         "unsupported": "Oppdater Ready Up for å se live-konsollen",
         "dropped": "{{count}} linjer hoppet over"
       }
-    }
+    },
+    "createN": "Opprett {{count}} servere",
+    "restarts": "{{count}} omstarter på 24 t"
   },
   "matchPage": {
     "recordingClips": "Tar opp klipp",
@@ -2145,5 +2278,8 @@
     },
     "copyConnect": "Kopier connect-kommandoen",
     "connectCopied": "Connect-kommando kopiert"
+  },
+  "serverAllocation": {
+    "readyIn": "Tid til serveren er klar"
   }
 }

@@ -456,7 +456,7 @@ export function useFleetServerActions(reload: () => Promise<void>): {
           >
             {addressDialog?.mode === 'link'
               ? t('fleetPanel.link', { defaultValue: 'Use for matches' })
-              : t('common.save', { defaultValue: 'Save' })}
+              : t('fleetPanel.save', { defaultValue: 'Save' })}
           </Button>
         </DialogActions>
       </Dialog>

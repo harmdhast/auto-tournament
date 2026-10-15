@@ -772,7 +772,12 @@
     "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
     "updateAvailable": "Update available: {{version}}",
     "upToDate": "Up to date",
-    "noUpdateCheck": "No update check yet"
+    "noUpdateCheck": "No update check yet",
+    "unlinked": "No longer used for matches",
+    "linked": "Used for matches",
+    "unlink": "Stop using for matches",
+    "link": "Use for matches",
+    "save": "Save"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -971,7 +976,10 @@
     "noReportYet": "Linked, waiting for its first report from csm",
     "pendingHelp": "On the machine, as the user that runs csm, run csm link with a new code. Its CPU, disk, CS2 build and servers show here once csm connects.",
     "revokedHelp": "Its token no longer works. Remove it, or add the machine again.",
-    "noReportHelp": "csm sends what the machine has and runs within a minute of connecting."
+    "noReportHelp": "csm sends what the machine has and runs within a minute of connecting.",
+    "licenseNote": "Your license covers up to {{count}} servers. Every server counts, spares included.",
+    "progress": "Command progress",
+    "waitingFor": "{{count}} action(s) wait for it"
   },
   "failover": {
     "title": "Failover",
@@ -1084,10 +1092,133 @@
   "autoscale": {
     "summaryOn": "On",
     "summaryOff": "Off",
-    "empty": "Automatic scaling needs a machine linked with csm."
+    "empty": "Automatic scaling needs a machine linked with csm.",
+    "saveFailed": "Could not save the scaling settings",
+    "title": "Automatic scaling",
+    "enabled": "Start and stop servers automatically",
+    "help": "Stopped Ready Up servers on your machines are started before a round needs them, and idle ones are stopped after the cool-down. When every server is in use and a machine has room, one new server is created and added to the pool. Servers are never deleted. Every server counts toward your license.",
+    "leadTime": "Start ahead by",
+    "cooldown": "Stop after idle for",
+    "maxPerHost": "Most servers per machine",
+    "status": "{{warm}} warm, {{desired}} needed: {{running}} running, {{waiting}} waiting, {{soon}} about to be ready, {{reserve}} spare",
+    "activity": "Recent activity",
+    "noActivity": "Nothing started or stopped yet.",
+    "state": {
+      "busy": "busy",
+      "idle": "idle",
+      "starting": "starting",
+      "stopping": "stopping",
+      "stopped": "stopped",
+      "updating": "updating",
+      "unreachable": "unreachable",
+      "practice": "practice"
+    },
+    "action": {
+      "start": "start",
+      "stop": "stop",
+      "create": "create",
+      "link": "link",
+      "note": "note"
+    }
   },
   "fleetPush": {
-    "summary": "Admins, settings and plugins sent to Ready Up servers"
+    "summary": "Admins, settings and plugins sent to Ready Up servers",
+    "errors": {
+      "save": "Saving the settings failed",
+      "admins": "Saving the admins failed",
+      "push": "Push failed",
+      "practice": "Switching practice mode failed",
+      "whitelist": "Setting the whitelist failed",
+      "plugins": "Changing the plugins failed"
+    },
+    "savedDefaults": "Saved; pushed to {{count}} server(s)",
+    "badAdminLine": "Not \"SteamID64 name\": {{line}}",
+    "adminsPushed": "Admin list rev {{rev}} pushed",
+    "adminsUnchanged": "The admin list did not change",
+    "adminsPushedTo": "Sent to {{count}} server(s)",
+    "title": "Fleet settings",
+    "editDefaults": "Fleet default settings",
+    "adminsTitle": "In-game admins",
+    "adminsRev": "rev {{rev}} · {{count}} admin(s)",
+    "editExtras": "Extra in-game admins",
+    "pushAgain": "Push again",
+    "adminsHelp": "Website admins with a Steam account, plus the extra in-game admins. Every Ready Up server gets this list when it changes and when it reconnects with an older one.",
+    "extrasHelp": "In-game admins who are not website admins (referees, casters). One per line: SteamID64, then a name.",
+    "saveAndPush": "Save and push",
+    "notSent": "Not sent",
+    "inheritValue": "Fleet default ({{value}})",
+    "inherit": "Fleet default",
+    "notAppliedYet": "Stored on the server; Ready Up does not use it yet",
+    "on": "On",
+    "off": "Off",
+    "tokenSet": "Set (leave empty to keep it)",
+    "clearToken": "Clear",
+    "overrideHelp": "Empty fields use the fleet default. A field you empty keeps its last value on the server until something sets it again.",
+    "defaultHelp": "Sent to every Ready Up server (server.config and settings.set) when you save, and again when a server reconnects with an older version. Empty fields are not sent.",
+    "serverConfig": "Server config",
+    "matchSettings": "Match plugin settings",
+    "clearOverride": "Use the fleet default",
+    "status": {
+      "acked": "acked",
+      "queued": "queued",
+      "ok": "ok",
+      "pending": "pending",
+      "rejected": "rejected",
+      "failed": "failed",
+      "expired": "expired"
+    },
+    "sentNoAnswer": "Sent; no answer yet",
+    "queuedOffline": "Queued: the server gets it when it reconnects",
+    "savedServer": "Saved and pushed to {{name}}",
+    "pushed": "Pushed",
+    "practiceOn": "Practice mode on",
+    "practiceOff": "Practice mode off",
+    "whitelistSet": "Whitelist updated",
+    "pluginsSet": "Plugins updated",
+    "hasOverride": "Own settings",
+    "usesDefault": "Fleet default settings",
+    "practice": "Practice",
+    "settings": "Settings",
+    "whitelist": "Whitelist",
+    "plugins": "Plugins",
+    "serverSettingsTitle": "Settings: {{name}}",
+    "whitelistTitle": "Whitelist: {{name}}",
+    "whitelistHelp": "Replaces the whitelist plugin's list and switch on this server (whitelist.set). One SteamID64 per line; at most 1000. Servers without the whitelist plugin answer \"unsupported\".",
+    "whitelistEnabled": "Whitelist on",
+    "send": "Send",
+    "pluginsTitle": "Plugins: {{name}}",
+    "kind": {
+      "admins": "admins",
+      "serverConfig": "server config",
+      "settings": "settings",
+      "whitelist": "whitelist",
+      "practice": "practice",
+      "plugins": "plugins"
+    },
+    "fields": {
+      "config_hostname_format": "Hostname format",
+      "config_scrim_knife": "Knife round in scrims",
+      "config_series_end_kick_delay_no_demo": "Kick delay at series end, no demo (s)",
+      "config_series_end_kick_delay_demo_no_upload": "Kick delay at series end, demo not uploaded (s)",
+      "config_series_end_kick_delay_demo_upload": "Kick delay at series end, demo uploaded (s)",
+      "config_chat_prefix": "Chat prefix",
+      "config_admin_chat_prefix": "Admin chat prefix",
+      "config_demo_path": "Demo folder",
+      "config_demo_name_format": "Demo file name format",
+      "config_offline_pause_minutes": "Pause when offline (minutes)",
+      "config_scrim_when_idle": "Scrim mode when idle",
+      "config_warmup_respawn": "Respawn in warmup",
+      "config_warmup_money": "Warmup money",
+      "config_warmup_message_html": "Warmup message (HTML)",
+      "config_status_http_token": "Status HTTP token",
+      "match_minimum_ready_required": "Minimum players ready",
+      "match_playout_enabled_default": "Play out all rounds by default",
+      "match_autoready_enabled": "Auto-ready",
+      "match_use_pause_command_for_tactical_pause": "Use the pause command for tactical pauses",
+      "match_kick_when_no_match_loaded": "Kick players when no match is loaded",
+      "match_whitelist_enabled_default": "Whitelist on by default",
+      "match_reset_cvars_on_series_end": "Reset cvars at series end"
+    }
   },
   "profile": {
     "title": "Performance",
@@ -1744,7 +1875,9 @@
         "unsupported": "Update Ready Up to see the live console",
         "dropped": "{{count}} lines skipped"
       }
-    }
+    },
+    "createN": "Create {{count}} servers",
+    "restarts": "{{count}} restarts in 24 h"
   },
   "matchPage": {
     "recordingClips": "Recording clips",
@@ -2145,5 +2278,8 @@
     },
     "copyConnect": "Copy the connect command",
     "connectCopied": "Connect command copied"
+  },
+  "serverAllocation": {
+    "readyIn": "Time until the server is ready"
   }
 }

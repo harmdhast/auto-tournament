@@ -772,7 +772,12 @@
     "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
     "updateAvailable": "Update beschikbaar: {{version}}",
     "upToDate": "Bijgewerkt",
-    "noUpdateCheck": "Nog geen updatecontrole"
+    "noUpdateCheck": "Nog geen updatecontrole",
+    "unlinked": "Wordt niet meer voor matches gebruikt",
+    "linked": "Wordt voor matches gebruikt",
+    "unlink": "Niet meer voor matches gebruiken",
+    "link": "Voor matches gebruiken",
+    "save": "Opslaan"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -971,7 +976,10 @@
     "noReportYet": "Gekoppeld, wacht op het eerste rapport van csm",
     "pendingHelp": "Voer op de machine, als de gebruiker die csm draait, csm link uit met een nieuwe code. CPU, schijf, CS2-build en servers verschijnen hier zodra csm verbinding maakt.",
     "revokedHelp": "Het token werkt niet meer. Verwijder hem of voeg de machine opnieuw toe.",
-    "noReportHelp": "csm stuurt binnen een minuut na het verbinden wat de machine heeft en draait."
+    "noReportHelp": "csm stuurt binnen een minuut na het verbinden wat de machine heeft en draait.",
+    "licenseNote": "Je licentie dekt maximaal {{count}} servers. Elke server telt mee, ook reserveservers.",
+    "progress": "Voortgang van het commando",
+    "waitingFor": "{{count}} actie(s) wachten erop"
   },
   "failover": {
     "title": "Failover",
@@ -1084,10 +1092,133 @@
   "autoscale": {
     "summaryOn": "On",
     "summaryOff": "Off",
-    "empty": "Automatisch schalen heeft een machine nodig die met csm is gekoppeld."
+    "empty": "Automatisch schalen heeft een machine nodig die met csm is gekoppeld.",
+    "saveFailed": "Kon de schaalinstellingen niet opslaan",
+    "title": "Automatisch schalen",
+    "enabled": "Servers automatisch starten en stoppen",
+    "help": "Gestopte Ready Up-servers op je machines worden gestart voordat een ronde ze nodig heeft, en inactieve servers worden na de afkoeltijd gestopt. Als alle servers in gebruik zijn en een machine ruimte heeft, wordt een nieuwe server aangemaakt en aan de pool toegevoegd. Servers worden nooit verwijderd. Elke server telt mee voor je licentie.",
+    "leadTime": "Vooraf starten met",
+    "cooldown": "Stoppen na inactiviteit van",
+    "maxPerHost": "Maximaal aantal servers per machine",
+    "status": "{{warm}} klaar, {{desired}} nodig: {{running}} actief, {{waiting}} wachtend, {{soon}} bijna klaar, {{reserve}} reserve",
+    "activity": "Recente activiteit",
+    "noActivity": "Nog niets gestart of gestopt.",
+    "state": {
+      "busy": "bezet",
+      "idle": "vrij",
+      "starting": "start op",
+      "stopping": "stopt",
+      "stopped": "gestopt",
+      "updating": "werkt bij",
+      "unreachable": "onbereikbaar",
+      "practice": "training"
+    },
+    "action": {
+      "start": "starten",
+      "stop": "stoppen",
+      "create": "aanmaken",
+      "link": "koppelen",
+      "note": "opmerking"
+    }
   },
   "fleetPush": {
-    "summary": "Admins, settings and plugins sent to Ready Up servers"
+    "summary": "Admins, settings and plugins sent to Ready Up servers",
+    "errors": {
+      "save": "Opslaan van de instellingen mislukt",
+      "admins": "Opslaan van de admins mislukt",
+      "push": "Verzenden mislukt",
+      "practice": "Wisselen van trainingsmodus mislukt",
+      "whitelist": "Instellen van de whitelist mislukt",
+      "plugins": "Wijzigen van de plugins mislukt"
+    },
+    "savedDefaults": "Opgeslagen; verzonden naar {{count}} server(s)",
+    "badAdminLine": "Niet \"SteamID64 naam\": {{line}}",
+    "adminsPushed": "Adminlijst rev. {{rev}} verzonden",
+    "adminsUnchanged": "De adminlijst is niet gewijzigd",
+    "adminsPushedTo": "Verzonden naar {{count}} server(s)",
+    "title": "Vlootinstellingen",
+    "editDefaults": "Standaardinstellingen van de vloot",
+    "adminsTitle": "Admins in het spel",
+    "adminsRev": "rev. {{rev}} · {{count}} admin(s)",
+    "editExtras": "Extra admins in het spel",
+    "pushAgain": "Opnieuw verzenden",
+    "adminsHelp": "Websiteadmins met een Steam-account, plus de extra admins in het spel. Elke Ready Up-server krijgt deze lijst als hij verandert en als de server opnieuw verbinding maakt met een oudere.",
+    "extrasHelp": "Admins in het spel die geen websiteadmins zijn (scheidsrechters, casters). Eén per regel: SteamID64, dan een naam.",
+    "saveAndPush": "Opslaan en verzenden",
+    "notSent": "Niet verzonden",
+    "inheritValue": "Vlootstandaard ({{value}})",
+    "inherit": "Vlootstandaard",
+    "notAppliedYet": "Opgeslagen op de server; Ready Up gebruikt het nog niet",
+    "on": "Aan",
+    "off": "Uit",
+    "tokenSet": "Ingesteld (leeg laten om te behouden)",
+    "clearToken": "Wissen",
+    "overrideHelp": "Lege velden gebruiken de vlootstandaard. Een veld dat je leegmaakt behoudt zijn laatste waarde op de server totdat iets het opnieuw instelt.",
+    "defaultHelp": "Wordt bij het opslaan naar elke Ready Up-server verzonden (server.config en settings.set), en opnieuw als een server opnieuw verbinding maakt met een oudere versie. Lege velden worden niet verzonden.",
+    "serverConfig": "Serverconfiguratie",
+    "matchSettings": "Instellingen van de matchplugin",
+    "clearOverride": "Vlootstandaard gebruiken",
+    "status": {
+      "acked": "bevestigd",
+      "queued": "in wachtrij",
+      "ok": "ok",
+      "pending": "in behandeling",
+      "rejected": "geweigerd",
+      "failed": "mislukt",
+      "expired": "verlopen"
+    },
+    "sentNoAnswer": "Verzonden; nog geen antwoord",
+    "queuedOffline": "In de wachtrij: de server krijgt het zodra hij opnieuw verbinding maakt",
+    "savedServer": "Opgeslagen en verzonden naar {{name}}",
+    "pushed": "Verzonden",
+    "practiceOn": "Trainingsmodus aan",
+    "practiceOff": "Trainingsmodus uit",
+    "whitelistSet": "Whitelist bijgewerkt",
+    "pluginsSet": "Plugins bijgewerkt",
+    "hasOverride": "Eigen instellingen",
+    "usesDefault": "Standaardinstellingen van de vloot",
+    "practice": "Training",
+    "settings": "Instellingen",
+    "whitelist": "Whitelist",
+    "plugins": "Plugins",
+    "serverSettingsTitle": "Instellingen: {{name}}",
+    "whitelistTitle": "Whitelist: {{name}}",
+    "whitelistHelp": "Vervangt de lijst en de schakelaar van de whitelistplugin op deze server (whitelist.set). Eén SteamID64 per regel, maximaal 1000. Servers zonder de whitelistplugin antwoorden \"unsupported\".",
+    "whitelistEnabled": "Whitelist aan",
+    "send": "Verzenden",
+    "pluginsTitle": "Plugins: {{name}}",
+    "kind": {
+      "admins": "admins",
+      "serverConfig": "serverconfiguratie",
+      "settings": "instellingen",
+      "whitelist": "whitelist",
+      "practice": "training",
+      "plugins": "plugins"
+    },
+    "fields": {
+      "config_hostname_format": "Hostnaamformaat",
+      "config_scrim_knife": "Messenronde in scrims",
+      "config_series_end_kick_delay_no_demo": "Kickvertraging aan het einde van de serie, zonder demo (s)",
+      "config_series_end_kick_delay_demo_no_upload": "Kickvertraging aan het einde van de serie, demo niet geüpload (s)",
+      "config_series_end_kick_delay_demo_upload": "Kickvertraging aan het einde van de serie, demo geüpload (s)",
+      "config_chat_prefix": "Chatvoorvoegsel",
+      "config_admin_chat_prefix": "Voorvoegsel admin-chat",
+      "config_demo_path": "Demomap",
+      "config_demo_name_format": "Bestandsnaamformaat van demo's",
+      "config_offline_pause_minutes": "Pauze bij offline (minuten)",
+      "config_scrim_when_idle": "Scrim-modus bij inactiviteit",
+      "config_warmup_respawn": "Respawn tijdens de warming-up",
+      "config_warmup_money": "Geld tijdens de warming-up",
+      "config_warmup_message_html": "Warming-upbericht (HTML)",
+      "config_status_http_token": "Status-HTTP-token",
+      "match_minimum_ready_required": "Minimaal aantal spelers klaar",
+      "match_playout_enabled_default": "Standaard alle rondes uitspelen",
+      "match_autoready_enabled": "Automatisch klaar",
+      "match_use_pause_command_for_tactical_pause": "Pauzecommando gebruiken voor tactische pauzes",
+      "match_kick_when_no_match_loaded": "Spelers kicken als er geen match is geladen",
+      "match_whitelist_enabled_default": "Whitelist standaard aan",
+      "match_reset_cvars_on_series_end": "Cvars resetten aan het einde van de serie"
+    }
   },
   "profile": {
     "title": "Performance",
@@ -1744,7 +1875,9 @@
         "unsupported": "Werk Ready Up bij om de live console te zien",
         "dropped": "{{count}} regels overgeslagen"
       }
-    }
+    },
+    "createN": "{{count}} servers aanmaken",
+    "restarts": "{{count}} herstarts in 24 u"
   },
   "matchPage": {
     "recordingClips": "Recording clips",
@@ -2150,5 +2283,8 @@
     },
     "copyConnect": "Connect-opdracht kopiëren",
     "connectCopied": "Connect-opdracht gekopieerd"
+  },
+  "serverAllocation": {
+    "readyIn": "Tijd tot de server klaar is"
   }
 }

@@ -772,7 +772,12 @@
     "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
     "updateAvailable": "Aggiornamento disponibile: {{version}}",
     "upToDate": "Aggiornato",
-    "noUpdateCheck": "Nessun controllo aggiornamenti ancora"
+    "noUpdateCheck": "Nessun controllo aggiornamenti ancora",
+    "unlinked": "Non più usato per le partite",
+    "linked": "Usato per le partite",
+    "unlink": "Non usare più per le partite",
+    "link": "Usa per le partite",
+    "save": "Salva"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -971,7 +976,10 @@
     "noReportYet": "Collegata, in attesa del primo rapporto di csm",
     "pendingHelp": "Sulla macchina, con l'utente che esegue csm, esegui csm link con un nuovo codice. CPU, disco, build di CS2 e server compaiono qui appena csm si connette.",
     "revokedHelp": "Il suo token non funziona più. Rimuovila o aggiungi di nuovo la macchina.",
-    "noReportHelp": "csm invia ciò che la macchina ha ed esegue entro un minuto dalla connessione."
+    "noReportHelp": "csm invia ciò che la macchina ha ed esegue entro un minuto dalla connessione.",
+    "licenseNote": "La tua licenza copre fino a {{count}} server. Ogni server conta, anche quelli di riserva.",
+    "progress": "Avanzamento del comando",
+    "waitingFor": "{{count}} azione/i in attesa"
   },
   "failover": {
     "title": "Failover",
@@ -1084,10 +1092,133 @@
   "autoscale": {
     "summaryOn": "On",
     "summaryOff": "Off",
-    "empty": "Il ridimensionamento automatico richiede una macchina collegata con csm."
+    "empty": "Il ridimensionamento automatico richiede una macchina collegata con csm.",
+    "saveFailed": "Impossibile salvare le impostazioni di scalabilità",
+    "title": "Scalabilità automatica",
+    "enabled": "Avvia e arresta i server automaticamente",
+    "help": "I server Ready Up fermi sulle tue macchine vengono avviati prima che un round ne abbia bisogno, e quelli inattivi vengono arrestati dopo il tempo di attesa. Quando tutti i server sono in uso e una macchina ha spazio, viene creato un nuovo server e aggiunto al gruppo. I server non vengono mai eliminati. Ogni server conta per la licenza.",
+    "leadTime": "Avvia in anticipo di",
+    "cooldown": "Arresta dopo inattività di",
+    "maxPerHost": "Massimo di server per macchina",
+    "status": "{{warm}} pronti, {{desired}} necessari: {{running}} in esecuzione, {{waiting}} in attesa, {{soon}} quasi pronti, {{reserve}} di riserva",
+    "activity": "Attività recente",
+    "noActivity": "Ancora nulla avviato o arrestato.",
+    "state": {
+      "busy": "occupato",
+      "idle": "libero",
+      "starting": "in avvio",
+      "stopping": "in arresto",
+      "stopped": "fermo",
+      "updating": "in aggiornamento",
+      "unreachable": "irraggiungibile",
+      "practice": "allenamento"
+    },
+    "action": {
+      "start": "avviare",
+      "stop": "arrestare",
+      "create": "creare",
+      "link": "collegare",
+      "note": "nota"
+    }
   },
   "fleetPush": {
-    "summary": "Admins, settings and plugins sent to Ready Up servers"
+    "summary": "Admins, settings and plugins sent to Ready Up servers",
+    "errors": {
+      "save": "Salvataggio delle impostazioni non riuscito",
+      "admins": "Salvataggio degli admin non riuscito",
+      "push": "Invio non riuscito",
+      "practice": "Cambio della modalità allenamento non riuscito",
+      "whitelist": "Impostazione della whitelist non riuscita",
+      "plugins": "Modifica dei plugin non riuscita"
+    },
+    "savedDefaults": "Salvato; inviato a {{count}} server",
+    "badAdminLine": "Non è «SteamID64 nome»: {{line}}",
+    "adminsPushed": "Elenco admin rev. {{rev}} inviato",
+    "adminsUnchanged": "L'elenco admin non è cambiato",
+    "adminsPushedTo": "Inviato a {{count}} server",
+    "title": "Impostazioni della flotta",
+    "editDefaults": "Impostazioni predefinite della flotta",
+    "adminsTitle": "Admin in gioco",
+    "adminsRev": "rev. {{rev}} · {{count}} admin",
+    "editExtras": "Admin in gioco aggiuntivi",
+    "pushAgain": "Invia di nuovo",
+    "adminsHelp": "Gli admin del sito con un account Steam, più gli admin in gioco aggiuntivi. Ogni server Ready Up riceve questo elenco quando cambia e quando si riconnette con uno più vecchio.",
+    "extrasHelp": "Admin in gioco che non sono admin del sito (arbitri, casting). Uno per riga: SteamID64, poi un nome.",
+    "saveAndPush": "Salva e invia",
+    "notSent": "Non inviato",
+    "inheritValue": "Predefinito della flotta ({{value}})",
+    "inherit": "Predefinito della flotta",
+    "notAppliedYet": "Salvato sul server; Ready Up non lo usa ancora",
+    "on": "Attivo",
+    "off": "Disattivo",
+    "tokenSet": "Impostato (lascia vuoto per mantenerlo)",
+    "clearToken": "Cancella",
+    "overrideHelp": "I campi vuoti usano il predefinito della flotta. Un campo che svuoti mantiene l'ultimo valore sul server finché qualcosa non lo reimposta.",
+    "defaultHelp": "Inviato a ogni server Ready Up (server.config e settings.set) al salvataggio, e di nuovo quando un server si riconnette con una versione più vecchia. I campi vuoti non vengono inviati.",
+    "serverConfig": "Configurazione del server",
+    "matchSettings": "Impostazioni del plugin delle partite",
+    "clearOverride": "Usa il predefinito della flotta",
+    "status": {
+      "acked": "confermato",
+      "queued": "in coda",
+      "ok": "ok",
+      "pending": "in sospeso",
+      "rejected": "rifiutato",
+      "failed": "non riuscito",
+      "expired": "scaduto"
+    },
+    "sentNoAnswer": "Inviato; ancora nessuna risposta",
+    "queuedOffline": "In coda: il server lo riceve quando si riconnette",
+    "savedServer": "Salvato e inviato a {{name}}",
+    "pushed": "Inviato",
+    "practiceOn": "Modalità allenamento attiva",
+    "practiceOff": "Modalità allenamento disattivata",
+    "whitelistSet": "Whitelist aggiornata",
+    "pluginsSet": "Plugin aggiornati",
+    "hasOverride": "Impostazioni proprie",
+    "usesDefault": "Impostazioni predefinite della flotta",
+    "practice": "Allenamento",
+    "settings": "Impostazioni",
+    "whitelist": "Whitelist",
+    "plugins": "Plugin",
+    "serverSettingsTitle": "Impostazioni: {{name}}",
+    "whitelistTitle": "Whitelist: {{name}}",
+    "whitelistHelp": "Sostituisce l'elenco e l'interruttore del plugin whitelist su questo server (whitelist.set). Un SteamID64 per riga, al massimo 1000. I server senza il plugin rispondono «unsupported».",
+    "whitelistEnabled": "Whitelist attiva",
+    "send": "Invia",
+    "pluginsTitle": "Plugin: {{name}}",
+    "kind": {
+      "admins": "admin",
+      "serverConfig": "config. del server",
+      "settings": "impostazioni",
+      "whitelist": "whitelist",
+      "practice": "allenamento",
+      "plugins": "plugin"
+    },
+    "fields": {
+      "config_hostname_format": "Formato dell'hostname",
+      "config_scrim_knife": "Round coltello negli scrim",
+      "config_series_end_kick_delay_no_demo": "Ritardo di espulsione a fine serie, senza demo (s)",
+      "config_series_end_kick_delay_demo_no_upload": "Ritardo di espulsione a fine serie, demo non caricata (s)",
+      "config_series_end_kick_delay_demo_upload": "Ritardo di espulsione a fine serie, demo caricata (s)",
+      "config_chat_prefix": "Prefisso della chat",
+      "config_admin_chat_prefix": "Prefisso della chat admin",
+      "config_demo_path": "Cartella delle demo",
+      "config_demo_name_format": "Formato del nome file delle demo",
+      "config_offline_pause_minutes": "Pausa se offline (minuti)",
+      "config_scrim_when_idle": "Modalità scrim a riposo",
+      "config_warmup_respawn": "Respawn nel riscaldamento",
+      "config_warmup_money": "Denaro nel riscaldamento",
+      "config_warmup_message_html": "Messaggio del riscaldamento (HTML)",
+      "config_status_http_token": "Token HTTP di stato",
+      "match_minimum_ready_required": "Minimo di giocatori pronti",
+      "match_playout_enabled_default": "Gioca tutti i round per impostazione predefinita",
+      "match_autoready_enabled": "Pronto automatico",
+      "match_use_pause_command_for_tactical_pause": "Usa il comando di pausa per le pause tattiche",
+      "match_kick_when_no_match_loaded": "Espelli i giocatori se nessuna partita è caricata",
+      "match_whitelist_enabled_default": "Whitelist attiva per impostazione predefinita",
+      "match_reset_cvars_on_series_end": "Reimposta i cvar a fine serie"
+    }
   },
   "profile": {
     "title": "Performance",
@@ -1744,7 +1875,9 @@
         "unsupported": "Aggiorna Ready Up per vedere la console live",
         "dropped": "{{count}} righe saltate"
       }
-    }
+    },
+    "createN": "Crea {{count}} server",
+    "restarts": "{{count}} riavvii in 24 h"
   },
   "matchPage": {
     "recordingClips": "Recording clips",
@@ -2150,5 +2283,8 @@
     },
     "copyConnect": "Copia il comando connect",
     "connectCopied": "Comando connect copiato"
+  },
+  "serverAllocation": {
+    "readyIn": "Tempo prima che il server sia pronto"
   }
 }

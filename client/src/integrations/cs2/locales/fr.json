@@ -772,7 +772,12 @@
     "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
     "updateAvailable": "Mise à jour disponible : {{version}}",
     "upToDate": "À jour",
-    "noUpdateCheck": "Pas encore de vérification"
+    "noUpdateCheck": "Pas encore de vérification",
+    "unlinked": "N'est plus utilisé pour les matchs",
+    "linked": "Utilisé pour les matchs",
+    "unlink": "Ne plus utiliser pour les matchs",
+    "link": "Utiliser pour les matchs",
+    "save": "Enregistrer"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -971,7 +976,10 @@
     "noReportYet": "Liée, en attente de son premier rapport de csm",
     "pendingHelp": "Sur la machine, avec l'utilisateur qui exécute csm, lancez csm link avec un nouveau code. Son CPU, son disque, sa version de CS2 et ses serveurs s'affichent ici dès que csm se connecte.",
     "revokedHelp": "Son jeton ne fonctionne plus. Supprimez-la ou ajoutez de nouveau la machine.",
-    "noReportHelp": "csm envoie ce que la machine a et fait tourner dans la minute qui suit sa connexion."
+    "noReportHelp": "csm envoie ce que la machine a et fait tourner dans la minute qui suit sa connexion.",
+    "licenseNote": "Votre licence couvre jusqu'à {{count}} serveurs. Chaque serveur compte, y compris les serveurs de secours.",
+    "progress": "Progression de la commande",
+    "waitingFor": "{{count}} action(s) l'attendent"
   },
   "failover": {
     "title": "Failover",
@@ -1084,10 +1092,133 @@
   "autoscale": {
     "summaryOn": "On",
     "summaryOff": "Off",
-    "empty": "La mise à l'échelle automatique nécessite une machine liée avec csm."
+    "empty": "La mise à l'échelle automatique nécessite une machine liée avec csm.",
+    "saveFailed": "Impossible d'enregistrer les réglages de mise à l'échelle",
+    "title": "Mise à l'échelle automatique",
+    "enabled": "Démarrer et arrêter les serveurs automatiquement",
+    "help": "Les serveurs Ready Up arrêtés de vos machines sont démarrés avant qu'un tour en ait besoin, et les serveurs inactifs sont arrêtés après le délai de repos. Quand tous les serveurs sont utilisés et qu'une machine a de la place, un nouveau serveur est créé et ajouté au pool. Les serveurs ne sont jamais supprimés. Chaque serveur compte dans votre licence.",
+    "leadTime": "Démarrer à l'avance de",
+    "cooldown": "Arrêter après une inactivité de",
+    "maxPerHost": "Maximum de serveurs par machine",
+    "status": "{{warm}} prêts, {{desired}} nécessaires : {{running}} en cours, {{waiting}} en attente, {{soon}} bientôt prêts, {{reserve}} de secours",
+    "activity": "Activité récente",
+    "noActivity": "Rien n'a encore été démarré ni arrêté.",
+    "state": {
+      "busy": "occupé",
+      "idle": "disponible",
+      "starting": "démarrage",
+      "stopping": "arrêt",
+      "stopped": "arrêté",
+      "updating": "mise à jour",
+      "unreachable": "injoignable",
+      "practice": "entraînement"
+    },
+    "action": {
+      "start": "démarrer",
+      "stop": "arrêter",
+      "create": "créer",
+      "link": "lier",
+      "note": "note"
+    }
   },
   "fleetPush": {
-    "summary": "Admins, settings and plugins sent to Ready Up servers"
+    "summary": "Admins, settings and plugins sent to Ready Up servers",
+    "errors": {
+      "save": "L'enregistrement des réglages a échoué",
+      "admins": "L'enregistrement des admins a échoué",
+      "push": "Échec de l'envoi",
+      "practice": "Le changement de mode entraînement a échoué",
+      "whitelist": "La définition de la liste blanche a échoué",
+      "plugins": "La modification des plugins a échoué"
+    },
+    "savedDefaults": "Enregistré ; envoyé à {{count}} serveur(s)",
+    "badAdminLine": "Format « SteamID64 nom » non respecté : {{line}}",
+    "adminsPushed": "Liste des admins rév. {{rev}} envoyée",
+    "adminsUnchanged": "La liste des admins n'a pas changé",
+    "adminsPushedTo": "Envoyé à {{count}} serveur(s)",
+    "title": "Réglages de la flotte",
+    "editDefaults": "Réglages par défaut de la flotte",
+    "adminsTitle": "Admins en jeu",
+    "adminsRev": "rév. {{rev}} · {{count}} admin(s)",
+    "editExtras": "Admins en jeu supplémentaires",
+    "pushAgain": "Renvoyer",
+    "adminsHelp": "Les admins du site disposant d'un compte Steam, plus les admins en jeu supplémentaires. Chaque serveur Ready Up reçoit cette liste quand elle change et quand il se reconnecte avec une version plus ancienne.",
+    "extrasHelp": "Admins en jeu qui ne sont pas admins du site (arbitres, commentateurs). Un par ligne : SteamID64, puis un nom.",
+    "saveAndPush": "Enregistrer et envoyer",
+    "notSent": "Non envoyé",
+    "inheritValue": "Défaut de la flotte ({{value}})",
+    "inherit": "Défaut de la flotte",
+    "notAppliedYet": "Enregistré sur le serveur ; Ready Up ne l'utilise pas encore",
+    "on": "Activé",
+    "off": "Désactivé",
+    "tokenSet": "Défini (laisser vide pour le conserver)",
+    "clearToken": "Effacer",
+    "overrideHelp": "Les champs vides utilisent le défaut de la flotte. Un champ que vous videz garde sa dernière valeur sur le serveur jusqu'à ce que quelque chose la redéfinisse.",
+    "defaultHelp": "Envoyés à chaque serveur Ready Up (server.config et settings.set) à l'enregistrement, puis de nouveau quand un serveur se reconnecte avec une version plus ancienne. Les champs vides ne sont pas envoyés.",
+    "serverConfig": "Configuration du serveur",
+    "matchSettings": "Réglages du plugin de match",
+    "clearOverride": "Utiliser le défaut de la flotte",
+    "status": {
+      "acked": "confirmé",
+      "queued": "en file d'attente",
+      "ok": "ok",
+      "pending": "en attente",
+      "rejected": "refusé",
+      "failed": "échoué",
+      "expired": "expiré"
+    },
+    "sentNoAnswer": "Envoyé ; pas encore de réponse",
+    "queuedOffline": "En file d'attente : le serveur le reçoit à sa reconnexion",
+    "savedServer": "Enregistré et envoyé à {{name}}",
+    "pushed": "Envoyé",
+    "practiceOn": "Mode entraînement activé",
+    "practiceOff": "Mode entraînement désactivé",
+    "whitelistSet": "Liste blanche mise à jour",
+    "pluginsSet": "Plugins mis à jour",
+    "hasOverride": "Réglages propres",
+    "usesDefault": "Réglages par défaut de la flotte",
+    "practice": "Entraînement",
+    "settings": "Réglages",
+    "whitelist": "Liste blanche",
+    "plugins": "Plugins",
+    "serverSettingsTitle": "Réglages : {{name}}",
+    "whitelistTitle": "Liste blanche : {{name}}",
+    "whitelistHelp": "Remplace la liste et l'interrupteur du plugin de liste blanche sur ce serveur (whitelist.set). Un SteamID64 par ligne, 1000 au maximum. Les serveurs sans le plugin répondent « unsupported ».",
+    "whitelistEnabled": "Liste blanche activée",
+    "send": "Envoyer",
+    "pluginsTitle": "Plugins : {{name}}",
+    "kind": {
+      "admins": "admins",
+      "serverConfig": "config. du serveur",
+      "settings": "réglages",
+      "whitelist": "liste blanche",
+      "practice": "entraînement",
+      "plugins": "plugins"
+    },
+    "fields": {
+      "config_hostname_format": "Format du nom d'hôte",
+      "config_scrim_knife": "Round au couteau en scrim",
+      "config_series_end_kick_delay_no_demo": "Délai d'expulsion en fin de série, sans démo (s)",
+      "config_series_end_kick_delay_demo_no_upload": "Délai d'expulsion en fin de série, démo non envoyée (s)",
+      "config_series_end_kick_delay_demo_upload": "Délai d'expulsion en fin de série, démo envoyée (s)",
+      "config_chat_prefix": "Préfixe du chat",
+      "config_admin_chat_prefix": "Préfixe du chat admin",
+      "config_demo_path": "Dossier des démos",
+      "config_demo_name_format": "Format du nom de fichier des démos",
+      "config_offline_pause_minutes": "Pause hors ligne (minutes)",
+      "config_scrim_when_idle": "Mode scrim au repos",
+      "config_warmup_respawn": "Réapparition pendant l'échauffement",
+      "config_warmup_money": "Argent pendant l'échauffement",
+      "config_warmup_message_html": "Message d'échauffement (HTML)",
+      "config_status_http_token": "Jeton HTTP d'état",
+      "match_minimum_ready_required": "Minimum de joueurs prêts",
+      "match_playout_enabled_default": "Jouer toutes les manches par défaut",
+      "match_autoready_enabled": "Prêt automatique",
+      "match_use_pause_command_for_tactical_pause": "Utiliser la commande pause pour les pauses tactiques",
+      "match_kick_when_no_match_loaded": "Expulser les joueurs si aucun match n'est chargé",
+      "match_whitelist_enabled_default": "Liste blanche activée par défaut",
+      "match_reset_cvars_on_series_end": "Réinitialiser les cvars en fin de série"
+    }
   },
   "profile": {
     "title": "Performance",
@@ -1744,7 +1875,9 @@
         "unsupported": "Mettez à jour Ready Up pour voir la console en direct",
         "dropped": "{{count}} lignes ignorées"
       }
-    }
+    },
+    "createN": "Créer {{count}} serveurs",
+    "restarts": "{{count}} redémarrages en 24 h"
   },
   "matchPage": {
     "recordingClips": "Recording clips",
@@ -2150,5 +2283,8 @@
     },
     "copyConnect": "Copier la commande connect",
     "connectCopied": "Commande connect copiée"
+  },
+  "serverAllocation": {
+    "readyIn": "Délai avant que le serveur soit prêt"
   }
 }

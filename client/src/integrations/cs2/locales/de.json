@@ -772,7 +772,12 @@
     "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
     "updateAvailable": "Update verfügbar: {{version}}",
     "upToDate": "Aktuell",
-    "noUpdateCheck": "Noch keine Update-Prüfung"
+    "noUpdateCheck": "Noch keine Update-Prüfung",
+    "unlinked": "Wird nicht mehr für Matches verwendet",
+    "linked": "Wird für Matches verwendet",
+    "unlink": "Nicht mehr für Matches verwenden",
+    "link": "Für Matches verwenden",
+    "save": "Speichern"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -971,7 +976,10 @@
     "noReportYet": "Verbunden, wartet auf den ersten Bericht von csm",
     "pendingHelp": "Auf der Maschine, als der Benutzer, der csm ausführt, csm link mit einem neuen Code ausführen. CPU, Festplatte, CS2-Build und Server erscheinen hier, sobald csm verbunden ist.",
     "revokedHelp": "Ihr Token funktioniert nicht mehr. Entferne sie oder füge die Maschine erneut hinzu.",
-    "noReportHelp": "csm meldet innerhalb einer Minute nach dem Verbinden, was die Maschine hat und ausführt."
+    "noReportHelp": "csm meldet innerhalb einer Minute nach dem Verbinden, was die Maschine hat und ausführt.",
+    "licenseNote": "Ihre Lizenz deckt bis zu {{count}} Server ab. Jeder Server zählt, auch Reserveserver.",
+    "progress": "Befehlsfortschritt",
+    "waitingFor": "{{count}} Aktion(en) warten darauf"
   },
   "failover": {
     "title": "Failover",
@@ -1084,10 +1092,133 @@
   "autoscale": {
     "summaryOn": "On",
     "summaryOff": "Off",
-    "empty": "Automatische Skalierung braucht eine mit csm verbundene Maschine."
+    "empty": "Automatische Skalierung braucht eine mit csm verbundene Maschine.",
+    "saveFailed": "Die Skalierungseinstellungen konnten nicht gespeichert werden",
+    "title": "Automatische Skalierung",
+    "enabled": "Server automatisch starten und stoppen",
+    "help": "Gestoppte Ready-Up-Server auf Ihren Maschinen werden gestartet, bevor eine Runde sie braucht, und ungenutzte nach der Abkühlzeit gestoppt. Sind alle Server belegt und eine Maschine hat Platz, wird ein neuer Server erstellt und dem Pool hinzugefügt. Server werden nie gelöscht. Jeder Server zählt zur Lizenz.",
+    "leadTime": "Vorlaufzeit beim Start",
+    "cooldown": "Nach Leerlauf stoppen",
+    "maxPerHost": "Maximale Server pro Maschine",
+    "status": "{{warm}} bereit, {{desired}} benötigt: {{running}} laufen, {{waiting}} warten, {{soon}} gleich bereit, {{reserve}} in Reserve",
+    "activity": "Letzte Aktivität",
+    "noActivity": "Noch nichts gestartet oder gestoppt.",
+    "state": {
+      "busy": "belegt",
+      "idle": "frei",
+      "starting": "startet",
+      "stopping": "stoppt",
+      "stopped": "gestoppt",
+      "updating": "aktualisiert",
+      "unreachable": "nicht erreichbar",
+      "practice": "Training"
+    },
+    "action": {
+      "start": "starten",
+      "stop": "stoppen",
+      "create": "erstellen",
+      "link": "verknüpfen",
+      "note": "Hinweis"
+    }
   },
   "fleetPush": {
-    "summary": "Admins, settings and plugins sent to Ready Up servers"
+    "summary": "Admins, settings and plugins sent to Ready Up servers",
+    "errors": {
+      "save": "Die Einstellungen konnten nicht gespeichert werden",
+      "admins": "Die Admins konnten nicht gespeichert werden",
+      "push": "Senden fehlgeschlagen",
+      "practice": "Der Trainingsmodus konnte nicht umgeschaltet werden",
+      "whitelist": "Die Whitelist konnte nicht gesetzt werden",
+      "plugins": "Die Plugins konnten nicht geändert werden"
+    },
+    "savedDefaults": "Gespeichert; an {{count}} Server gesendet",
+    "badAdminLine": "Nicht „SteamID64 Name“: {{line}}",
+    "adminsPushed": "Adminliste Rev. {{rev}} gesendet",
+    "adminsUnchanged": "Die Adminliste hat sich nicht geändert",
+    "adminsPushedTo": "An {{count}} Server gesendet",
+    "title": "Flotteneinstellungen",
+    "editDefaults": "Standardeinstellungen der Flotte",
+    "adminsTitle": "Admins im Spiel",
+    "adminsRev": "Rev. {{rev}} · {{count}} Admin(s)",
+    "editExtras": "Zusätzliche Admins im Spiel",
+    "pushAgain": "Erneut senden",
+    "adminsHelp": "Website-Admins mit Steam-Konto sowie die zusätzlichen Admins im Spiel. Jeder Ready-Up-Server erhält diese Liste bei Änderungen und wenn er sich mit einer älteren Version wieder verbindet.",
+    "extrasHelp": "Admins im Spiel, die keine Website-Admins sind (Schiedsrichter, Caster). Eine pro Zeile: SteamID64, dann ein Name.",
+    "saveAndPush": "Speichern und senden",
+    "notSent": "Nicht gesendet",
+    "inheritValue": "Flottenstandard ({{value}})",
+    "inherit": "Flottenstandard",
+    "notAppliedYet": "Auf dem Server gespeichert; Ready Up verwendet es noch nicht",
+    "on": "An",
+    "off": "Aus",
+    "tokenSet": "Gesetzt (leer lassen, um es zu behalten)",
+    "clearToken": "Löschen",
+    "overrideHelp": "Leere Felder verwenden den Flottenstandard. Ein geleertes Feld behält auf dem Server seinen letzten Wert, bis etwas es erneut setzt.",
+    "defaultHelp": "Beim Speichern an jeden Ready-Up-Server gesendet (server.config und settings.set) und erneut, wenn sich ein Server mit einer älteren Version verbindet. Leere Felder werden nicht gesendet.",
+    "serverConfig": "Serverkonfiguration",
+    "matchSettings": "Einstellungen des Match-Plugins",
+    "clearOverride": "Flottenstandard verwenden",
+    "status": {
+      "acked": "bestätigt",
+      "queued": "in Warteschlange",
+      "ok": "ok",
+      "pending": "ausstehend",
+      "rejected": "abgelehnt",
+      "failed": "fehlgeschlagen",
+      "expired": "abgelaufen"
+    },
+    "sentNoAnswer": "Gesendet; noch keine Antwort",
+    "queuedOffline": "In der Warteschlange: Der Server erhält es, sobald er sich wieder verbindet",
+    "savedServer": "Gespeichert und an {{name}} gesendet",
+    "pushed": "Gesendet",
+    "practiceOn": "Trainingsmodus an",
+    "practiceOff": "Trainingsmodus aus",
+    "whitelistSet": "Whitelist aktualisiert",
+    "pluginsSet": "Plugins aktualisiert",
+    "hasOverride": "Eigene Einstellungen",
+    "usesDefault": "Standardeinstellungen der Flotte",
+    "practice": "Training",
+    "settings": "Einstellungen",
+    "whitelist": "Whitelist",
+    "plugins": "Plugins",
+    "serverSettingsTitle": "Einstellungen: {{name}}",
+    "whitelistTitle": "Whitelist: {{name}}",
+    "whitelistHelp": "Ersetzt Liste und Schalter des Whitelist-Plugins auf diesem Server (whitelist.set). Eine SteamID64 pro Zeile, höchstens 1000. Server ohne Whitelist-Plugin antworten mit „unsupported“.",
+    "whitelistEnabled": "Whitelist an",
+    "send": "Senden",
+    "pluginsTitle": "Plugins: {{name}}",
+    "kind": {
+      "admins": "Admins",
+      "serverConfig": "Serverkonfiguration",
+      "settings": "Einstellungen",
+      "whitelist": "Whitelist",
+      "practice": "Training",
+      "plugins": "Plugins"
+    },
+    "fields": {
+      "config_hostname_format": "Hostname-Format",
+      "config_scrim_knife": "Messerrunde in Scrims",
+      "config_series_end_kick_delay_no_demo": "Kick-Verzögerung am Serienende, ohne Demo (s)",
+      "config_series_end_kick_delay_demo_no_upload": "Kick-Verzögerung am Serienende, Demo nicht hochgeladen (s)",
+      "config_series_end_kick_delay_demo_upload": "Kick-Verzögerung am Serienende, Demo hochgeladen (s)",
+      "config_chat_prefix": "Chat-Präfix",
+      "config_admin_chat_prefix": "Admin-Chat-Präfix",
+      "config_demo_path": "Demo-Ordner",
+      "config_demo_name_format": "Dateinamenformat der Demo",
+      "config_offline_pause_minutes": "Pause bei Offline (Minuten)",
+      "config_scrim_when_idle": "Scrim-Modus im Leerlauf",
+      "config_warmup_respawn": "Respawn im Warmup",
+      "config_warmup_money": "Geld im Warmup",
+      "config_warmup_message_html": "Warmup-Nachricht (HTML)",
+      "config_status_http_token": "Status-HTTP-Token",
+      "match_minimum_ready_required": "Mindestanzahl bereiter Spieler",
+      "match_playout_enabled_default": "Standardmäßig alle Runden ausspielen",
+      "match_autoready_enabled": "Automatisch bereit",
+      "match_use_pause_command_for_tactical_pause": "Pause-Befehl für taktische Pausen verwenden",
+      "match_kick_when_no_match_loaded": "Spieler kicken, wenn kein Match geladen ist",
+      "match_whitelist_enabled_default": "Whitelist standardmäßig an",
+      "match_reset_cvars_on_series_end": "Cvars am Serienende zurücksetzen"
+    }
   },
   "profile": {
     "title": "Performance",
@@ -1744,7 +1875,9 @@
         "unsupported": "Ready Up aktualisieren, um die Live-Konsole zu sehen",
         "dropped": "{{count}} Zeilen übersprungen"
       }
-    }
+    },
+    "createN": "{{count}} Server erstellen",
+    "restarts": "{{count}} Neustarts in 24 h"
   },
   "matchPage": {
     "recordingClips": "Recording clips",
@@ -2150,5 +2283,8 @@
     },
     "copyConnect": "connect-Befehl kopieren",
     "connectCopied": "connect-Befehl kopiert"
+  },
+  "serverAllocation": {
+    "readyIn": "Zeit, bis der Server bereit ist"
   }
 }
