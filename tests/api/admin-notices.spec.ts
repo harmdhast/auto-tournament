@@ -3,6 +3,11 @@ import { getAuthHeader, signInAsPlayerViaRequest, signInViaRequest } from '../he
 import { normalizeNoticeSettings } from '../../api/src/services/adminNoticeService';
 import { stuckState } from '../../api/src/services/adminNoticeSweep';
 import {
+  isSilentMatch,
+  lastSeenSeconds,
+  MATCH_SILENT_SECONDS,
+} from '../../api/src/integrations/cs2/adminNotices';
+import {
   noticeKey,
   noticeLink,
   noticeParams,
@@ -60,6 +65,20 @@ test.describe('admin notices (rules)', () => {
       state: 'veto:3',
     });
     expect(stuckState({ ...base, status: 'live' })).toBeNull();
+  });
+
+  test('a live match goes silent after a quarter of an hour without its server, unless paused', () => {
+    const at = 100_000;
+    expect(isSilentMatch(at - MATCH_SILENT_SECONDS, at, 'live')).toBe(true);
+    expect(isSilentMatch(at - MATCH_SILENT_SECONDS + 60, at, 'live')).toBe(false);
+    // The last event time is in seconds (it was read as milliseconds: "silent for 29837825 min").
+    const now = 1_792_000_000;
+    expect(lastSeenSeconds(now - 30, 1, now)).toBe(now - 30);
+    expect(lastSeenSeconds((now - 30) * 1000, 1, now)).toBe(now - 30);
+    expect(lastSeenSeconds(null, now - 120, now)).toBe(now - 120);
+    expect(lastSeenSeconds(null, null, now)).toBe(now);
+    expect(isSilentMatch(at - 3 * MATCH_SILENT_SECONDS, at, 'paused')).toBe(false);
+    expect(isSilentMatch(at - 3 * MATCH_SILENT_SECONDS, at, null)).toBe(true);
   });
 
   test('the line, the link, and the order', () => {

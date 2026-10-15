@@ -9,7 +9,7 @@ import { useCurrentMatchStatus } from '../../hooks/useCurrentMatchStatus';
 import { DevAccountSwitcherGate } from '../dev/DevAccountSwitcherGate';
 import { AtIcon } from '../common/AtIcon';
 import { fontDisplay, radii, textSize, tokens } from '../../theme/tokens';
-import { paths } from '../../paths';
+import { matchPagePath, paths } from '../../paths';
 import { useMatchmaking } from '../matchmaking/matchmakingStore';
 import { NotificationBell } from '../social/NotificationBell';
 import { AdminNoticeBell } from '../admin/AdminNoticeBell';
@@ -18,6 +18,12 @@ import { AccountMenu } from './AccountMenu';
 import { SiteSearch } from '../search/SiteSearch';
 import { useInstalledIntegrations } from '../../integrations/registry';
 import { soundNotification } from '../../utils/soundNotification';
+import { NextMatchDialog } from '../match/NextMatchDialog';
+import { NavStartCountdown } from './NavStartCountdown';
+import { NavVetoCountdown } from './NavVetoCountdown';
+import { NavTournamentStatus } from './NavTournamentStatus';
+import { PlacementDialog } from '../tournament/PlacementDialog';
+import { NotificationPrompt } from '../social/NotificationPrompt';
 
 /** Top-bar text links: ink2 at rest, ink on hover and on the current page (the drafts' `.nav-links`). */
 const navLinkSx = {
@@ -86,6 +92,9 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({ adminArea = false })
     viewerTeam,
     vetoActionCount,
     lastVetoActionTeam,
+    opensAt,
+    vetoOff,
+    matchup,
   } = useCurrentMatchStatus(playerSteamId ?? null);
   const { showSnackbar, closeSnackbar } = useSnackbar();
 
@@ -202,6 +211,7 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({ adminArea = false })
   const ctaLabels: Record<string, string> = {
     your_turn_veto: t('nav.matchStatus.yourTurnVeto'),
     waiting_veto: t('nav.matchStatus.waitingVeto'),
+    veto_soon: t('nav.matchStatus.vetoSoon', 'Veto soon'),
     waiting_server: t('nav.matchStatus.waitingServer'),
     match_ready: t('nav.matchStatus.matchReady'),
   };
@@ -218,8 +228,8 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({ adminArea = false })
       current: at(link.path),
     }))
   );
-  // The four places a player goes (the IA drafts' top bar): Play, Tournaments,
-  // Leaderboards, and Community for the directories and the modules' pages.
+  // The places a player goes: Play, Tournaments, and Community for the
+  // leaderboards, the directories and the modules' pages (fewer words in the bar).
   // The logo is Home. Admins also get Manage.
   const mainLinks: SiteLink[] = [
     ...(matchmakingAvailable
@@ -231,14 +241,14 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({ adminArea = false })
       testId: 'nav-tournaments',
       current: at(paths.tournamentList) || pathname.startsWith('/tournament/'),
     },
+  ];
+  const communityLinks: SiteLink[] = [
     {
       to: paths.leaderboards,
       label: t('nav.leaderboards'),
       testId: 'nav-leaderboards',
       current: at(paths.leaderboards),
     },
-  ];
-  const communityLinks: SiteLink[] = [
     {
       to: paths.communityTeams,
       label: t('nav.teams'),
@@ -265,6 +275,18 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({ adminArea = false })
 
   return (
     <>
+      <NextMatchDialog
+        status={matchStatus}
+        matchSlug={matchSlug}
+        matchName={matchName}
+        vetoActionCount={vetoActionCount}
+        opensAt={opensAt}
+        vetoOff={vetoOff}
+        matchup={matchup}
+        loading={matchStatusLoading}
+      />
+      {playerSteamId && !impersonation && <PlacementDialog viewerId={playerSteamId} />}
+      {playerSteamId && !impersonation && <NotificationPrompt viewerId={playerSteamId} />}
       <Box
         component={RouterLink}
         to={paths.root}
@@ -414,7 +436,10 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({ adminArea = false })
       </Box>
 
       <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-        {ctaLabel ? (
+        {/* The break before the veto: the time, outlined (nothing to do yet). */}
+        {playerSteamId && matchStatusLabel === 'veto_soon' && opensAt && matchSlug ? (
+          <NavVetoCountdown opensAt={opensAt} to={matchPagePath(matchSlug)} vetoOff={vetoOff} />
+        ) : ctaLabel ? (
           <Button
             component={RouterLink}
             to={paths.matchNow}
@@ -427,6 +452,11 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({ adminArea = false })
           >
             {ctaLabel}
           </Button>
+        ) : playerSteamId ? (
+          <>
+            <NavStartCountdown viewerId={playerSteamId} />
+            <NavTournamentStatus viewerId={playerSteamId} />
+          </>
         ) : null}
         <DevAccountSwitcherGate />
 

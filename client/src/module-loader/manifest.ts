@@ -197,9 +197,12 @@ export const COMPONENT_SLOTS = [
   'matchPanels.reportView',
   'matchPanels.adminMatchView',
   'matchPanels.publicView',
+  'matchPanels.seriesMapsView',
   'teamAdminPanel',
   'rosterMemberStatus',
   'adminGlobalWarning',
+  'tournamentRulesView',
+  'tournamentPrizesView',
   'tournamentStart.confirmView',
   'tournamentStart.failureView',
   'tournamentStart.preflight.view',
@@ -234,6 +237,7 @@ export const COMPONENT_SLOTS = [
   'tournamentTab.Component',
   'tournamentResultsSection',
   'highlightsAdmin.Component',
+  'adminPlayerAction.Dialog',
 ] as const;
 
 export type ComponentSlot = (typeof COMPONENT_SLOTS)[number];

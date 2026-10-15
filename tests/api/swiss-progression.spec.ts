@@ -1,6 +1,12 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
+import { currentTournamentId, currentTournamentMatches } from '../helpers/slugs';
 import { setupTournament } from '../helpers/tournamentSetup';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
+import {
+  sendReadyUpEvents,
+  seriesEnd as readyUpSeriesEnd,
+  mapResult as readyUpMapResult,
+} from '../helpers/readyUp';
 
 /**
  * Swiss tournaments play every round, not just round 1.
@@ -20,12 +26,15 @@ import { getAuthHeader, signInViaRequest } from '../helpers/auth';
  * @tag regression
  */
 
-const MAPS = ['de_mirage', 'de_inferno', 'de_ancient', 'de_anubis', 'de_dust2', 'de_vertigo', 'de_nuke'];
-
-const SERVER_HEADERS = {
-  'Content-Type': 'application/json',
-  'X-Auto-Tournament-Token': process.env.SERVER_TOKEN ?? 'server123',
-};
+const MAPS = [
+  'de_mirage',
+  'de_inferno',
+  'de_ancient',
+  'de_anubis',
+  'de_dust2',
+  'de_vertigo',
+  'de_nuke',
+];
 
 type ListedMatch = {
   id: number;
@@ -46,26 +55,26 @@ async function swissMatches(request: APIRequestContext): Promise<ListedMatch[]> 
   const res = await request.get('/api/matches', { headers: getAuthHeader() });
   expect(res.ok(), `listing matches failed: ${await res.text()}`).toBe(true);
   const body = (await res.json()) as { matches?: ListedMatch[] };
-  return (body.matches ?? [])
-    .filter((m) => /^swiss-r\d+m\d+$/.test(m.slug))
+  return (await currentTournamentMatches(request, body.matches ?? []))
+    .filter((m) => /^(t\d+-)?swiss-r\d+m\d+$/.test(m.slug))
     .sort((a, b) => a.round - b.round || a.slug.localeCompare(b.slug));
 }
 
 const roundOf = (matches: ListedMatch[], round: number) => matches.filter((m) => m.round === round);
 const isBye = (m: ListedMatch) => Boolean(m.team1) !== Boolean(m.team2);
 
-async function seriesEnd(request: APIRequestContext, match: ListedMatch, winner: 'team1' | 'team2') {
-  return request.post(`/api/events/${match.slug}`, {
-    headers: SERVER_HEADERS,
-    data: {
-      event: 'series_end',
-      matchid: match.slug,
-      team1_series_score: winner === 'team1' ? 1 : 0,
-      team2_series_score: winner === 'team2' ? 1 : 0,
-      winner: { side: winner === 'team1' ? '3' : '2', team: winner },
-      time_until_restore: 0,
-    },
-  });
+async function seriesEnd(
+  request: APIRequestContext,
+  match: ListedMatch,
+  winner: 'team1' | 'team2'
+) {
+  await sendReadyUpEvents(request, match.slug, [
+    readyUpSeriesEnd({
+      winner,
+      team1: winner === 'team1' ? 1 : 0,
+      team2: winner === 'team2' ? 1 : 0,
+    }),
+  ]);
 }
 
 /** Deterministic but mixed results: the lower team id wins on even rounds. */
@@ -126,21 +135,14 @@ async function playMap(
   loserRounds: number
 ) {
   const [t1, t2] = winner === 'team1' ? [13, loserRounds] : [loserRounds, 13];
-  const res = await request.post(`/api/events/${match.slug}`, {
-    headers: SERVER_HEADERS,
-    data: {
-      event: 'map_result',
-      matchid: match.slug,
-      map_number: 0,
-      map_name: 'de_mirage',
-      team1_score: t1,
-      team2_score: t2,
-      winner: { side: winner === 'team1' ? '3' : '2', team: winner },
-      team1: { score: t1, series_score: winner === 'team1' ? 1 : 0 },
-      team2: { score: t2, series_score: winner === 'team2' ? 1 : 0 },
-    },
-  });
-  expect(res.ok(), `map_result for ${match.slug}: ${await res.text()}`).toBe(true);
+  await sendReadyUpEvents(request, match.slug, [
+    readyUpMapResult({
+      team1: t1,
+      team2: t2,
+      series: [winner === 'team1' ? 1 : 0, winner === 'team2' ? 1 : 0],
+      winner,
+    }),
+  ]);
 }
 
 type StandingRow = {
@@ -155,9 +157,8 @@ type StandingRow = {
 async function finishRound(request: APIRequestContext, round: number) {
   for (const match of roundOf(await swissMatches(request), round)) {
     if (isBye(match)) continue;
-    const res = await seriesEnd(request, match, pickWinner(match));
-    // The quoting bug answered the last series_end of a round with a 500.
-    expect(res.status(), `series_end for ${match.slug}: ${await res.text()}`).toBe(200);
+    // The quoting bug failed the last series_end of a round (sendReadyUpEvents checks it went through).
+    await seriesEnd(request, match, pickWinner(match));
   }
 }
 
@@ -247,15 +248,14 @@ test.describe.serial('Swiss round progression', () => {
 
       const round1 = roundOf(await swissMatches(request), 1);
       for (const match of round1.slice(0, -1)) {
-        expect((await seriesEnd(request, match, pickWinner(match))).status()).toBe(200);
+        await seriesEnd(request, match, pickWinner(match));
       }
 
-      // The plugin retries, and a synthesized series_end can race its own.
+      // The same series_end five times at once (a resend racing a synthesized one).
       const last = round1[round1.length - 1];
-      const responses = await Promise.all(
+      await Promise.all(
         Array.from({ length: 5 }, () => seriesEnd(request, last, pickWinner(last)))
       );
-      for (const res of responses) expect(res.status()).toBe(200);
 
       const paired = await waitForPairedRound(request, 2);
       const snapshot = paired.map((m) => `${m.slug}:${m.team1?.id}:${m.team2?.id}`).sort();
@@ -264,7 +264,7 @@ test.describe.serial('Swiss round progression', () => {
 
       // Retries after the fact, and bracket fetches (which also run the
       // advancement check), must not re-pair anything.
-      expect((await seriesEnd(request, last, pickWinner(last))).status()).toBe(200);
+      await seriesEnd(request, last, pickWinner(last));
       await request.get('/api/tournament/bracket');
       await request.get('/api/tournament', { headers: getAuthHeader() });
 
@@ -274,9 +274,10 @@ test.describe.serial('Swiss round progression', () => {
           .map((m) => `${m.slug}:${m.team1?.id}:${m.team2?.id}`)
           .sort()
       ).toEqual(snapshot);
-      expect(roundOf(after, 3).every((m) => !m.team1 && !m.team2), 'round 3 still unpaired').toBe(
-        true
-      );
+      expect(
+        roundOf(after, 3).every((m) => !m.team1 && !m.team2),
+        'round 3 still unpaired'
+      ).toBe(true);
     }
   );
 
@@ -304,10 +305,10 @@ test.describe.serial('Swiss round progression', () => {
         await waitForPairedRound(request, 2);
 
         await expect
-          .poll(
-            async () => roundOf(await swissMatches(request), 2).every((m) => m.vetoCompleted),
-            { message: 'round 2 vetoes should complete automatically', timeout: 60_000 }
-          )
+          .poll(async () => roundOf(await swissMatches(request), 2).every((m) => m.vetoCompleted), {
+            message: 'round 2 vetoes should complete automatically',
+            timeout: 60_000,
+          })
           .toBe(true);
       } finally {
         await request.put('/api/settings', { data: { simulateMatches: false } });
@@ -346,7 +347,10 @@ test.describe.serial('Swiss round progression', () => {
       }
 
       const { byes } = records(await swissMatches(request));
-      expect([...byes.values()].every((n) => n === 1), 'no team gets two byes').toBe(true);
+      expect(
+        [...byes.values()].every((n) => n === 1),
+        'no team gets two byes'
+      ).toBe(true);
       expect(byes.size).toBe(rounds);
       expect(await waitForChampion(request), 'a champion is named').toBeTruthy();
     }
@@ -375,7 +379,7 @@ test.describe.serial('Swiss round progression', () => {
           const lost = (n++ * 5) % 12;
           loserRounds.set(match.slug, lost);
           await playMap(request, match, winner, lost);
-          expect((await seriesEnd(request, match, winner)).status()).toBe(200);
+          await seriesEnd(request, match, winner);
         }
       }
       await waitForChampion(request);
@@ -412,7 +416,13 @@ test.describe.serial('Swiss round progression', () => {
           b.roundDiff - a.roundDiff ||
           a.seed - b.seed
       );
-      const strip = ({ teamId, wins: w, losses, buchholz, roundDiff }: (typeof expected)[number]) => ({
+      const strip = ({
+        teamId,
+        wins: w,
+        losses,
+        buchholz,
+        roundDiff,
+      }: (typeof expected)[number]) => ({
         teamId,
         wins: w,
         losses,
@@ -438,14 +448,17 @@ test.describe.serial('Swiss round progression', () => {
       // Round differential counts map rounds, not series scores.
       expect(expected.some((s) => Math.abs(s.roundDiff) > 3)).toBe(true);
 
-      const lbRes = await request.get('/api/tournament/1/leaderboard');
+      const lbRes = await request.get(
+        `/api/tournament/${await currentTournamentId(request)}/leaderboard`
+      );
       expect(lbRes.ok()).toBe(true);
       const lb = (await lbRes.json()) as {
         teams?: Array<{ teamId: string; matchWins: number; buchholz?: number; roundDiff?: number }>;
       };
-      expect(lb.teams?.map((t) => t.teamId), 'leaderboard uses the same order').toEqual(
-        expected.map((s) => s.teamId)
-      );
+      expect(
+        lb.teams?.map((t) => t.teamId),
+        'leaderboard uses the same order'
+      ).toEqual(expected.map((s) => s.teamId));
       expect(lb.teams?.map((t) => [t.buchholz, t.roundDiff])).toEqual(
         expected.map((s) => [s.buchholz, s.roundDiff])
       );

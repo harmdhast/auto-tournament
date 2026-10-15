@@ -49,6 +49,31 @@ const TAIL_TICKS = Math.round(1.5 * TICKRATE);
 const PER_PLAYER = 6;
 /** Below this a moment isn't worth a clip (a plain single kill scores 10). */
 const MIN_SCORE = 30;
+/**
+ * A 1v1 has one kill a round, so nothing reaches MIN_SCORE: there a headshot
+ * on the round's first kill (20) is worth a clip, best ones first.
+ */
+const DUEL_MIN_SCORE = 20;
+
+/** Two players in all, one a side (they swap sides at half): a 1v1 aim duel. */
+export function isDuel(
+  kills: ReadonlyArray<Pick<KillRow, 'attacker' | 'victim' | 'attackerSide' | 'victimSide'>>
+): boolean {
+  const perSide = new Map<string, Set<string>>();
+  for (const k of kills) {
+    for (const [id, side] of [
+      [k.attacker, k.attackerSide],
+      [k.victim, k.victimSide],
+    ] as const) {
+      if (!id || !side) continue;
+      const set = perSide.get(side) ?? new Set<string>();
+      set.add(id);
+      perSide.set(side, set);
+    }
+  }
+  const players = new Set([...perSide.values()].flatMap((s) => [...s]));
+  return perSide.size > 0 && players.size <= 2;
+}
 const MULTI_BONUS = [0, 0, 25, 60, 120, 250];
 const FUNNY_PER_PLAYER = 2;
 /** Enough to beat MIN_SCORE: a funny moment is worth a clip on its own. */
@@ -68,6 +93,10 @@ interface KillRow {
   headshot?: boolean;
   penetrated?: boolean;
   throughSmoke?: boolean;
+  /** CS2's kill feed marks: no scope, the killer flashed, in the air. */
+  noScope?: boolean;
+  attackerBlind?: boolean;
+  inAir?: boolean;
   attackerSide?: string | null;
   victimSide?: string | null;
   opening?: boolean;
@@ -142,6 +171,9 @@ export function pickMoments(
       if (k.headshot) score += 5;
       if (k.penetrated) score += 15;
       if (k.throughSmoke) score += 15;
+      if (k.noScope) score += 15;
+      if (k.attackerBlind) score += 20;
+      if (k.inAir) score += 10;
       if (k.opening) score += 5;
     }
     // Clutch: before the run, everyone else on their side in this round died,
@@ -196,7 +228,8 @@ export function pickMoments(
 
   // The best six per player that score enough.
   const byPlayer = new Map<string, Moment[]>();
-  for (const m of moments.filter((m) => m.score >= MIN_SCORE).sort((a, b) => b.score - a.score)) {
+  const minScore = isDuel(kills) ? DUEL_MIN_SCORE : MIN_SCORE;
+  for (const m of moments.filter((m) => m.score >= minScore).sort((a, b) => b.score - a.score)) {
     const list = byPlayer.get(m.playerId) ?? [];
     if (list.length < perPlayer) list.push(m);
     byPlayer.set(m.playerId, list);
@@ -268,22 +301,59 @@ export function funnyMoments(
   return out;
 }
 
-/** Replace a map's not-yet-recorded highlights with a fresh pick. */
+/** Where a pick of moments came from: the demo file, and the first round it plays. */
+export interface MomentSource {
+  demoPath: string;
+  firstRound: number;
+}
+
+/**
+ * Replace a map's not-yet-recorded highlights with a fresh pick.
+ *
+ * With `source`, a newer demo of the map (after a restart or a restore)
+ * also replaces the clips an older demo gave for the rounds it plays again:
+ * those are marked `superseded` (kept on disk, out of every list and reel)
+ * and the map's and the series' reels are made again with the new clips.
+ * Clips from the same demo, a retried analysis, are kept.
+ */
 export async function saveMoments(
   matchSlug: string,
   mapNumber: number,
-  moments: Moment[]
+  moments: Moment[],
+  source?: MomentSource
 ): Promise<void> {
   try {
     await db.runAsync(
       "DELETE FROM cs2_highlights WHERE match_slug = ? AND map_number = ? AND status IN ('pending', 'failed', 'skipped')",
       [matchSlug, mapNumber]
     );
+    if (source) {
+      const replaced = await db.queryAsync<{ id: number }>(
+        `UPDATE cs2_highlights SET status = 'superseded', error = 'the round was played again'
+          WHERE match_slug = ? AND map_number = ? AND status IN ('done', 'recording')
+            AND demo_path IS DISTINCT FROM ? AND round >= ?
+          RETURNING id`,
+        [matchSlug, mapNumber, source.demoPath, source.firstRound]
+      );
+      if (replaced.length) {
+        log.info(
+          `[HIGHLIGHTS] ${matchSlug} map ${mapNumber}: ${replaced.length} clip(s) from rounds played again replaced`
+        );
+        // The reels are made again once the new clips are recorded.
+        const { redo } = await import('./clipsAdmin');
+        await redo({
+          reels: [
+            { slug: matchSlug, mapNumber },
+            { slug: matchSlug, mapNumber: SERIES_REEL },
+          ],
+        });
+      }
+    }
     for (const m of moments) {
       await db.runAsync(
         `INSERT INTO cs2_highlights (match_slug, map_number, player_id, kind, score, round, start_tick, end_tick,
-                                     slowmo_tick, kill_ticks, title)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     slowmo_tick, kill_ticks, title, demo_path)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (match_slug, map_number, player_id, start_tick) DO NOTHING`,
         [
           matchSlug,
@@ -297,6 +367,7 @@ export async function saveMoments(
           m.slowmoTick,
           JSON.stringify(m.killTicks),
           m.title,
+          source?.demoPath ?? null,
         ]
       );
     }
@@ -1263,6 +1334,13 @@ export interface MatchReelClip {
   url: string;
   /** Its kills and the crowd's reactions, for the reel's crowd track. */
   markers: ClipMarkers | null;
+  /**
+   * Its match and map, when a reel spans several (team and tournament reels):
+   * the same player again on the same map comes in without a second caption
+   * card entrance.
+   */
+  matchSlug?: string;
+  mapNumber?: number;
 }
 
 /**

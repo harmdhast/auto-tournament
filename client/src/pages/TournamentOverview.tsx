@@ -1,4 +1,5 @@
 import { Link as RouterLink } from 'react-router-dom';
+import { useIntegrationFor } from '../integrations/registry';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { KeyDatesBar } from '../components/tournament/overview/KeyDatesBar';
@@ -9,6 +10,7 @@ import { LiveStrip } from '../components/tournament/overview/LiveStrip';
 import { TournamentResults } from '../components/tournament/results/TournamentResults';
 import { RegisteredPanel } from '../components/tournament/signup/RegisteredPanel';
 import { CheckInPanel } from '../components/tournament/signup/CheckInPanel';
+import { ShuffleJoin } from '../components/tournament/signup/ShuffleJoin';
 import { signupPhase, useTournamentSignup, viewerRegistration } from '../hooks/useTournamentSignup';
 import { api } from '../utils/api';
 import { fontDisplay, radii, tokens } from '../theme/tokens';
@@ -19,6 +21,8 @@ import { usePublicBracket } from '../hooks/usePublicBracket';
 import { compareMatchOrder } from '../utils/matchUtils';
 import { tournamentTabPath } from '../paths';
 import { NextMatchCard } from '../components/match/NextMatchCard';
+import { CardBracket } from '../components/tournament/page/CardBracket';
+import { placementFor } from '../hooks/usePlacement';
 
 /**
  * The tournament page's Overview tab, kept to what a quick look needs (the
@@ -31,6 +35,8 @@ export default function TournamentOverview() {
   const { t } = useTranslation();
   const { tournament, teams, players, viewerTeam } = useTournamentPage();
   const { matches } = usePublicBracket(tournament.id);
+  const RulesView = useIntegrationFor(tournament).tournamentRulesView;
+  const PrizesView = useIntegrationFor(tournament).tournamentPrizesView;
   const liveMatches = matches.filter(isLiveMatch).sort(compareMatchOrder);
   const isShuffle = tournament.type === 'shuffle';
   const maps = tournament.maps ?? [];
@@ -62,10 +68,14 @@ export default function TournamentOverview() {
     ? signup.window.maxTeams - tournament.teamIds.length
     : null;
   const canSignUp =
+    !isShuffle &&
     tournament.status === 'setup' &&
     phase === 'open' &&
     !registration &&
     (spotsLeft === null || spotsLeft > 0);
+
+  // The viewer's team is out (or won): "Your team" shows where it finished.
+  const viewerPlaced = !!viewerTeam && !!placementFor(tournament, matches, viewerTeam.id);
 
   // Once it is over, the overview is the results.
   if (tournament.status === 'completed' && !isShuffle) {
@@ -74,8 +84,9 @@ export default function TournamentOverview() {
 
   return (
     <Stack spacing={{ xs: 3, md: 3.5 }} data-testid="public-tournament-overview">
-      {/* While it runs, the viewer's next match first: a link to its match room. */}
-      {tournament.status === 'in_progress' && viewerTeam && (
+      {/* While it runs, the viewer's next match first, one card: a link to its match
+          room. Once the team is out, "Your team" below says where it finished. */}
+      {tournament.status === 'in_progress' && viewerTeam && !viewerPlaced && (
         <NextMatchCard teamId={viewerTeam.id} />
       )}
       <LiveStrip
@@ -84,8 +95,25 @@ export default function TournamentOverview() {
         linkTo={tournamentTabPath(tournament.id, 'matches')}
       />
 
-      {viewerTeam && !(registration && tournament.status === 'setup') && (
-        <YourePlayingPanel tournament={tournament} team={viewerTeam} matches={matches} />
+      {viewerTeam &&
+        !(registration && tournament.status === 'setup') &&
+        !(tournament.status === 'in_progress' && !viewerPlaced) && (
+          <YourePlayingPanel tournament={tournament} team={viewerTeam} matches={matches} />
+        )}
+
+      {/* A shuffle tournament takes players on their own: Join, and who is in. */}
+      {isShuffle && signup.players && (
+        <ShuffleJoin
+          tournamentId={tournament.id}
+          players={signup.players}
+          steamId={signup.steamId}
+          open={phase === 'open'}
+          started={tournament.status !== 'setup'}
+          spots={
+            signup.window?.maxTeams ? signup.window.maxTeams * (tournament.teamSize ?? 5) : null
+          }
+          onChange={signup.reload}
+        />
       )}
 
       {registration && tournament.status === 'setup' && phase === 'checkIn' && signup.window ? (
@@ -139,6 +167,62 @@ export default function TournamentOverview() {
           }
         />
       )}
+
+      {/* The bracket, for everyone, once there is one (elimination formats; swiss and
+          round robin keep theirs on the Bracket tab, where the standings are). */}
+      {(tournament.type === 'single_elimination' || tournament.type === 'double_elimination') &&
+        matches.length > 0 && (
+          <Box
+            component="section"
+            aria-labelledby="overview-bracket"
+            data-testid="overview-bracket"
+          >
+            <Box display="flex" justifyContent="space-between" alignItems="baseline" mb={1.5}>
+              <Typography
+                id="overview-bracket"
+                component="h2"
+                sx={{ fontFamily: fontDisplay, fontSize: '1.25rem', fontWeight: 600 }}
+              >
+                {t('overviewPage.tabs.bracket')}
+              </Typography>
+              <Button
+                component={RouterLink}
+                to={tournamentTabPath(tournament.id, 'bracket')}
+                size="small"
+              >
+                {t('overviewPage.fullBracket')}
+              </Button>
+            </Box>
+            <Box sx={{ overflowX: 'auto' }}>
+              <CardBracket
+                matches={matches}
+                tournamentType={tournament.type}
+                format={tournament.format}
+                yourTeamId={viewerTeam?.id ?? null}
+              />
+            </Box>
+          </Box>
+        )}
+
+      {/* How a match is played, in one line; the Rules tab has it in full. */}
+      {RulesView && (
+        <Box
+          sx={{ display: 'flex', gap: 1.5, alignItems: 'baseline', flexWrap: 'wrap' }}
+          data-testid="overview-rules-line"
+        >
+          <RulesView tournament={tournament} compact />
+          <Button
+            component={RouterLink}
+            to={tournamentTabPath(tournament.id, 'rules')}
+            size="small"
+          >
+            {t('overviewPage.allRules')}
+          </Button>
+        </Box>
+      )}
+
+      {/* What the tournament gives (CS2: skins), before it is over; the results show who won it. */}
+      {PrizesView && tournament.status !== 'completed' && <PrizesView tournament={tournament} />}
 
       {(maps.length > 0 || !isShuffle) && (
         <Box

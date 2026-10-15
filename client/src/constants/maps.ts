@@ -4,6 +4,19 @@
 
 import type { CS2MapData } from '../types/veto.types';
 
+// Map pictures, served by the platform (the CS2 module bundles csm's compressed copies):
+// 1280 px for large hero/background displays, 480 px for smaller cards/lists.
+const MAP_IMAGE_BASE = '/api/game/cs2/img';
+
+const getFullImageUrl = (mapName: string): string => `${MAP_IMAGE_BASE}/maps-1280/${mapName}.webp`;
+
+/** The map's full-size picture, for heroes and banners. */
+export const getMapImageUrl = (mapName: string): string => getFullImageUrl(mapName);
+
+/** The map's flat icon (`de_mirage_icon.svg`), for small marks and pills. */
+export const getMapIconUrl = (mapName: string): string =>
+  `${MAP_IMAGE_BASE}/map-icons/${mapName}_icon.svg`;
+
 export const CS2_MAPS: CS2MapData[] = [
   { name: 'de_ancient', displayName: 'Ancient' },
   { name: 'de_anubis', displayName: 'Anubis' },

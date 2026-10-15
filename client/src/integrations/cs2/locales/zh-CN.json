@@ -43,7 +43,11 @@
       "none": "No servers connected yet.",
       "busy": "忙碌",
       "spare": "备用",
-      "draining": "正在排空"
+      "draining": "正在排空",
+      "readyUp": "Ready Up",
+      "readyUpCurrent": "{{version}}, all up to date",
+      "pluginMixed": "{{count}} plugin versions in use",
+      "pluginSame": "{{version}}, all servers match"
     },
     "setup": {
       "serversDone": "{{count}} server added",
@@ -245,6 +249,9 @@
     }
   },
   "vetoInterface": {
+    "orderValve": "Valve's official order (Major rulebook)",
+    "orderCustom": "The organizer's own veto order",
+    "orderStandard": "The standard order for {{count}} maps (Valve's, fitted to the pool)",
     "vetoNotAvailable": "此比赛不支持禁选",
     "vetoUnavailable": "此账号无法查看禁选详情。请以其中一支队伍的队员身份登录以继续禁选。",
     "vetoCompleted": "禁选完成！",
@@ -313,7 +320,16 @@
       "you": "你们",
       "them": "对方",
       "timedOut": "超时"
-    }
+    },
+    "actFor": {
+      "label": "Act for:",
+      "watch": "Just watch"
+    },
+    "opensIn": "The veto opens in {{clock}}",
+    "opening": "The veto is opening…",
+    "opensBreak": "A short break between matches: get ready, the first turn gets extra time.",
+    "breakEyebrow": "Break between matches",
+    "opensInTitle": "The map veto opens in"
   },
   "matchInfo": {
     "server": {
@@ -344,7 +360,11 @@
       "resumedTitle": "The server restarted",
       "resumedBody": "Connect again: the match continues from the last round backup.",
       "noPassword": "No password: you're on the list.",
-      "startsGame": "没开 CS2？按钮会启动它。"
+      "startsGame": "没开 CS2？按钮会启动它。",
+      "via": "连接方式",
+      "viaLan": "局域网",
+      "viaPublic": "互联网",
+      "viaRecommended": "推荐"
     }
   },
   "serversPage": {
@@ -486,6 +506,12 @@
     "title": "Counter-Strike 2 servers"
   },
   "settings": {
+    "webhook": {
+      "title": "Platform URL",
+      "description": "The address your CS2 servers, links and webhooks use to reach the platform.",
+      "label": "Webhook 地址",
+      "helper": "示例：https://your-domain.com"
+    },
     "mapSync": {
       "title": "地图同步",
       "description": "从 GitHub 仓库同步 CS2 地图。",
@@ -509,6 +535,10 @@
     "atCore": {
       "title": "比赛默认值",
       "description": "每场比赛都会下发到 Ready Up 服务器。",
+      "expert": {
+        "title": "专家设置",
+        "description": "如果配置不当，这些设置可能导致服务器出现意外行为。仅在你确实需要时再修改。"
+      },
       "ready": {
         "title": "准备 / 比赛开始",
         "minimumReadyLabel": "最少准备人数要求",
@@ -525,6 +555,11 @@
       "autostart": {
         "label": "Start matches after (minutes in warmup)",
         "helper": "0 = wait for everyone to ready up. Otherwise a loaded match goes live after this many minutes, ready or not; players are warned 1 minute and 10 seconds before."
+      },
+      "seriesEnd": {
+        "title": "系列结束时间",
+        "kickDelayNoDemoLabel": "禁用 Demo 时额外踢出延迟（秒）",
+        "kickDelayHelper": "在 mp_match_restart_delay 的基础上额外增加。"
       }
     },
     "atEnhanced": {
@@ -548,7 +583,8 @@
       "sideSelection": {
         "title": "阵营选择计时器",
         "timeLabel": "允许时间（秒）",
-        "timeHelper": "刀局后选择阵营的时间"
+        "timeHelper": "刀局后选择阵营的时间",
+        "enabled": "启用阵营选择计时器"
       },
       "gg": {
         "title": "提前结束比赛 (.gg)",
@@ -668,6 +704,14 @@
         "redrawFailed": "Could not queue the redraw."
       },
       "moved": "Highlight settings, the recorders and how to add one are on their own page now:"
+    },
+    "vetoFirstTurn": {
+      "label": "First veto turn (seconds)",
+      "helper": "Longer than the other turns: players are coming from their last match. 0 = the usual turn."
+    },
+    "matchBreak": {
+      "label": "Break between a team's matches (minutes)",
+      "helper": "The next match's veto opens this long after the team's last match ended. 0 = straight on."
     }
   },
   "roster": {
@@ -979,7 +1023,16 @@
     "noReportHelp": "csm 连接后一分钟内会发送机器的资源和运行情况。",
     "licenseNote": "您的许可证最多覆盖 {{count}} 台服务器。每台服务器都计入，包括备用服务器。",
     "progress": "命令进度",
-    "waitingFor": "{{count}} 个操作正在等待"
+    "waitingFor": "{{count}} 个操作正在等待",
+    "publicAddress": {
+      "title": "Public address",
+      "lanOnly": "Players connect to {{address}}, a local address: only players on the same network can join. Set the address players outside it use.",
+      "help": "The IP address or host name players outside this network connect to (forward the game ports on your router). Empty: the address the machine reports.",
+      "label": "Public IP or host name",
+      "save": "Save",
+      "clear": "Use the reported address",
+      "failed": "Could not save the address"
+    }
   },
   "failover": {
     "title": "Failover",
@@ -1043,6 +1096,7 @@
     "empty": "故障转移至少需要一台 Ready Up 服务器。"
   },
   "pluginSets": {
+    "tryoutLicense": "A Skin tryout server takes a server seat on your license, like any other server. It runs no matches.",
     "presetLabel": "插件预设",
     "preset": {
       "tournament": "比赛",
@@ -1051,7 +1105,8 @@
       "custom": "自定义",
       "default": "集群默认",
       "none": "无",
-      "tryout": "Skin tryout"
+      "tryout": "Skin tryout",
+      "movement": "Movement"
     },
     "plugin": {
       "fleet": "集群连接",
@@ -1062,7 +1117,10 @@
       "skins": "皮肤",
       "midas": "Midas",
       "deathmatch": "死亡竞赛",
-      "addons": "附加内容"
+      "addons": "附加内容",
+      "mapvote": "Map vote",
+      "community": "Community",
+      "movement": "Movement"
     },
     "pluginHelp": {
       "essentials": "管理员、换图、重载和重启",
@@ -1071,7 +1129,10 @@
       "skins": "玩家的武器皮肤、刀具和手套",
       "midas": "金色武器模型",
       "deathmatch": "死亡竞赛模式",
-      "addons": "创意工坊附加内容"
+      "addons": "创意工坊附加内容",
+      "mapvote": "Map voting: .rtv, .nominate, end-of-map vote",
+      "community": "Community commands: .rank, .top, .speclist, admin .kick",
+      "movement": "Surf, bhop and kz: run timer, records and leaderboards"
     },
     "required": "始终开启",
     "usesDefault": "使用集群默认：{{plugins}}。",
@@ -1280,7 +1341,14 @@
     "ttdLine": "Time to damage {{ms}} ms"
   },
   "skins": {
-    "notice": "Virtual skins. They only exist on Auto Tournament, have no money value and can't be traded or sold. You see them in game on this site's servers.",
+    "prizes": {
+      "title": "你可以赢得什么",
+      "intro": "参加本次锦标赛可能获得的奖励示例（均为本站皮肤）：",
+      "pickOne": "一款自选的{{rarity}}皮肤（三选一）",
+      "matchDrops": "你参加的每场锦标赛比赛也可能掉落皮肤。"
+    },
+    "notReal": "这些不是真正的 CS2 皮肤。",
+    "notice": "它们只存在于本站：不是 Steam 物品，没有任何金钱价值，不能交易或出售，也没有任何赛事主办方或赞助商通过它们赠送真实皮肤。你可以在本站的服务器上于游戏中看到它们。",
     "equipLabel": "Equip {{name}}",
     "equippedLabel": "{{name}}, equipped",
     "new": "NEW",
@@ -1442,6 +1510,13 @@
       "fairRules": "Only players who played the whole game get a chance: nothing for an abandoned game or one that ended early, and a repeat against the same opponents within a day drops much less. Tournament placement rewards go only to players who played in the tournament.",
       "tournamentMatchDrops": "Tournament matches drop too (not in esports mode)",
       "levelUpDrops": "A drop for every new level",
+      "tryoutServer": "Keep a Skin tryout server (created on a machine with room while automatic scaling is on)",
+      "tryoutWhat": "What is this?",
+      "tryoutHelpTitle": "Skin tryout server",
+      "tryoutHelpWhat": "A CS2 server just for trying skins: players join from their inventory (\"Try them in game\") and see what they equipped, live. It runs no matches; it waits on a surf map and goes back to it when it is empty.",
+      "tryoutHelpHow": "With this on and automatic scaling on (Servers → Fleet settings), the platform creates one on a machine with room when there is none. You can also put any server on the Skin tryout preset yourself.",
+      "tryoutHelpCost": "It takes a server seat on your license, like any other server, and a little memory and CPU on its machine. That's why it is off unless you turn it on.",
+      "tryoutServerLicense": "It takes a server seat on your license, like any other server.",
       "tradeUp": "汰换：同品质皮肤换一个更高品质",
       "tradeUpCount": "每次汰换所需皮肤",
       "drops": {
@@ -1451,12 +1526,8 @@
           "online": "Everyone online",
           "player": "A player",
           "team": "A team",
-          "match": "A match"
-        },
-        "idLabel": {
-          "player": "Steam ID",
-          "team": "Team id",
-          "match": "Match id (slug)"
+          "match": "A match",
+          "tournament": "A tournament"
         },
         "start": "Give a drop…",
         "cancel": "Cancel",
@@ -1472,12 +1543,24 @@
         "give_one": "Give 1 drop",
         "give_other": "Give {{count}} drops",
         "given_one": "Gave 1 drop.",
-        "given_other": "Gave {{count}} drops."
+        "given_other": "Gave {{count}} drops.",
+        "pick": {
+          "player": "Player (search by name)",
+          "team": "Team",
+          "match": "Match",
+          "tournament": "Tournament"
+        },
+        "typeName": "Type at least two letters of the name",
+        "noneFound": "Nothing found",
+        "whoTournament_one": "Give a drop to the tournament's 1 player?",
+        "whoTournament_other": "Give a drop to the tournament's {{count}} players?",
+        "rowAction": "Give a drop"
       },
       "statTrakChance": "StatTrak™ chance (%)",
       "statTrakHelp": "How often a dropped weapon or knife is StatTrak™ (CS2 cases: 10).",
       "catalogUnlocked": "解锁图鉴",
-      "catalogUnlockedHelp": "玩家可以装备图鉴中的任意皮肤，并自选磨损值和图案种子。"
+      "catalogUnlockedHelp": "玩家可以装备图鉴中的任意皮肤，并自选磨损值和图案种子。",
+      "repeatOpponentCut": "Less from the third game against the same opponents in a day (turn off for a small platform or a LAN)"
     },
     "tournamentRewardsSwitch": "Skin rewards for the top three (when skins are on)",
     "whatThisMeans": "这是什么意思",
@@ -1533,7 +1616,8 @@
       "placementTitle": "Tournament placements",
       "pickOfRarity": "a pick of {{rarity}} skins",
       "rarityOdds": "Rarity odds",
-      "skinOdds": "This skin"
+      "skinOdds": "This skin",
+      "fairNoRepeat": "A player who leaves a game gets nothing; the rest still get their chance. Nothing drops from a game over in under 8 rounds."
     },
     "rewards": {
       "title": "Rewards",
@@ -1553,7 +1637,7 @@
     },
     "tryout": {
       "title": "Try them in game",
-      "hint": "A practice server with your skins. Equip here and they change in game within seconds.",
+      "hint": "A surf server with your skins, with a run timer and records. Equip here and they change in game within seconds.",
       "join": "Join",
       "joinLabel": "Join {{name}}",
       "console": "Or paste this in the CS2 console"
@@ -1575,7 +1659,10 @@
       "wear": "磨损",
       "cancel": "取消",
       "equip": "装备"
-    }
+    },
+    "takeOffSide": "Take {{name}} off {{side}}",
+    "takeOffOn": "Take off {{side}}",
+    "keepAll": "全部保留（{{count}}）"
   },
   "matchRules": {
     "title": "比赛规则",
@@ -2281,5 +2368,60 @@
   },
   "serverAllocation": {
     "readyIn": "距服务器就绪的时间"
+  },
+  "seriesMaps": {
+    "title": "Maps",
+    "mapN": "Map {{n}}",
+    "pickedBy": "{{team}}'s pick",
+    "decider": "Decider",
+    "live": "Live",
+    "upNext": "Up next",
+    "notPlayed": "To play",
+    "won": "{{team}} won",
+    "draw": "Draw",
+    "regulation": "In regulation",
+    "overtime": "After overtime",
+    "onDamage": "Level after overtime, won on damage"
+  },
+  "dropped": {
+    "title": "You lost connection",
+    "body": "Looks like you left the match server (a crash or a dropped connection). Your team is waiting: reconnect to get back in.",
+    "reconnect": "Reconnect",
+    "later": "Later"
+  },
+  "rules": {
+    "mode": "{{size}}v{{size}} competitive.",
+    "modeWingman": "Wingman: 2v2 on one bomb site.",
+    "series_one": "One map per match.",
+    "series_other": "Best of {{count}}: first to {{win}} maps wins the match.",
+    "rounds": "{{rounds}} rounds: first to {{win}} wins the map. Sides switch after {{half}}.",
+    "overtime": "At {{half}}-{{half}}: overtime (6 rounds, first to 4), as many as it takes.",
+    "overtimeLimited_one": "At {{half}}-{{half}}: one overtime (6 rounds, first to 4); still level after it, the map is a draw.",
+    "overtimeLimited_other": "At {{half}}-{{half}}: up to {{count}} overtimes (6 rounds each, first to 4); still level after them, the map is a draw.",
+    "noOvertime": "At {{half}}-{{half}} the map ends in a draw (no overtime).",
+    "veto": "Maps: the two teams ban (and pick) them in the map veto before each match.",
+    "mapsDrawn": "Maps: each match draws one from the pool. No veto.",
+    "shuffleMaps": "Maps: every round plays the next map in the list, with new teams each round.",
+    "bots": "Empty seats are filled with bots."
+  },
+  "movement": {
+    "title": "Surf & KZ records",
+    "map": "Map",
+    "course": "Course",
+    "mainCourse": "Map",
+    "bonus": "Bonus {{n}}",
+    "explain": "Each player's best time on the map's run or a bonus, from every server that runs the Movement preset. In game: .rs restarts, .b 1 goes to bonus 1, .pb and .wr show times.",
+    "empty": "No times on this course yet.",
+    "time": "Time",
+    "teleports": "TP",
+    "pro": "Pro",
+    "date": "Date",
+    "runs_one": "{{count}} finished run",
+    "runs_other": "{{count}} finished runs",
+    "mode": {
+      "surf": "Surf",
+      "bhop": "Bhop",
+      "kz": "KZ"
+    }
   }
 }

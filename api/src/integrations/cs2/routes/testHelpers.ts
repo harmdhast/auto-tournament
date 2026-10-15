@@ -7,74 +7,44 @@
 
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { requireAuth } from '../../../middleware/auth';
-import { isRconEnabled } from '../rconEnabled';
-import { log } from '../../../utils/logger';
-import { primeServerStatusForTests, ServerStatus } from '../services/serverStatusService';
 import { db } from '../../../config/database';
 import { resetEnrollRateLimit } from '../fleet/routes';
-import { liveStateStore } from '../fleet/state';
+import { liveStateStore, type LiveMatchRecord } from '../fleet/state';
+import { processInbound } from '../fleet/inbound';
+import { assignConfigPreview } from '../fleet/driver';
+import type { Envelope } from '../fleet/protocol/v1';
 import { FleetSendError, getCommand, sendReliable, type ReliableType } from '../fleet/reliable';
 import { scanForFailovers } from '../fleet/failover';
 
 const router = Router();
 
+/**
+ * Only the server holding a match moves it (fleet/state.ts): a helper speaking
+ * for `serverId` takes the match first, as a match.assign would have given it.
+ * A sender with no fleet record (an RCON row, `test-ready-up`) gets a pending one.
+ */
+async function holdMatch(
+  matchSlug: string,
+  serverId: string,
+  stored: LiveMatchRecord | null
+): Promise<LiveMatchRecord> {
+  if (stored && stored.serverId === serverId) return stored;
+  await db.runAsync(
+    `INSERT INTO cs2_fleet_servers (id, name, status) VALUES (?, ?, 'pending') ON CONFLICT (id) DO NOTHING`,
+    [serverId, serverId]
+  );
+  return liveStateStore.beginAssignment(matchSlug, serverId, stored?.configRev ?? 1);
+}
+
 /** The helpers answer only with ENABLE_TEST_ENDPOINTS set. */
 function requireTestHelpers(_req: Request, res: Response, next: NextFunction): void {
-  if (!isRconEnabled()) {
+  const enabled = (process.env.ENABLE_TEST_ENDPOINTS || '').toLowerCase();
+  if (enabled !== '1' && enabled !== 'true' && enabled !== 'yes') {
     res.status(403).json({ success: false, error: 'Disabled in production' });
     return;
   }
   next();
 }
-
-/**
- * Test-only helper: stand in for a CS2 server's reported status.
- *
- * POST /api/test/server-status  { serverId, status, updatedAt?, online?, matchSlug? }
- *
- * Allocation decisions hinge on what MatchZy Enhanced reports through its
- * convars, and CI has no CS2 server to report anything — so without this the
- * idle/busy paths cannot be exercised at all.
- *
- * NOTE: This endpoint is only available in non-production environments.
- */
-router.post(
-  '/server-status',
-  requireAuth,
-  requireTestHelpers,
-  (req: Request, res: Response): void => {
-    const { serverId, status, updatedAt, online, matchSlug } = (req.body || {}) as {
-      serverId?: string;
-      status?: string;
-      updatedAt?: number;
-      online?: boolean;
-      matchSlug?: string;
-    };
-
-    if (!serverId) {
-      res.status(400).json({ success: false, error: 'serverId is required' });
-      return;
-    }
-
-    const allowed = Object.values(ServerStatus) as string[];
-    if (status !== undefined && status !== null && !allowed.includes(status)) {
-      res
-        .status(400)
-        .json({ success: false, error: `status must be one of: ${allowed.join(', ')}` });
-      return;
-    }
-
-    primeServerStatusForTests(serverId, {
-      status: (status as ServerStatus) ?? null,
-      updatedAt: updatedAt ?? null,
-      online: online ?? true,
-      matchSlug: matchSlug ?? null,
-    });
-
-    log.warn(`[DEV-TOOLS] Primed server status for ${serverId}: ${status ?? 'null'}`);
-    res.json({ success: true });
-  }
-);
 
 /**
  * Test-only helper: set clips' status (a recorder that failed them).
@@ -189,6 +159,106 @@ router.post(
   }
 );
 
+/**
+ * POST /api/test/highlights/repick { matchSlug, mapNumber, clips, source }
+ *
+ * Seeds a map's clips (`clips`: { playerId, round, startTick, status,
+ * demoPath }) and runs `saveMoments` with no new moments from `source`
+ * (the newer demo), as a finished analysis does. Answers each seeded clip's
+ * status afterwards, by start tick.
+ */
+router.post(
+  '/highlights/repick',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { matchSlug, mapNumber, clips, source } = (req.body || {}) as {
+      matchSlug?: string;
+      mapNumber?: number;
+      clips?: Array<{
+        playerId: string;
+        round: number;
+        startTick: number;
+        status: string;
+        demoPath: string | null;
+      }>;
+      source?: { demoPath: string; firstRound: number };
+    };
+    if (!matchSlug || typeof mapNumber !== 'number' || !Array.isArray(clips)) {
+      res
+        .status(400)
+        .json({ success: false, error: 'matchSlug, mapNumber and clips are required' });
+      return;
+    }
+    for (const c of clips) {
+      await db.runAsync(
+        `INSERT INTO cs2_highlights (match_slug, map_number, player_id, kind, score, round, start_tick, end_tick,
+                                   slowmo_tick, kill_ticks, title, status, demo_path)
+       VALUES (?, ?, ?, '3k', 300, ?, ?, ?, ?, '[]', 'spec clip', ?, ?)`,
+        [
+          matchSlug,
+          mapNumber,
+          c.playerId,
+          c.round,
+          c.startTick,
+          c.startTick + 640,
+          c.startTick + 320,
+          c.status,
+          c.demoPath,
+        ]
+      );
+    }
+    const { saveMoments } = await import('../demos/highlights');
+    await saveMoments(matchSlug, mapNumber, [], source);
+    const rows = await db.queryAsync<{ start_tick: number; status: string }>(
+      'SELECT start_tick, status FROM cs2_highlights WHERE match_slug = ? AND map_number = ?',
+      [matchSlug, mapNumber]
+    );
+    res.json({
+      success: true,
+      statuses: Object.fromEntries(rows.map((r) => [String(r.start_tick), r.status])),
+    });
+  }
+);
+
+/**
+ * POST /api/test/fleet/snapshot { serverId?, state }
+ *
+ * A Ready Up `state.snapshot` of a match (`state.match_id`), applied as a
+ * connected server's would be: the match then has a live record the admin
+ * match page reads. `serverId` defaults to `test-ready-up`.
+ */
+router.post(
+  '/fleet/snapshot',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { serverId, state } = (req.body || {}) as {
+      serverId?: string;
+      state?: Record<string, unknown>;
+    };
+    if (!state || typeof state.match_id !== 'string') {
+      res.status(400).json({ success: false, error: 'state with match_id is required' });
+      return;
+    }
+    try {
+      const from = serverId || 'test-ready-up';
+      const slug = state.match_id as string;
+      const exists = await db.queryOneAsync('SELECT 1 FROM matches WHERE slug = ?', [slug]);
+      const held = exists
+        ? await holdMatch(slug, from, await liveStateStore.getLiveState(slug))
+        : null;
+      const outcome = await liveStateStore.applySnapshot(from, {
+        reason: 'request',
+        state: held ? { ...state, epoch: held.epoch } : state,
+      } as unknown as Parameters<typeof liveStateStore.applySnapshot>[1]);
+      res.json({ success: true, outcome });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+);
+
 /** POST /api/test/fleet/stattrak  { increments }: a skins.stattrak report, as from a server. */
 router.post(
   '/fleet/stattrak',
@@ -209,6 +279,112 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     const { skinService } = await import('../skins/skinService');
     res.json({ success: true, items: await skinService.loadoutItems(req.params.steamId) });
+  }
+);
+
+/** POST /api/test/fleet/movement-record  { ...movement.record payload }: a finished run, as from a server. */
+router.post(
+  '/fleet/movement-record',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { validatePayload } = await import('../fleet/protocol/v1');
+    const check = validatePayload('movement.record', req.body ?? {});
+    if (!check.ok) {
+      res.status(400).json({ success: false, errors: check.errors });
+      return;
+    }
+    const { addMovementRun } = await import('../movement/records');
+    await addMovementRun('test-ready-up', req.body);
+    res.json({ success: true });
+  }
+);
+
+/**
+ * POST /api/test/fleet/events { matchSlug, serverId?, events: [{ type, map_number?, round?, data, patch? }] }
+ *
+ * Ready Up's `event.*` messages for a match, applied through the same
+ * `processInbound` a connected server's messages take (state store, ingest,
+ * map stats, the driver's hooks), without a socket. `serverId` is the fleet
+ * server they come from (the match's server, else `test-ready-up`). Each
+ * event gets the next rev for the match.
+ */
+const testRevs = new Map<string, number>();
+router.post(
+  '/fleet/events',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const { matchSlug, serverId, events } = (req.body || {}) as {
+      matchSlug?: string;
+      serverId?: string;
+      events?: Array<{
+        type: string;
+        map_number?: number;
+        round?: number;
+        data?: Record<string, unknown>;
+        patch?: Record<string, unknown>;
+      }>;
+    };
+    if (!matchSlug || !Array.isArray(events) || events.length === 0) {
+      res.status(400).json({ success: false, error: 'matchSlug and events are required' });
+      return;
+    }
+    const match = await db.queryOneAsync<{ server_id: string | null }>(
+      'SELECT server_id FROM matches WHERE slug = ?',
+      [matchSlug]
+    );
+    // A call for help can come from a server with no match (`admin_called`).
+    if (!match && !serverId) {
+      res.status(404).json({ success: false, error: 'Match not found' });
+      return;
+    }
+    const from = serverId ?? match?.server_id ?? 'test-ready-up';
+    const stored = await liveStateStore.getLiveState(matchSlug);
+    // Only the server holding the match moves it (fleet/state.ts): the sender
+    // takes the match first, as a match.assign would have given it.
+    const record = match ? await holdMatch(matchSlug, from, stored) : stored;
+    const ctx = { serverId: from, streamId: 'test', sendEphemeral: () => false };
+    // In order after the stored state (a real server's revs), else after the
+    // last test batch.
+    let rev = record?.state ? record.liveRev : (testRevs.get(matchSlug) ?? 0);
+    for (const event of events) {
+      const type = event.type.startsWith('event.') ? event.type : `event.${event.type}`;
+      rev += 1;
+      testRevs.set(matchSlug, rev);
+      const env = {
+        v: 1,
+        type,
+        id: `test-${matchSlug}-${rev}-${Date.now()}`,
+        ts: Date.now(),
+        ...(record?.epoch !== undefined ? { epoch: record.epoch } : {}),
+        payload: {
+          match_id: matchSlug,
+          map_number: event.map_number ?? 1,
+          round: event.round ?? 0,
+          rev,
+          patch: { ...(event.patch ?? {}), live_rev: rev },
+          data: event.data ?? {},
+        },
+      } as unknown as Envelope;
+      await processInbound(ctx, env, null);
+    }
+    res.json({ success: true, applied: events.length });
+  }
+);
+
+/** GET /api/test/fleet/assign-config/:slug  the `match.assign` config the match would get now. */
+router.get(
+  '/fleet/assign-config/:slug',
+  requireAuth,
+  requireTestHelpers,
+  async (req: Request, res: Response): Promise<void> => {
+    const preview = await assignConfigPreview(req.params.slug);
+    if (!preview) {
+      res.status(404).json({ success: false, error: 'Match not found' });
+      return;
+    }
+    res.json({ success: true, ...preview });
   }
 );
 

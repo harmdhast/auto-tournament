@@ -27,6 +27,7 @@
  *   into the core's admin calls.
  */
 
+import { announceMatchReady } from '../../../services/matchNotices';
 import { db } from '../../../config/database';
 import { holdOf } from '../../../services/matchHolds';
 import { log } from '../../../utils/logger';
@@ -416,6 +417,30 @@ async function servedMatchConfig(match: DbMatchRow): Promise<MatchConfig> {
   return (await currentMatchConfig(match)) as unknown as MatchConfig;
 }
 
+/**
+ * The `match.assign` config a server would get for this match now (no
+ * password): what the golden specs record, through the test route.
+ */
+export async function assignConfigPreview(
+  matchSlug: string
+): Promise<
+  | { config: unknown; notAssignable?: undefined }
+  | { config?: undefined; notAssignable: string; served: MatchConfig }
+  | null
+> {
+  const match = await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [
+    matchSlug,
+  ]);
+  if (!match) return null;
+  const served = await servedMatchConfig(match);
+  try {
+    return { config: buildAssignConfig(served, '', await assignDefaults()) };
+  } catch (error) {
+    // Not assignable yet (a series before its veto): the platform's own config instead.
+    return { notAssignable: (error as Error).message, served };
+  }
+}
+
 /** The server announced `demo.stream.v1` in its hello (./limits.ts). */
 async function streamsDemos(fleetServerId: string): Promise<boolean> {
   return ((await capabilitiesOf(fleetServerId)) ?? []).includes(DEMO_STREAM_CAPABILITY);
@@ -576,8 +601,15 @@ export async function assignMatch(
   if (updated) {
     emitMatchUpdate(updated);
     emitBracketUpdate({ action: 'match_loaded', matchSlug });
-    if (!options.resume)
+    // Players already on the server joined before this match: their skins come now.
+    void import('./push/skins').then(({ pushSkinsForPresent }) =>
+      pushSkinsForPresent(fleetServerId, matchSlug)
+    );
+    if (!options.resume) {
       void postMatchChatLine(matchSlug, 'serverReady', { map: firstMapOf(updated) });
+      // Both teams: a bell notice, and a DM or email if they want one.
+      void announceMatchReady(matchSlug);
+    }
   }
   // With rules.demo.upload the server streams each map's demo; turnover
   // holds the server until the receiver (./demoStream.ts) has it.
@@ -1219,11 +1251,20 @@ async function onFleetEvent(notice: FleetEventNotice): Promise<void> {
   const payload = env.payload as unknown as FleetEventPayload;
   const slug = payload.match_id;
 
-  if (env.type === 'event.admin_called' && (await heldEver(notice.serverId, slug))) {
+  const calledMatch =
+    env.type === 'event.admin_called'
+      ? ((await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [slug])) ??
+        null)
+      : null;
+  // A call names a match only from a server that holds or held it; one with no
+  // match (a practice server) is the server's own.
+  if (
+    env.type === 'event.admin_called' &&
+    (!calledMatch || (await heldEver(notice.serverId, slug)))
+  ) {
     // Recorded whatever the epoch: a player asking for help is never dropped.
     const data = payload.data as FleetEventData['admin_called'];
-    const match =
-      (await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [slug])) ?? null;
+    const match = calledMatch;
     const cs2ServerId = await cs2ServerIdOf(notice.serverId);
     const event: AdminCalledEvent = {
       event: 'admin_called',

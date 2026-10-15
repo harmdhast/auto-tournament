@@ -28,55 +28,12 @@ class Cs2Settings {
     return settingsService.getSetting(key);
   }
 
-  async getAtChatPrefix(): Promise<string | null> {
-    const value = await this.getSetting('at_chat_prefix');
-    const trimmed = value ? value.trim() : '';
-    // Default to a sensible prefix if none is configured explicitly
-    return trimmed !== '' ? trimmed : '[{Green}Auto Tournament{Default}]';
-  }
-
-  async getAtAdminChatPrefix(): Promise<string | null> {
-    const value = await this.getSetting('at_admin_chat_prefix');
-    const trimmed = value ? value.trim() : '';
-    // Default to a sensible admin prefix if none is configured explicitly
-    return trimmed !== '' ? trimmed : '[{Red}ADMIN{Default}]';
-  }
-
-  async isAtDebugChatEnabled(): Promise<boolean> {
-    const value = await this.getSetting('at_debug_chat');
-    if (!value) {
-      // Explicit default: debug chat off unless enabled.
-      return false;
-    }
-    const normalized = value.toLowerCase();
-    return normalized === '1' || normalized === 'true' || normalized === 'yes';
-  }
-
-  async isKnifeRoundEnabledByDefault(): Promise<boolean> {
-    const value = await this.getSetting('at_knife_enabled_default');
-    if (!value) {
-      // Defer to MatchZy Enhanced defaults when not explicitly configured
-      return true;
-    }
-
-    const normalized = value.toLowerCase();
-    return normalized === '1' || normalized === 'true' || normalized === 'yes';
-  }
-
   async getAtMinimumReadyRequired(): Promise<number> {
     const value = await this.getSetting('at_minimum_ready_required');
     if (!value) return 0; // MatchZy Enhanced default (0 = everyone connected must ready)
     const parsed = Number(value);
     if (!Number.isInteger(parsed) || parsed < 0) return 0;
     return parsed;
-  }
-
-  async getAtAutostartMode(): Promise<0 | 1 | 2> {
-    const value = await this.getSetting('at_autostart_mode');
-    if (!value) return 1; // MatchZy Enhanced default
-    const parsed = Number(value);
-    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 2) return 1;
-    return parsed as 0 | 1 | 2;
   }
 
   async isAtAllowForceReadyEnabled(): Promise<boolean> {
@@ -86,23 +43,24 @@ class Cs2Settings {
     return normalized === '1' || normalized === 'true' || normalized === 'yes';
   }
 
-  async isAtKickWhenNoMatchLoadedEnabled(): Promise<boolean> {
-    const value = await this.getSetting('at_kick_when_no_match_loaded');
-    if (!value) return false; // MatchZy Enhanced default
-    const normalized = value.toLowerCase();
-    return normalized === '1' || normalized === 'true' || normalized === 'yes';
-  }
-
-  async isAtWhitelistEnabledDefault(): Promise<boolean> {
-    const value = await this.getSetting('at_whitelist_enabled_default');
-    if (!value) return false; // MatchZy Enhanced default
-    const normalized = value.toLowerCase();
-    return normalized === '1' || normalized === 'true' || normalized === 'yes';
-  }
-
   async isAtPauseAfterRestoreEnabled(): Promise<boolean> {
     const value = await this.getSetting('at_pause_after_restore');
     if (!value) return true; // MatchZy Enhanced default
+    const normalized = value.toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes';
+  }
+
+  /** `.stop` (a team asks to restore the round): sent to Ready Up as match.assign rules.stop. */
+  async isAtStopCommandAvailable(): Promise<boolean> {
+    const value = await this.getSetting('at_stop_command_available');
+    if (!value) return false;
+    const normalized = value.toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes';
+  }
+
+  async isAtStopCommandNoDamage(): Promise<boolean> {
+    const value = await this.getSetting('at_stop_command_no_damage');
+    if (!value) return false;
     const normalized = value.toLowerCase();
     return normalized === '1' || normalized === 'true' || normalized === 'yes';
   }
@@ -120,6 +78,22 @@ class Cs2Settings {
   }
 
   /** Seconds per veto step before the platform picks for the team (unset = defaultVetoTurnSeconds, 0 = no limit). */
+  /** Minutes between a team's matches before the next one's veto opens (0 = none; default 5). */
+  async getMatchBreakMinutes(): Promise<number> {
+    const value = await this.getSetting('at_match_break_minutes');
+    if (value === null || value === undefined || value === '') return 5;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.min(Math.round(parsed), 120) : 0;
+  }
+
+  /** Seconds for the first veto turn of a match (default 120; 0 = the usual turn). */
+  async getVetoFirstTurnSeconds(): Promise<number> {
+    const value = await this.getSetting('at_veto_first_turn_seconds');
+    if (value === null || value === undefined || value === '') return 120;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? Math.min(parsed, 900) : 0;
+  }
+
   async getVetoTurnSeconds(): Promise<number> {
     const value = await this.getSetting('at_veto_turn_seconds');
     if (value === null || value === undefined || value === '') return defaultVetoTurnSeconds();
@@ -134,56 +108,6 @@ class Cs2Settings {
     return normalized === '1' || normalized === 'true' || normalized === 'yes';
   }
 
-  async isAtStopCommandAvailable(): Promise<boolean> {
-    const value = await this.getSetting('at_stop_command_available');
-    if (!value) return false; // MatchZy Enhanced default
-    const normalized = value.toLowerCase();
-    return normalized === '1' || normalized === 'true' || normalized === 'yes';
-  }
-
-  async isAtStopCommandNoDamage(): Promise<boolean> {
-    const value = await this.getSetting('at_stop_command_no_damage');
-    if (!value) return false; // MatchZy Enhanced default
-    const normalized = value.toLowerCase();
-    return normalized === '1' || normalized === 'true' || normalized === 'yes';
-  }
-
-  async isAtUsePauseCommandForTacticalPause(): Promise<boolean> {
-    const value = await this.getSetting('at_use_pause_command_for_tactical_pause');
-    if (!value) return false; // MatchZy Enhanced default
-    const normalized = value.toLowerCase();
-    return normalized === '1' || normalized === 'true' || normalized === 'yes';
-  }
-
-  /**
-   * Hostname format MatchZy Enhanced applies when a match loads.
-   *
-   * Returns `''` when the operator has explicitly cleared it, which tells the
-   * plugin to leave the server's own `hostname` (from server.cfg) untouched.
-   * A missing row means "never configured", which keeps MatchZy Enhanced's own default.
-   * The two are deliberately distinct — see `setSetting`.
-   */
-  async getAtHostnameFormat(): Promise<string> {
-    const value = await this.getSetting('at_hostname_format');
-    if (value === null) return '{TEAM1} vs {TEAM2}'; // MatchZy Enhanced default
-    return value.trim();
-  }
-
-  async getAtDemoPath(): Promise<string> {
-    const value = await this.getSetting('at_demo_path');
-    if (!value) return 'AutoTournamentCS2/'; // default folder, relative to csgo/
-    const trimmed = value.trim();
-    if (!trimmed) return 'AutoTournamentCS2/';
-    return trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
-  }
-
-  async getAtDemoNameFormat(): Promise<string> {
-    const value = await this.getSetting('at_demo_name_format');
-    if (!value) return '{TIME}_{MATCH_ID}_{MAP}_{TEAM1}_vs_{TEAM2}'; // MatchZy Enhanced default
-    const trimmed = value.trim();
-    return trimmed !== '' ? trimmed : '{TIME}_{MATCH_ID}_{MAP}_{TEAM1}_vs_{TEAM2}';
-  }
-
   async getAtSeriesEndKickDelayNoDemo(): Promise<number> {
     const value = await this.getSetting('at_series_end_kick_delay_no_demo');
     // 30 s: players read the final scoreboard before they are kicked (5 s was too short).
@@ -193,89 +117,37 @@ class Cs2Settings {
     return parsed;
   }
 
-  async getAtSeriesEndKickDelayDemoNoUpload(): Promise<number> {
-    const value = await this.getSetting('at_series_end_kick_delay_demo_no_upload');
-    if (!value) return 30;
-    const parsed = Number(value);
-    if (!Number.isInteger(parsed) || parsed < 0) return 30;
-    return parsed;
-  }
-
-  async getAtSeriesEndKickDelayDemoUpload(): Promise<number> {
-    const value = await this.getSetting('at_series_end_kick_delay_demo_upload');
-    if (!value) return 30;
-    const parsed = Number(value);
-    if (!Number.isInteger(parsed) || parsed < 0) return 30;
-    return parsed;
-  }
-
+  /** The ready / restore defaults Ready Up gets with every match (fleet/driver.ts, matchConfig.ts). */
   async getAtCoreDefaults(): Promise<{
-    autostartMode: 0 | 1 | 2;
     minimumReadyRequired: number;
     allowForceReady: boolean;
-    kickWhenNoMatchLoaded: boolean;
-    whitelistEnabledDefault: boolean;
     pauseAfterRestore: boolean;
+    seriesEndKickDelayNoDemo: number;
     stopCommandAvailable: boolean;
     stopCommandNoDamage: boolean;
-    usePauseCommandForTacticalPause: boolean;
-    hostnameFormat: string;
-    demoPath: string;
-    demoNameFormat: string;
-    seriesEndKickDelayNoDemo: number;
-    seriesEndKickDelayDemoNoUpload: number;
-    seriesEndKickDelayDemoUpload: number;
   }> {
     const [
-      autostartMode,
       minimumReadyRequired,
       allowForceReady,
-      kickWhenNoMatchLoaded,
-      whitelistEnabledDefault,
       pauseAfterRestore,
+      seriesEndKickDelayNoDemo,
       stopCommandAvailable,
       stopCommandNoDamage,
-      usePauseCommandForTacticalPause,
-      hostnameFormat,
-      demoPath,
-      demoNameFormat,
-      seriesEndKickDelayNoDemo,
-      seriesEndKickDelayDemoNoUpload,
-      seriesEndKickDelayDemoUpload,
     ] = await Promise.all([
-      this.getAtAutostartMode(),
       this.getAtMinimumReadyRequired(),
       this.isAtAllowForceReadyEnabled(),
-      this.isAtKickWhenNoMatchLoadedEnabled(),
-      this.isAtWhitelistEnabledDefault(),
       this.isAtPauseAfterRestoreEnabled(),
+      this.getAtSeriesEndKickDelayNoDemo(),
       this.isAtStopCommandAvailable(),
       this.isAtStopCommandNoDamage(),
-      this.isAtUsePauseCommandForTacticalPause(),
-      this.getAtHostnameFormat(),
-      this.getAtDemoPath(),
-      this.getAtDemoNameFormat(),
-      this.getAtSeriesEndKickDelayNoDemo(),
-      this.getAtSeriesEndKickDelayDemoNoUpload(),
-      this.getAtSeriesEndKickDelayDemoUpload(),
     ]);
-
     return {
-      autostartMode,
       minimumReadyRequired,
       allowForceReady,
-      kickWhenNoMatchLoaded,
-      whitelistEnabledDefault,
       pauseAfterRestore,
+      seriesEndKickDelayNoDemo,
       stopCommandAvailable,
       stopCommandNoDamage,
-      usePauseCommandForTacticalPause,
-      hostnameFormat,
-      demoPath,
-      demoNameFormat,
-      seriesEndKickDelayNoDemo,
-      seriesEndKickDelayDemoNoUpload,
-      seriesEndKickDelayDemoUpload,
     };
   }
 
@@ -343,10 +215,6 @@ export const cs2Settings = new Cs2Settings();
 export async function readCs2InstanceSettings(): Promise<Record<string, unknown>> {
   const simulateMatches = await settingsService.isSimulationModeEnabled();
   const simulationTimescale = await settingsService.getSimulationTimescale();
-  const atChatPrefix = await cs2Settings.getAtChatPrefix();
-  const atAdminChatPrefix = await cs2Settings.getAtAdminChatPrefix();
-  const atKnifeEnabledDefault = await cs2Settings.isKnifeRoundEnabledByDefault();
-  const atDebugChatEnabled = await cs2Settings.isAtDebugChatEnabled();
   const atCore = await cs2Settings.getAtCoreDefaults();
 
   // MatchZy Enhanced v1.3.0 settings
@@ -355,29 +223,18 @@ export async function readCs2InstanceSettings(): Promise<Record<string, unknown>
   return {
     simulateMatches,
     simulationTimescale,
-    atChatPrefix,
-    atAdminChatPrefix,
-    atKnifeEnabledDefault,
-    atDebugChatEnabled,
     // MatchZy Enhanced core defaults
-    atAutostartMode: atCore.autostartMode,
     atMinimumReadyRequired: atCore.minimumReadyRequired,
     atAllowForceReady: atCore.allowForceReady,
-    atKickWhenNoMatchLoaded: atCore.kickWhenNoMatchLoaded,
-    atWhitelistEnabledDefault: atCore.whitelistEnabledDefault,
     atPauseAfterRestore: atCore.pauseAfterRestore,
     atJoinPassword: await cs2Settings.isAtJoinPasswordEnabled(),
-    atAutostartAfterMinutes: await cs2Settings.getAtAutostartAfterMinutes(),
-    vetoTurnSeconds: await cs2Settings.getVetoTurnSeconds(),
     atStopCommandAvailable: atCore.stopCommandAvailable,
     atStopCommandNoDamage: atCore.stopCommandNoDamage,
-    atUsePauseCommandForTacticalPause: atCore.usePauseCommandForTacticalPause,
-    atHostnameFormat: atCore.hostnameFormat,
-    atDemoPath: atCore.demoPath,
-    atDemoNameFormat: atCore.demoNameFormat,
+    atAutostartAfterMinutes: await cs2Settings.getAtAutostartAfterMinutes(),
+    vetoTurnSeconds: await cs2Settings.getVetoTurnSeconds(),
+    vetoFirstTurnSeconds: await cs2Settings.getVetoFirstTurnSeconds(),
+    matchBreakMinutes: await cs2Settings.getMatchBreakMinutes(),
     atSeriesEndKickDelayNoDemo: atCore.seriesEndKickDelayNoDemo,
-    atSeriesEndKickDelayDemoNoUpload: atCore.seriesEndKickDelayDemoNoUpload,
-    atSeriesEndKickDelayDemoUpload: atCore.seriesEndKickDelayDemoUpload,
     // MatchZy Enhanced v1.3.0 settings (null = use tournament defaults)
     atAutoreadyEnabled: atEnhanced.at_autoready_enabled,
     atBothTeamsUnpauseRequired: atEnhanced.at_both_teams_unpause_required,

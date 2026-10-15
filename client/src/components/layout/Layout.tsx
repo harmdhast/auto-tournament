@@ -15,7 +15,7 @@ import { useShellIntegrations } from '../../hooks/useShellIntegrations';
 import { ModuleNotInstalledNotice } from '../common/ModuleNotInstalledNotice';
 import { RAIL_COLUMN_MIN_WIDTH, railColumnSx } from '../../constants/adminLayout';
 import { paths } from '../../paths';
-import { UpdateToast } from '../system/UpdateToast';
+import { UpdateBanner } from '../system/UpdateBanner';
 import { useTopic } from '../../hooks/useTopic';
 
 /**
@@ -99,7 +99,7 @@ function AdminShell() {
   const { claimed: columnClaimed, setColumn } = useShellColumnSlot();
 
   // Steam's health stays here rather than moving behind the game integration
-  // with MatchZy Enhanced's database (3.0 phase E). The warning is about
+  // (3.0 phase E). The warning is about
   // sign-ins and vanity URL lookups: Steam is the platform's own login
   // provider, and an instance running a manually reported Rocket League
   // tournament signs its admins in with it exactly like a CS2 one.
@@ -240,6 +240,8 @@ function AdminShell() {
             <Box ref={setColumn} data-testid="admin-shell-column" sx={railColumnSx} />
           )}
           <Box sx={{ flex: 1, minWidth: 0 }}>
+            {/* A newer platform, module or game pack: across the top of Manage. */}
+            <UpdateBanner />
             <Box
               sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1, minHeight: 40 }}
               data-testid="manage-utility-row"
@@ -272,7 +274,6 @@ function AdminShell() {
             )}
             {/* The tournament's own pages: which tournament, and its tabs. */}
             {isTournamentPage(location.pathname) && <TournamentBar />}
-            <UpdateToast />
             <Outlet />
           </Box>
         </Box>

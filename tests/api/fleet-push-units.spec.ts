@@ -440,7 +440,13 @@ test.describe('fleet pushes: match.update', () => {
     };
     const withSub = applyOpsToMatchConfig(config, [
       { op: 'add_player', team: 'team1', steamid64: C, name: 'Cid', role: 'sub' },
-      { op: 'add_player', team: 'team2', steamid64: '76561198000000004', name: 'Coach', role: 'coach' },
+      {
+        op: 'add_player',
+        team: 'team2',
+        steamid64: '76561198000000004',
+        name: 'Coach',
+        role: 'coach',
+      },
     ]);
     expect(withSub.team1).toEqual({
       name: 'Red',
@@ -468,7 +474,6 @@ test.describe('fleet pushes: match.update', () => {
     const assign = buildAssignConfig(
       {
         ...withSub,
-        skip_veto: true,
         num_maps: 1,
         players_per_team: 1,
         maplist: ['de_mirage'],
@@ -477,7 +482,11 @@ test.describe('fleet pushes: match.update', () => {
       'pw'
     );
     expect(assign.team1.players).toContainEqual({ steamid64: C, name: 'Cid', role: 'sub' });
-    expect(assign.team2.players).toContainEqual({ steamid64: '76561198000000004', name: 'Coach', role: 'coach' });
+    expect(assign.team2.players).toContainEqual({
+      steamid64: '76561198000000004',
+      name: 'Coach',
+      role: 'coach',
+    });
 
     // Made a player again, then removed: nothing left behind.
     const promoted = applyOpsToMatchConfig(withSub, [
@@ -507,6 +516,8 @@ test.describe('fleet pushes: plugin sets', () => {
       'skins',
       'midas',
       'deathmatch',
+      'mapvote',
+      'community',
     ]);
   });
 
@@ -532,8 +543,8 @@ test.describe('fleet pushes: plugin sets', () => {
   test('command: picked on, the rest of the catalog off; never disables fleet', () => {
     const cmd = pluginSetCommand(presetSet('fun'));
     expect(cmd).toEqual({
-      enable: ['match', 'essentials', 'skins', 'midas', 'deathmatch'],
-      disable: ['practice', 'whitelist', 'addons'],
+      enable: ['match', 'essentials', 'skins', 'midas', 'deathmatch', 'mapvote', 'community'],
+      disable: ['practice', 'whitelist', 'movement', 'addons'],
       preset: 'fun',
     });
     // The lists pass the plugins.set checks.
@@ -554,13 +565,28 @@ test.describe('fleet pushes: plugin sets', () => {
   test('older Ready Up (no fleet.cmds.v1) keeps match: it refuses to disable it', () => {
     const practice = pluginSetCommand(presetSet('practice'));
     expect(practice.disable).toContain('match');
-    expect(pluginsSetFor(practice, true)).toBe(practice);
+    expect(pluginsSetFor(practice, true)).toEqual(practice);
     expect(pluginsSetFor(practice, false)).toEqual({
       ...practice,
       disable: practice.disable.filter((n) => n !== 'match'),
     });
     const fun = pluginSetCommand(presetSet('fun'));
-    expect(pluginsSetFor(fun, false)).toBe(fun);
+    expect(pluginsSetFor(fun, false)).toEqual(fun);
+  });
+
+  test('a named preset is sent as it is defined now, not as it was stored', () => {
+    // The Skin tryout set before it ran movement (practice on a surf hub map).
+    const old = {
+      enable: ['practice', 'skins', 'mapvote', 'community', 'essentials'],
+      disable: ['match', 'movement'],
+      preset: 'tryout' as const,
+    };
+    const now = pluginsSetFor(old, true);
+    expect(now.enable).toContain('movement');
+    expect(now.disable).toContain('practice');
+    // A custom set is kept as stored.
+    const custom = { enable: ['practice'], disable: ['match'], preset: 'custom' as const };
+    expect(pluginsSetFor(custom, true)).toBe(custom);
   });
 
   test('bundle: essentials when it has every picked plugin, else full (skins)', () => {
@@ -577,12 +603,25 @@ test.describe('fleet pushes: plugin sets', () => {
 
   test('state: differs when an enabled plugin is off or a disabled one is not; missing ones listed', () => {
     const cmd = pluginSetCommand(presetSet('practice'));
-    const off = ['match', 'whitelist', 'skins', 'midas', 'deathmatch', 'addons'];
+    const off = [
+      'match',
+      'whitelist',
+      'skins',
+      'midas',
+      'deathmatch',
+      'mapvote',
+      'community',
+      'movement',
+      'addons',
+    ];
     expect(pluginsStateDiffers(cmd, { installed: ['match'], disabled: off })).toBe(false);
     // Older Ready Up keeps match on: compared against what it was sent.
     expect(pluginsStateDiffers(cmd, { installed: ['match'], disabled: off.slice(1) })).toBe(true);
     expect(
-      pluginsStateDiffers(pluginsSetFor(cmd, false), { installed: ['match'], disabled: off.slice(1) })
+      pluginsStateDiffers(pluginsSetFor(cmd, false), {
+        installed: ['match'],
+        disabled: off.slice(1),
+      })
     ).toBe(false);
     // Not installed is not a difference: re-sending would change nothing.
     expect(pluginsStateDiffers(cmd, { installed: [], disabled: off })).toBe(false);
@@ -593,7 +632,7 @@ test.describe('fleet pushes: plugin sets', () => {
         installed: ['fleet', 'match', 'essentials', 'practice'],
         disabled: [],
       })
-    ).toEqual(['skins', 'midas', 'deathmatch']);
+    ).toEqual(['skins', 'midas', 'deathmatch', 'mapvote', 'community']);
     expect(missingPlugins(presetSet('fun').plugins, null)).toEqual([]);
     expect(pluginsStateOf({})).toBeNull();
     expect(pluginsStateOf({ plugins_state: { installed: ['match'], disabled: [] } })).toEqual({

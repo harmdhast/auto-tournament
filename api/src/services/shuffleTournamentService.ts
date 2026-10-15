@@ -8,7 +8,6 @@ import { db } from '../config/database';
 import { log } from '../utils/logger';
 import { balanceTeams, type BalancedTeam } from './teamBalancingService';
 import { playerService, type PlayerRecord } from './playerService';
-import { teamService } from './teamService';
 import { teamMembers } from './teamMembers';
 import { buildMatchConfigFor, serializeMatchConfig } from '../utils/matchIntegration';
 import { generateUniqueTeamName } from '../generation/teamName';
@@ -109,7 +108,9 @@ export async function createShuffleTournament(
   // Clean up any existing data for this tournament row, so it can be
   // recreated multiple times (tests do) without PK conflicts.
   await db.runAsync('DELETE FROM matches WHERE tournament_id = ?', [tournamentId]);
-  await db.runAsync('DELETE FROM shuffle_tournament_players WHERE tournament_id = ?', [tournamentId]);
+  await db.runAsync('DELETE FROM shuffle_tournament_players WHERE tournament_id = ?', [
+    tournamentId,
+  ]);
   await db.runAsync('DELETE FROM teams WHERE id LIKE ?', [shuffleTeamLike(tournamentId)]);
   await db.runAsync('DELETE FROM tournament WHERE id = ?', [tournamentId]);
 
@@ -190,10 +191,12 @@ export async function registerPlayers(
     throw new Error('No shuffle tournament found. Please create a shuffle tournament first.');
   }
 
-  if (tournament.status !== 'setup') {
+  // Each round draws from whoever is registered then, so a player can join a running
+  // shuffle and is in the next round's draw.
+  if (tournament.status !== 'setup' && tournament.status !== 'in_progress') {
     throw new Error(
       `Cannot register players. Tournament is in "${tournament.status}" status. ` +
-      'Players can only be registered when tournament is in "setup" status.'
+        'Players can only be registered before it starts or while it runs.'
     );
   }
 
@@ -259,14 +262,21 @@ export async function getRegisteredPlayers(tournamentId: number): Promise<Player
 
   // Their ratings in the tournament's game: balancing and the standings use them.
   const ids = playerIds.map((p) => p.player_id);
-  const tournament = await db.queryOneAsync<{ game: string | null }>('SELECT game FROM tournament WHERE id = ?', [
-    tournamentId,
-  ]);
+  const tournament = await db.queryOneAsync<{ game: string | null }>(
+    'SELECT game FROM tournament WHERE id = ?',
+    [tournamentId]
+  );
   const ratings = await getGameRatings(ids, tournament?.game);
   return (await playerService.getPlayersByIds(ids)).map((p) => {
     const r = ratings.get(p.id);
     return r
-      ? { ...p, current_elo: r.elo, openskill_mu: r.mu, openskill_sigma: r.sigma, match_count: r.matchCount }
+      ? {
+          ...p,
+          current_elo: r.elo,
+          openskill_mu: r.mu,
+          openskill_sigma: r.sigma,
+          match_count: r.matchCount,
+        }
       : p;
   });
 }
@@ -291,7 +301,7 @@ export async function setRegisteredPlayers(
   if (tournament.status !== 'setup') {
     throw new Error(
       `Cannot modify player registrations. Tournament is in "${tournament.status}" status. ` +
-      'Players can only be modified when tournament is in "setup" status.'
+        'Players can only be modified when tournament is in "setup" status.'
     );
   }
 
@@ -377,8 +387,8 @@ export async function generateRoundMatches(
   if (roundNumber < 1 || roundNumber > mapSequence.length) {
     throw new Error(
       `Invalid round number: ${roundNumber}. ` +
-      `Tournament has ${mapSequence.length} round(s) (based on ${mapSequence.length} map(s) selected). ` +
-      `Valid round numbers: 1-${mapSequence.length}.`
+        `Tournament has ${mapSequence.length} round(s) (based on ${mapSequence.length} map(s) selected). ` +
+        `Valid round numbers: 1-${mapSequence.length}.`
     );
   }
 
@@ -391,41 +401,43 @@ export async function generateRoundMatches(
   if (players.length < minPlayers) {
     throw new Error(
       `Not enough players registered: ${players.length}. ` +
-      `Shuffle tournaments require at least ${minPlayers} players for ${teamSize}v${teamSize} matches. ` +
-      `Please register ${minPlayers - players.length} more player(s) before generating matches.`
+        `Shuffle tournaments require at least ${minPlayers} players for ${teamSize}v${teamSize} matches. ` +
+        `Please register ${minPlayers - players.length} more player(s) before generating matches.`
     );
   }
 
-  // Handle odd number of players with rotation
-  // Track players who played in the previous round so we can rotate in players who sat out
-  let playersWhoPlayedLastRound: string[] = [];
-  if (roundNumber > 1) {
-    // Get players who played in the previous round
-    const previousRoundMatches = await db.queryAsync<DbMatchRow>(
-      'SELECT * FROM matches WHERE tournament_id = ? AND round = ?',
-      [tournamentId, roundNumber - 1]
-    );
-
-    const playersWhoPlayed = new Set<string>();
-    for (const match of previousRoundMatches) {
-      const team1 = await teamService.getTeamById(match.team1_id || '');
-      const team2 = await teamService.getTeamById(match.team2_id || '');
-      if (team1) {
-        team1.players.forEach((p) => playersWhoPlayed.add(p.steamId));
-      }
-      if (team2) {
-        team2.players.forEach((p) => playersWhoPlayed.add(p.steamId));
-      }
+  // Pick who sits out before balancing so every team gets a match. With 15 players in 2v2,
+  // three sit out each round: the ones who have played the most so far, never the same
+  // people twice in a row while others are still owed a break.
+  const playedCount = new Map<string, number>();
+  const earlierTeams = await db.queryAsync<{ players: string }>(
+    'SELECT players FROM teams WHERE id LIKE ?',
+    [shuffleTeamLike(tournamentId)]
+  );
+  for (const team of earlierTeams) {
+    for (const p of JSON.parse(team.players || '[]') as Player[]) {
+      playedCount.set(p.steamId, (playedCount.get(p.steamId) ?? 0) + 1);
     }
-
-    // Players who played last round are candidates to sit this round if needed
-    const allPlayerIds = players.map((p) => p.id);
-    playersWhoPlayedLastRound = allPlayerIds.filter((id) => playersWhoPlayed.has(id));
+  }
+  const sitCount = players.length % (teamSize * 2);
+  const sitOut = new Set(
+    players
+      .map((p) => ({ id: p.id, played: playedCount.get(p.id) ?? 0, tiebreak: Math.random() }))
+      .sort((x, y) => y.played - x.played || x.tiebreak - y.tiebreak)
+      .slice(0, sitCount)
+      .map((p) => p.id)
+  );
+  if (sitOut.size > 0) {
+    log.info(`Round ${roundNumber}: ${sitOut.size} player(s) sit out`, { players: [...sitOut] });
   }
 
   // Balance teams
-  const playerIds = players.map((p) => p.id);
-  const tournamentGame = (await db.queryOneAsync<{ game: string | null }>('SELECT game FROM tournament WHERE id = ?', [tournamentId]))?.game;
+  const playerIds = players.map((p) => p.id).filter((id) => !sitOut.has(id));
+  const tournamentGame = (
+    await db.queryOneAsync<{ game: string | null }>('SELECT game FROM tournament WHERE id = ?', [
+      tournamentId,
+    ])
+  )?.game;
   const balanceResult = await balanceTeams(playerIds, teamSize, true, tournamentGame); // Use tournament team size, use optimization
 
   // Create temporary teams for this round
@@ -440,9 +452,10 @@ export async function generateRoundMatches(
 
   // Build a set of team names that have already been used by previous shuffle
   // rounds so we never reuse a name within the same tournament.
-  const existingShuffleTeams = await db.queryAsync<DbTeamRow>('SELECT id, name, tag FROM teams WHERE id LIKE ?', [
-    shuffleTeamLike(tournamentId),
-  ]);
+  const existingShuffleTeams = await db.queryAsync<DbTeamRow>(
+    'SELECT id, name, tag FROM teams WHERE id LIKE ?',
+    [shuffleTeamLike(tournamentId)]
+  );
   const usedTeamNames = new Set<string>(existingShuffleTeams.map((t) => t.name));
 
   // Create matches for each team pair
@@ -451,139 +464,10 @@ export async function generateRoundMatches(
     const team2Index = team1Index + 1;
 
     if (team2Index >= teams.length) {
-      // Odd number of teams - handle rotation
-      const lastTeam = teams[team1Index];
-      const lastTeamPlayerIds = lastTeam.players.map((p) => p.id);
-
-      // Candidates to rotate in are players from the leftover team who did NOT play last round
-      // (i.e. they sat out previously and we want to prioritize getting them into matches)
-      let candidateIds = lastTeamPlayerIds.filter((id) => !playersWhoPlayedLastRound.includes(id));
-
-      if (candidateIds.length > 0 && roundNumber > 1) {
-        // Try to swap as many candidates as possible with players who played last round.
-        // This avoids the same players sitting out multiple rounds in a row when we have options.
-        let swappedAny = false;
-
-        for (const match of matches) {
-          if (candidateIds.length === 0) break;
-
-          const existingTeam1 = await teamService.getTeamById(match.team1_id || '');
-          const existingTeam2 = await teamService.getTeamById(match.team2_id || '');
-
-          for (const existingTeam of [existingTeam1, existingTeam2].filter(Boolean)) {
-            if (!existingTeam) continue;
-            if (candidateIds.length === 0) break;
-
-            for (const existingPlayer of existingTeam.players) {
-              if (candidateIds.length === 0) break;
-
-              // Only consider swapping out players who played last round
-              if (!playersWhoPlayedLastRound.includes(existingPlayer.steamId)) {
-                continue;
-              }
-
-              // Prefer the candidate with the fewest matches played overall (fair rotation)
-              let bestCandidateId: string | null = null;
-              let bestMatchCount = Number.POSITIVE_INFINITY;
-
-              for (const candidateId of candidateIds) {
-                const candidateRecord = players.find((p) => p.id === candidateId);
-                const matchCount = candidateRecord?.match_count ?? 0;
-                if (matchCount < bestMatchCount) {
-                  bestMatchCount = matchCount;
-                  bestCandidateId = candidateId;
-                }
-              }
-
-              if (!bestCandidateId) {
-                continue;
-              }
-
-              const candidateRecord = players.find((p) => p.id === bestCandidateId);
-              if (!candidateRecord) {
-                // Remove bad candidate and continue
-                candidateIds = candidateIds.filter((id) => id !== bestCandidateId);
-                continue;
-              }
-
-              // Swap: remove player who played last round, add player who sat out
-              const playerToRemove = existingPlayer.steamId;
-              const updatedPlayers = existingTeam.players
-                .filter((p) => p.steamId !== playerToRemove)
-                .concat([
-                  {
-                    steamId: candidateRecord.id,
-                    name: candidateRecord.name,
-                    avatar: candidateRecord.avatar_url,
-                  },
-                ]);
-
-              await db.updateAsync(
-                'teams',
-                { players: JSON.stringify(updatedPlayers), updated_at: now },
-                'id = ?',
-                [existingTeam.id]
-              );
-
-              // Rebuild the match config so it carries the rotated roster
-              if (!match.slug) continue;
-              const matchSlug = match.slug;
-              const updatedMatch = await db.queryOneAsync<DbMatchRow>(
-                'SELECT * FROM matches WHERE slug = ?',
-                [matchSlug]
-              );
-              const matchTournament = updatedMatch?.tournament_id
-                ? await db.queryOneAsync<DbTournamentRow>('SELECT * FROM tournament WHERE id = ?', [
-                    updatedMatch.tournament_id,
-                  ])
-                : null;
-              if (updatedMatch && updatedMatch.config && matchTournament) {
-                const matchConfig = await buildMatchConfigFor(
-                  {
-                    slug: updatedMatch.slug,
-                    id: updatedMatch.id,
-                    game: updatedMatch.game,
-                    round: updatedMatch.round,
-                    team1Id: updatedMatch.team1_id,
-                    team2Id: updatedMatch.team2_id,
-                  },
-                  tournamentRowToResponse(matchTournament)
-                );
-                await db.updateAsync(
-                  'matches',
-                  { config: serializeMatchConfig(matchConfig) },
-                  'id = ?',
-                  [updatedMatch.id]
-                );
-              }
-
-              log.info(
-                `Rotated player ${candidateRecord.name} into match ${matchSlug}, removed ${existingPlayer.name}`
-              );
-              swappedAny = true;
-
-              // Remove this candidate so we don't try to place them again
-              candidateIds = candidateIds.filter((id) => id !== bestCandidateId);
-            }
-          }
-        }
-
-        if (!swappedAny) {
-          // Couldn't swap, log warning
-          log.warn(
-            `Odd number of teams in round ${roundNumber}, could not rotate players. Last team (${lastTeam.players
-              .map((p) => p.name)
-              .join(', ')}) will sit out.`
-          );
-        }
-      } else {
-        // First round or no rotation needed - skip last team
-        log.info(
-          `Odd number of teams in round ${roundNumber}, skipping last team (${lastTeam.players
-            .map((p) => p.name)
-            .join(', ')})`
-        );
-      }
+      // Sit-outs are picked before balancing, so this only happens if balancing drops a team.
+      log.warn(
+        `Round ${roundNumber}: odd team count, ${teams[team1Index].players.length} player(s) sit out`
+      );
       break;
     }
 
@@ -664,7 +548,7 @@ export async function generateRoundMatches(
       winner_id: null,
       server_id: null,
       config: serializeMatchConfig(config),
-      status: 'ready', // Changed from 'pending' to 'ready' since skip_veto = true
+      status: 'ready', // No veto for a shuffle match
       next_match_id: null,
       current_map: map,
       map_number: 0,
@@ -772,7 +656,7 @@ export async function advanceToNextRound(tournamentId: number): Promise<{
 
     log.success(
       `Shuffle tournament completed! All ${mapSequence.length} round(s) finished. ` +
-      `Final leaderboard available at /tournament/${tournamentId}/leaderboard`
+        `Final leaderboard available at /tournament/${tournamentId}/leaderboard`
     );
     return null;
   }
@@ -805,7 +689,9 @@ export async function advanceToNextRound(tournamentId: number): Promise<{
 /**
  * Get player leaderboard
  */
-export async function getPlayerLeaderboard(tournamentId: number): Promise<PlayerLeaderboardEntry[]> {
+export async function getPlayerLeaderboard(
+  tournamentId: number
+): Promise<PlayerLeaderboardEntry[]> {
   const players = await getRegisteredPlayers(tournamentId);
 
   // Get match results for all players
@@ -913,10 +799,9 @@ export async function getTournamentLeaderboard(tournamentId: number): Promise<{
   liveMatchCount: number;
 }> {
   // Load base tournament row
-  const row = await db.queryOneAsync<DbTournamentRow>(
-    'SELECT * FROM tournament WHERE id = ?',
-    [tournamentId]
-  );
+  const row = await db.queryOneAsync<DbTournamentRow>('SELECT * FROM tournament WHERE id = ?', [
+    tournamentId,
+  ]);
 
   if (!row) {
     throw new Error('Tournament not found');
@@ -1004,7 +889,8 @@ export async function getTournamentLeaderboard(tournamentId: number): Promise<{
       }
       for (const member of roster) {
         const steamId = member.steamId ?? member.steamid;
-        if (steamId) teamOfPlayer.set(steamId, { id: team.id, name: team.name, tag: team.tag ?? null });
+        if (steamId)
+          teamOfPlayer.set(steamId, { id: team.id, name: team.name, tag: team.tag ?? null });
       }
     }
 

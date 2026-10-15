@@ -8,6 +8,7 @@ import {
   nextPlayer,
   loadedMapOf,
   pickMoments,
+  isDuel,
   pickSeriesClips,
   playersPerRecorder,
   recorderBusy,
@@ -47,6 +48,22 @@ const kill = (
 const rounds = [{ number: 1, startTick: 0, endTick: 20000, winner: 'CT', reason: 't_killed' }];
 
 test.describe('Highlight moments', () => {
+  test(
+    'a no-scope, blind or in-air kill scores higher, as CS2 marks them',
+    { tag: ['@api'] },
+    () => {
+      const plain = pickMoments({ kills: [kill(1000, A, B1), kill(1100, A, B2)], rounds } as never);
+      const marked = pickMoments({
+        kills: [
+          kill(1000, A, B1, { noScope: true }),
+          kill(1100, A, B2, { attackerBlind: true, inAir: true }),
+        ],
+        rounds,
+      } as never);
+      expect(marked[0]!.score - plain[0]!.score).toBe(15 + 20 + 10);
+    }
+  );
+
   test('a triple kill is a moment; a lone kill is not', { tag: ['@api'] }, () => {
     const kills = [
       kill(500, A2, B4),
@@ -66,6 +83,36 @@ test.describe('Highlight moments', () => {
     expect(moments[0]!.startTick).toBe(1000 - 192);
     expect(moments[0]!.endTick).toBe(1200 + 96);
   });
+
+  test(
+    'in a 1v1, headshot opening kills are moments; a plain kill is not',
+    { tag: ['@api'] },
+    () => {
+      const duelRounds = [1, 2, 3].map((n) => ({
+        number: n,
+        startTick: (n - 1) * 5000,
+        endTick: n * 5000 - 1,
+        winner: 'CT',
+        reason: 't_killed',
+      }));
+      const kills = [
+        { ...kill(1000, A, B1, { headshot: true, opening: true }), round: 1 },
+        { ...kill(6000, A, B1, { opening: true }), round: 2 },
+        { ...kill(11000, B1, A, { headshot: true, opening: true }), round: 3 },
+      ];
+      expect(isDuel(kills)).toBe(true);
+      const moments = pickMoments({ kills, rounds: duelRounds } as never);
+      expect(moments.map((m) => [m.playerId, m.round])).toEqual(
+        expect.arrayContaining([
+          [A, 1],
+          [B1, 3],
+        ])
+      );
+      expect(moments).toHaveLength(2);
+      // The same kill in a 5v5 stays below the bar.
+      expect(isDuel([...kills, kill(500, A2, B4)])).toBe(false);
+    }
+  );
 
   test(
     'a round-ending kill keeps its tail: the clip runs into the time after the round',

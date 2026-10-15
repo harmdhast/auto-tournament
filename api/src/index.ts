@@ -194,23 +194,47 @@ if (sessionCookieDomain) {
   sessionCookie.domain = sessionCookieDomain;
 }
 
+// Persist sessions in PostgreSQL so admin logins survive API restarts.
+// Note: Session table is created by our database schema, so we don't need
+// connect-pg-simple to create it (which would require table.sql file).
+const sessionStore = new PgSession({
+  conString: sessionDbConnectionString,
+  tableName: 'session',
+  createTableIfMissing: false, // Table is created by our schema
+});
+// The session cookie's own name: express-session's default `connect.sid` is
+// shared with every other Express app, and one on a parent domain (e.g.
+// another site on *.example.com with Domain=example.com) is sent along too.
+// The browser sends the older cookie first and express-session reads the
+// first, so a fresh install behind such a domain never saw its own session
+// (setup signed the new admin in, the next request was signed out).
+const SESSION_COOKIE_NAME = 'at.sid';
 const sessionMiddleware = session({
-  // Persist sessions in PostgreSQL so admin logins survive API restarts.
-  // Note: Session table is created by our database schema, so we don't need
-  // connect-pg-simple to create it (which would require table.sql file).
-  store: new PgSession({
-    conString: sessionDbConnectionString,
-    tableName: 'session',
-    createTableIfMissing: false, // Table is created by our schema
-  }),
+  name: SESSION_COOKIE_NAME,
+  store: sessionStore,
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   cookie: sessionCookie,
 });
+// Opened by IP address (a fresh install before its domain points here, e.g.
+// http://10.0.0.5:3069/setup): a cookie for FRONTEND_BASE_URL's domain, or a
+// Secure one over plain http, is dropped by the browser, so setup signed the
+// new admin out at once. Such requests get a cookie for the address they
+// came on, Secure only over https.
+const addressSessionMiddleware = session({
+  name: SESSION_COOKIE_NAME,
+  store: sessionStore,
+  secret: sessionSecret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { sameSite: 'lax', secure: 'auto', httpOnly: true },
+});
 const passportInitialize = passport.initialize();
 const passportSession = passport.session();
-app.use(sessionMiddleware);
+app.use((req, res, next) =>
+  (isIP(req.hostname) !== 0 ? addressSessionMiddleware : sessionMiddleware)(req, res, next)
+);
 app.use(passportInitialize);
 app.use(passportSession);
 // A banned or deleted player is signed out on their next request.
@@ -623,6 +647,14 @@ process.on('uncaughtException', (err) => {
     const server = httpServer.listen(Number(PORT), () => {
       // Admins hear about module and pack updates, and ones that did not take.
       startModuleUpdateNotices();
+      // The demo worker inside the image (services/builtinWorker.ts).
+      // Start times: reminders before, and the automatic start (tournamentSchedule.ts).
+      void import('./services/tournamentSchedule').then(({ startTournamentSchedule }) =>
+        startTournamentSchedule(Number(PORT))
+      );
+      void import('./services/builtinWorker').then(({ startBuiltinWorker }) =>
+        startBuiltinWorker(Number(PORT))
+      );
       log.server('='.repeat(60));
       log.server('Auto Tournament API');
       log.server('='.repeat(60));
@@ -668,7 +700,13 @@ process.on('uncaughtException', (err) => {
       log.server(`Event logs: ${path.join(DATA_DIR, 'logs', 'events')} (30 day retention)`);
       log.server('='.repeat(60));
 
-      reportServiceTokens();
+      // API tokens made in Settings, next to the env ones (services/apiTokenService).
+      void import('./services/apiTokenService')
+        .then(({ apiTokenService }) => apiTokenService.load())
+        .then(() => reportServiceTokens())
+        .catch((error) =>
+          log.warn('[Startup] Could not load the API tokens made in Settings', { error })
+        );
       reportEventAuth();
       reportCompatConfig();
       // Ready Up compatibility, pulled from COMPAT_FEED_URL every 5 minutes
@@ -748,6 +786,7 @@ process.on('uncaughtException', (err) => {
       stopWebhooks();
       stopLicenseCheckin();
       stopIntegrations();
+      void import('./services/builtinWorker').then(({ stopBuiltinWorker }) => stopBuiltinWorker());
       // Live sockets and idle keep-alive connections would hold the close.
       getIO().disconnectSockets(true);
       server.close(() => {

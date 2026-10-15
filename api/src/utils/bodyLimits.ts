@@ -1,5 +1,10 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { checkAdminAccess, requireAuth } from '../middleware/auth';
+import {
+  authenticateServiceToken,
+  checkAdminAccess,
+  requireAuth,
+  requireIntegratorAuth,
+} from '../middleware/auth';
 
 /** Default limits for every request body, read before anyone is authenticated. */
 export const JSON_LIMIT = '1mb';
@@ -9,9 +14,15 @@ export const URLENCODED_PARAMETER_LIMIT = 100;
 /**
  * Admin routes whose JSON bodies carry files (base64 images, pack icons, a
  * demo analysis). The default parser skips them; `largeJsonAfterAuth` reads
- * them with their own limit once the caller is known to be an admin.
+ * them with their own limit once the caller is known to be an admin (or, with
+ * `integrator`, an integrator token too).
  */
-export const LARGE_JSON_ROUTES: ReadonlyArray<{ method: string; path: RegExp; limit: string }> = [
+export const LARGE_JSON_ROUTES: ReadonlyArray<{
+  method: string;
+  path: RegExp;
+  limit: string;
+  integrator?: boolean;
+}> = [
   { method: 'POST', path: /^\/api\/maps\/[^/]+\/upload-image$/, limit: '10mb' },
   { method: 'PUT', path: /^\/api\/game\/cs2\/radars\/[^/]+\/[^/]+$/, limit: '12mb' },
   {
@@ -20,7 +31,8 @@ export const LARGE_JSON_ROUTES: ReadonlyArray<{ method: string; path: RegExp; li
     limit: '50mb',
   },
   { method: 'POST', path: /^\/api\/packs$/, limit: '4mb' },
-  { method: 'POST', path: /^\/api\/players\/(?:bulk-)?import$/, limit: '10mb' },
+  { method: 'POST', path: /^\/api\/players\/import$/, limit: '10mb', integrator: true },
+  { method: 'POST', path: /^\/api\/players\/bulk-import$/, limit: '10mb' },
 ];
 
 function largeRoute(req: Request) {
@@ -51,10 +63,17 @@ const largeParsers = new Map(
 export function largeJsonAfterAuth(req: Request, res: Response, next: NextFunction): void {
   const route = largeRoute(req);
   if (!route) return next();
-  checkAdminAccess(req)
+  const integratorToken = () => {
+    const token = route.integrator
+      ? authenticateServiceToken(req, { allowIntegrator: true })
+      : null;
+    return token?.ok === true;
+  };
+  const refuse = route.integrator ? requireIntegratorAuth : requireAuth;
+  (integratorToken() ? Promise.resolve({ ok: true }) : checkAdminAccess(req))
     .then((access) => {
       if (access.ok) return largeParsers.get(route.limit)!(req, res, next);
-      req.on('end', () => void requireAuth(req, res, next));
+      req.on('end', () => void refuse(req, res, next));
       req.resume();
     })
     .catch(next);

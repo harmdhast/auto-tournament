@@ -85,12 +85,12 @@ test.describe.serial('Fleet: RCON parity', () => {
     }
   });
 
-  test('skip-veto stays 400 on Ready Up', async ({ request }) => {
+  test('there is no skip-veto button on Ready Up', async ({ request }) => {
     const res = await request.post('/api/rcon/skip-veto', {
       headers: getAuthHeader(),
       data: { serverId: cs2Id },
     });
-    expect(res.status()).toBe(400);
+    expect(res.status()).toBe(404);
   });
 
   test('fleet answers name the server; the connection test reads the fleet link', async ({
@@ -136,8 +136,9 @@ test.describe.serial('Fleet: RCON parity', () => {
       const body = await (
         await request.get(`/api/rcon/capabilities/${rcon!.id}`, { headers: getAuthHeader() })
       ).json();
-      expect(body).toMatchObject({ success: true, transport: 'rcon' });
-      expect(body.matchControls).toContain('skipVeto');
+      // Every button is a fleet command (upstream #848): a row no server is linked to says so too.
+      expect(body).toMatchObject({ success: true, transport: 'fleet' });
+      expect(body.matchControls).not.toContain('skipVeto');
     } finally {
       await deleteServer(request, rcon!.id);
     }

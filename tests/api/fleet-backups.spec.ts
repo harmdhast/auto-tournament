@@ -495,7 +495,6 @@ function restoreDeps(over: Partial<RestoreDeps> = {}) {
   const { store } = newStore();
   const audit = createMemoryRestoreAudit();
   const sent: Array<{ serverId: string; payload: CmdPayload; epoch: number }> = [];
-  const rcon: Array<{ serverId: string; round: number }> = [];
   let answer: (id: string) => FleetCommandRecord | null = (id) => command(id);
   const deps: RestoreDeps = {
     backups: store,
@@ -509,11 +508,6 @@ function restoreDeps(over: Partial<RestoreDeps> = {}) {
       return { id: `cmd-${sent.length}`, seq: sent.length, delivered: true, answered: true };
     },
     awaitResult: async (id) => answer(id),
-    rconServerFor: async () => null,
-    async rconRestore(serverId, round) {
-      rcon.push({ serverId, round });
-      return { success: true };
-    },
     now: () => 1_000_000_000_000,
     ...over,
   };
@@ -522,7 +516,6 @@ function restoreDeps(over: Partial<RestoreDeps> = {}) {
     store,
     audit,
     sent,
-    rcon,
     setAnswer(fn: (id: string) => FleetCommandRecord | null) {
       answer = fn;
     },
@@ -694,43 +687,11 @@ test.describe('Restore to round N', () => {
     });
   });
 
-  test('rcon: css_restore on the match server, audited; a failure is recorded', async () => {
-    const ctx = restoreDeps({
-      getLiveState: async () => null,
-      rconServerFor: async () => 'server-3',
-    });
-    const { restore } = await restoreRoundBackup(ctx.deps, {
-      matchSlug: SLUG,
-      mapNumber: 1,
-      round: 7,
-      actor: ACTOR,
-    });
-    expect(ctx.rcon).toEqual([{ serverId: 'server-3', round: 7 }]);
-    expect(ctx.sent).toHaveLength(0);
-    expect(restore).toMatchObject({
-      transport: 'rcon',
-      status: 'ok',
-      serverId: 'server-3',
-      backupId: null,
-    });
-
-    ctx.deps.rconRestore = async () => ({ success: false, error: 'Connection refused' });
-    const failed = await restoreRoundBackup(ctx.deps, {
-      matchSlug: SLUG,
-      mapNumber: 1,
-      round: 7,
-      actor: ACTOR,
-    });
-    expect(failed.restore).toMatchObject({
-      status: 'failed',
-      errorCode: 'rcon',
-      errorMessage: 'Connection refused',
-    });
-    expect(ctx.audit.records.map((r) => r.status)).toEqual(['ok', 'failed']);
-
-    ctx.deps.rconServerFor = async () => null;
+  test('no live assignment: nothing to restore on', async () => {
+    const ctx = restoreDeps({ getLiveState: async () => null });
     await expect(
       restoreRoundBackup(ctx.deps, { matchSlug: SLUG, mapNumber: 1, round: 7, actor: ACTOR })
     ).rejects.toMatchObject({ code: 'not_assigned' });
+    expect(ctx.sent).toHaveLength(0);
   });
 });

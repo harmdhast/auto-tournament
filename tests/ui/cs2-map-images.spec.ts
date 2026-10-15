@@ -19,6 +19,7 @@ import {
  */
 
 const CDN = 'https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/map_thumbnails';
+const IMG = '/api/game/cs2/img';
 const BASE = '/cs2-assets/abc123';
 const g = globalThis as { __AT_CS2_ASSETS__?: unknown };
 
@@ -47,22 +48,22 @@ test.describe('map image helper', () => {
     expect(mapImageUrl('de_mirage', 'small')).toBe(`${BASE}/maps/de_mirage-small.webp`);
     expect(mapImageUrl('de_mirage', 'full')).toBe(`${BASE}/maps/de_mirage.webp`);
     expect(mapImageUrl('de_mirage', 'icon')).toBe(`${BASE}/maps/de_mirage-icon.webp`);
-    expect(mapImageFallback('de_mirage', 'small')).toBe(`${CDN}/de_mirage_thumb.webp`);
-    expect(mapImageFallback('de_mirage', 'full')).toBe(`${CDN}/de_mirage.webp`);
-    expect(mapImageFallback('de_mirage', 'icon')).toBe(`${CDN}/de_mirage_icon.svg`);
+    expect(mapImageFallback('de_mirage', 'small')).toBe(`${IMG}/maps-480/de_mirage.webp`);
+    expect(mapImageFallback('de_mirage', 'full')).toBe(`${IMG}/maps-1280/de_mirage.webp`);
+    expect(mapImageFallback('de_mirage', 'icon')).toBe(`${IMG}/map-icons/de_mirage_icon.svg`);
   });
 
   test('an unlisted map uses jsDelivr and has no fallback', () => {
     g.__AT_CS2_ASSETS__ = manifest;
-    expect(mapImageUrl('de_train', 'small')).toBe(`${CDN}/de_train_thumb.webp`);
-    expect(mapImageUrl('de_train', 'full')).toBe(`${CDN}/de_train.webp`);
-    expect(mapImageUrl('de_train', 'icon')).toBe(`${CDN}/de_train_icon.svg`);
+    expect(mapImageUrl('de_train', 'small')).toBe(`${IMG}/maps-480/de_train.webp`);
+    expect(mapImageUrl('de_train', 'full')).toBe(`${IMG}/maps-1280/de_train.webp`);
+    expect(mapImageUrl('de_train', 'icon')).toBe(`${IMG}/map-icons/de_train_icon.svg`);
     expect(mapImageFallback('de_train', 'small')).toBeUndefined();
   });
 
   test('a listed map without an icon uses the jsDelivr icon', () => {
     g.__AT_CS2_ASSETS__ = manifest;
-    expect(mapImageUrl('de_noicon', 'icon')).toBe(`${CDN}/de_noicon_icon.svg`);
+    expect(mapImageUrl('de_noicon', 'icon')).toBe(`${IMG}/map-icons/de_noicon_icon.svg`);
   });
 
   test('an upload has a small variant that falls back to the upload', () => {
@@ -79,7 +80,7 @@ test.describe('map image helper', () => {
 
   test('a catalogue url is not an upload', () => {
     g.__AT_CS2_ASSETS__ = manifest;
-    const cat = `${CDN}/de_mirage.webp`;
+    const cat = `${IMG}/maps-1280/de_mirage.webp`;
     expect(isUploadedMapImage(cat)).toBe(false);
     expect(isUploadedMapImage(undefined)).toBe(false);
     expect(isUploadedMapImage('/map-images/a.webp')).toBe(true);
@@ -92,6 +93,8 @@ test.describe('map image helper', () => {
     expect(isCustomMapImage(ext)).toBe(true);
     expect(isCatalogMapImage(`${CDN}/de_mirage.webp`)).toBe(true);
     expect(isCustomMapImage(`${CDN}/de_mirage.webp`)).toBe(false);
+    expect(isCatalogMapImage(`${IMG}/maps-1280/de_mirage.webp`)).toBe(true);
+    expect(isCustomMapImage(`${IMG}/maps-1280/de_mirage.webp`)).toBe(false);
     expect(mapImageUrl('3070284539', 'small', ext)).toBe(ext);
     expect(mapImageUrl('3070284539', 'full', ext)).toBe(ext);
     expect(mapImageFallback('3070284539', 'small', ext)).toBeUndefined();
@@ -100,9 +103,9 @@ test.describe('map image helper', () => {
     expect(moduleMapImageUrl('3070284539', 'small', ext)).toBe(ext);
   });
 
-  test('without a manifest everything is jsDelivr', () => {
-    expect(mapImageUrl('de_mirage', 'small')).toBe(`${CDN}/de_mirage_thumb.webp`);
-    expect(mapImageUrl('de_mirage', 'full')).toBe(`${CDN}/de_mirage.webp`);
+  test("without a manifest everything is the platform's picture route", () => {
+    expect(mapImageUrl('de_mirage', 'small')).toBe(`${IMG}/maps-480/de_mirage.webp`);
+    expect(mapImageUrl('de_mirage', 'full')).toBe(`${IMG}/maps-1280/de_mirage.webp`);
     expect(mapImageFallback('de_mirage', 'small')).toBeUndefined();
   });
 

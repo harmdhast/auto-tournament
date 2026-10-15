@@ -7,6 +7,7 @@ import {
   extractPresentedToken,
   findServiceToken,
   getServiceTokens,
+  isStoredServiceToken,
   isReadOnlyMethod,
   type ServiceTokenScope,
 } from '../utils/serviceTokens';
@@ -20,7 +21,7 @@ import {
  * and the cookie still say "steamId" for historical reasons.
  *
  * We accept **two** ways to prove admin access:
- *  1. **Passport session** (connect.sid) — used when it works (e.g. same-origin, no tunnel).
+ *  1. **Passport session** (at.sid) — used when it works (e.g. same-origin, no tunnel).
  *  2. **Signed player_steam_id cookie** — verified with SESSION_SECRET. Used when the
  *     session cookie is dropped (e.g. Cloudflare Tunnel, Chrome + 302). Steam ID must
  *     map to admin in DB.
@@ -102,6 +103,11 @@ export function authenticateServiceToken(
     };
   }
 
+  if (isStoredServiceToken(token.fingerprint)) {
+    void import('../services/apiTokenService').then(({ apiTokenService }) =>
+      apiTokenService.noteUsed(token.fingerprint)
+    );
+  }
   return {
     ok: true,
     identity: { label: token.label, scope: token.scope, fingerprint: token.fingerprint },
@@ -261,7 +267,11 @@ export type IntegratorRequest = Request & { integrator?: IntegratorIdentity };
  * (`API_TOKENS_INTEGRATOR`), an admin token, a read-only token for reads, or
  * an admin's session. Everything else gets the same answers as `requireAuth`.
  */
-export async function requireIntegratorAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function requireIntegratorAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   return requireIntegratorAuthInner(req, res, next).catch(next);
 }
 
@@ -274,7 +284,10 @@ async function requireIntegratorAuthInner(
   if (tokenAuth) {
     if (tokenAuth.ok) {
       (req as AuthedRequest).serviceToken = tokenAuth.identity;
-      (req as IntegratorRequest).integrator = { tokenLabel: tokenAuth.identity.label, scope: tokenAuth.identity.scope };
+      (req as IntegratorRequest).integrator = {
+        tokenLabel: tokenAuth.identity.label,
+        scope: tokenAuth.identity.scope,
+      };
       return next();
     }
     log.authFailed(req.path, tokenAuth.reason);

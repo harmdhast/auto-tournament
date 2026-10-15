@@ -70,6 +70,7 @@ import ConnectSteam from './pages/ConnectSteam';
 import Templates from './pages/Templates';
 import ELOTemplates from './pages/ELOTemplates';
 import Layout from './components/layout/Layout';
+import { SiteFooter } from './components/layout/SiteFooter';
 import { AdminTournamentProvider, useAdminTournament } from './contexts/AdminTournamentContext';
 
 /** The admin shell, remounted when the admin picks another tournament so every page reloads for it. */
@@ -85,6 +86,8 @@ import { GamesOnboardingRedirect } from './components/games/GamesOnboardingRedir
 import WelcomeGames from './pages/WelcomeGames';
 import LicenseConsent from './pages/LicenseConsent';
 import { LicenseConsentGate } from './components/license/LicenseConsentGate';
+import { AddressMismatchBanner } from './components/admin/AddressMismatchBanner';
+import { AdminConsentRedirect } from './components/license/AdminConsentRedirect';
 import { LicenseGate } from './components/license/LicenseGate';
 import { ImpersonationBanner } from './components/common/ImpersonationBanner';
 import { listRouteIntegrations } from './integrations/registry';
@@ -716,6 +719,10 @@ export default function App() {
               <ImpersonationBanner />
               {/* A paid license that isn't paid: a warning for admins, then the "expired" page for everyone. */}
               <LicenseGate />
+              {/* Admins on another address than FRONTEND_BASE_URL (e.g. by IP). */}
+              <AddressMismatchBanner />
+              {/* Admins choose a license before anything else, on every page. */}
+              <AdminConsentRedirect />
               <ModuleGlobalOverlays />
               {/* "What do you play?": redirects to /welcome/games once per
                   account, from whatever page the player lands on. The API
@@ -726,6 +733,7 @@ export default function App() {
                   state until it arrives, and re-render when it does. */}
               <BlockedNotice />
               <AppRoutes />
+              <SiteFooter />
               {/* The one match details dialog a game module opens with the
                   SDK's openMatchDetails(slug). Core's, so it needs no module
                   to have arrived. Core pages keep their own. */}

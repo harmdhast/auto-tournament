@@ -28,6 +28,7 @@ import { isSameSiteRequest } from '../../../utils/accountConnections';
 import { skinImageUrls } from '../assets/localAssets';
 import { WEAPON_DEFINDEX } from './skinDefindex';
 import { catalogWeapons, pickableSkin, searchCatalog } from './catalogSearch';
+import { knifeAndGlovePrices, priceFor, priceKey } from './skinPrices';
 import {
   RARITIES,
   SkinError,
@@ -638,15 +639,21 @@ router.put('/admin/config', requireAuth, async (req, res) => {
  *       - { in: query, name: q, schema: { type: string } }
  *       - { in: query, name: all, schema: { type: string, enum: ['1'] }, description: Every paint kit (each Doppler phase) instead of one per name }
  *     responses:
- *       200: { description: Up to 50 matching skins }
+ *       200: { description: 'Up to 50 matching skins; knives and gloves carry priceUsd (Skinport, at most a day old)' }
  */
 router.get('/admin/catalog', requireAuth, async (req, res) => {
   try {
     // `all=1`: every paint kit, so each phase of a Doppler is its own row.
+    const prices = await knifeAndGlovePrices();
     const skins = searchCatalog(await skinService.catalog(), {
       q: req.query.q,
       all: req.query.all === '1',
-    }).slice(0, 50);
+    })
+      .slice(0, 50)
+      .map((s) => ({
+        ...s,
+        priceUsd: priceFor(prices, priceKey(s.weaponName, s.name, s.variant)) ?? null,
+      }));
     return res.json({ success: true, skins });
   } catch (error) {
     return fail(res, error, 'Searching the catalogue');
@@ -729,6 +736,69 @@ router.get('/admin/players/:steamId/inventory', requireAuth, async (req, res) =>
 
 /**
  * @openapi
+ * /api/skins/admin/players/{steamId}/equip:
+ *   post:
+ *     tags: [Skins]
+ *     summary: Equip one of a player's skins (admin)
+ *     description: As the player would on their inventory. team 0 is both sides, 2 T, 3 CT; a knife or gloves can differ per side.
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: steamId, required: true, schema: { type: string } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [skinId]
+ *             properties:
+ *               skinId: { type: integer }
+ *               team: { type: integer, enum: [0, 2, 3] }
+ *     responses:
+ *       200: { description: Equipped (and sent to their server when they are on one) }
+ *       404: { description: No such player or skin }
+ */
+router.post('/admin/players/:steamId/equip', requireAuth, async (req, res) => {
+  try {
+    const uid = await skinService.adminEquip(
+      req.params.steamId,
+      Number(req.body?.skinId),
+      Number(req.body?.team ?? 0)
+    );
+    void loadoutChanged(uid);
+    return res.json({ success: true });
+  } catch (error) {
+    return fail(res, error, 'Equipping');
+  }
+});
+
+/**
+ * @openapi
+ * /api/skins/admin/players/{steamId}/equip/{slot}:
+ *   delete:
+ *     tags: [Skins]
+ *     summary: Empty a slot of a player's loadout (admin)
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: steamId, required: true, schema: { type: string } }
+ *       - { in: path, name: slot, required: true, schema: { type: string } }
+ *       - { in: query, name: team, schema: { type: integer, enum: [0, 2, 3] }, description: 'One side only (default: every side)' }
+ *     responses:
+ *       200: { description: Emptied }
+ */
+router.delete('/admin/players/:steamId/equip/:slot', requireAuth, async (req, res) => {
+  try {
+    const team = req.query.team === undefined ? undefined : Number(req.query.team);
+    const uid = await skinService.adminUnequip(req.params.steamId, req.params.slot, team);
+    void loadoutChanged(uid);
+    return res.json({ success: true });
+  } catch (error) {
+    return fail(res, error, 'Unequipping');
+  }
+});
+
+/**
+ * @openapi
  * /api/skins/admin/players/{steamId}/skins:
  *   post:
  *     tags: [Skins]
@@ -790,8 +860,8 @@ router.post('/admin/players/:steamId/skins', requireAuth, async (req, res) => {
  *               target:
  *                 type: object
  *                 properties:
- *                   kind: { type: string, enum: [player, online, team, match] }
- *                   id: { type: string, description: 'Steam ID, team id or match slug' }
+ *                   kind: { type: string, enum: [player, online, team, match, tournament] }
+ *                   id: { type: string, description: 'Steam ID, team id, match slug or tournament id' }
  *               preview: { type: boolean }
  *               label: { type: string, description: 'Shown on the drop, e.g. "From the admins"' }
  *     responses:
@@ -809,7 +879,10 @@ router.post('/admin/drops', requireAuth, async (req, res) => {
     const id = typeof body.target?.id === 'string' ? body.target.id.trim() : '';
     let target: DropTarget;
     if (kind === 'online') target = { kind };
-    else if ((kind === 'player' || kind === 'team' || kind === 'match') && id)
+    else if (
+      (kind === 'player' || kind === 'team' || kind === 'match' || kind === 'tournament') &&
+      id
+    )
       target = { kind, id };
     else
       return res.status(400).json({ success: false, error: 'target.kind (and id) are required.' });

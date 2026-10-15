@@ -49,16 +49,6 @@ export interface Server {
   cs2VersionString?: string | null;
   /** Unix timestamp when version/build was last fetched via RCON. */
   cs2VersionFetchedAt?: number | null;
-  /** Best-effort: MatchZy Enhanced DB reachable. */
-  atDbOk?: boolean | null;
-  /** Best-effort: 'sqlite' | 'mysql'. */
-  atDbType?: string | null;
-  /** Best-effort: last DB error message (if any). */
-  atDbError?: string | null;
-  /** Unix timestamp when DB was last reported OK. */
-  atDbLastOkAt?: number | null;
-  /** Unix timestamp when DB health was last reported. */
-  atDbLastSeenAt?: number | null;
   /** Unix timestamp when server last successfully sent any event to /api/events. */
   serverCanReachApiAt?: number | null;
   // Optional real-time status values reported by MatchZy Enhanced and
@@ -290,32 +280,16 @@ export interface SettingsResponse extends ApiResponse {
     defaultPlayerElo: number;
     simulateMatches: boolean;
     simulationTimescale?: number;
-    atChatPrefix?: string | null;
-    atAdminChatPrefix?: string | null;
-    atKnifeEnabledDefault?: boolean;
-    atDebugChatEnabled?: boolean;
     ratingsEnabled?: boolean;
     allowSelfRegister?: boolean;
     updateNotices?: boolean;
-    // MatchZy Enhanced core defaults
-    atAutostartMode?: 0 | 1 | 2;
+    // Ready Up's ready / restore defaults
     atMinimumReadyRequired?: number;
     atAllowForceReady?: boolean;
-    atKickWhenNoMatchLoaded?: boolean;
-    atWhitelistEnabledDefault?: boolean;
     atPauseAfterRestore?: boolean;
     atJoinPassword?: boolean;
     atAutostartAfterMinutes?: number;
-    atStopCommandAvailable?: boolean;
-    atStopCommandNoDamage?: boolean;
-    atUsePauseCommandForTacticalPause?: boolean;
-    /** '' means: leave each server's own hostname alone. */
-    atHostnameFormat?: string;
-    atDemoPath?: string;
-    atDemoNameFormat?: string;
     atSeriesEndKickDelayNoDemo?: number;
-    atSeriesEndKickDelayDemoNoUpload?: number;
-    atSeriesEndKickDelayDemoUpload?: number;
     // MatchZy Enhanced v1.3.0 settings (null = use tournament defaults)
     atAutoreadyEnabled?: 0 | 1 | null;
     atBothTeamsUnpauseRequired?: 0 | 1 | null;

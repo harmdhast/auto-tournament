@@ -1,3 +1,4 @@
+import { DiscordBotCard } from '../components/settings/DiscordBotCard';
 import { pageTitle } from '../utils/pageTitle';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { PageHead, Panel } from '../components/common/ui';
@@ -21,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { SiteNameCard } from '../components/settings/SiteNameCard';
 import { EmailSettingsCard } from '../components/settings/EmailSettingsCard';
+import { ApiTokensCard } from '../components/settings/ApiTokensCard';
 import { WebhooksCard } from '../components/settings/WebhooksCard';
 import { MatchmakingSettingsCard } from '../components/settings/MatchmakingSettingsCard';
 import { AdminNoticesCard } from '../components/settings/AdminNoticesCard';
@@ -54,6 +56,9 @@ const SECTION_CARDS: Record<string, string> = {
   matches: 'players',
   webhooks: 'webhooks',
   integrations: 'webhooks',
+  apitokens: 'apitokens',
+  'api-tokens': 'apitokens',
+  tokens: 'apitokens',
   matchmaking: 'matchmaking',
   news: 'news',
   adminNotices: 'adminnotices',
@@ -359,7 +364,16 @@ export default function Settings() {
     { key: 'matchmaking', body: <MatchmakingSettingsCard /> },
     { key: 'news', body: <NewsSettingsCard /> },
     { key: 'adminnotices', body: <AdminNoticesCard /> },
-    { key: 'webhooks', body: <WebhooksCard /> },
+    {
+      key: 'webhooks',
+      body: (
+        <>
+          <WebhooksCard />
+          <DiscordBotCard />
+        </>
+      ),
+    },
+    { key: 'apitokens', body: <ApiTokensCard /> },
     ...(isDev || experimental.length > 0 ? [{ key: 'advanced', body: advancedCard }] : []),
   ].map((section) => ({
     ...section,

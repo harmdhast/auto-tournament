@@ -1,3 +1,5 @@
+import { announceVetoTurn } from '../../../services/matchNotices';
+import { withVetoLock } from './lock';
 import { Router, Request, Response } from 'express';
 import { db } from '../../../config/database';
 import { log } from '../../../utils/logger';
@@ -12,15 +14,14 @@ import {
   isBracketManaged,
   serializeMatchConfig,
 } from '../../../utils/matchIntegration';
-import { getVetoOrder } from './config';
+import { getVetoOrder, standardVetoOrder } from './config';
 import { getVetoContext } from './context';
-import { settingsService } from '../../../services/settingsService';
 import { normalizeConfigPlayers } from '../../../utils/playerTransform';
 import { resolveViewerIdentity } from '../../../utils/viewerIdentity';
-import { requireAuth } from '../../../middleware/auth';
+import { checkAdminAccess, requireAuth } from '../../../middleware/auth';
 import { tournamentRowToResponse } from '../../../utils/tournamentRow';
 import { mapService } from '../maps/mapService';
-import { vetoTurnDeadline } from './timer';
+import { vetoTurnDeadline, vetoWaitingOnHold } from './timer';
 import { postVetoProgress } from './chatLines';
 
 const router = Router();
@@ -245,7 +246,22 @@ router.get('/:matchSlug', async (req: Request, res: Response) => {
       });
     }
     const { format, tournamentMaps, customVetoOrder } = vetoContext;
-    const vetoOrder = getVetoOrder(format, customVetoOrder, tournamentMaps.length);
+    // The steps this match uses, and whether they are Valve's (the Major rulebook's) or the
+    // organizer's own: the veto page draws them and says which.
+    const order = getVetoOrder(
+      format,
+      customVetoOrder as Parameters<typeof getVetoOrder>[1],
+      tournamentMaps.length
+    );
+    // Valve's order is for 7 maps; another pool size gets the same shape (standardVetoOrder).
+    const standard =
+      JSON.stringify(order) === JSON.stringify(standardVetoOrder(format, tournamentMaps.length));
+    const orderInfo = {
+      steps: order,
+      source: !standard ? 'custom' : tournamentMaps.length === 7 ? 'valve' : 'standard',
+      maps: tournamentMaps.length,
+    };
+    const vetoOrder = order;
 
     // Parse existing veto state or create new one
     let vetoState = match.veto_state ? JSON.parse(match.veto_state) : null;
@@ -302,6 +318,8 @@ router.get('/:matchSlug', async (req: Request, res: Response) => {
     if (turnClock) {
       vetoState.turnDeadline = turnClock.deadline;
       vetoState.turnSeconds = turnClock.seconds;
+      // Held (the break between a team's matches): the veto opens then.
+      (vetoState as { opensAt?: string }).opensAt = turnClock.opensAt;
     }
 
     // Everyone sees the veto as it happens (the MatchRoom board): which maps
@@ -313,6 +331,7 @@ router.get('/:matchSlug', async (req: Request, res: Response) => {
         success: true,
         veto: { ...vetoState, vetoOrder, viewer: 'spectator' },
         maps: await vetoMapInfo(vetoState.allMaps ?? tournamentMaps),
+        order: orderInfo,
       });
     }
 
@@ -320,6 +339,7 @@ router.get('/:matchSlug', async (req: Request, res: Response) => {
       success: true,
       veto: { ...vetoState, vetoOrder },
       maps: await vetoMapInfo(vetoState.allMaps ?? tournamentMaps),
+      order: orderInfo,
     });
   } catch (error) {
     log.error('Error getting veto state', error);
@@ -338,10 +358,20 @@ router.get('/:matchSlug', async (req: Request, res: Response) => {
  * match are allowed to perform veto actions. Spectators and unauthenticated
  * users are blocked here and can only see the public, read‑only views.
  */
-router.post('/:matchSlug/action', async (req: Request, res: Response) => {
+router.post('/:matchSlug/action', (req: Request, res: Response) =>
+  withVetoLock(req.params.matchSlug, () => vetoAction(req, res))
+);
+
+async function vetoAction(req: Request, res: Response) {
   try {
     const { matchSlug } = req.params;
-    const { mapName, side, teamSlug } = req.body;
+    const { mapName, side, teamSlug, actAs } = req.body as {
+      mapName?: string;
+      side?: string;
+      teamSlug?: string;
+      /** An admin acting for a team (the admin match page's "Act for a team"). */
+      actAs?: unknown;
+    };
 
     const match = await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [
       matchSlug,
@@ -353,11 +383,31 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
         error: 'Match not found',
       });
     }
+    // The break between a team's matches (or an admin's hold): the veto opens when it ends.
+    const opensAt = await vetoWaitingOnHold(matchSlug);
+    if (opensAt) {
+      return res.status(409).json({
+        success: false,
+        error: 'The veto has not opened yet: it opens when the break between matches ends.',
+        opensAt,
+      });
+    }
 
     // Resolve which team (if any) the current viewer belongs to based on their
     // Steam ID (from player_steam_id cookie or Passport user).
     const viewerSteamId = await getViewerSteamId(req);
-    const viewerTeam = await resolveViewerTeamForMatch(match, viewerSteamId);
+    let viewerTeam = await resolveViewerTeamForMatch(match, viewerSteamId);
+    // An admin acts for either team (a captain who can't, a stuck veto).
+    let actingAdmin = false;
+    if (actAs === 'team1' || actAs === 'team2') {
+      const access = await checkAdminAccess(req);
+      if (!access.ok) {
+        return res.status(403).json({ success: false, error: 'Only an admin can act for a team.' });
+      }
+      viewerTeam = actAs;
+      actingAdmin = true;
+      log.info(`[VETO] ${matchSlug}: an admin acts for ${actAs}`);
+    }
 
     if (viewerTeam === 'both') {
       return res.status(409).json({
@@ -367,7 +417,7 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
       });
     }
 
-    if (!viewerSteamId || !viewerTeam) {
+    if ((!viewerSteamId && !actingAdmin) || !viewerTeam) {
       return res.status(403).json({
         success: false,
         error:
@@ -408,6 +458,14 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
       });
     }
     const { format, tournamentMaps, customVetoOrder } = vetoContext;
+    // A tournament with the veto turned off draws each match's maps (matchConfig.ts):
+    // no action may start one (a player's clicks opened a veto there, 2026-10-15).
+    if (vetoContext.vetoOff) {
+      return res.status(409).json({
+        success: false,
+        error: 'This tournament has no map veto: the map is drawn from the pool.',
+      });
+    }
     const vetoOrder = getVetoOrder(format, customVetoOrder, tournamentMaps.length);
 
     let vetoState = match.veto_state ? JSON.parse(match.veto_state) : null;
@@ -589,6 +647,10 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
       });
     }
 
+    // The match's own work once the veto is done (status, config, a server). Runs
+    // after the veto is saved and sent, so the teams see the last step at once.
+    let afterCompletion: (() => Promise<void>) | null = null;
+
     // Move to next step
     vetoState.currentStep += 1;
 
@@ -615,85 +677,84 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
         pickedMaps: vetoState.pickedMaps.map((m: { mapName: string }) => m.mapName),
       });
 
-      // Update match status to 'ready' now that veto is completed
-      await db.updateAsync('matches', { status: 'ready' }, 'slug = ?', [matchSlug]);
-      log.info(`Match ${matchSlug} status updated to 'ready' after veto completion`);
+      afterCompletion = async () => {
+        // Update match status to 'ready' now that veto is completed
+        await db.updateAsync('matches', { status: 'ready' }, 'slug = ?', [matchSlug]);
+        log.info(`Match ${matchSlug} status updated to 'ready' after veto completion`);
 
-      // NEW: Recompute and persist the fresh config snapshot so /api/matches and any readers of matches.config are in sync
-      const t = await db.queryOneAsync<DbTournamentRow>('SELECT * FROM tournament WHERE id = ?', [
-        match.tournament_id,
-      ]);
-      if (t) {
-        // Tournament match: regenerate config from tournament settings
-        const tournament: TournamentResponse = tournamentRowToResponse(t);
-        try {
-          const cfg = await buildMatchConfigFor(
-            {
-              slug: matchSlug,
-              id: match.id,
-              game: match.game,
-              round: match.round,
-              bracket: match.bracket,
-              team1Id: match.team1_id,
-              team2Id: match.team2_id,
-            },
-            tournament
-          );
-          await db.updateAsync('matches', { config: serializeMatchConfig(cfg) }, 'slug = ?', [
-            matchSlug,
-          ]);
-          log.success(`Stored fresh config for match ${matchSlug} after veto completion`);
-        } catch (e) {
-          log.error(`Failed to generate/store config after veto for ${matchSlug}`, e as Error);
+        // NEW: Recompute and persist the fresh config snapshot so /api/matches and any readers of matches.config are in sync
+        const t = await db.queryOneAsync<DbTournamentRow>('SELECT * FROM tournament WHERE id = ?', [
+          match.tournament_id,
+        ]);
+        if (t) {
+          // Tournament match: regenerate config from tournament settings
+          const tournament: TournamentResponse = tournamentRowToResponse(t);
+          try {
+            const cfg = await buildMatchConfigFor(
+              {
+                slug: matchSlug,
+                id: match.id,
+                game: match.game,
+                round: match.round,
+                bracket: match.bracket,
+                team1Id: match.team1_id,
+                team2Id: match.team2_id,
+              },
+              tournament
+            );
+            await db.updateAsync('matches', { config: serializeMatchConfig(cfg) }, 'slug = ?', [
+              matchSlug,
+            ]);
+            log.success(`Stored fresh config for match ${matchSlug} after veto completion`);
+          } catch (e) {
+            log.error(`Failed to generate/store config after veto for ${matchSlug}`, e as Error);
+          }
+        } else if (match.round === 0) {
+          // Manual match (round === 0, tournament_id === null): update config's maplist from veto picks.
+          try {
+            const existingConfig = match.config ? JSON.parse(match.config) : {};
+            const orderedPickedMaps = [...vetoState.pickedMaps].sort(
+              (a: { mapNumber?: number }, b: { mapNumber?: number }) =>
+                (a.mapNumber || 0) - (b.mapNumber || 0)
+            );
+            const pickedMapNames = orderedPickedMaps
+              .map((m: { mapName: string }) => m.mapName)
+              .filter((name): name is string => Boolean(name));
+            const numMaps = format === 'bo1' ? 1 : format === 'bo3' ? 3 : 5;
+
+            const updatedConfig = {
+              ...existingConfig,
+              maplist: pickedMapNames.slice(0, numMaps),
+              map_sides: orderedPickedMaps.slice(0, numMaps).map((p: { sideTeam1?: string }) => {
+                if (p.sideTeam1 === 'CT') return 'team1_ct';
+                if (p.sideTeam1 === 'T') return 'team2_ct';
+                return 'knife';
+              }),
+            };
+
+            await db.updateAsync('matches', { config: JSON.stringify(updatedConfig) }, 'slug = ?', [
+              matchSlug,
+            ]);
+            log.success(
+              `Updated config maplist for manual match ${matchSlug} after veto completion`
+            );
+          } catch (e) {
+            log.error(
+              `Failed to update config for manual match ${matchSlug} after veto`,
+              e as Error
+            );
+          }
         }
-      } else if (match.round === 0) {
-        // Manual match (round === 0, tournament_id === null): update config's maplist from veto picks.
-        try {
-          const existingConfig = match.config ? JSON.parse(match.config) : {};
-          const orderedPickedMaps = [...vetoState.pickedMaps].sort(
-            (a: { mapNumber?: number }, b: { mapNumber?: number }) =>
-              (a.mapNumber || 0) - (b.mapNumber || 0)
-          );
-          const pickedMapNames = orderedPickedMaps
-            .map((m: { mapName: string }) => m.mapName)
-            .filter((name): name is string => Boolean(name));
-          const numMaps = format === 'bo1' ? 1 : format === 'bo3' ? 3 : 5;
 
-          const updatedConfig = {
-            ...existingConfig,
-            maplist: pickedMapNames.slice(0, numMaps),
-            map_sides: orderedPickedMaps.slice(0, numMaps).map((p: { sideTeam1?: string }) => {
-              if (p.sideTeam1 === 'CT') return 'team1_ct';
-              if (p.sideTeam1 === 'T') return 'team2_ct';
-              return 'knife';
-            }),
-          };
+        // Automatically allocate server and load match after veto completion (async)
+        log.info(`[VETO] Auto-loading match ${matchSlug} after veto`, {
+          matchSlug,
+          pickedMaps: vetoState.pickedMaps.map((m: { mapName: string }) => m.mapName),
+        });
 
-          await db.updateAsync('matches', { config: JSON.stringify(updatedConfig) }, 'slug = ?', [
-            matchSlug,
-          ]);
-          log.success(`Updated config maplist for manual match ${matchSlug} after veto completion`);
-        } catch (e) {
-          log.error(`Failed to update config for manual match ${matchSlug} after veto`, e as Error);
-        }
-      }
-
-      // Automatically allocate server and load match after veto completion (async)
-      log.info(`[VETO] Auto-loading match ${matchSlug} after veto`, {
-        matchSlug,
-        pickedMaps: vetoState.pickedMaps.map((m: { mapName: string }) => m.mapName),
-      });
-
-      const baseUrl = await settingsService.getWebhookUrl();
-
-      if (!baseUrl) {
-        log.warn(
-          `Webhook URL is not configured. Skipping auto-load for match ${matchSlug} after veto.`
-        );
-      } else {
         setImmediate(async () => {
           try {
-            const result = await scheduler.allocateSingleMatch(matchSlug, baseUrl);
+            const result = await scheduler.allocateSingleMatch(matchSlug, '');
 
             if (result.success) {
               log.success(
@@ -713,7 +774,7 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
               // Start polling for available servers (checks every 10 seconds)
               // The backend will keep checking for available servers and assign one when found
               log.debug(`[VETO] Starting background polling for available servers`, { matchSlug });
-              scheduler.startPollingForServer(matchSlug, baseUrl);
+              scheduler.startPollingForServer(matchSlug, '');
             }
           } catch (err) {
             log.error(`[VETO] Error loading match after veto`, err as Error);
@@ -722,10 +783,10 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
             log.debug(`[VETO] Starting background polling for available servers after error`, {
               matchSlug,
             });
-            scheduler.startPollingForServer(matchSlug, baseUrl);
+            scheduler.startPollingForServer(matchSlug, '');
           }
         });
-      }
+      };
     } else {
       // Set next step
       const nextStepConfig = vetoOrder[vetoState.currentStep - 1];
@@ -741,6 +802,16 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
     // Emit update via Socket.io
     emitVetoUpdate(matchSlug, { ...vetoState, vetoOrder });
     void postVetoProgress(matchSlug, vetoState);
+    if (afterCompletion) await afterCompletion();
+    // The next team's captains: a bell notice, and a DM or email if they want one.
+    if (vetoState.status !== 'completed' && vetoState.currentTurn) {
+      void announceVetoTurn(
+        matchSlug,
+        vetoState.currentTurn,
+        vetoState.currentStep,
+        vetoState.currentAction
+      );
+    }
 
     log.debug(`Veto action processed for ${matchSlug}`, {
       step: vetoState.currentStep - 1,
@@ -760,7 +831,7 @@ router.post('/:matchSlug/action', async (req: Request, res: Response) => {
       error: 'Failed to process veto action',
     });
   }
-});
+}
 
 /**
  * POST /api/veto/:matchSlug/reset

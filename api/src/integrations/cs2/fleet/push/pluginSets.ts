@@ -1,6 +1,6 @@
 /**
  * Ready Up plugin sets: which plugins a server runs, picked from presets
- * (Tournament, Practice, Fun, Skin tryout) or ticked one by one, and applied with
+ * (Tournament, Practice, Fun, Skin tryout, Movement) or ticked one by one, and applied with
  * `cmd plugins.set` (./controls.ts). Ready Up keeps the choice across
  * restarts (plugins.json).
  *
@@ -18,8 +18,8 @@
  *   server starts in practice mode. Older Ready Up refuses to disable match:
  *   it stays on there (`sendPluginsSet`). A server whose set has match off
  *   is never handed a match (`matchPluginDisabled`, ../driver.ts).
- * - csm's default Ready Up bundle (essentials) has fleet, match, essentials
- *   and practice. A set with anything else makes the install after a create
+ * - csm's default Ready Up bundle (essentials) has fleet, match, essentials,
+ *   practice and mapvote (Ready Up 0.1.0-beta.49+). A set with anything else makes the install after a create
  *   use the full bundle.
  */
 
@@ -40,6 +40,9 @@ export const PLUGIN_CATALOG = [
   'skins',
   'midas',
   'deathmatch',
+  'mapvote',
+  'community',
+  'movement',
   'addons',
 ] as const;
 export type CatalogPlugin = (typeof PLUGIN_CATALOG)[number];
@@ -56,14 +59,19 @@ export const ESSENTIALS_BUNDLE_PLUGINS: readonly CatalogPlugin[] = [
   'match',
   'essentials',
   'practice',
+  'mapvote',
 ];
 
 export const PLUGIN_PRESETS = {
   tournament: ['match', 'essentials', 'whitelist'],
   practice: ['practice', 'essentials'],
-  fun: ['match', 'skins', 'midas', 'deathmatch', 'essentials'],
-  // Skin tryout: practice with skins, no matches; the inventory links to it.
-  tryout: ['practice', 'skins', 'essentials'],
+  fun: ['match', 'skins', 'midas', 'deathmatch', 'mapvote', 'community', 'essentials'],
+  // Skin tryout: a surf server with skins (movement: timer, records, its surf hub map), no
+  // matches; the inventory links to it.
+  tryout: ['movement', 'skins', 'mapvote', 'community', 'essentials'],
+  // Movement: surf / bhop / kz community server (timer, records, leaderboards); no
+  // matches, no practice (its commands would let players skip a run).
+  movement: ['movement', 'skins', 'mapvote', 'community', 'essentials'],
 } as const satisfies Record<string, readonly CatalogPlugin[]>;
 
 export type PluginPresetName = keyof typeof PLUGIN_PRESETS;
@@ -202,7 +210,9 @@ export function pluginsSetFor(
   fleetCmds: boolean,
   skinsOn = false
 ): StoredPlugins {
-  let out = value;
+  // A named preset is what it is today: a server stored under an older definition (the Skin
+  // tryout set before it ran movement, 2026-10-15) gets the current one on its next resync.
+  let out = isPreset(value.preset) ? pluginSetCommand(presetSet(value.preset)) : value;
   if (!fleetCmds && out.disable.includes('match')) {
     out = { ...out, disable: out.disable.filter((n) => n !== 'match') };
   }
@@ -216,16 +226,39 @@ export function pluginsSetFor(
   return out;
 }
 
-/** The server's stored plugin set turns match off: it is not for matches (a practice server). */
+/** A hello's plugins_state says match runs (true when it does not say: an older Ready Up). */
+export function matchRunsIn(
+  state: { installed?: string[]; disabled?: string[] } | null | undefined
+): boolean {
+  if (!state || !Array.isArray(state.installed)) return true;
+  return state.installed.includes('match') && !(state.disabled ?? []).includes('match');
+}
+
+/**
+ * The server is not for matches (a practice server): its stored plugin set
+ * turns match off, or, with no set stored here (a server that came with its
+ * plugins, e.g. a machine linked again), its Ready Up reports match off.
+ */
 export async function matchPluginDisabled(fleetServerId: string): Promise<boolean> {
   const row = await db.queryOneAsync<{ plugins: string | null }>(
     'SELECT plugins FROM cs2_fleet_server_prefs WHERE server_id = ?',
     [fleetServerId]
   );
-  if (!row?.plugins) return false;
+  if (row?.plugins) {
+    try {
+      const stored = JSON.parse(row.plugins) as Partial<StoredPlugins>;
+      return Array.isArray(stored.disable) && stored.disable.includes('match');
+    } catch {
+      return false;
+    }
+  }
+  const server = await db.queryOneAsync<{ plugins_state: string | null }>(
+    'SELECT plugins_state FROM cs2_fleet_servers WHERE id = ?',
+    [fleetServerId]
+  );
+  if (!server?.plugins_state) return false;
   try {
-    const stored = JSON.parse(row.plugins) as Partial<StoredPlugins>;
-    return Array.isArray(stored.disable) && stored.disable.includes('match');
+    return !matchRunsIn(JSON.parse(server.plugins_state));
   } catch {
     return false;
   }

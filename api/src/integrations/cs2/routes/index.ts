@@ -11,7 +11,6 @@
  */
 
 import type { LegacyRouteMount } from '../../types';
-import serverBootstrapRoutes from './serverBootstrap';
 import serverUpdateHoldRoutes from './serverUpdateHold';
 import serverRoutes from './servers';
 import serverStatusRoutes from './serverStatus';
@@ -28,7 +27,9 @@ import demoAnalysisRoutes from './demoAnalysis';
 import demoImportRoutes from './demoImport';
 import matchPageRoutes from './matchPage';
 import leaderboardRoutes from './leaderboards';
+import movementRoutes from './movement';
 import radarRoutes from './radars';
+import imageRoutes from './images';
 import highlightRoutes from './highlights';
 import teamProfileRoutes from './teamProfile';
 import roundBackupRoutes from './roundBackups';
@@ -48,12 +49,6 @@ export const cs2LegacyRoutes: LegacyRouteMount[] = [
     title: 'Skins',
     description:
       'Virtual CS2 skins: inventories, loadouts, showcases and the admin inventory manager (platform only).',
-  },
-  {
-    prefix: '/api/servers',
-    router: serverBootstrapRoutes,
-    title: 'Server bootstrap',
-    description: 'Self-registration for a CS2 server coming online.',
   },
   {
     // Before `serverRoutes`, whose `/:id` would otherwise swallow
@@ -90,14 +85,14 @@ export const cs2LegacyRoutes: LegacyRouteMount[] = [
   {
     prefix: '/api/cs2-plugin',
     router: pluginVersionRoutes,
-    title: 'MatchZy Enhanced',
-    description: 'MatchZy Enhanced version information.',
+    title: 'Ready Up version',
+    description: 'The latest Ready Up release, for update checks.',
   },
   {
     prefix: '/api/events',
     router: eventRoutes,
     title: 'Events',
-    description: 'MatchZy Enhanced webhooks in, and the recorded event log out.',
+    description: 'The recorded match event log: Ready Up events and server console lines.',
   },
   {
     prefix: '/api/veto',
@@ -165,12 +160,28 @@ export const cs2LegacyRoutes: LegacyRouteMount[] = [
     description: 'Players ranked by rating, ADR, K/D, headshots, opening duels, clutches and KAST.',
   },
   {
+    // Public: surf, bhop and kz records from Ready Up's movement plugin.
+    prefix: '/api/game/cs2',
+    router: movementRoutes,
+    title: 'Movement records',
+    description:
+      "Surf, bhop and kz times: each player's best per map and course, across the servers.",
+  },
+  {
     // A player's clips are public; the recorder's routes take an API token.
     prefix: '/api/game/cs2',
     router: highlightRoutes,
     title: 'Highlights',
     description:
       "Each player's best moments, picked from the demo analysis, and the clips the recorder makes of them.",
+  },
+  {
+    // Public: map and skin pictures, bundled with the module or cached from csm.
+    prefix: '/api/game/cs2',
+    router: imageRoutes,
+    title: 'Map and skin pictures',
+    description:
+      'Map screenshots, map icons and skin pictures in the sizes the site shows, served by the platform (bundled with the CS2 module, or fetched once and cached).',
   },
   {
     // Reading is public (the 2D replay); the worker's upload takes an API token.

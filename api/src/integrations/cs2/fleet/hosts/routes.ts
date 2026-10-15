@@ -21,6 +21,9 @@
  */
 
 import { Router, type Request, type Response } from 'express';
+import { isValidConnectHost } from '../address';
+import { syncLinkedAddress } from '../link';
+import { listFleetServers } from '../registry';
 import { requireAuth, requestActorId } from '../../../../middleware/auth';
 import { log } from '../../../../utils/logger';
 import { publicOrigin, publicWsOrigin } from '../../../../utils/publicOrigin';
@@ -50,8 +53,61 @@ import { fleetChangedOnWrite } from '../adminTopics';
  * token then travels unencrypted).
  */
 export function linkCommand(platformUrl: string, code: string): string {
-  const insecure = /^http:\/\//i.test(platformUrl) ? ' --insecure' : '';
-  return `csm link ${platformUrl} ${code}${insecure}`;
+  // One line for a bare Linux machine: the platform's install script puts csm
+  // on it (when missing), prepares it, links it and starts the agent.
+  return `curl -fsSL ${platformUrl.replace(/\/+$/, '')}/api/fleet/install-csm.sh | bash -s -- ${code}`;
+}
+
+/**
+ * GET /api/fleet/install-csm.sh: the script behind linkCommand, with this
+ * platform's address in it. Run as the user the CS2 servers run as; it asks
+ * for sudo where it needs it.
+ */
+export function installCsmScript(platformUrl: string): string {
+  const url = platformUrl.replace(/\/+$/, '');
+  const insecure = /^http:\/\//i.test(url) ? ' --insecure' : '';
+  return `#!/usr/bin/env bash
+# Auto Tournament: put CS2 Server Manager (csm) on this machine and link it to
+# ${url}. Run it as the user the CS2 servers will run as (not root).
+#   curl -fsSL ${url}/api/fleet/install-csm.sh | bash -s -- <code>
+set -euo pipefail
+URL='${url}'
+CODE="\${1:-}"
+if [ -z "$CODE" ]; then
+  echo "usage: curl -fsSL $URL/api/fleet/install-csm.sh | bash -s -- <code from Servers > Add machine>" >&2
+  exit 1
+fi
+if [ "$(id -u)" = 0 ]; then
+  echo "Run this as the user the CS2 servers will run as, not root: it asks for sudo when it needs it." >&2
+  exit 1
+fi
+if ! command -v csm >/dev/null 2>&1; then
+  case "$(uname -m)" in
+    x86_64) asset=csm-linux-amd64 ;;
+    aarch64|arm64) asset=csm-linux-arm64 ;;
+    *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+  esac
+  echo "Installing csm..."
+  tmp=$(mktemp)
+  curl -fsSL "https://github.com/Auto-Tournament/cs2-server-manager/releases/latest/download/$asset" -o "$tmp"
+  sudo install -m 0755 "$tmp" /usr/local/bin/csm
+  rm -f "$tmp"
+  fresh=1
+fi
+# A machine prepared before (csm there, this user's services kept running
+# after logout) skips it: no sudo needed then.
+if [ "\${fresh:-0}" = 1 ] || ! loginctl show-user "$(id -un)" -p Linger 2>/dev/null | grep -q "=yes"; then
+  echo "Preparing the machine (SteamCMD, tmux; services that keep running after you log out)..."
+  sudo csm setup-host
+fi
+echo "Linking to $URL..."
+csm link "$URL" "$CODE"${insecure}
+# csm before 1.27 left the agent to a second command.
+if ! csm agent status 2>/dev/null | grep -qi "running"; then
+  csm agent install
+fi
+echo "Done. The machine shows as Connected in the dashboard."
+`;
 }
 
 /** FRONTEND_BASE_URL, else the request's (proxy-aware) origin: utils/publicOrigin.ts. */
@@ -196,12 +252,34 @@ fleetHostAdminRouter.get(
 
 fleetHostAdminRouter.patch(
   '/hosts/:id',
-  handler('rename the machine', async (req, res) => {
-    const name = trimmedString(req.body?.name, 100);
-    if (!name)
-      return res.status(400).json({ success: false, error: 'name must be 1-100 characters' });
-    if (!(await registry.renameHost(req.params.id, name)))
-      return res.status(404).json({ success: false, error: 'Machine not found' });
+  handler('update the machine', async (req, res) => {
+    const body = (req.body ?? {}) as { name?: unknown; publicAddress?: unknown };
+    if (body.name === undefined && body.publicAddress === undefined)
+      return res.status(400).json({ success: false, error: 'Send name and/or publicAddress' });
+    if (body.publicAddress !== undefined) {
+      // Where players outside the machine's network connect: an IP or a host name, or
+      // null / "" for none (back to the address csm reports).
+      const raw = typeof body.publicAddress === 'string' ? body.publicAddress.trim() : '';
+      if (body.publicAddress !== null && raw !== '' && !isValidConnectHost(raw))
+        return res.status(400).json({
+          success: false,
+          error: 'publicAddress must be an IP address or a host name (no port, scheme or path)',
+        });
+      if (!(await registry.setHostPublicAddress(req.params.id, raw || null)))
+        return res.status(404).json({ success: false, error: 'Machine not found' });
+      // Its servers' connect addresses follow at once.
+      for (const server of await listFleetServers()) await syncLinkedAddress(server.id);
+      log.info(
+        `[FLEET-HOST] ${req.params.id}: public address ${raw || 'cleared'} by ${requestActorId(req) ?? 'unknown'}`
+      );
+    }
+    if (body.name !== undefined) {
+      const name = trimmedString(body.name, 100);
+      if (!name)
+        return res.status(400).json({ success: false, error: 'name must be 1-100 characters' });
+      if (!(await registry.renameHost(req.params.id, name)))
+        return res.status(404).json({ success: false, error: 'Machine not found' });
+    }
     return res.json({ success: true, host: await registry.getHostView(req.params.id) });
   })
 );

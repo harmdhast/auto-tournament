@@ -7,7 +7,8 @@
       "matchReady": "Match klaar – verbinden",
       "matchReadyNamed": "Match klaar: {{match}}.",
       "openMatch": "Match openen",
-      "snackbarOpponentMoved": "Tegenstander heeft gezet"
+      "snackbarOpponentMoved": "Tegenstander heeft gezet",
+      "vetoSoon": "Veto soon"
     },
     "home": "Home",
     "browse": "Browse",
@@ -114,6 +115,7 @@
       "match_forfeit": "A team forfeits",
       "report_disputed": "A result is disputed",
       "failover": "A match server goes down",
+      "match_silent": "A live match whose server went quiet",
       "server_crashed": "A server crashes",
       "plugin_update_available": "A Ready Up update is out",
       "update_failed": "A game or plugin update fails",
@@ -125,7 +127,8 @@
       "clips_failing": "Clips keep failing",
       "beta_available": "A new platform release",
       "license_problem": "License problems",
-      "demos_failing": "Demo analyses keep failing"
+      "demos_failing": "Demo analyses keep failing",
+      "tournament_autostart_failed": "A tournament does not start on time"
     },
     "kind": {
       "match_no_server": "{{matchSlug}} has waited {{minutes}} min for a server",
@@ -134,6 +137,7 @@
       "match_forfeit": "{{matchSlug}}: {{team}} gave up ({{reason}})",
       "report_disputed": "The result of {{matchSlug}} is disputed",
       "failover": "{{matchSlug}}: the server went down; the match is being brought back (map {{mapNumber}}, round {{round}})",
+      "match_silent": "{{matchSlug}}: nothing from its server for {{minutes}} min",
       "failoverDecision": "{{matchSlug}}: the server went down and auto-failover is off. Decide on the match page.",
       "server_crashed": "{{server}} on {{host}}: {{event}}",
       "plugin_update_available": "Ready Up {{version}} is out; {{servers}} server(s) run an older one",
@@ -146,7 +150,8 @@
       "clips_failing": "{{count}} clips failed in the last hour",
       "beta_available": "Auto Tournament {{version}} is out (this runs {{running}})",
       "license_problem": "The license needs attention: {{problem}}",
-      "demos_failing": "{{count}} demo analyses failed in the last hour"
+      "demos_failing": "{{count}} demo analyses failed in the last hour",
+      "tournament_autostart_failed": "{{name}} did not start at its start time: {{reason}}"
     }
   },
   "matchNow": {
@@ -155,5 +160,23 @@
     "noneBody": "You have no match coming up. Find one in Play, or join a tournament.",
     "play": "Play",
     "home": "Home"
+  },
+  "nextMatch": {
+    "soonTitle": "Your next match",
+    "soonBody": "A short break first. The map veto opens when the countdown ends, and you will hear it.",
+    "opensIn": "Veto opens in {{clock}}",
+    "vetoOpenTitle": "Your next match is ready",
+    "vetoOpenBody": "The map veto is open. Go to the match to ban and pick.",
+    "vetoTurnTitle": "Your turn in the veto",
+    "vetoTurnBody": "Pick or ban before the timer runs out.",
+    "readyTitle": "Your match is ready",
+    "readyBody": "The server is ready. Join it now.",
+    "later": "Later",
+    "go": "Go to match",
+    "yourTeam": "Your team",
+    "opponent": "Opponent",
+    "turnLeft": "left to ban or pick",
+    "turnOver": "Time is up: a map is chosen for your team",
+    "soonBodyNoVeto": "A short break first. The match loads when the countdown ends."
   }
 }

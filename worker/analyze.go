@@ -59,6 +59,9 @@ type ReplayKill struct {
 	NoScope       bool    `json:"noScope,omitempty"`
 	AttackerBlind bool    `json:"attackerBlind,omitempty"`
 	InAir         bool    `json:"inAir,omitempty"`
+	// The exact knife for a knife kill ("knife_karambit"), for the kill feed's icon;
+	// Weapon stays "Knife" (stats and highlights group knives together).
+	Item string `json:"item,omitempty"`
 	// For the highlights' crowd (cheers.go): the victim was in the air, how
 	// many seconds the killer had them in view (-1: not in view, through a
 	// wall or smoke), and whether the kill ended its round.
@@ -190,7 +193,19 @@ func reasonName(r events.RoundEndReason) string {
 }
 
 func human(p *common.Player) bool { return p != nil && !p.IsBot && p.SteamID64 > 76561197960265728 }
-func id(p *common.Player) string  { return strconv.FormatUint(p.SteamID64, 10) }
+
+// replayKey is a player's key on the 2D replay: their SteamID64, or
+// "bot:<name>" for a bot (bot-filled matches). False: not on the replay.
+func replayKey(p *common.Player) (string, bool) {
+	if human(p) {
+		return id(p), true
+	}
+	if p != nil && p.IsBot && p.Name != "" {
+		return "bot:" + p.Name, true
+	}
+	return "", false
+}
+func id(p *common.Player) string { return strconv.FormatUint(p.SteamID64, 10) }
 
 func sideName(t common.Team) *string {
 	var s string
@@ -412,7 +427,8 @@ func Analyze(r io.Reader, mapName string) (*Analysis, *Replay, error) {
 		}
 		kills = append(kills, k)
 		flags := ReplayKill{AssistedFlash: e.AssistedFlash, NoScope: e.NoScope, AttackerBlind: e.AttackerBlind,
-			InAir: e.Killer != nil && e.Killer.IsAirborne(), VictimInAir: e.Victim.IsAirborne(), SeenFor: -1}
+			InAir: e.Killer != nil && e.Killer.IsAirborne(), VictimInAir: e.Victim.IsAirborne(), SeenFor: -1,
+			Item: knifeItem(e.Weapon)}
 		// How long the killer had the victim in view: a snap shot is a split second.
 		if e.Killer != nil {
 			key := [2]uint64{e.Killer.SteamID64, e.Victim.SteamID64}
@@ -421,21 +437,31 @@ func Analyze(r io.Reader, mapName string) (*Analysis, *Replay, error) {
 			}
 		}
 		killFlags = append(killFlags, flags)
+		last := &kills[len(kills)-1]
+		last.NoScope, last.AttackerBlind, last.InAir = flags.NoScope, flags.AttackerBlind, flags.InAir
 	})
 
 	p.RegisterEventHandler(func(e events.WeaponFire) {
-		if !live || !inRound || !human(e.Shooter) || !isGun(e.Weapon) {
+		if !live || !inRound || !isGun(e.Weapon) {
 			return
 		}
-		shots[id(e.Shooter)] = append(shots[id(e.Shooter)], Shot{Tick: gs.IngameTick(), Weapon: e.Weapon.String()})
+		key, ok := replayKey(e.Shooter)
+		if !ok {
+			return
+		}
+		// The stats count humans only; the replay draws everyone's bullets.
+		if human(e.Shooter) {
+			shots[key] = append(shots[key], Shot{Tick: gs.IngameTick(), Weapon: e.Weapon.String()})
+		}
 		pos := e.Shooter.Position()
-		rawShots = append(rawShots, rawShot{gs.IngameTick(), id(e.Shooter), pos.X, pos.Y, float64(e.Shooter.ViewDirectionX())})
+		rawShots = append(rawShots, rawShot{gs.IngameTick(), key, pos.X, pos.Y, float64(e.Shooter.ViewDirectionX())})
 	})
 
 	// Every hit taken, for the replay's damage numbers (any attacker, the world too).
 	p.RegisterEventHandler(func(e events.PlayerHurt) {
-		if live && inRound && human(e.Player) && e.HealthDamageTaken > 0 {
-			damage = append(damage, rawDamage{tick: gs.IngameTick(), amount: e.HealthDamageTaken, victim: id(e.Player), headshot: e.HitGroup == events.HitGroupHead})
+		key, ok := replayKey(e.Player)
+		if live && inRound && ok && e.HealthDamageTaken > 0 {
+			damage = append(damage, rawDamage{tick: gs.IngameTick(), amount: e.HealthDamageTaken, victim: key, headshot: e.HitGroup == events.HitGroupHead})
 		}
 	})
 
@@ -484,10 +510,14 @@ func Analyze(r io.Reader, mapName string) (*Analysis, *Replay, error) {
 
 	// Grenades: each flight, and what it did where.
 	p.RegisterEventHandler(func(e events.GrenadeProjectileDestroy) {
-		if !live || e.Projectile == nil || !human(e.Projectile.Thrower) || e.Projectile.WeaponInstance == nil {
+		if !live || e.Projectile == nil || e.Projectile.WeaponInstance == nil {
 			return
 		}
-		g := rawGrenade{kind: grenadeKind(e.Projectile.WeaponInstance.Type), thrower: id(e.Projectile.Thrower)}
+		thrower, ok := replayKey(e.Projectile.Thrower)
+		if !ok {
+			return
+		}
+		g := rawGrenade{kind: grenadeKind(e.Projectile.WeaponInstance.Type), thrower: thrower}
 		last := -100
 		for i, pt := range e.Projectile.Trajectory {
 			// Every fourth tick is smooth enough on a radar, plus the last point.
@@ -538,7 +568,8 @@ func Analyze(r io.Reader, mapName string) (*Analysis, *Replay, error) {
 
 	// Who was blind, and until when.
 	p.RegisterEventHandler(func(e events.PlayerFlashed) {
-		if !live || !human(e.Player) {
+		blind, ok := replayKey(e.Player)
+		if !live || !ok {
 			return
 		}
 		d := e.Player.FlashDurationTimeRemaining()
@@ -549,7 +580,7 @@ func Analyze(r io.Reader, mapName string) (*Analysis, *Replay, error) {
 			return
 		}
 		tick := gs.IngameTick()
-		blinds = append(blinds, rawBlind{player: id(e.Player), start: tick, end: tick + int(d.Seconds()*float64(tickrate()))})
+		blinds = append(blinds, rawBlind{player: blind, start: tick, end: tick + int(d.Seconds()*float64(tickrate()))})
 	})
 
 	// The bomb.
@@ -751,7 +782,7 @@ func Analyze(r io.Reader, mapName string) (*Analysis, *Replay, error) {
 		if i < len(killFlags) {
 			f := killFlags[i]
 			rk.AssistedFlash, rk.NoScope, rk.AttackerBlind, rk.InAir = f.AssistedFlash, f.NoScope, f.AttackerBlind, f.InAir
-			rk.VictimInAir, rk.SeenFor = f.VictimInAir, f.SeenFor
+			rk.VictimInAir, rk.SeenFor, rk.Item = f.VictimInAir, f.SeenFor, f.Item
 		}
 		// The kill that ended its round: the round's last kill, won by elimination.
 		for _, r := range rounds {
@@ -896,4 +927,26 @@ func frameTick(f [2]any) int {
 		return int(t)
 	}
 	return 0
+}
+
+// knifeDefs: CS2's knife item definition indexes, by the icon (and class) name.
+var knifeDefs = map[uint64]string{
+	42: "knife", 59: "knife_t", 500: "bayonet", 503: "knife_css", 505: "knife_flip", 506: "knife_gut",
+	507: "knife_karambit", 508: "knife_m9_bayonet", 509: "knife_tactical", 512: "knife_falchion",
+	514: "knife_survival_bowie", 515: "knife_butterfly", 516: "knife_push", 517: "knife_cord",
+	518: "knife_canis", 519: "knife_ursus", 520: "knife_gypsy_jackknife", 521: "knife_outdoor",
+	522: "knife_stiletto", 523: "knife_widowmaker", 525: "knife_skeleton", 526: "knife_kukri",
+}
+
+// knifeItem is the exact knife of a knife kill ("knife_karambit"), from the
+// weapon entity's item definition index; "" for anything else or unknown.
+func knifeItem(w *common.Equipment) string {
+	if w == nil || w.Type != common.EqKnife || w.Entity == nil {
+		return ""
+	}
+	v, ok := w.Entity.PropertyValue("m_AttributeManager.m_Item.m_iItemDefinitionIndex")
+	if !ok {
+		return ""
+	}
+	return knifeDefs[uint64(v.UInt32())]
 }

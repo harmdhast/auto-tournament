@@ -44,6 +44,7 @@
  * it (reserve servers are counted like any other server).
  */
 
+import { reportedSince } from './matchReports';
 import { db } from '../../../config/database';
 import { log } from '../../../utils/logger';
 import {
@@ -88,6 +89,8 @@ import { fleetChanged } from './adminTopics';
 import { nowS, parseJson } from './util';
 
 const CHECK_MS = Number(process.env.FLEET_FAILOVER_CHECK_MS) || 10_000;
+/** How long a server that came back without its match has to report it (restored locally). */
+const SERVER_BACK_GRACE_MS = Number(process.env.FLEET_SERVER_BACK_GRACE_MS ?? 8_000);
 
 export type FailoverStatus = 'open' | 'moving' | 'moved' | 'dismissed' | 'withdrawn';
 
@@ -282,6 +285,67 @@ function parseCaps(text: string | null): string[] {
 function parseBuild(text: string | null): number | null {
   const versions = parseJson<{ cs2_build?: unknown }>(text);
   return typeof versions?.cs2_build === 'number' ? versions.cs2_build : null;
+}
+
+/** One Ready Up server as the "move to another server" picker lists it. */
+export interface ServerChoice {
+  /** The cs2_servers id a move targets. */
+  id: string;
+  name: string;
+  /** free: can take the match now; busy: runs another match; offline: not connected. */
+  state: 'free' | 'busy' | 'offline';
+  /** The match it runs ("Bravo vs Charlie"), when busy. */
+  busyWith: string | null;
+  /** Unix seconds it was last heard from, when offline. */
+  lastSeen: number | null;
+  readyUp: string | null;
+  cs2Build: number | null;
+}
+
+/**
+ * Every Ready Up server, for the picker: the free ones first (those a move can
+ * take), then the busy and offline ones, so an admin sees why there is no
+ * other choice. `exceptId` leaves out the server the match is on.
+ */
+export async function serverChoices(exceptId: string | null): Promise<ServerChoice[]> {
+  const free = new Set((await freeFleetServers()).map((c) => c.cs2ServerId));
+  const rows = await db.queryAsync<{
+    id: string;
+    name: string;
+    fleet_id: string;
+    versions: string | null;
+    last_seen: number | null;
+  }>(
+    `SELECT s.id, s.name, f.id AS fleet_id, f.versions, f.last_seen
+       FROM cs2_servers s JOIN cs2_fleet_servers f ON f.id = s.fleet_server_id
+      WHERE f.status = 'enrolled'`
+  );
+  const busy = await db.queryAsync<{ server_id: string; t1: string | null; t2: string | null }>(
+    `SELECT m.server_id, t1.name AS t1, t2.name AS t2
+       FROM matches m
+       LEFT JOIN teams t1 ON t1.id = m.team1_id
+       LEFT JOIN teams t2 ON t2.id = m.team2_id
+      WHERE m.server_id IS NOT NULL AND m.status IN ('loaded', 'live')`
+  );
+  const busyBy = new Map(busy.map((b) => [b.server_id, `${b.t1 ?? 'TBD'} vs ${b.t2 ?? 'TBD'}`]));
+  const order = { free: 0, busy: 1, offline: 2 } as const;
+  return rows
+    .filter((r) => r.id !== exceptId)
+    .map((r): ServerChoice => {
+      const online = fleetBus().isConnected(r.fleet_id);
+      const versions = parseJson<{ core?: unknown; cs2_build?: unknown }>(r.versions);
+      const state = !online ? 'offline' : free.has(r.id) ? 'free' : 'busy';
+      return {
+        id: r.id,
+        name: r.name,
+        state,
+        busyWith: state === 'busy' ? (busyBy.get(r.id) ?? null) : null,
+        lastSeen: state === 'offline' ? r.last_seen : null,
+        readyUp: typeof versions?.core === 'string' ? versions.core : null,
+        cs2Build: typeof versions?.cs2_build === 'number' ? versions.cs2_build : null,
+      };
+    })
+    .sort((a, b) => order[a.state] - order[b.state] || a.name.localeCompare(b.name));
 }
 
 /** The fleet servers that could take a match right now, the failover reserve included. */
@@ -555,10 +619,20 @@ async function autoAccept(proposal: FailoverProposal): Promise<AcceptOutcome> {
     log.warn(
       `[FAILOVER] ${proposal.matchSlug}: auto-failover to ${outcome.target} failed: ${outcome.error}`
     );
-  } else if (outcome.code !== 'no_target') {
+  } else if (outcome.code !== 'no_target' && outcome.code !== 'target_refused') {
     log.warn(`[FAILOVER] ${proposal.matchSlug}: auto-failover not done: ${outcome.error}`);
   }
   return outcome;
+}
+
+/** The match config's map count (num_maps; 1 when unreadable). */
+function mapsOf(config: string | null): number {
+  try {
+    const n = Number((JSON.parse(config ?? '{}') as { num_maps?: unknown }).num_maps);
+    return Number.isInteger(n) && n >= 1 ? n : 1;
+  } catch {
+    return 1;
+  }
 }
 
 async function createProposal(input: {
@@ -573,8 +647,24 @@ async function createProposal(input: {
   /** The target when the caller decided it (in place, an admin's pick); else picked from the free servers. */
   targetCs2ServerId?: string | null;
 }): Promise<FailoverProposal | null> {
-  const mapNumber = input.state?.series?.current_map ?? 1;
-  const backup = pickBackup(await roundBackupStore.list(input.slug), mapNumber, maxBackupRound(input.state?.rules));
+  // Only this match's own backups and map: a slug comes back with every tournament (t5-r1m1),
+  // and an older match's backup (map 2 round 13 for a Bo1 that never went live) made Ready Up
+  // refuse the resume every 10 s (2026-10-15).
+  const row = await db.queryOneAsync<{ created_at: number | null; config: string | null }>(
+    'SELECT created_at, config FROM matches WHERE slug = ?',
+    [input.slug]
+  );
+  const numMaps = mapsOf(row?.config ?? null);
+  // matches.created_at is EXTRACT(EPOCH FROM NOW())::INTEGER, which rounds: up to a second
+  // ahead of the floored storedAt of a backup taken in the same second, which was then dropped
+  // and the match resumed at round 0.
+  const createdAt = Number(row?.created_at ?? 0) - 1;
+  const mapNumber = Math.min(Math.max(1, input.state?.series?.current_map ?? 1), numMaps);
+  const backup = pickBackup(
+    (await roundBackupStore.list(input.slug)).filter((b) => b.storedAt >= createdAt),
+    mapNumber,
+    maxBackupRound(input.state?.rules)
+  );
   const target =
     input.targetCs2ServerId !== undefined
       ? input.targetCs2ServerId
@@ -746,6 +836,19 @@ export async function acceptFailover(id: string, req: AcceptRequest): Promise<Ac
 
   const inPlace = proposal.reason === 'restarted';
   let target: FailoverCandidate | null;
+  if (
+    inPlace &&
+    proposal.fromCs2ServerId &&
+    (req.exclude ?? []).includes(proposal.fromCs2ServerId)
+  ) {
+    // The server already refused this resume: not again every pass (an admin can still accept).
+    return refuse(
+      409,
+      'target_refused',
+      'The server refused the resume; an admin decides',
+      proposal
+    );
+  }
   if (inPlace) {
     // The server came back without the match: it takes it again.
     const connected = !!proposal.fromServerId && fleetBus().isConnected(proposal.fromServerId);
@@ -1024,18 +1127,29 @@ async function onServerBack(fleetServerId: string, hello: HelloPayload): Promise
 
   const held = hello.state as { match_id?: unknown } | null | undefined;
   if (held && typeof held.match_id === 'string') return;
-  const rows = await db.queryAsync<{
-    match_slug: string;
-    epoch: number;
-    cs2_server_id: string | null;
-  }>(
-    `SELECT a.match_slug, a.epoch, a.cs2_server_id
+  // Ready Up says hello before it restores a match it kept locally (it reports the match a
+  // moment later): only a server still without it after the grace lost it. Acting on the hello
+  // re-sent a freshly loaded final as a failover resume (no ready-up, live without .r, 2026-10-15).
+  const helloAtMs = Date.now();
+  const openAssignments = () =>
+    db.queryAsync<{
+      match_slug: string;
+      epoch: number;
+      cs2_server_id: string | null;
+    }>(
+      `SELECT a.match_slug, a.epoch, a.cs2_server_id
        FROM cs2_fleet_assignments a JOIN matches m ON m.slug = a.match_slug
       WHERE a.server_id = ? AND a.ended_at IS NULL AND a.config IS NOT NULL AND m.status IN ('loaded', 'live')`,
-    [fleetServerId]
-  );
+      [fleetServerId]
+    );
+  // Only matches the server held when it said hello: one assigned during the grace is not lost.
+  const before = new Set((await openAssignments()).map((r) => `${r.match_slug}:${r.epoch}`));
+  if (before.size === 0) return;
+  await new Promise((resolve) => setTimeout(resolve, SERVER_BACK_GRACE_MS));
+  const rows = (await openAssignments()).filter((r) => before.has(`${r.match_slug}:${r.epoch}`));
   for (const row of rows) {
     const slug = row.match_slug;
+    if (reportedSince(fleetServerId, slug, helloAtMs)) continue;
     const open = await activeProposal(slug);
     if (open?.status === 'moving') continue;
     if (open)

@@ -1,4 +1,5 @@
 import { db } from '../../../config/database';
+import { withVetoLock } from './lock';
 import { log } from '../../../utils/logger';
 import type { DbMatchRow, DbTournamentRow } from '../../../types/database.types';
 import type { TournamentResponse } from '../../../types/tournament.types';
@@ -97,7 +98,8 @@ export async function autoCompleteVetoForMatch(
 
   vetoRunsInFlight.add(matchSlug);
   try {
-    await runAutoVeto(matchSlug, options);
+    // Same lock as a player's click: the run reads the veto once and writes it per step.
+    await withVetoLock(matchSlug, () => runAutoVeto(matchSlug, options));
   } catch (error) {
     log.error(`[VETO-SIM] Automated veto failed for match ${matchSlug}`, error);
   } finally {
@@ -189,19 +191,14 @@ export async function autoVetoPendingMatches(
   return slugs;
 }
 
-async function runAutoVeto(
-  matchSlug: string,
-  options?: AutoVetoOptions
-): Promise<void> {
+async function runAutoVeto(matchSlug: string, options?: AutoVetoOptions): Promise<void> {
   const stepDelayMs = options?.stepDelayMs ?? DEFAULT_STEP_DELAY_MS;
   const timedOut = options?.timedOut === true;
   let stepsLeft = options?.maxSteps ?? Infinity;
 
   const simulationEnabled = timedOut || (await settingsService.isSimulationModeEnabled());
   if (!simulationEnabled) {
-    log.debug(
-      `[VETO-SIM] Simulation mode disabled; skipping auto veto for match ${matchSlug}`
-    );
+    log.debug(`[VETO-SIM] Simulation mode disabled; skipping auto veto for match ${matchSlug}`);
     return;
   }
 
@@ -266,14 +263,11 @@ async function runAutoVeto(
   const format = tournament.format as 'bo1' | 'bo3' | 'bo5';
   const tournamentMaps: string[] = tournament.maps;
   const tournamentSettings = tournament.settings || {};
-  const customVetoOrder = (tournamentSettings as { customVetoOrder?: unknown })
-    .customVetoOrder;
+  const customVetoOrder = (tournamentSettings as { customVetoOrder?: unknown }).customVetoOrder;
   const vetoOrder = getVetoOrder(format, customVetoOrder, tournamentMaps.length) as VetoStep[];
 
   if (!vetoOrder.length) {
-    log.warn(
-      `[VETO-SIM] Empty veto order for match ${matchSlug}; skipping auto veto`
-    );
+    log.warn(`[VETO-SIM] Empty veto order for match ${matchSlug}; skipping auto veto`);
     return;
   }
 
@@ -313,7 +307,9 @@ async function runAutoVeto(
   }
 
   vetoState.status = 'in_progress';
-  log.info(`[VETO-SIM] ${timedOut ? 'Veto timer: acting for the team on' : 'Starting automated veto for'} match ${matchSlug}`);
+  log.info(
+    `[VETO-SIM] ${timedOut ? 'Veto timer: acting for the team on' : 'Starting automated veto for'} match ${matchSlug}`
+  );
 
   while (vetoState.currentStep <= vetoState.totalSteps) {
     const currentStepConfig = vetoOrder[vetoState.currentStep - 1];
@@ -458,9 +454,7 @@ async function runAutoVeto(
         await db.updateAsync('matches', { config: serializeMatchConfig(cfg) }, 'slug = ?', [
           matchSlug,
         ]);
-        log.success(
-          `[VETO-SIM] Stored fresh config for match ${matchSlug} after automated veto`
-        );
+        log.success(`[VETO-SIM] Stored fresh config for match ${matchSlug} after automated veto`);
       } catch (e) {
         log.error(
           `[VETO-SIM] Failed to generate/store config after automated veto for ${matchSlug}`,
@@ -469,40 +463,36 @@ async function runAutoVeto(
       }
 
       // Auto-allocate and load match, same as manual veto completion path
-      const baseUrl = await settingsService.getWebhookUrl();
-      if (!baseUrl) {
-        log.warn(
-          `[VETO-SIM] Webhook URL not configured; skipping auto-load for match ${matchSlug} after automated veto`
-        );
-      } else {
-        setImmediate(async () => {
-          try {
-            const result = await scheduler.allocateSingleMatch(matchSlug, baseUrl);
-            if (result.success) {
-              log.success(
-                `[VETO-SIM] Match ${matchSlug} loaded on server ${result.serverId} after automated veto`
+      // Ready Up servers take the match over the fleet link: no webhook URL needed
+      // (the same '' the veto route passes).
+      const baseUrl = '';
+      setImmediate(async () => {
+        try {
+          const result = await scheduler.allocateSingleMatch(matchSlug, baseUrl);
+          if (result.success) {
+            log.success(
+              `[VETO-SIM] Match ${matchSlug} loaded on server ${result.serverId} after automated veto`
+            );
+          } else {
+            if (isQueuedAllocationResult(result.error)) {
+              log.info(
+                `[VETO-SIM] Match ${matchSlug} queued for a server after automated veto: ${result.error}`
               );
             } else {
-              if (isQueuedAllocationResult(result.error)) {
-                log.info(
-                  `[VETO-SIM] Match ${matchSlug} queued for a server after automated veto: ${result.error}`
-                );
-              } else {
-                log.warn(
-                  `[VETO-SIM] Failed to allocate server for match ${matchSlug} after automated veto: ${result.error}`
-                );
-              }
-              scheduler.startPollingForServer(matchSlug, baseUrl);
+              log.warn(
+                `[VETO-SIM] Failed to allocate server for match ${matchSlug} after automated veto: ${result.error}`
+              );
             }
-          } catch (err) {
-            log.error(
-              `[VETO-SIM] Error loading match after automated veto for ${matchSlug}`,
-              err as Error
-            );
             scheduler.startPollingForServer(matchSlug, baseUrl);
           }
-        });
-      }
+        } catch (err) {
+          log.error(
+            `[VETO-SIM] Error loading match after automated veto for ${matchSlug}`,
+            err as Error
+          );
+          scheduler.startPollingForServer(matchSlug, baseUrl);
+        }
+      });
 
       break;
     } else {
@@ -527,5 +517,3 @@ async function runAutoVeto(
     }
   }
 }
-
-

@@ -1,11 +1,16 @@
 /**
  * CS2's server defaults on its Settings tab: what the platform sends every
  * Ready Up server with a match (demos, ready-up, pauses, side selection, GG
- * and forfeit), and in development the match simulation.
+ * and forfeit, the end-of-series kick delay), and in development match
+ * simulation. Settings only MatchZy Enhanced read (chat prefixes, hostname
+ * and demo name formats, autostart mode) were removed (2026-10-15): Ready Up
+ * never got them. `.stop` stays: Ready Up gets it as match.assign rules.stop.
  *
- * They are the `at_*` and simulation keys CS2 declares on the API side
- * (`api/src/integrations/cs2/settings.ts`): this component sends the fields
- * that changed through `PUT /api/settings`, whose fields are all optional.
+ * These were core Settings' "Matches & Ratings", "Advanced" and "Developer"
+ * tabs until the module split. They are the `at_*` and simulation keys CS2
+ * declares on the API side (`api/src/integrations/cs2/settings.ts`), so
+ * nothing about storing them changed: this component sends the fields that
+ * changed through `PUT /api/settings`, whose fields are all optional.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -13,6 +18,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Alert,
   Box,
   Button,
   Dialog,
@@ -33,6 +39,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import {
   api,
   links,
+  radii,
   useIsDevelopment,
   useModuleTranslation,
   useSnackbar,
@@ -53,15 +60,19 @@ export interface Cs2DefaultsValues {
   atAllowForceReady: boolean;
   atPauseAfterRestore: boolean;
   atJoinPassword: boolean;
-  atAutostartAfterMinutes: number;
-  vetoTurnSeconds: number;
   atStopCommandAvailable: boolean;
   atStopCommandNoDamage: boolean;
+  atAutostartAfterMinutes: number;
+  vetoTurnSeconds: number;
+  vetoFirstTurnSeconds: number;
+  matchBreakMinutes: number;
+  atSeriesEndKickDelayNoDemo: number;
   atAutoreadyEnabled: Flag;
   atBothTeamsUnpauseRequired: Flag;
   atPauseOnDisconnect: Flag;
   atMaxPausesPerTeam: number | null;
   atPauseDuration: number | null;
+  atSideSelectionEnabled: Flag;
   atSideSelectionTime: number | null;
   atGgEnabled: Flag;
   atGgThreshold: number | null;
@@ -75,7 +86,7 @@ export interface Cs2DefaultsValues {
 
 type Key = keyof Cs2DefaultsValues;
 
-/** What the page shows for a field the API has no value for (Ready Up's own default). */
+/** What the page shows for a field the API has no value for (the plugin's own default). */
 const DEFAULTS: Cs2DefaultsValues = {
   highlightsWatermark: true,
   highlightsPerPlayer: 6,
@@ -87,15 +98,19 @@ const DEFAULTS: Cs2DefaultsValues = {
   atAllowForceReady: true,
   atPauseAfterRestore: true,
   atJoinPassword: false,
-  atAutostartAfterMinutes: 0,
-  vetoTurnSeconds: 45,
   atStopCommandAvailable: false,
   atStopCommandNoDamage: false,
+  atAutostartAfterMinutes: 0,
+  vetoTurnSeconds: 45,
+  vetoFirstTurnSeconds: 120,
+  matchBreakMinutes: 5,
+  atSeriesEndKickDelayNoDemo: 30,
   atAutoreadyEnabled: null,
   atBothTeamsUnpauseRequired: null,
   atPauseOnDisconnect: null,
   atMaxPausesPerTeam: null,
   atPauseDuration: null,
+  atSideSelectionEnabled: null,
   atSideSelectionTime: null,
   atGgEnabled: null,
   atGgThreshold: null,
@@ -112,8 +127,8 @@ const KEYS = Object.keys(DEFAULTS) as Key[];
 /** Only a development build shows (and so can change) these. */
 const DEV_KEYS: ReadonlySet<Key> = new Set<Key>(['simulateMatches', 'simulationTimescale']);
 
-/** The fields as `GET`/`PUT /api/settings` answer them, with the defaults for the missing ones. */
-function cs2DefaultsFrom(settings: Record<string, unknown> | undefined): Cs2DefaultsValues {
+/** The fields as `GET`/`PUT /api/settings` answer them, with the plugin defaults for the missing ones. */
+export function cs2DefaultsFrom(settings: Record<string, unknown> | undefined): Cs2DefaultsValues {
   const values = { ...DEFAULTS } as Record<Key, unknown>;
   for (const key of KEYS) {
     const value = settings?.[key];
@@ -122,12 +137,12 @@ function cs2DefaultsFrom(settings: Record<string, unknown> | undefined): Cs2Defa
   return values as unknown as Cs2DefaultsValues;
 }
 
-/** A field as `PUT /api/settings` takes it: strings are trimmed. */
-function toRequest(value: Cs2DefaultsValues[Key]): unknown {
+/** A field as `PUT /api/settings` takes it. */
+function toRequest(_key: Key, value: Cs2DefaultsValues[Key]): unknown {
   return typeof value === 'string' ? value.trim() : value;
 }
 
-/** Everything back to "not set", so servers use Ready Up's (or the tournament's) defaults. */
+/** Everything back to "not set", so servers use the plugin's (or the tournament's) defaults. */
 function resetRequest(isDev: boolean): Record<string, unknown> {
   const body: Record<string, unknown> = {};
   for (const key of KEYS) {
@@ -178,7 +193,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
     setVals((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  /** After a save or reset: what the API stored. */
+  /** After a save or reset: what the API stored, and the event the shell's warnings listen for. */
   const applyResponse = useCallback(
     (settings: Record<string, unknown> | undefined, keys: Key[]) => {
       const stored = cs2DefaultsFrom(settings);
@@ -189,6 +204,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
         for (const key of keys) next[key] = stored[key];
         return next as unknown as Cs2DefaultsValues;
       });
+      window.dispatchEvent(new CustomEvent('at:settingsUpdated', { detail: settings }));
       return stored;
     },
     []
@@ -207,7 +223,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
       if (changed.length === 0) return;
 
       const body: Record<string, unknown> = {};
-      for (const key of changed) body[key] = toRequest(current[key]);
+      for (const key of changed) body[key] = toRequest(key, current[key]);
 
       try {
         const response = await api.put<SettingsResponse>('/api/settings', body);
@@ -308,9 +324,105 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
             <Typography variant="caption" color="text.secondary" display="block">
               {t('settings.atEnhanced.demo.description')}
             </Typography>
+
+            <Divider />
+
+            <Typography variant="subtitle1" fontWeight={600}>
+              {t('settings.atCore.seriesEnd.title')}
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                label={t('settings.atCore.seriesEnd.kickDelayNoDemoLabel')}
+                type="number"
+                value={vals.atSeriesEndKickDelayNoDemo}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!Number.isFinite(v)) return;
+                  update('atSeriesEndKickDelayNoDemo', v);
+                }}
+                onBlur={flush}
+                onKeyDown={onEnter}
+                inputProps={{ min: 0, max: 600, 'data-testid': 'at-kick-delay-input' }}
+                size="small"
+                fullWidth
+              />
+              <Typography variant="caption" color="text.secondary">
+                {t('settings.atCore.seriesEnd.kickDelayHelper')}
+              </Typography>
+              <TextField
+                label={t('settings.atCore.autostart.label')}
+                helperText={t('settings.atCore.autostart.helper')}
+                type="number"
+                value={vals.atAutostartAfterMinutes}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!Number.isFinite(v)) return;
+                  update('atAutostartAfterMinutes', v);
+                }}
+                onBlur={flush}
+                onKeyDown={onEnter}
+                inputProps={{ min: 0, max: 120 }}
+                size="small"
+                fullWidth
+                data-testid="setting-autostart-minutes"
+              />
+              <TextField
+                label={t('settings.vetoTurn.label')}
+                helperText={t('settings.vetoTurn.helper')}
+                type="number"
+                value={vals.vetoTurnSeconds}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!Number.isFinite(v)) return;
+                  update('vetoTurnSeconds', v);
+                }}
+                onBlur={flush}
+                onKeyDown={onEnter}
+                inputProps={{ min: 0, max: 600 }}
+                size="small"
+                fullWidth
+                data-testid="setting-veto-turn-seconds"
+              />
+              <TextField
+                label={t('settings.vetoFirstTurn.label')}
+                helperText={t('settings.vetoFirstTurn.helper')}
+                type="number"
+                value={vals.vetoFirstTurnSeconds}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!Number.isFinite(v)) return;
+                  update('vetoFirstTurnSeconds', v);
+                }}
+                onBlur={flush}
+                onKeyDown={onEnter}
+                inputProps={{ min: 0, max: 900 }}
+                size="small"
+                fullWidth
+                data-testid="setting-veto-first-turn-seconds"
+              />
+              <TextField
+                label={t('settings.matchBreak.label')}
+                helperText={t('settings.matchBreak.helper')}
+                type="number"
+                value={vals.matchBreakMinutes}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!Number.isFinite(v)) return;
+                  update('matchBreakMinutes', v);
+                }}
+                onBlur={flush}
+                onKeyDown={onEnter}
+                inputProps={{ min: 0, max: 120 }}
+                size="small"
+                fullWidth
+                data-testid="setting-match-break-minutes"
+              />
+            </Stack>
           </Stack>
         </AccordionDetails>
       </Accordion>
+
+      <Alert severity="warning">{t('settings.atCore.expert.description')}</Alert>
 
       <Accordion defaultExpanded sx={ACCORDION_SX}>
         <AccordionSummary expandIcon={<CaretDownIcon size={24} />} sx={ACCORDION_SUMMARY_SX}>
@@ -325,6 +437,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
         </AccordionSummary>
         <AccordionDetails sx={ACCORDION_DETAILS_SX}>
           <Stack spacing={3}>
+            {/* Ready / flow */}
             <Box>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                 {t('settings.atCore.ready.title')}
@@ -332,7 +445,6 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
               <Stack spacing={2}>
                 <TextField
                   label={t('settings.atCore.ready.minimumReadyLabel')}
-                  helperText={t('settings.atCore.ready.minimumReadyHelper')}
                   type="number"
                   value={vals.atMinimumReadyRequired}
                   onChange={(e) => {
@@ -342,6 +454,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
                   }}
                   onBlur={flush}
                   onKeyDown={onEnter}
+                  helperText={t('settings.atCore.ready.minimumReadyHelper')}
                   inputProps={{ min: 0, max: 10 }}
                   size="small"
                   fullWidth
@@ -357,95 +470,81 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
                   }
                   label={t('settings.atCore.ready.allowForceReady')}
                 />
-                <TextField
-                  label={t('settings.atCore.autostart.label')}
-                  helperText={t('settings.atCore.autostart.helper')}
-                  type="number"
-                  value={vals.atAutostartAfterMinutes}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value, 10);
-                    if (!Number.isFinite(v)) return;
-                    update('atAutostartAfterMinutes', v);
-                  }}
-                  onBlur={flush}
-                  onKeyDown={onEnter}
-                  inputProps={{ min: 0, max: 120 }}
-                  size="small"
-                  fullWidth
-                  data-testid="setting-autostart-minutes"
-                />
-                <TextField
-                  label={t('settings.vetoTurn.label')}
-                  helperText={t('settings.vetoTurn.helper')}
-                  type="number"
-                  value={vals.vetoTurnSeconds}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value, 10);
-                    if (!Number.isFinite(v)) return;
-                    update('vetoTurnSeconds', v);
-                  }}
-                  onBlur={flush}
-                  onKeyDown={onEnter}
-                  inputProps={{ min: 0, max: 600 }}
-                  size="small"
-                  fullWidth
-                  data-testid="setting-veto-turn-seconds"
-                />
               </Stack>
             </Box>
 
             <Divider />
 
-            <Box>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                {t('settings.atCore.adminTools.title')}
+            <Box
+              sx={{
+                bgcolor: (theme) => `${theme.palette.warning.main}14`, // 8% amber wash
+                border: 1,
+                borderColor: 'warning.main',
+                borderRadius: radii.sm,
+                p: 2,
+              }}
+            >
+              <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                {t('settings.atCore.expert.title')}
               </Typography>
-              <Stack spacing={1}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={vals.atJoinPassword}
-                      onChange={(e) => update('atJoinPassword', e.target.checked)}
-                      color="primary"
-                      size="small"
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                {t('settings.atCore.expert.description')}
+              </Typography>
+
+              <Stack spacing={2}>
+                {/* Admin tools */}
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                    {t('settings.atCore.adminTools.title')}
+                  </Typography>
+                  <Stack spacing={1}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={vals.atJoinPassword}
+                          onChange={(e) => update('atJoinPassword', e.target.checked)}
+                          color="primary"
+                          size="small"
+                        />
+                      }
+                      label={t('settings.atCore.adminTools.joinPassword')}
                     />
-                  }
-                  label={t('settings.atCore.adminTools.joinPassword')}
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={vals.atPauseAfterRestore}
-                      onChange={(e) => update('atPauseAfterRestore', e.target.checked)}
-                      color="primary"
-                      size="small"
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={vals.atPauseAfterRestore}
+                          onChange={(e) => update('atPauseAfterRestore', e.target.checked)}
+                          color="primary"
+                          size="small"
+                        />
+                      }
+                      label={t('settings.atCore.adminTools.pauseAfterRestore')}
                     />
-                  }
-                  label={t('settings.atCore.adminTools.pauseAfterRestore')}
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={vals.atStopCommandAvailable}
-                      onChange={(e) => update('atStopCommandAvailable', e.target.checked)}
-                      color="primary"
-                      size="small"
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={vals.atStopCommandAvailable}
+                          onChange={(e) => update('atStopCommandAvailable', e.target.checked)}
+                          color="primary"
+                          size="small"
+                        />
+                      }
+                      label={t('settings.atCore.adminTools.stopCommandAvailable')}
                     />
-                  }
-                  label={t('settings.atCore.adminTools.stopCommandAvailable')}
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={vals.atStopCommandNoDamage}
-                      onChange={(e) => update('atStopCommandNoDamage', e.target.checked)}
-                      color="primary"
-                      size="small"
-                      disabled={!vals.atStopCommandAvailable}
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={vals.atStopCommandNoDamage}
+                          onChange={(e) => update('atStopCommandNoDamage', e.target.checked)}
+                          color="primary"
+                          size="small"
+                          disabled={!vals.atStopCommandAvailable}
+                        />
+                      }
+                      label={t('settings.atCore.adminTools.stopCommandNoDamage')}
                     />
-                  }
-                  label={t('settings.atCore.adminTools.stopCommandNoDamage')}
-                />
+                  </Stack>
+                </Box>
               </Stack>
             </Box>
           </Stack>
@@ -568,6 +667,17 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
                 {t('settings.atEnhanced.sideSelection.title')}
               </Typography>
               <Stack spacing={2}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={vals.atSideSelectionEnabled === 1}
+                      onChange={(e) => update('atSideSelectionEnabled', e.target.checked ? 1 : 0)}
+                      color="primary"
+                      size="small"
+                    />
+                  }
+                  label={t('settings.atEnhanced.sideSelection.enabled')}
+                />
                 <TextField
                   label={t('settings.atEnhanced.sideSelection.timeLabel')}
                   type="number"
@@ -581,6 +691,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
                   inputProps={{ min: 1, max: 999 }}
                   size="small"
                   fullWidth
+                  disabled={vals.atSideSelectionEnabled !== 1}
                 />
               </Stack>
             </Box>

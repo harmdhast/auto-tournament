@@ -537,7 +537,7 @@
     },
     {
       "name": "Events",
-      "description": "MatchZy Enhanced webhooks in, and the recorded event log out."
+      "description": "The recorded match event log: Ready Up events and server console lines."
     },
     {
       "name": "Experimental features",
@@ -636,6 +636,10 @@
       "description": "Report a result, and confirm, dispute or withdraw one, for a game MAT cannot watch. A captain of one of the two teams only; answering names the revision it answers (3.0 phase D, PR D4)."
     },
     {
+      "name": "Map and skin pictures",
+      "description": "Map screenshots, map icons and skin pictures in the sizes the site shows, served by the platform (bundled with the CS2 module, or fetched once and cached)."
+    },
+    {
       "name": "Map pools",
       "description": "Named sets of maps for veto and match config."
     },
@@ -668,16 +672,16 @@
       "description": "Parties, the queue, matches and the matchmaking leaderboard (docs/design/matchmaking.md). On by default for signed-in players; an admin can limit it to admins."
     },
     {
-      "name": "MatchZy Enhanced",
-      "description": "MatchZy Enhanced version information."
-    },
-    {
       "name": "Me",
       "description": "The signed-in player's own data, e.g. the games they play."
     },
     {
       "name": "Modules",
       "description": "Code modules: list built-in and on-disk modules, enable or disable one from the next restart, and serve its client files. Admin only, except the client files and the public manifest of modules to load. Modules are installed from the signed catalog (/api/catalog) or on disk, never uploaded."
+    },
+    {
+      "name": "Movement records",
+      "description": "Surf, bhop and kz times: each player's best per map and course, across the servers."
     },
     {
       "name": "My email",
@@ -700,6 +704,10 @@
       "description": "RCON command endpoints (authentication required)"
     },
     {
+      "name": "Ready Up version",
+      "description": "The latest Ready Up release, for update checks."
+    },
+    {
       "name": "Recovery",
       "description": "Reconcile matches after an API restart or a server going away."
     },
@@ -710,10 +718,6 @@
     {
       "name": "Search",
       "description": "The search box: players, teams, tournaments and played matches by name."
-    },
-    {
-      "name": "Server bootstrap",
-      "description": "Self-registration for a CS2 server coming online."
     },
     {
       "name": "Server status",
@@ -3048,7 +3052,7 @@
     "/api/cs2-plugin/latest-version": {
       "get": {
         "tags": [
-          "MatchZy Enhanced"
+          "Ready Up version"
         ],
         "summary": "GET /api/cs2-plugin/latest-version",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
@@ -3537,25 +3541,6 @@
         }
       }
     },
-    "/api/events": {
-      "post": {
-        "tags": [
-          "Events"
-        ],
-        "summary": "POST /api/events",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "security": [
-          {
-            "atServerToken": []
-          }
-        ]
-      }
-    },
     "/api/events/connections/{matchSlug}": {
       "get": {
         "tags": [
@@ -3604,25 +3589,6 @@
         ]
       }
     },
-    "/api/events/report": {
-      "post": {
-        "tags": [
-          "Events"
-        ],
-        "summary": "POST /api/events/report",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "security": [
-          {
-            "atServerToken": []
-          }
-        ]
-      }
-    },
     "/api/events/server/{serverId}": {
       "get": {
         "tags": [
@@ -3651,49 +3617,6 @@
           },
           {
             "apiToken": []
-          }
-        ]
-      }
-    },
-    "/api/events/test": {
-      "get": {
-        "tags": [
-          "Events"
-        ],
-        "summary": "GET /api/events/test",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        }
-      }
-    },
-    "/api/events/{matchSlugOrServerId}": {
-      "post": {
-        "tags": [
-          "Events"
-        ],
-        "summary": "POST /api/events/:matchSlugOrServerId",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "parameters": [
-          {
-            "name": "matchSlugOrServerId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "security": [
-          {
-            "atServerToken": []
           }
         ]
       }
@@ -4278,6 +4201,20 @@
             "apiToken": []
           }
         ]
+      }
+    },
+    "/api/fleet/install-csm.sh": {
+      "get": {
+        "tags": [
+          "Fleet enrollment"
+        ],
+        "summary": "GET /api/fleet/install-csm.sh",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
       }
     },
     "/api/fleet/keys": {
@@ -5463,6 +5400,42 @@
         ]
       }
     },
+    "/api/game/cs2/img/{set}/{file}": {
+      "get": {
+        "tags": [
+          "CS2"
+        ],
+        "summary": "A map or skin picture (public)",
+        "description": "set is maps-1280, maps-480, map-icons, skins-256 or skins. Served from the CS2 module's bundled pictures, else a disk cache filled from cs2-server-manager once.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "set",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The picture (WebP",
+            "PNG or SVG)": null
+          },
+          "404": {
+            "description": "No such set or picture"
+          }
+        }
+      }
+    },
     "/api/game/cs2/imports": {
       "post": {
         "tags": [
@@ -5864,6 +5837,62 @@
         ]
       }
     },
+    "/api/game/cs2/matches/{slug}/manage/allocate": {
+      "post": {
+        "tags": [
+          "Fleet"
+        ],
+        "summary": "Put a match that waits for a server on the server an admin picked",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "serverId"
+                ],
+                "properties": {
+                  "serverId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Loading on that server"
+          },
+          "404": {
+            "description": "Match not found"
+          },
+          "409": {
+            "description": "The match is not waiting for a server",
+            "or that server is not free": null
+          }
+        }
+      }
+    },
     "/api/game/cs2/matches/{slug}/manage/command": {
       "post": {
         "tags": [
@@ -5969,6 +5998,41 @@
             "apiToken": []
           }
         ]
+      }
+    },
+    "/api/game/cs2/matches/{slug}/manage/servers": {
+      "get": {
+        "tags": [
+          "Fleet"
+        ],
+        "summary": "Every Ready Up server, for the admin match page's server picker",
+        "description": "Free servers first (they can take the match), then busy and offline ones, without the server the match is on.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ servers: [{ id, name, state: free|busy|offline, busyWith, lastSeen, readyUp, cs2Build }] }"
+          },
+          "404": {
+            "description": "Match not found"
+          }
+        }
       }
     },
     "/api/game/cs2/matches/{slug}/maps/{map}/analysis": {
@@ -6218,6 +6282,34 @@
             }
           }
         ]
+      }
+    },
+    "/api/game/cs2/movement/maps": {
+      "get": {
+        "tags": [
+          "Movement records"
+        ],
+        "summary": "GET /api/game/cs2/movement/maps",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/game/cs2/movement/records": {
+      "get": {
+        "tags": [
+          "Movement records"
+        ],
+        "summary": "GET /api/game/cs2/movement/records",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
       }
     },
     "/api/game/cs2/players/me/highlights/favourite": {
@@ -9019,7 +9111,7 @@
           "License"
         ],
         "summary": "Accept the license terms",
-        "description": "Body `{ \"use\": \"noncommercial\" | \"commercial\", \"confirm\": \"I AGREE\" }`,\noptionally with `\"key\": \"ATL1.…\"` to save a license key at the same\ntime, and `\"termsVersion\"` (the version the admin read; 409 when the\nterms have changed since). `confirm` is matched in any case. Accepting\nagain (to change the use) replaces the record; earlier ones stay in\n`history`. Signed-in admins only: an API token cannot accept terms\n(403); set `AT_ACCEPT_LICENSE` for a non-interactive install instead.\nSame-site JSON only.\n",
+        "description": "Body `{ \"use\": \"noncommercial\" | \"commercial\", \"confirm\": \"I AGREE\",\n\"read\": [\"license\", \"rules\", \"pricing\"] }` (the admin ticked each as read),\noptionally with `\"key\": \"ATL1.…\"` to save a license key at the same\ntime, and `\"termsVersion\"` (the version the admin read; 409 when the\nterms have changed since). `confirm` is matched in any case. Accepting\nagain (to change the use) replaces the record; earlier ones stay in\n`history`. Signed-in admins only: an API token cannot accept terms\n(403); set `AT_ACCEPT_LICENSE` for a non-interactive install instead.\nSame-site JSON only.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -9028,7 +9120,8 @@
                 "type": "object",
                 "required": [
                   "use",
-                  "confirm"
+                  "confirm",
+                  "read"
                 ],
                 "properties": {
                   "use": {
@@ -9041,6 +9134,17 @@
                   "confirm": {
                     "type": "string",
                     "example": "I AGREE"
+                  },
+                  "read": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "license",
+                        "rules",
+                        "pricing"
+                      ]
+                    }
                   },
                   "key": {
                     "type": "string"
@@ -9058,7 +9162,7 @@
             "description": "Accepted; the new consent status (and the license status when a key was saved)"
           },
           "400": {
-            "description": "use is missing, confirm is not I AGREE, or key is not a license key"
+            "description": "use is missing, confirm is not I AGREE, something is not ticked as read, or key is not a license key"
           },
           "403": {
             "description": "An API token, not a signed-in admin"
@@ -10242,6 +10346,99 @@
             "apiToken": []
           }
         ]
+      }
+    },
+    "/api/matches/{slug}/maps/{map}/result": {
+      "post": {
+        "tags": [
+          "Matches"
+        ],
+        "summary": "Correct one played map's result",
+        "description": "Sets a finished map's rounds and winner (a server crash, a map played on a backup). Logged with the reason. Player stats are not changed. Refused when the match is over and the change would give the series to the other team.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "map",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Map number in the series",
+            "from 1": null
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "team1Score",
+                  "team2Score",
+                  "winner",
+                  "reason"
+                ],
+                "properties": {
+                  "team1Score": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 99
+                  },
+                  "team2Score": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 99
+                  },
+                  "winner": {
+                    "type": "string",
+                    "enum": [
+                      "team1",
+                      "team2"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Corrected; the series score before and after"
+          },
+          "400": {
+            "description": "Bad scores",
+            "winner or reason": null
+          },
+          "404": {
+            "description": "No such match",
+            "or the map has no result yet": null
+          },
+          "409": {
+            "description": "The match is over and the series winner would change"
+          }
+        }
       }
     },
     "/api/matches/{slug}/reallocate": {
@@ -12223,6 +12420,33 @@
         }
       }
     },
+    "/api/players/presence": {
+      "get": {
+        "tags": [
+          "Players"
+        ],
+        "summary": "What players are doing now (online, searching, playing)",
+        "description": "For player names anywhere on the site. Up to 100 ids, comma-separated.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ids",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`presence`: { [playerId]: { online, activity } }"
+          },
+          "400": {
+            "description": "No ids"
+          }
+        }
+      }
+    },
     "/api/players/public-selection": {
       "get": {
         "tags": [
@@ -12685,7 +12909,7 @@
     "/api/rcon/broadcast": {
       "post": {
         "tags": [
-          "RCON"
+          "Server commands"
         ],
         "summary": "Broadcast message",
         "description": "Send a message to all servers or specific servers",
@@ -12777,7 +13001,7 @@
     "/api/rcon/change-map": {
       "post": {
         "tags": [
-          "RCON"
+          "Server commands"
         ],
         "summary": "Change map",
         "description": "Execute css_map command on server",
@@ -12871,7 +13095,7 @@
     "/api/rcon/end-warmup": {
       "post": {
         "tags": [
-          "RCON"
+          "Server commands"
         ],
         "summary": "End warmup",
         "description": "Execute mp_warmup_end command",
@@ -12955,7 +13179,7 @@
     "/api/rcon/pause-match": {
       "post": {
         "tags": [
-          "RCON"
+          "Server commands"
         ],
         "summary": "Pause match",
         "description": "Execute css_pause command",
@@ -12995,7 +13219,7 @@
     "/api/rcon/practice-mode": {
       "post": {
         "tags": [
-          "RCON"
+          "Server commands"
         ],
         "summary": "Start practice mode",
         "description": "Execute css_prac command on server",
@@ -13046,7 +13270,7 @@
     "/api/rcon/reload-admins": {
       "post": {
         "tags": [
-          "RCON"
+          "Server commands"
         ],
         "summary": "Reload admins",
         "description": "Execute reload_admins command",
@@ -13086,7 +13310,7 @@
     "/api/rcon/restart-match": {
       "post": {
         "tags": [
-          "RCON"
+          "Server commands"
         ],
         "summary": "Restart match",
         "description": "Execute mp_restartgame command (restarts current round)",
@@ -13170,7 +13394,7 @@
     "/api/rcon/say": {
       "post": {
         "tags": [
-          "RCON"
+          "Server commands"
         ],
         "summary": "Send message to server",
         "description": "Send a chat message to a specific server (sanitized, max 200 chars)",
@@ -13214,32 +13438,10 @@
         }
       }
     },
-    "/api/rcon/skip-veto": {
-      "post": {
-        "tags": [
-          "RCON"
-        ],
-        "summary": "POST /api/rcon/skip-veto",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "apiToken": []
-          }
-        ]
-      }
-    },
     "/api/rcon/start-match": {
       "post": {
         "tags": [
-          "RCON"
+          "Server commands"
         ],
         "summary": "Force start match",
         "description": "Execute css_start command on server",
@@ -13299,59 +13501,12 @@
         ]
       }
     },
-    "/api/rcon/test": {
-      "get": {
-        "tags": [
-          "RCON"
-        ],
-        "summary": "Test all RCON connections",
-        "description": "Test RCON connectivity to all enabled servers",
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "apiToken": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Test results"
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/rcon/test-connection": {
-      "post": {
-        "tags": [
-          "RCON"
-        ],
-        "summary": "POST /api/rcon/test-connection",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "apiToken": []
-          }
-        ]
-      }
-    },
     "/api/rcon/test/{serverId}": {
       "get": {
         "tags": [
           "RCON"
         ],
-        "summary": "Test RCON connection to specific server",
+        "summary": "Link status of a Ready Up server",
         "security": [
           {
             "bearerAuth": []
@@ -13383,7 +13538,7 @@
     "/api/rcon/unpause-match": {
       "post": {
         "tags": [
-          "RCON"
+          "Server commands"
         ],
         "summary": "Unpause match",
         "description": "Execute css_unpause command",
@@ -13750,28 +13905,6 @@
         ]
       }
     },
-    "/api/servers/reset-all-initialization": {
-      "post": {
-        "tags": [
-          "Servers"
-        ],
-        "summary": "POST /api/servers/reset-all-initialization",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "apiToken": []
-          }
-        ]
-      }
-    },
     "/api/servers/update-hold": {
       "get": {
         "tags": [
@@ -14031,35 +14164,6 @@
         ]
       }
     },
-    "/api/servers/{id}/bootstrap": {
-      "get": {
-        "tags": [
-          "Server bootstrap"
-        ],
-        "summary": "GET /api/servers/:id/bootstrap",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "security": [
-          {
-            "atServerToken": []
-          }
-        ]
-      }
-    },
     "/api/servers/{id}/disable": {
       "post": {
         "tags": [
@@ -14122,45 +14226,13 @@
         ]
       }
     },
-    "/api/servers/{id}/reset-initialization": {
-      "post": {
-        "tags": [
-          "Servers"
-        ],
-        "summary": "POST /api/servers/:id/reset-initialization",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "apiToken": []
-          }
-        ]
-      }
-    },
     "/api/servers/{id}/status": {
       "get": {
         "tags": [
           "Servers"
         ],
-        "summary": "Test server RCON connection",
-        "description": "Attempts to connect to the server via RCON and returns online/offline status",
+        "summary": "Server status",
+        "description": "The server's state as its Ready Up fleet link reports it",
         "security": [
           {
             "bearerAuth": []
@@ -14230,6 +14302,195 @@
             "apiToken": []
           }
         ]
+      }
+    },
+    "/api/settings/api-tokens": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "API tokens made in Settings (never their secrets)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The active tokens"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Make an API token; the secret is in this answer only",
+        "description": "A signed-in admin only; an API token cannot make tokens.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "description": "1-32 letters, digits, - or _"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "readonly"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The token and its secret"
+          },
+          "400": {
+            "description": "Not a valid name or scope"
+          },
+          "403": {
+            "description": "Called with an API token"
+          }
+        }
+      }
+    },
+    "/api/settings/api-tokens/{id}": {
+      "delete": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Revoke an API token made in Settings",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revoked"
+          },
+          "404": {
+            "description": "No such active token"
+          }
+        }
+      }
+    },
+    "/api/settings/discord-bot": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Whether a Discord bot token is set (for players' DMs), and the bot's name",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`set`, `name`"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Set (checked with Discord, stored encrypted) or clear the bot token",
+        "description": "A signed-in admin only. `token` empty or null clears it.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`set`, `name`"
+          },
+          "400": {
+            "description": "Discord refused the token"
+          },
+          "403": {
+            "description": "Called with an API token"
+          }
+        }
+      }
+    },
+    "/api/settings/site-url": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "The address this site is set up for (FRONTEND_BASE_URL)",
+        "description": "The admin UI compares it with the address it was opened on, and says so when they differ.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`url` (null when not set)"
+          }
+        }
       }
     },
     "/api/settings/version": {
@@ -14643,6 +14904,78 @@
             "description": "Success"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/skins/admin/players/{steamId}/equip": {
+      "post": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "POST /api/skins/admin/players/:steamId/equip",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "steamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/skins/admin/players/{steamId}/equip/{slot}": {
+      "delete": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "DELETE /api/skins/admin/players/:steamId/equip/:slot",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "steamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "slot",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -15279,6 +15612,73 @@
         }
       }
     },
+    "/api/social/notifications/channels": {
+      "get": {
+        "tags": [
+          "Social"
+        ],
+        "summary": "Your notifications outside the site (Discord DM, email), per event",
+        "description": "`events`: for match_ready, veto_turn, checkin_open and new_tournament, whether each channel (discord, email) is on. `channels`: whether each can reach you now, and why not (no_bot, no_discord, email_off, no_email, email_unverified).\n",
+        "responses": {
+          "200": {
+            "description": "`events` and `channels`"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Social"
+        ],
+        "summary": "Turn one event's channel on or off",
+        "description": "Same-site JSON.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "event",
+                  "channel",
+                  "on"
+                ],
+                "properties": {
+                  "event": {
+                    "type": "string",
+                    "enum": [
+                      "match_ready",
+                      "veto_turn",
+                      "checkin_open",
+                      "new_tournament"
+                    ]
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "discord",
+                      "email",
+                      "push"
+                    ]
+                  },
+                  "on": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The settings, saved"
+          },
+          "400": {
+            "description": "Not an event",
+            "channel or boolean": null
+          }
+        }
+      }
+    },
     "/api/social/notifications/read": {
       "post": {
         "tags": [
@@ -15356,6 +15756,48 @@
         "responses": {
           "200": {
             "description": "Players"
+          }
+        }
+      }
+    },
+    "/api/social/push/key": {
+      "get": {
+        "tags": [
+          "Social"
+        ],
+        "summary": "The site's public key for browser notifications (Web Push, VAPID)",
+        "responses": {
+          "200": {
+            "description": "{ publicKey }"
+          }
+        }
+      }
+    },
+    "/api/social/push/subscription": {
+      "post": {
+        "tags": [
+          "Social"
+        ],
+        "summary": "Get notifications in this browser (its PushSubscription)",
+        "description": "Same-site JSON. The body is the browser's PushSubscription (endpoint, keys).",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "400": {
+            "description": "Not a push subscription"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Social"
+        ],
+        "summary": "Stop notifications in this browser",
+        "description": "Same-site JSON. `{ endpoint }`.",
+        "responses": {
+          "200": {
+            "description": "Removed"
           }
         }
       }
@@ -17294,6 +17736,38 @@
         ]
       }
     },
+    "/api/test/fleet/assign-config/{slug}": {
+      "get": {
+        "tags": [
+          "Test helpers (CS2)"
+        ],
+        "summary": "GET /api/test/fleet/assign-config/:slug",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
     "/api/test/fleet/commands/{id}": {
       "get": {
         "tags": [
@@ -17316,6 +17790,28 @@
             }
           }
         ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/test/fleet/events": {
+      "post": {
+        "tags": [
+          "Test helpers (CS2)"
+        ],
+        "summary": "POST /api/test/fleet/events",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
         "security": [
           {
             "bearerAuth": []
@@ -17434,6 +17930,28 @@
         ]
       }
     },
+    "/api/test/fleet/movement-record": {
+      "post": {
+        "tags": [
+          "Test helpers (CS2)"
+        ],
+        "summary": "POST /api/test/fleet/movement-record",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
     "/api/test/fleet/reset-enroll-rate-limit": {
       "post": {
         "tags": [
@@ -17510,6 +18028,28 @@
         ]
       }
     },
+    "/api/test/fleet/snapshot": {
+      "post": {
+        "tags": [
+          "Test helpers (CS2)"
+        ],
+        "summary": "POST /api/test/fleet/snapshot",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
     "/api/test/fleet/stattrak": {
       "post": {
         "tags": [
@@ -17560,6 +18100,28 @@
           "Test helpers"
         ],
         "summary": "POST /api/test/game-icons/run",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/test/highlights/repick": {
+      "post": {
+        "tags": [
+          "Test helpers (CS2)"
+        ],
+        "summary": "POST /api/test/highlights/repick",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
         "responses": {
           "200": {
@@ -17751,28 +18313,6 @@
             "description": "Invalid request payload"
           }
         }
-      }
-    },
-    "/api/test/match-report": {
-      "post": {
-        "tags": [
-          "Test helpers"
-        ],
-        "summary": "POST /api/test/match-report",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "apiToken": []
-          }
-        ]
       }
     },
     "/api/test/match-reports": {
@@ -18581,28 +19121,6 @@
         ]
       }
     },
-    "/api/test/server-status": {
-      "post": {
-        "tags": [
-          "Test helpers (CS2)"
-        ],
-        "summary": "POST /api/test/server-status",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "apiToken": []
-          }
-        ]
-      }
-    },
     "/api/test/setup-code": {
       "post": {
         "tags": [
@@ -19330,6 +19848,62 @@
           },
           "409": {
             "description": "Check-in is not open"
+          }
+        }
+      }
+    },
+    "/api/tournament-signup/{id}/join": {
+      "post": {
+        "tags": [
+          "Tournament sign-up"
+        ],
+        "summary": "Join a shuffle tournament on your own (no team)",
+        "description": "Signed-in player, while sign-up is open. The platform draws the teams each round.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Joined (or already in)"
+          },
+          "401": {
+            "description": "Not signed in"
+          },
+          "409": {
+            "description": "Not a shuffle tournament",
+            "sign-up closed": null,
+            "started or full": null
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Tournament sign-up"
+        ],
+        "summary": "Leave a shuffle tournament before it starts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Left"
+          },
+          "409": {
+            "description": "It has started"
           }
         }
       }
@@ -20711,6 +21285,30 @@
             "description": "Invalid request, tournament not in setup status, or tournament not found"
           }
         }
+      }
+    },
+    "/api/tournament/{id}/shuffle-round": {
+      "get": {
+        "tags": [
+          "Tournament"
+        ],
+        "summary": "GET /api/tournament/:id/shuffle-round",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "/api/tournaments": {

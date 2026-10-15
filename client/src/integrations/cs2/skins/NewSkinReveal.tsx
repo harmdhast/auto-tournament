@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Button, Dialog, Typography } from '@mui/material';
-import { sourceLabel } from './SkinParts';
+import { sourceLabel, VirtualNotice, WearBar } from './SkinParts';
 import {
   useModuleTranslation,
   useSnackbar,
@@ -152,6 +152,7 @@ function ChoiceReveal({
                   {t(`skins.rarity.${o.rarity}`, { defaultValue: o.rarity })} ·{' '}
                   {t(`skins.wear.${wearKey(o.float)}`)}
                 </Typography>
+                <WearBar float={o.float} pattern={o.pattern} />
                 <Typography sx={{ fontWeight: 600, color: tone }}>
                   {busy === index ? t('skins.keeping') : t('skins.keepThis')}
                 </Typography>
@@ -176,6 +177,8 @@ function Reveal() {
   const tone = rarityColor[skin.rarity];
 
   const close = () => void markSeen([skin.id]);
+  // A full loadout given at once is dozens of reveals: one click closes them all.
+  const closeAll = () => void markSeen(unseen);
 
   return (
     <Dialog
@@ -218,6 +221,9 @@ function Reveal() {
           )}
           {skin.source === 'matchmaking' && skin.sourceRef && <MatchPill slug={skin.sourceRef} />}
         </Box>
+        <Box sx={{ width: '100%', maxWidth: 640 }}>
+          <VirtualNotice compact />
+        </Box>
         <Box
           sx={{
             width: '100%',
@@ -256,6 +262,12 @@ function Reveal() {
             sx={{ position: 'relative', width: '75%', height: '75%', objectFit: 'contain' }}
           />
         </Box>
+        <Box sx={{ width: '100%', maxWidth: 360 }}>
+          <Typography sx={{ fontSize: '0.875rem', color: color.muted, textAlign: 'center' }}>
+            {t(`skins.wear.${wearKey(skin.float)}`)}
+          </Typography>
+          <WearBar float={skin.float} pattern={skin.pattern} />
+        </Box>
         <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center' }}>
           {/* One-side weapons have one button; the rest pick T, CT or both. */}
           {(skin.side !== null
@@ -280,7 +292,29 @@ function Reveal() {
                   })
                   .finally(() => setEquipping(false));
               }}
-              sx={{ borderRadius: radii.pill, px: 4, py: 1.75, fontWeight: 600 }}
+              sx={{
+                borderRadius: radii.pill,
+                px: 4,
+                py: 1.75,
+                fontWeight: 600,
+                // The side's own colour: CT blue, T orange; both sides plain.
+                ...(skin.side === null && action.team !== 0
+                  ? {
+                      bgcolor: action.team === 3 ? color.sideCt : color.sideT,
+                      color: '#111111',
+                      '&:hover': {
+                        bgcolor: action.team === 3 ? color.sideCt : color.sideT,
+                        filter: 'brightness(1.1)',
+                      },
+                    }
+                  : skin.side === null
+                    ? {
+                        bgcolor: color.ink,
+                        color: color.paper,
+                        '&:hover': { bgcolor: color.ink, filter: 'brightness(0.9)' },
+                      }
+                    : {}),
+              }}
             >
               {action.label}
             </Button>
@@ -292,6 +326,16 @@ function Reveal() {
           >
             {t('skins.keep')}
           </Button>
+          {unseen.length > 1 && (
+            <Button
+              variant="text"
+              onClick={closeAll}
+              data-testid="new-skin-keep-all"
+              sx={{ borderRadius: radii.pill, px: 3, py: 1.75 }}
+            >
+              {t('skins.keepAll', { count: unseen.length })}
+            </Button>
+          )}
         </Box>
         <Typography sx={{ fontSize: '0.8125rem', color: color.muted }}>
           {t('skins.notice')}

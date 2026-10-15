@@ -41,7 +41,7 @@ import { getFleetServer, type FleetServerRow } from './registry';
 import { fleetServerJoinRows } from './hosts/registry';
 import { claimableIndex, joinInventory } from './hosts/join';
 import type { HostInventoryServer } from './protocol/host/v1';
-import { createdPluginSet } from './push/pluginSets';
+import { createdPluginSet, matchPluginDisabled } from './push/pluginSets';
 
 export interface FleetLink {
   /** cs2_servers.id (matches.server_id). */
@@ -120,30 +120,33 @@ export function detectedAddress(
 }
 
 /**
- * The address of the csm machine each fleet server runs on
- * (`host.inventory.address`, csm 1.21+), keyed by fleet server id and by
- * `install:<install id>`, from the machines' inventories: only for the
- * servers each machine may claim (./hosts/join.ts claimableIndex).
+ * An address per csm machine, for the servers each machine may claim
+ * (./hosts/join.ts claimableIndex), keyed by fleet server id and by
+ * `install:<install id>`. A server another machine's inventory also names, or
+ * one enrolled with another machine's key, gets none from this one.
  */
-export async function machineAddresses(): Promise<Map<string, string>> {
-  const hosts = await db.queryAsync<{ id: string; inventory: string | null }>(
-    `SELECT id, inventory FROM cs2_fleet_hosts WHERE status = 'enrolled' AND inventory IS NOT NULL`
+async function claimedAddresses(
+  addressOf: (row: { inventory: { address?: unknown }; publicAddress: string | null }) => unknown
+): Promise<Map<string, string>> {
+  const hosts = await db.queryAsync<{
+    id: string;
+    inventory: string | null;
+    public_address: string | null;
+  }>(
+    `SELECT id, inventory, public_address FROM cs2_fleet_hosts WHERE status = 'enrolled' AND inventory IS NOT NULL`
   );
   const inventories = hosts.map((h) => {
+    let inv: { address?: unknown; servers?: Array<Pick<HostInventoryServer, 'readyup'>> } = {};
     try {
-      const inv = JSON.parse(h.inventory as string) as {
-        address?: unknown;
-        servers?: Array<Pick<HostInventoryServer, 'readyup'>>;
-      };
-      return {
-        id: h.id,
-        address: inv.address,
-        servers: (inv.servers ?? []).filter((s) => s?.readyup),
-      };
+      inv = JSON.parse(h.inventory as string);
     } catch {
-      // An inventory that does not parse names no machine.
-      return { id: h.id, address: undefined, servers: [] };
+      // An inventory that does not parse names no server.
     }
+    return {
+      id: h.id,
+      address: addressOf({ inventory: inv, publicAddress: h.public_address }),
+      servers: (inv.servers ?? []).filter((s) => s?.readyup),
+    };
   });
   const rows = await fleetServerJoinRows();
   const out = new Map<string, string>();
@@ -159,6 +162,21 @@ export async function machineAddresses(): Promise<Map<string, string>> {
     }
   }
   return out;
+}
+
+/** The address each machine reports (`host.inventory.address`, csm 1.21+), per claimed server. */
+export async function machineAddresses(): Promise<Map<string, string>> {
+  return claimedAddresses(({ inventory }) => inventory.address);
+}
+
+/**
+ * The admin's public address of the machine each fleet server runs on (Servers page,
+ * cs2_fleet_hosts.public_address), keyed like `machineAddresses`. It wins over every
+ * reported address: csm and Ready Up report the machine's LAN address, which players
+ * outside its network cannot reach.
+ */
+export async function machinePublicAddresses(): Promise<Map<string, string>> {
+  return claimedAddresses(({ publicAddress }) => (publicAddress ?? '').trim());
 }
 
 /** One fleet server's machine address from `machineAddresses()`, or null. */
@@ -305,18 +323,25 @@ export async function linkFleetServer(
  */
 async function linkCreatedOnce(serverId: string): Promise<void> {
   // The scaler and failover link what they create themselves (with their own records).
-  const cmd = await db.queryOneAsync<{ issued_by: string | null }>(
-    `SELECT c.issued_by FROM cs2_fleet_servers s
+  const cmd = await db.queryOneAsync<{ issued_by: string | null; type: string }>(
+    `SELECT c.issued_by, c.type FROM cs2_fleet_servers s
        JOIN cs2_fleet_enrollment_keys k ON k.id = s.enrollment_key_id
        JOIN cs2_fleet_host_commands c ON c.message_id = k.command_id
-      WHERE s.id = ? AND c.type = 'server.create'`,
+      WHERE s.id = ? AND c.type IN ('server.create', 'server.enroll')`,
     [serverId]
   );
-  if (!cmd || cmd.issued_by === 'autoscale' || (cmd.issued_by ?? '').startsWith('platform:'))
+  if (!cmd) return;
+  // A machine's own servers enrolled again (server.enroll, a machine linked
+  // again): they were match servers before, so they are again.
+  if (cmd.type === 'server.create') {
+    if (cmd.issued_by === 'autoscale' || (cmd.issued_by ?? '').startsWith('platform:')) return;
+    const created = await createdPluginSet(serverId);
+    if (!created.created) return;
+    if (created.set && !created.set.plugins.includes('match')) return;
+  } else if (await matchPluginDisabled(serverId)) {
+    // Enrolled again with match off (it was a practice or tryout server): not a match server.
     return;
-  const created = await createdPluginSet(serverId);
-  if (!created.created) return;
-  if (created.set && !created.set.plugins.includes('match')) return;
+  }
   const seen = await db.queryOneAsync<{ id: string }>(
     `SELECT id FROM cs2_servers WHERE id = ? OR fleet_server_id = ?
      UNION ALL
@@ -325,8 +350,9 @@ async function linkCreatedOnce(serverId: string): Promise<void> {
   );
   if (seen) return;
   const outcome = await linkFleetServer(serverId);
-  if (outcome.ok) log.info(`[FLEET] ${serverId}: created through csm; joined the match pool`);
-  else log.warn(`[FLEET] ${serverId}: created through csm but not linked: ${outcome.error}`);
+  const how = cmd.type === 'server.enroll' ? 'enrolled again through csm' : 'created through csm';
+  if (outcome.ok) log.info(`[FLEET] ${serverId}: ${how}; joined the match pool`);
+  else log.warn(`[FLEET] ${serverId}: ${how} but not linked: ${outcome.error}`);
 }
 
 /**
@@ -423,7 +449,15 @@ export async function syncLinkedAddress(fleetServerId: string): Promise<ConnectA
   if (!row || Number(row.host_override ?? 0) === 1) return null;
   const fleet = await getFleetServer(fleetServerId);
   if (!fleet) return null;
-  const next = detectedAddress(fleet, machineAddressOf(await machineAddresses(), fleet));
+  const detected = detectedAddress(fleet, machineAddressOf(await machineAddresses(), fleet));
+  const publicHost = machineAddressOf(await machinePublicAddresses(), fleet);
+  const next: ConnectAddress | null = publicHost
+    ? {
+        host: publicHost,
+        port: detected?.port ?? parseHost(fleet.host)?.game_port ?? DEFAULT_GAME_PORT,
+        source: 'machine_public',
+      }
+    : detected;
   if (!next || (next.host === row.host && next.port === Number(row.port))) return null;
   await db.runAsync(`UPDATE cs2_servers SET host = ?, port = ?, updated_at = ? WHERE id = ?`, [
     next.host,

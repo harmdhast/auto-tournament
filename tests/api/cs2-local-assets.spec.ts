@@ -4,7 +4,8 @@ import os from 'os';
 import path from 'path';
 import { readLocalAssets, skinImageUrls } from '../../api/src/integrations/cs2/assets/localAssets';
 
-const REMOTE = 'https://cdn.jsdelivr.net/gh/Auto-Tournament/cs2-server-manager@master/skin_images';
+const REMOTE = '/api/game/cs2/img/skins';
+const REMOTE_SMALL = '/api/game/cs2/img/skins-256';
 
 function tempPublic(manifest: string, skins?: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cs2-assets-'));
@@ -36,19 +37,19 @@ test.describe('cs2 local assets', () => {
     });
   });
 
-  test('unlisted skin falls back to jsDelivr for both', () => {
+  test("unlisted skin falls back to the platform's picture route", () => {
     const assets = readLocalAssets(tempPublic(manifest, skinsList));
     expect(skinImageUrls('other.png', assets)).toEqual({
       imageUrl: `${REMOTE}/other.png`,
-      imageSmallUrl: `${REMOTE}/other.png`,
+      imageSmallUrl: `${REMOTE_SMALL}/other.png`,
     });
   });
 
-  test('null assets fall back to jsDelivr', () => {
+  test("null assets fall back to the platform's picture route", () => {
     expect(skinImageUrls('ak47_x.png', null).imageUrl).toBe(`${REMOTE}/ak47_x.png`);
   });
 
-  test('a missing skins list leaves skins on jsDelivr', () => {
+  test("a missing skins list leaves skins on the platform's picture route", () => {
     const assets = readLocalAssets(tempPublic(manifest));
     expect(assets?.skins).toEqual({});
     expect(skinImageUrls('ak47_x.png', assets).imageUrl).toBe(`${REMOTE}/ak47_x.png`);

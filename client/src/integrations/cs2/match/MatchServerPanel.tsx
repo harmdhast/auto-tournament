@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Typography, Alert } from '@mui/material';
+import { Alert, Box, Button, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { motion, useReducedMotion } from 'motion/react';
 import { CopyIcon, GameControllerIcon } from '@phosphor-icons/react';
 import {
@@ -26,7 +26,7 @@ function mapDataFor(slug: string | null): CS2MapData | null {
 /**
  * The server to show, or null for "waiting for a server".
  *
- * `server.status` is MatchZy Enhanced's own status (idle |
+ * `server.status` is the plugin's own status (idle |
  * loading | warmup | knife | live | paused | halftime | postgame | queued |
  * error), filled in only when the server answered, so any value but `error`
  * means it is reachable. Live stats count on their own: they only arrive from
@@ -151,15 +151,24 @@ export function MatchServerPanel({
   const reduceMotion = useReducedMotion();
 
   const server = connect ? effectiveServer(connect) : null;
+  // LAN or internet: the platform picks for where the viewer is; they can switch.
+  const [via, setVia] = useState<'lan' | 'public' | null>(null);
+  const addresses = server?.addresses ?? null;
+  const chosen = addresses?.find((a) => a.kind === (via ?? server?.recommended)) ?? null;
+  const target = chosen
+    ? { host: chosen.host, ip: chosen.ip ?? null, port: chosen.port }
+    : server
+      ? { host: server.host, ip: server.ip ?? null, port: server.port }
+      : null;
   const currentMapData = useMemo(
     () => mapDataFor(connect?.currentMap ?? null),
     [connect?.currentMap]
   );
 
   const onConnect = () => {
-    if (!server) return;
+    if (!server || !target) return;
     // The IP, not the hostname: CS2 ignores steam://connect with a hostname.
-    const address = `${server.ip || server.host}:${server.port}`;
+    const address = `${target.ip || target.host}:${target.port}`;
     // steam://connect, not steam://run/730//+connect: run only passes its
     // arguments when it starts the game, so with CS2 already open the button
     // did nothing. connect joins a running game too (the webhooks use it).
@@ -172,8 +181,8 @@ export function MatchServerPanel({
   };
 
   const onCopy = async () => {
-    if (!server) return;
-    const connectCommand = `connect ${server.host}:${server.port}${
+    if (!server || !target) return;
+    const connectCommand = `connect ${target.host}:${target.port}${
       server.password ? `; password ${server.password}` : ''
     }`;
 
@@ -206,7 +215,7 @@ export function MatchServerPanel({
     );
   }
 
-  // The API sends an English label alongside the raw MatchZy Enhanced status; translate
+  // The API sends an English label alongside the raw plugin status; translate
   // the known statuses and fall back to that label for anything new.
   const statusLabel = server.status
     ? t(`matchInfo.server.statusLabels.${server.status}`, {
@@ -272,6 +281,41 @@ export function MatchServerPanel({
           </Button>
         </Box>
 
+        {addresses && addresses.length > 1 && (
+          <Box
+            display="flex"
+            gap={1}
+            alignItems="center"
+            justifyContent="center"
+            flexWrap="wrap"
+            data-testid="match-connect-via"
+          >
+            <Typography variant="body2" color="text.secondary">
+              {t('matchInfo.server.via')}
+            </Typography>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={via ?? server.recommended ?? 'public'}
+              onChange={(_, v: 'lan' | 'public' | null) => v && setVia(v)}
+            >
+              {addresses.map((a) => (
+                <ToggleButton
+                  key={a.kind}
+                  value={a.kind}
+                  data-testid={`match-connect-via-${a.kind}`}
+                  sx={{ textTransform: 'none', px: 1.5 }}
+                >
+                  {a.kind === 'lan'
+                    ? t('matchInfo.server.viaLan')
+                    : t('matchInfo.server.viaPublic')}
+                  {a.kind === server.recommended && ` · ${t('matchInfo.server.viaRecommended')}`}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Box>
+        )}
+
         <Box display="flex" gap={1} alignItems="center" justifyContent="center" flexWrap="wrap">
           <Typography
             variant="body2"
@@ -284,7 +328,7 @@ export function MatchServerPanel({
               bgcolor: tokens.color.paper3,
             }}
           >
-            connect {server.host}:{server.port}
+            connect {target?.host}:{target?.port}
             {server.password ? `; password ${server.password}` : ''}
           </Typography>
           <Button
