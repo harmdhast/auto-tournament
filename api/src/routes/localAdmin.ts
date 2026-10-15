@@ -211,7 +211,7 @@ setupRouter.post('/complete', guardWrite, async (req: Request, res: Response) =>
       log.warn('[AUDIT] Wrong setup code entered', { ip });
       return res.status(400).json({ success: false, error: BAD_CODE });
     }
-    setupThrottle.recordSuccess('setup');
+    setupThrottle.recordSuccess(ip, 'setup');
     await signIn(req, res, result.playerId, username as string);
     return res.json({ success: true, username });
   } catch (error) {
@@ -309,7 +309,7 @@ localAuthRouter.post('/login', guardWrite, async (req: Request, res: Response) =
         totpRequired: result.reason === 'totp_invalid' || undefined,
       });
     }
-    loginThrottle.recordSuccess(target);
+    loginThrottle.recordSuccess(ip, target);
     await signIn(req, res, result.playerId, username as string);
     log.info('[AUDIT] Local admin signed in', { username, ip });
     // A password an admin chose: the client sends them to the first-sign-in setup.
@@ -426,7 +426,7 @@ localAuthRouter.post(
         error: 'That code is not right. Check the time on your phone and try again.',
       });
     }
-    loginThrottle.recordSuccess(target);
+    loginThrottle.recordSuccess(ip, target);
     return res.json({ success: true });
   }
 );
@@ -486,7 +486,7 @@ localAuthRouter.post('/totp/disable', guardWrite, async (req: Request, res: Resp
     });
     return res.status(401).json({ success: false, error: 'Wrong password or code' });
   }
-  loginThrottle.recordSuccess(target);
+  loginThrottle.recordSuccess(ip, target);
   await localAdminService.disableTotp(identity.realSteamId);
   return res.json({ success: true });
 });
@@ -558,7 +558,7 @@ localAuthRouter.post('/reauth', guardWrite, async (req: Request, res: Response) 
         totpRequired: (!result.ok && result.reason === 'totp_invalid') || undefined,
       });
     }
-    loginThrottle.recordSuccess(target);
+    loginThrottle.recordSuccess(ip, target);
     markLocalReauth(req, identity.realSteamId);
     log.info('[AUDIT] Local admin re-confirmed their password', { username: row.username, ip });
     return res.json({ success: true });
@@ -860,7 +860,7 @@ localAuthRouter.post('/passkeys/login/verify', guardWrite, async (req: Request, 
     const row = await localAdminService.findByPlayerId(stored.playerId);
     if (!row) return failed('no admin login');
     await localAdminPasskeys.used(response.id, result.newCounter);
-    loginThrottle.recordSuccess(target);
+    loginThrottle.recordSuccess(ip, target);
     await signIn(req, res, stored.playerId, row.username);
     log.info('[AUDIT] Local admin signed in with a passkey', { username: row.username, ip });
     const status = await localAdminService.status(stored.playerId);
@@ -950,7 +950,7 @@ localAuthRouter.post('/password', guardWrite, async (req: Request, res: Response
         totpRequired: (!result.ok && result.reason === 'totp_invalid') || undefined,
       });
     }
-    loginThrottle.recordSuccess(target);
+    loginThrottle.recordSuccess(ip, target);
     const problem = passwordProblem(row.username, body.newPassword);
     if (problem)
       return res.status(400).json({ success: false, error: 'Password not accepted', problem });
