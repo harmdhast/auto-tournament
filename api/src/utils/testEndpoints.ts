@@ -6,14 +6,39 @@ export function testEndpointsFlag(): boolean {
   return enabled === '1' || enabled === 'true' || enabled === 'yes';
 }
 
-/** True outside production, or when the flag is explicitly on. */
+/** True when ENABLE_TEST_ENDPOINTS is explicitly on, whatever NODE_ENV says. */
 export function testEndpointsAllowed(): boolean {
-  return process.env.NODE_ENV !== 'production' || testEndpointsFlag();
+  return testEndpointsFlag();
+}
+
+/** 127.0.0.0/8 and ::1, IPv4-mapped included. */
+export function isLoopbackAddress(address: string | undefined): boolean {
+  if (!address) return false;
+  const v4 = address.startsWith('::ffff:') ? address.slice(7) : address;
+  return address === '::1' || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v4);
+}
+
+/** Only a peer on this machine: the socket's address, never X-Forwarded-For. */
+export function requireLoopback(req: Request, res: Response, next: NextFunction): void {
+  if (!isLoopbackAddress(req.socket?.remoteAddress)) {
+    res.status(403).json({ success: false, error: 'Test helper is loopback only' });
+    return;
+  }
+  next();
+}
+
+/** Boot: say loudly that the test helpers are on in a production process. */
+export function warnIfTestEndpointsInProduction(warn: (message: string) => void): void {
+  if (process.env.NODE_ENV === 'production' && testEndpointsFlag()) {
+    warn(
+      'ENABLE_TEST_ENDPOINTS is on with NODE_ENV=production: the /api/test helpers are reachable. Never run a public instance like this.'
+    );
+  }
 }
 
 /**
- * Gate for test-only routes. `flag` requires ENABLE_TEST_ENDPOINTS and answers
- * 404; `production` only refuses in production and answers 403 with `body`.
+ * Gate for test-only routes: both tiers require ENABLE_TEST_ENDPOINTS; `flag`
+ * answers 404, `production` answers 403 with `body`.
  */
 export function requireTestEndpoints(
   gate: { tier: 'flag' } | { tier: 'production'; body: Record<string, unknown> }

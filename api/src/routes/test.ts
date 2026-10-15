@@ -4,6 +4,7 @@ import type { PoolClient } from 'pg';
 import { requireAuth } from '../middleware/auth';
 import { log } from '../utils/logger';
 import {
+  requireLoopback,
   requireTestEndpoints,
   testEndpointsAllowed,
   testEndpointsFlag,
@@ -457,10 +458,11 @@ router.post(
  *
  * POST /api/test/login-admin
  *
- * NOTE: This endpoint is only available in non-production environments.
+ * Only with ENABLE_TEST_ENDPOINTS, and only from loopback.
  */
 router.post(
   '/login-admin',
+  requireLoopback,
   requireTestEndpoints({
     tier: 'production',
     body: {
@@ -541,10 +543,11 @@ router.post(
  *
  * POST /api/test/login-player
  *
- * NOTE: This endpoint is only available in non-production environments.
+ * Only with ENABLE_TEST_ENDPOINTS, and only from loopback.
  */
 router.post(
   '/login-player',
+  requireLoopback,
   requireTestEndpoints({
     tier: 'production',
     body: {
@@ -3113,7 +3116,7 @@ function refuseInProduction(res: Response): boolean {
   return false;
 }
 
-router.post('/setup-code', async (req: Request, res: Response) => {
+router.post('/setup-code', requireLoopback, async (req: Request, res: Response) => {
   if (refuseInProduction(res)) return;
   const purpose = (req.body as { purpose?: unknown })?.purpose === 'reset' ? 'reset' : 'setup';
   const { code } = await localAdminService.createCode(purpose);
@@ -3126,7 +3129,7 @@ router.post('/setup-code/expire', async (_req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-router.post('/clear-admins', async (_req: Request, res: Response) => {
+router.post('/clear-admins', requireLoopback, async (_req: Request, res: Response) => {
   if (refuseInProduction(res)) return;
   await db.queryAsync('UPDATE players SET is_admin = 0 WHERE is_admin = 1', []);
   res.json({ success: true });
@@ -3139,7 +3142,7 @@ router.post('/login-throttle/reset', (_req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-router.post('/env-import', async (req: Request, res: Response) => {
+router.post('/env-import', requireLoopback, async (req: Request, res: Response) => {
   if (refuseInProduction(res)) return;
   const body = (req.body ?? {}) as { env?: Record<string, string>; forget?: string[] };
   if (Array.isArray(body.forget) && body.forget.length > 0) {
