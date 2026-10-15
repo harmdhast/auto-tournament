@@ -1,7 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
-import { FakeReadyUp, STEAM, acceptAssign, createMatch, link } from '../helpers/fleetFake';
+import {
+  FakeReadyUp,
+  STEAM,
+  acceptAssign,
+  createMatch,
+  link,
+  unlinkAll,
+} from '../helpers/fleetFake';
 import { configureWebhook } from '../helpers/setup';
 import { createTestServer, deleteServer } from '../helpers/servers';
 import { adminCapabilitiesFor } from '../../api/src/integrations/cs2/routes/fleetCommands';
@@ -29,8 +36,12 @@ test.describe.serial('Fleet: RCON parity', () => {
     expect(await configureWebhook(request, 'http://localhost:3069')).toBe(true);
   });
 
-  test.afterAll(() => {
+  test.afterAll(async ({ request }) => {
     for (const f of fakes) f.close();
+    await unlinkAll(
+      request,
+      fakes.map((f) => f.serverId)
+    );
   });
 
   test('add-time on a Ready Up server is cmd add_time on the assigned match', async ({

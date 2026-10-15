@@ -2,7 +2,7 @@ import { test, expect, type APIRequestContext } from '@playwright/test';
 import { execFileSync } from 'child_process';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
-import { FakeReadyUp, createMatch, link, unlink } from '../helpers/fleetFake';
+import { FakeReadyUp, createMatch, link, unlink, unlinkAll } from '../helpers/fleetFake';
 
 /**
  * A Ready Up server reporting a platform assignment (reason assigned or
@@ -62,8 +62,12 @@ test.describe.serial('Fleet orphan unassign', () => {
     if (!key) key = await createFleetKey(request, { name: 'fleet-orphan-tests' });
   });
 
-  test.afterAll(() => {
+  test.afterAll(async ({ request }) => {
     for (const f of fakes) f.close();
+    await unlinkAll(
+      request,
+      fakes.map((f) => f.serverId)
+    );
   });
 
   const online = async (request: APIRequestContext) => {

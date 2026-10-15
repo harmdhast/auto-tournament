@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { expect, type APIRequestContext } from '@playwright/test';
-import { getAuthHeader } from './auth';
+import { getAuthHeader, signInViaRequest } from './auth';
 import { FleetTestClient, enroll, envelope, newInstallId } from './fleet';
 import { ulid } from '../../api/src/integrations/cs2/fleet/credentials';
 import {
@@ -169,6 +169,15 @@ export async function link(
 
 export async function unlink(request: APIRequestContext, fleetServerId: string): Promise<void> {
   await request.delete(`/api/fleet/servers/${fleetServerId}/link`, { headers: getAuthHeader() });
+}
+
+/** Unlinks the servers a spec enrolled, so their rows do not outlive it. */
+export async function unlinkAll(
+  request: APIRequestContext,
+  fleetServerIds: string[]
+): Promise<void> {
+  await signInViaRequest(request);
+  for (const id of fleetServerIds) await unlink(request, id);
 }
 
 /** A standalone match with no server: the allocator picks one. */

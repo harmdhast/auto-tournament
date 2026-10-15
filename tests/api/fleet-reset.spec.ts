@@ -1,7 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
-import { FakeReadyUp, createMatch, link, matchRow } from '../helpers/fleetFake';
+import { FakeReadyUp, createMatch, link, matchRow, unlinkAll } from '../helpers/fleetFake';
 import { configureWebhook } from '../helpers/setup';
 
 /**
@@ -26,8 +26,12 @@ test.describe.serial('Fleet reset', () => {
     expect(await configureWebhook(request, 'http://localhost:3069')).toBe(true);
   });
 
-  test.afterAll(() => {
+  test.afterAll(async ({ request }) => {
     for (const f of fakes) f.close();
+    await unlinkAll(
+      request,
+      fakes.map((f) => f.serverId)
+    );
   });
 
   const online = async (request: APIRequestContext, over: Record<string, unknown> = {}) => {
