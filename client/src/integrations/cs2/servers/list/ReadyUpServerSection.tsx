@@ -12,6 +12,7 @@ import { FleetConsole } from '../fleet/readyup/FleetConsole';
 import { useFleetServer } from '../fleet/readyup/useFleetServer';
 import { CopyConnect } from './CopyConnect';
 import { FleetServerPushSection } from './FleetServerPushSection';
+import { formatWhen } from '../time';
 
 export function ReadyUpServerSection({
   fleetId,
@@ -24,7 +25,7 @@ export function ReadyUpServerSection({
   const { showError } = useSnackbar();
   const { server, gone, reload } = useFleetServer(fleetId);
   const [editing, setEditing] = useState<Server | null>(null);
-  const when = (s: number | null) => (s ? new Date(s * 1000).toLocaleString(i18n.language) : '—');
+  const when = (s: number | null) => formatWhen(s, i18n.language);
   const changed = () => {
     void reload();
     onChanged();

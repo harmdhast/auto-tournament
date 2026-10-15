@@ -48,6 +48,7 @@ import { isGuessedAddress, type ServerGroup, type ServerRow } from './serverGrou
 import { useFleetPushProblems } from './useFleetPushProblems';
 import { CopyConnect } from './CopyConnect';
 import type { ServerAction } from './useFleetServerActions';
+import { formatWhenShort } from '../time';
 
 const { color } = tokens;
 
@@ -103,15 +104,6 @@ const rowGrid = {
   '&:first-of-type': { borderTop: 'none' },
   '&:hover': { bgcolor: color.paper3 },
 } as const;
-
-function when(s: number | null | undefined, locale: string): string {
-  if (!s) return '—';
-  const d = new Date(s * 1000);
-  const today = new Date().toDateString() === d.toDateString();
-  return today
-    ? d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' });
-}
 
 function Line({
   children,
@@ -308,13 +300,16 @@ function ServerListRow({
     } else if (f.status === 'enrolled' && !f.online && f.lastSeen) {
       reason = (
         <Line area="sub">
-          {t('serversList.seen', { defaultValue: 'Seen {{time}}', time: when(f.lastSeen, locale) })}
+          {t('serversList.seen', {
+            defaultValue: 'Seen {{time}}',
+            time: formatWhenShort(f.lastSeen, locale),
+          })}
         </Line>
       );
     } else if (f.status === 'pending' && f.codeExpiresAt) {
       reason = (
         <Line area="sub">
-          {t('fleetPanel.codeExpires', { time: when(f.codeExpiresAt, locale) })}
+          {t('fleetPanel.codeExpires', { time: formatWhenShort(f.codeExpiresAt, locale) })}
         </Line>
       );
     } else if (hasAvailabilityReason(f)) {

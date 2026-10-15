@@ -38,6 +38,7 @@ import {
 } from '../../../../module-sdk';
 import type { FleetServer } from '../../cs2.types';
 import { insecureFlag, platformIsPlainHttp } from '../insecureLink';
+import { formatWhen } from '../time';
 
 export type Secret = {
   kind: 'code' | 'key';
@@ -58,11 +59,6 @@ export interface ServerAction {
 /** The link / connect-address dialog: `link` links the server, `edit` changes a linked server's address. */
 type AddressDialog = { mode: 'link' | 'edit'; server: FleetServer; host: string; port: string };
 type Pending = { action: 'revoke' | 'remove'; server: FleetServer };
-
-function when(unixSeconds: number | null | undefined, locale: string): string {
-  if (!unixSeconds) return '—';
-  return new Date(unixSeconds * 1000).toLocaleString(locale);
-}
 
 export function useFleetServerActions(reload: () => Promise<void>): {
   actionsFor: (server: FleetServer) => ServerAction[];
@@ -474,7 +470,7 @@ export function useFleetServerActions(reload: () => Promise<void>): {
               ? t('fleetPanel.keyCreatedHelp', { name: secret?.name })
               : t('fleetPanel.codeCreatedHelp', {
                   name: secret?.name,
-                  time: when(secret?.expiresAt, locale),
+                  time: formatWhen(secret?.expiresAt, locale),
                 })}
           </Typography>
           <Box

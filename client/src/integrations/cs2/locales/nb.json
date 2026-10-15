@@ -1813,7 +1813,7 @@
       "knife": "Knivrunde",
       "live": "Live"
     },
-    "offlineFor": "Frakoblet i {{time}}",
+    "offlineLastSeen": "Frakoblet, sist sett {{time}}",
     "readyUp": {
       "tabs": {
         "servers": "Servere",

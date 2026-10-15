@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Box, Button, ButtonBase, IconButton, LinearProgress } from '@mui/material';
 import { CheckIcon, DotsThreeIcon, PlusIcon, WarningCircleIcon } from '@phosphor-icons/react';
 import {
@@ -13,20 +13,11 @@ import {
 import type { FleetHost, FleetHostCommand, FleetHostCommandType } from '../../cs2.types';
 import { activeCommand, latestProblem } from '../machineState';
 import { StateMark } from './serverStateMark';
+import { formatAgo, formatWhen, useNow } from '../time';
 
 const { color } = tokens;
 
 const pending = (c: FleetHostCommand) => c.status === 'pending';
-
-/** Seconds since the epoch, updated each minute. */
-function useNow(): number {
-  const [now, setNow] = useState(() => Date.now() / 1000);
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now() / 1000), 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return now;
-}
 
 /** The pending command of `type` on this machine (the newest), if any. */
 export function runningOf(host: FleetHost, type: FleetHostCommandType): FleetHostCommand | null {
@@ -207,17 +198,7 @@ export function MachineCard({
   const updatingPlugins = runningOf(host, 'host.update_plugins');
   const creating = host.commands.filter((c) => pending(c) && c.type === 'server.create');
   const creatingCount = creating.reduce((n, c) => n + Math.max(1, Number(c.payload.count) || 1), 0);
-  const when = (s: number | null | undefined) =>
-    s ? new Date(s * 1000).toLocaleString(i18n.language) : '—';
-  // "3 min", "4 h", "2 d": how long ago, short (the clock ticks each minute).
-  const since = (s: number) => {
-    const d = Math.max(0, Math.floor(now - s));
-    return d < 3600
-      ? `${Math.max(1, Math.round(d / 60))} min`
-      : d < 86400
-        ? `${Math.round(d / 3600)} h`
-        : `${Math.round(d / 86400)} d`;
-  };
+  const when = (s: number | null | undefined) => formatWhen(s, i18n.language);
   const tone =
     host.status === 'revoked'
       ? color.ban
@@ -243,9 +224,9 @@ export function MachineCard({
           ? t('machinesPanel.hostStatus.online', { defaultValue: 'Online' })
           : [
               host.lastSeen
-                ? t('serversBoard.offlineFor', {
-                    defaultValue: 'Offline for {{time}}',
-                    time: since(host.lastSeen),
+                ? t('serversBoard.offlineLastSeen', {
+                    defaultValue: 'Offline, last seen {{time}}',
+                    time: formatAgo(host.lastSeen, i18n.language, now),
                   })
                 : t('machinesPanel.hostStatus.offline', { defaultValue: 'Offline' }),
               waiting > 0
