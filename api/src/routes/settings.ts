@@ -2,6 +2,7 @@ import { readHighlightSettings } from '../services/highlights/settings';
 import { Router, Request, Response } from 'express';
 import { requireAuth, requestActorId, type AuthedRequest } from '../middleware/auth';
 import { apiTokenService, ApiTokenError, type StoredTokenScope } from '../services/apiTokenService';
+import { isRootRequest, ROOT_ONLY } from '../utils/rootAccess';
 import { settingsService } from '../services/settingsService';
 import { resolveTournamentId } from '../utils/tournamentRow';
 import { log } from '../utils/logger';
@@ -196,6 +197,10 @@ router.post('/api-tokens', async (req: Request, res: Response) => {
   }
   try {
     const { label, scope } = (req.body ?? {}) as { label?: unknown; scope?: unknown };
+    // An admin-scope token is root (utils/rootAccess.ts).
+    if (scope === 'admin' && !isRootRequest(req)) {
+      return res.status(403).json({ success: false, error: ROOT_ONLY });
+    }
     const made = await apiTokenService.create(
       typeof label === 'string' ? label : '',
       String(scope ?? '') as StoredTokenScope,

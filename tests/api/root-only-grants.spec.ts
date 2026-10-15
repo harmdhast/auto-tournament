@@ -151,4 +151,23 @@ test.describe.serial('root-only grants', () => {
     const revoke = await request.put(`/api/players/${playerId}`, { data: { isAdmin: false } });
     expect(revoke.status(), await revoke.text()).toBe(200);
   });
+
+  test(
+    'API tokens made in Settings: an admin-scope one is root only',
+    TAGS,
+    async ({ request }) => {
+      await plainAdmin(request);
+      const admin = await request.post('/api/settings/api-tokens', {
+        data: { label: `e2e-root-token-${Date.now()}`, scope: 'admin' },
+      });
+      expect(admin.status(), await admin.text()).toBe(403);
+      const readonly = await request.post('/api/settings/api-tokens', {
+        data: { label: `e2e-ro-token-${Date.now()}`, scope: 'readonly' },
+      });
+      expect(readonly.status(), await readonly.text()).toBe(201);
+      const made = (await readonly.json()) as { id?: number; token?: { id?: number } };
+      const id = made.id ?? made.token?.id;
+      if (id !== undefined) await request.delete(`/api/settings/api-tokens/${id}`);
+    }
+  );
 });
