@@ -29,6 +29,7 @@ import { ulid } from './credentials';
 import { linkFleetServer } from './link';
 import { getHostCommand, listHosts } from './hosts/registry';
 import { hostServers, sendHostCommand, HostCommandError } from './hosts/service';
+import { nowS } from './util';
 
 const envNum = (name: string, fallback: number): number => {
   const v = Number(process.env[name]);
@@ -45,8 +46,6 @@ const restartWaitS = () => envNum('FLEET_FAILOVER_RESTART_WAIT_S', 90);
 const restartCooldownS = () => envNum('FLEET_FAILOVER_RESTART_COOLDOWN_S', 600);
 const createsPerHour = () => envNum('FLEET_FAILOVER_CREATES_PER_HOUR', 2);
 const createMinFreeMb = () => envNum('FLEET_FAILOVER_CREATE_MIN_FREE_MB', 2048);
-
-const nowS = () => Math.floor(Date.now() / 1000);
 
 /** The parts of a failover this module needs. */
 export interface RecoveryFailover {

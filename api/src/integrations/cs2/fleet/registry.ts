@@ -25,6 +25,7 @@ import {
 import type { Availability, EnrollRequest, Envelope, HostInfo, Versions } from './protocol/v1';
 import { parseBusy, parseBusyReason } from './busyReason';
 import type { BusyReason } from './protocol/v1/types';
+import { nowS, parseJson } from './util';
 
 export const FLEET_TENANT = 'default';
 /** One-time code lifetime (FLEET.md §4.1). */
@@ -35,8 +36,6 @@ export const TOKEN_ROTATE_AFTER_S = 90 * 24 * 3600;
 export const OLD_TOKEN_GRACE_S = 24 * 3600;
 /** A fleet key is locked after this many wrong secrets (FLEET.md §15). */
 export const KEY_LOCK_AFTER_FAILURES = 5;
-
-const nowS = () => Math.floor(Date.now() / 1000);
 
 export type FleetServerStatus = 'pending' | 'enrolled' | 'revoked';
 
@@ -120,15 +119,6 @@ async function tx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
       throw error;
     }
   });
-}
-
-function parseJson<T>(raw: string | null): T | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
 }
 
 function newServerId(): string {
@@ -260,6 +250,17 @@ export async function getFleetServer(id: string): Promise<FleetServerRow | undef
     'SELECT * FROM cs2_fleet_servers WHERE id = ? AND tenant_id = ?',
     [id, FLEET_TENANT]
   );
+}
+
+/** What the server announced in its last hello; null when there is no such server. */
+export async function capabilitiesOf(id: string): Promise<string[] | null> {
+  const row = await db.queryOneAsync<{ capabilities: string | null }>(
+    'SELECT capabilities FROM cs2_fleet_servers WHERE id = ?',
+    [id]
+  );
+  if (!row) return null;
+  const caps = parseJson<unknown>(row.capabilities);
+  return Array.isArray(caps) ? (caps as string[]) : [];
 }
 
 // ---------------------------------------------------------------------------

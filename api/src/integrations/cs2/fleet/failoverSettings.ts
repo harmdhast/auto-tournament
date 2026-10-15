@@ -16,6 +16,7 @@ import { db } from '../../../config/database';
 import { log } from '../../../utils/logger';
 import { fleetBus } from './service';
 import { effectiveReserve } from './failoverPlan';
+import { nowS } from './util';
 
 export const MAX_RESERVE = 16;
 
@@ -29,7 +30,6 @@ export interface FailoverSettings {
   updatedAt: number | null;
 }
 
-const nowS = () => Math.floor(Date.now() / 1000);
 
 export async function getFailoverSettings(): Promise<FailoverSettings> {
   const row = await db.queryOneAsync<{ data: string | null; updated_by: string | null; updated_at: number | null }>(

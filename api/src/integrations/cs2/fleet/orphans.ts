@@ -10,6 +10,7 @@ import {
   releaseUnassign,
   unassignKey,
 } from './unassignClaims';
+import { nowS } from './util';
 
 export type OrphanReason = 'cancelled' | 'ended' | 'superseded';
 
@@ -20,7 +21,6 @@ export interface OrphanReport {
 }
 
 const ANSWER_TIMEOUT_MS = 10_000;
-const nowS = () => Math.floor(Date.now() / 1000);
 
 export interface OrphanDeps {
   unassign(

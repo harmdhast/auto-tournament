@@ -88,6 +88,8 @@ import type {
   UnassignReason,
   WelcomePayload,
 } from './protocol/v1';
+import { capabilitiesOf } from './registry';
+import { nowS } from './util';
 
 /** How long the allocator waits for Ready Up to accept a `match.assign`. */
 const ASSIGN_TIMEOUT_MS = Number(process.env.FLEET_ASSIGN_TIMEOUT_MS) || 15_000;
@@ -141,8 +143,6 @@ interface AssignmentRow {
   config: string | null;
   ended_at: number | null;
 }
-
-const nowS = () => Math.floor(Date.now() / 1000);
 
 function fromRow(row: AssignmentRow): FleetAssignment {
   let config: FleetAssignment['config'] = null;
@@ -417,16 +417,7 @@ async function servedMatchConfig(match: DbMatchRow): Promise<MatchConfig> {
 
 /** The server announced `demo.stream.v1` in its hello (./limits.ts). */
 async function streamsDemos(fleetServerId: string): Promise<boolean> {
-  const row = await db.queryOneAsync<{ capabilities: string | null }>(
-    'SELECT capabilities FROM cs2_fleet_servers WHERE id = ?',
-    [fleetServerId]
-  );
-  try {
-    const caps = row?.capabilities ? (JSON.parse(row.capabilities) as unknown) : [];
-    return Array.isArray(caps) && caps.includes(DEMO_STREAM_CAPABILITY);
-  } catch {
-    return false;
-  }
+  return ((await capabilitiesOf(fleetServerId)) ?? []).includes(DEMO_STREAM_CAPABILITY);
 }
 
 async function joinPasswordEnabled(): Promise<boolean> {

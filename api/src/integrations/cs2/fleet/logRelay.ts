@@ -6,7 +6,7 @@
  */
 
 import { log } from '../../../utils/logger';
-import { db } from '../../../config/database';
+import { capabilitiesOf } from './registry';
 import {
   getIO,
   onSocketConnection,
@@ -52,19 +52,6 @@ function stopStream(fleetServerId: string): void {
     .catch((error) =>
       log.warn(`[FLEET] ${fleetServerId}: logs.stop failed: ${(error as Error).message}`)
     );
-}
-
-async function capabilitiesOf(fleetServerId: string): Promise<string[] | null> {
-  const row = await db.queryOneAsync<{ capabilities: string | null }>(
-    'SELECT capabilities FROM cs2_fleet_servers WHERE id = ?',
-    [fleetServerId]
-  );
-  if (!row) return null;
-  try {
-    return JSON.parse(row.capabilities ?? '[]') as string[];
-  } catch {
-    return [];
-  }
 }
 
 export async function subscribeLogs(

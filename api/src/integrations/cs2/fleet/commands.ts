@@ -12,6 +12,7 @@
 import { EventEmitter } from 'events';
 import { db } from '../../../config/database';
 import type { CmdResultPayload, CmdResultStatus } from './protocol/v1';
+import { nowS } from './util';
 
 export type CommandStatus = 'pending' | CmdResultStatus;
 
@@ -47,8 +48,6 @@ interface CommandRow {
   created_at: number;
   answered_at: number | null;
 }
-
-const nowS = () => Math.floor(Date.now() / 1000);
 
 function fromRow(row: CommandRow): FleetCommandRecord {
   let result: CmdResultPayload | null = null;
