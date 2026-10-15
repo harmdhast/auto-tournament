@@ -9,6 +9,7 @@ import {
 import testRoutes from '../../api/src/routes/test';
 import { fakeEventRoutes } from '../../api/src/integrations/fake/routes';
 import { manualReportTestRoutes } from '../../api/src/integrations/manual-report/routes';
+import { routeTable } from '../../api/src/routes/routeTable';
 
 /**
  * The /api/test helpers: on only with ENABLE_TEST_ENDPOINTS, whatever
@@ -161,5 +162,23 @@ test.describe('test endpoints gate', () => {
         expect(run(gate!.handle, {})).toEqual({ status: 403, next: false });
       });
     }
+  });
+
+  test('the CS2 test helpers need the flag in development too', TAGS, () => {
+    type Layer = {
+      route?: {
+        stack: Array<{
+          name: string;
+          handle: (req: Request, res: Response, next: () => void) => void;
+        }>;
+      };
+    };
+    const layer = routeTable
+      .flatMap((m) => (m.router as unknown as { stack: Layer[] }).stack)
+      .find((l) => l.route?.stack.some((h) => h.name === 'requireTestHelpers'));
+    const gate = layer!.route!.stack.find((h) => h.name === 'requireTestHelpers')!;
+    withEnv({ NODE_ENV: 'development', ENABLE_TEST_ENDPOINTS: undefined }, () => {
+      expect(run(gate.handle, {})).toEqual({ status: 403, next: false });
+    });
   });
 });

@@ -1,8 +1,8 @@
 /**
  * CS2 test helpers, mounted at /api/test next to the core ones.
  *
- * Only for E2E runs: disabled in production unless ENABLE_TEST_ENDPOINTS is set,
- * the same switch as the core test helpers.
+ * Only for E2E runs: on only with ENABLE_TEST_ENDPOINTS, the same switch as the
+ * core test helpers.
  */
 
 import { Router, type NextFunction, type Request, type Response } from 'express';
@@ -18,9 +18,9 @@ import { scanForFailovers } from '../fleet/failover';
 
 const router = Router();
 
-/** Production runs refuse the helpers unless ENABLE_TEST_ENDPOINTS is set. */
+/** The helpers answer only with ENABLE_TEST_ENDPOINTS set. */
 function requireTestHelpers(_req: Request, res: Response, next: NextFunction): void {
-  if (process.env.NODE_ENV === 'production' && !isRconEnabled()) {
+  if (!isRconEnabled()) {
     res.status(403).json({ success: false, error: 'Disabled in production' });
     return;
   }
