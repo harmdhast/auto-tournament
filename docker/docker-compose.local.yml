@@ -82,8 +82,8 @@ services:
       - DB_HOST=postgres
       # Computed DATABASE_URL (uses DB_* vars from .env or defaults)
       - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-auto_tournament}
-      # SESSION_SECRET should be set in .env (required for session persistence)
-      # If not set, a default is used but sessions won't persist across restarts
+      # SESSION_SECRET must be set in .env: at least 32 random characters.
+      # The app refuses to start without it (or with the example placeholder).
       - SESSION_SECRET=${SESSION_SECRET:-}
       # All other variables (SERVER_TOKEN, STEAM_API_KEY, FRONTEND_BASE_URL, LOG_LEVEL, etc.)
       # are loaded from .env via env_file directive above

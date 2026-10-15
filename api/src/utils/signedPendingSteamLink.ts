@@ -33,6 +33,7 @@
  */
 
 import crypto from 'crypto';
+import { getSessionSecret } from './sessionSecret';
 
 export const PENDING_STEAM_LINK_COOKIE_NAME = 'pending_steam_link';
 
@@ -85,8 +86,7 @@ const SEP = '.';
 const SIGNATURE_NAMESPACE = 'pending_steam_link:';
 
 function getSecret(): string {
-  const s = process.env.SESSION_SECRET;
-  return typeof s === 'string' && s.trim().length > 0 ? s.trim() : 'auto-tournament-dev-session-secret';
+  return getSessionSecret();
 }
 
 function hmac(key: string, value: string): Buffer {
