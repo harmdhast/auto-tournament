@@ -1,6 +1,5 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
-import { db } from '../../api/src/config/database';
-import { skinService } from '../../api/src/integrations/cs2/skins/skinService';
+import { loadoutPayload } from '../../api/src/integrations/cs2/skins/skinService';
 import { getAuthHeader, signInAsPlayerViaRequest, signInViaRequest } from '../helpers/auth';
 
 /**
@@ -295,6 +294,36 @@ test.describe.serial('Skins catalogue unlock', () => {
     expect(await skinGone(both.id)).toBe(true);
   });
 
+  test(
+    'the server loadout carries picks only while the mode is on',
+    { tag: ['@api'] },
+    async ({ request }) => {
+      const headers = getAuthHeader();
+      const loadout = async () =>
+        (await (await request.get(`/api/test/fleet/skins-loadout/${STEAM_ID}`, { headers })).json())
+          .items;
+      const ct = (await (await put(pickOf(DEAGLE, 0, { team: 3, float: 0.12, seed: 77 }))).json())
+        .pick;
+      const both = (await (await put(pickOf(AK, 0, { float: 0.34, seed: 5 }))).json()).pick;
+      expect([ct.id, both.id].length).toBe(2);
+      expect((await loadout()).paints).toEqual(
+        expect.arrayContaining([
+          { team: 3, defindex: 1, paint: deagle[0].paintKit, wear: 0.12, seed: 77 },
+          { team: 0, defindex: 7, paint: ak[0].paintKit, wear: 0.34, seed: 5 },
+        ])
+      );
+      expect(
+        (await loadout()).paints.every((p: { stattrak?: number }) => p.stattrak === undefined)
+      ).toBe(true);
+
+      await setConfig(request, { catalogUnlocked: false });
+      expect(await loadout()).toBeNull();
+
+      await setConfig(request, { catalogUnlocked: true });
+      expect((await loadout()).paints).toHaveLength(2);
+    }
+  );
+
   test('picks stay hidden while the mode is off', { tag: ['@api'] }, async ({ request }) => {
     const { pick } = await (await put(pickOf(DEAGLE, 0))).json();
     await setConfig(request, { catalogUnlocked: false });
@@ -427,36 +456,30 @@ test.describe.serial('Skins catalogue unlock', () => {
 });
 
 test.describe('catalogue picks in the server loadout', () => {
-  const restore: Array<() => void> = [];
-  const stub = <K extends 'getAppSettingAsync' | 'queryOneAsync' | 'queryAsync'>(
-    key: K,
-    value: (typeof db)[K]
-  ) => {
-    const original = db[key];
-    db[key] = value;
-    restore.push(() => {
-      db[key] = original;
+  test('pick rows become one paint per side, never StatTrak', { tag: ['@api'] }, () => {
+    const row = (weapon: string, paint_kit: number, team: number, slot = weapon) => ({
+      weapon,
+      paint_kit,
+      float_value: 0.07,
+      pattern: 3,
+      slot,
+      team,
+      stattrak: null,
     });
-  };
-  test.afterEach(() => {
-    while (restore.length) restore.pop()!();
-  });
-
-  async function readLoadout(config: Record<string, unknown>) {
-    let flag: unknown = 'unset';
-    stub('getAppSettingAsync', (async () =>
-      JSON.stringify(config)) as typeof db.getAppSettingAsync);
-    stub('queryOneAsync', (async () => ({ uid: 'u1' })) as typeof db.queryOneAsync);
-    stub('queryAsync', (async (_sql: string, params: unknown[] = []) => {
-      flag = params[1];
-      return [];
-    }) as typeof db.queryAsync);
-    await skinService.loadoutItems(STEAM_ID);
-    return flag;
-  }
-
-  test('the push leaves picks out while the mode is off', { tag: ['@api'] }, async () => {
-    expect(await readLoadout({ enabled: true, catalogUnlocked: false })).toBe(false);
-    expect(await readLoadout({ enabled: true, catalogUnlocked: true })).toBe(true);
+    const payload = loadoutPayload([
+      row('weapon_knife_karambit', 415, 3, 'knife'),
+      row('weapon_deagle', 17, 2),
+      row('weapon_deagle', 37, 3),
+      // No definition index: the plugin cannot paint it.
+      row('weapon_decoy', 9001, 0),
+    ]);
+    expect(payload?.paints.map((p) => [p.team, p.defindex, p.paint])).toEqual([
+      [3, 507, 415],
+      [2, 1, 17],
+      [3, 1, 37],
+    ]);
+    expect(payload?.paints.some((p) => 'stattrak' in p)).toBe(false);
+    expect(payload?.knife).toEqual([{ team: 3, defindex: 507 }]);
+    expect(loadoutPayload([row('weapon_decoy', 9001, 0)])).toBeNull();
   });
 });
