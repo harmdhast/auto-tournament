@@ -227,6 +227,10 @@ export async function checkAdminAccess(req: Request): Promise<AdminAccessResult>
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  return requireAuthInner(req, res, next).catch(next);
+}
+
+async function requireAuthInner(req: Request, res: Response, next: NextFunction): Promise<void> {
   const access = await checkAdminAccess(req);
   if (access.ok) {
     if (access.serviceToken) {
@@ -258,6 +262,14 @@ export type IntegratorRequest = Request & { integrator?: IntegratorIdentity };
  * an admin's session. Everything else gets the same answers as `requireAuth`.
  */
 export async function requireIntegratorAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  return requireIntegratorAuthInner(req, res, next).catch(next);
+}
+
+async function requireIntegratorAuthInner(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const tokenAuth = authenticateServiceToken(req, { allowIntegrator: true });
   if (tokenAuth) {
     if (tokenAuth.ok) {

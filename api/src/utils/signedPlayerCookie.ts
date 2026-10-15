@@ -10,6 +10,7 @@
  */
 
 import crypto from 'crypto';
+import { readCookies } from './cookieHeader';
 
 const COOKIE_NAME = 'player_steam_id';
 const SEP = '.';
@@ -39,16 +40,7 @@ export function signPlayerSteamId(steamId: string): string {
  */
 export function getVerifiedPlayerSteamId(cookieHeader: string | undefined): string | null {
   if (!cookieHeader || typeof cookieHeader !== 'string') return null;
-  const map = Object.fromEntries(
-    cookieHeader
-      .split(';')
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .map((p) => {
-        const [k, ...v] = p.split('=');
-        return [k, decodeURIComponent((v.join('=') ?? '').trim())];
-      })
-  );
+  const map = readCookies(cookieHeader);
   const raw = map[COOKIE_NAME];
   if (!raw || typeof raw !== 'string') return null;
   const i = raw.lastIndexOf(SEP);

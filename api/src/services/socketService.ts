@@ -159,7 +159,13 @@ export function initializeSocket(
     // an anonymous socket. The client asks again on every `connect`.
     socket.on('player:subscribe', (ack?: unknown) => {
       const reply = typeof ack === 'function' ? (ack as (body: unknown) => void) : () => undefined;
-      const playerId = getRealViewerSteamId(handshakeAsRequest(socket));
+      let playerId: string | null;
+      try {
+        playerId = getRealViewerSteamId(handshakeAsRequest(socket));
+      } catch (error) {
+        log.error('Socket player subscribe failed', error as Error);
+        return reply({ ok: false });
+      }
       if (!playerId) return reply({ ok: false });
       const wasOnline = isPlayerOnline(playerId);
       void Promise.resolve(socket.join(playerRoom(playerId))).then(() => {
