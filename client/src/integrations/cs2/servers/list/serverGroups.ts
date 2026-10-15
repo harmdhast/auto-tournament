@@ -23,7 +23,7 @@ export interface ServerGroup {
 }
 
 /** Online machines first; then the ones waiting to be linked, the offline ones, the revoked. */
-export function hostRank(host: FleetHost): number {
+function hostRank(host: FleetHost): number {
   if (host.status === 'enrolled') return host.online ? 0 : 2;
   return host.status === 'pending' ? 1 : 3;
 }
@@ -62,14 +62,4 @@ export function buildServerGroups(hosts: FleetHost[], fleet: FleetServer[]): Ser
     .map((f) => ({ kind: 'readyup' as const, key: `r:${f.id}` as const, fleet: f }));
   if (readyUp.length > 0) groups.push({ key: 'none', host: null, rows: readyUp });
   return groups;
-}
-
-export function rowForFleetServer(groups: ServerGroup[], fleetId: string): ServerRow | null {
-  for (const group of groups) {
-    for (const row of group.rows) {
-      if (row.kind === 'readyup' && row.fleet.id === fleetId) return row;
-      if (row.kind === 'machine' && row.server.fleetServer?.id === fleetId) return row;
-    }
-  }
-  return null;
 }

@@ -52,7 +52,10 @@ export function useServerAvailability(): {
   }, [next, load]);
 
   // Servers come and go, and matches take and free them: re-read on either.
-  useTopic('fleet', load, { admin: true, events: ['match:update', 'server:status'] });
+  useTopic('fleet', load, {
+    admin: true,
+    events: ['match:update', 'bracket:update', 'server:status'],
+  });
 
   return { availability, loaded: answers > 0, answers };
 }

@@ -31,7 +31,7 @@ test.describe('Ready Up fleet: players', () => {
         await route.fulfill({ json: { ok: true } });
       }
     );
-    await page.goto('/manage/servers?fleetServer=a#fleet');
+    await page.goto('/manage/servers?server=r:a#fleet');
     const sheet = page.getByTestId('server-panel');
     await expect(sheet.getByTestId('fleet-player-76561198000100001')).toContainText('alice');
     await sheet.getByTestId('fleet-kick-76561198000100002').click();
@@ -42,7 +42,7 @@ test.describe('Ready Up fleet: players', () => {
     await expect(page.getByText('bob kicked')).toBeVisible();
     expect(body).toEqual({ steamid64: '76561198000100002', message: 'afk' });
 
-    await page.goto('/manage/servers?fleetServer=b#fleet');
+    await page.goto('/manage/servers?server=r:b#fleet');
     await expect(page.getByTestId('server-panel')).toContainText('Nobody on the server');
   });
 });

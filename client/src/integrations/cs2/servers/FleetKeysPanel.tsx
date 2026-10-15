@@ -33,17 +33,13 @@ import {
   useModuleTranslation,
   useSnackbar,
 } from '../../../module-sdk';
-import type { Secret } from './list/useFleetServerActions';
+import type { Secret } from './secret.types';
 import type { FleetKey, FleetKeysResponse } from '../cs2.types';
 import { ServerSection } from './ServerSection';
+import { formatWhen } from './time';
 import { useTopic } from '../../../module-sdk';
 
-function when(unixSeconds: number | null | undefined, locale: string): string {
-  if (!unixSeconds) return '—';
-  return new Date(unixSeconds * 1000).toLocaleString(locale);
-}
-
-export default function FleetPanel({ showSecret }: { showSecret: (secret: Secret) => void }) {
+export default function FleetKeysPanel({ showSecret }: { showSecret: (secret: Secret) => void }) {
   const { t, i18n } = useModuleTranslation('cs2');
   const { showError } = useSnackbar();
   const [keys, setKeys] = useState<FleetKey[]>([]);
@@ -187,7 +183,7 @@ export default function FleetPanel({ showSecret }: { showSecret: (secret: Secret
                   ? ` · ${t('fleetPanel.keyPrefix', { prefix: key.namePrefix })}`
                   : ''}
                 {key.expiresAt
-                  ? ` · ${t('fleetPanel.keyExpires', { time: when(key.expiresAt, locale) })}`
+                  ? ` · ${t('fleetPanel.keyExpires', { time: formatWhen(key.expiresAt, locale) })}`
                   : ''}
               </Typography>
               <Tooltip title={t('fleetPanel.revokeKey')}>

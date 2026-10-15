@@ -15,6 +15,7 @@ import {
 } from '@phosphor-icons/react';
 import type { ClientGameIntegration, PlayerProfileViewProps } from '../types';
 import { links } from '../../module-sdk';
+import { SERVER_AVAILABILITY_ENDPOINT } from './cs2.types';
 import { MatchServerPanel } from './match/MatchServerPanel';
 import { Cs2MatchAdminView } from './match/Cs2MatchAdminView';
 import { ServerAllocationWidget } from './servers/ServerAllocationWidget';
@@ -169,7 +170,7 @@ export const cs2ClientIntegration: ClientGameIntegration = {
   summarizeAvailability: summarizeServerAvailability,
   manageNeedsYou: serverNeedsYouItems,
 
-  resourceAvailabilityEndpoint: '/api/tournament/server-availability',
+  resourceAvailabilityEndpoint: SERVER_AVAILABILITY_ENDPOINT,
 
   // Round rules and the map pool: CS2's own object in the tournament's
   // settings (`settings.cs2`), which the steps edit and load data for

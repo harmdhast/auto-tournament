@@ -158,7 +158,7 @@ test.describe('Ready Up servers on the server list', () => {
     await expect(page.getByTestId('server-panel')).toContainText('Update available: 0.5.0');
     await expect(page.getByTestId('server-panel')).toContainText('Token renewal');
 
-    await page.goto('/manage/servers?fleetServer=nope');
+    await page.goto('/manage/servers?server=r:nope');
     await expect(page.getByTestId('server-panel')).toContainText('This server is gone');
   });
 });

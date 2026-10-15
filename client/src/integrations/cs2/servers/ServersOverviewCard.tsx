@@ -1,42 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Box, Card, CardContent, Skeleton, Stack, Typography } from '@mui/material';
-import { api, links, radii, tokens, useModuleTranslation } from '../../../module-sdk';
+import { api, links, radii, useModuleTranslation } from '../../../module-sdk';
 import {
   SERVER_AVAILABILITY_ENDPOINT,
   type ServerAvailability,
   type ServerFleetCounts,
 } from '../cs2.types';
-
-/** Online / in-match / free / offline from the allocator's view of the fleet. */
-function countFleet(availability: ServerAvailability): ServerFleetCounts {
-  const counts: ServerFleetCounts = {
-    online: 0,
-    inMatch: 0,
-    busy: 0,
-    draining: 0,
-    spare: 0,
-    free: 0,
-    offline: 0,
-    total: 0,
-  };
-  for (const server of availability.servers ?? []) {
-    counts.total += 1;
-    if (!server.online) {
-      counts.offline += 1;
-      continue;
-    }
-    counts.online += 1;
-    if (server.allocatable) counts.free += 1;
-    else if (server.busyReason === 'reserved' || server.notAllocatableReason === 'reserved')
-      counts.spare += 1;
-    else if (server.matchSlug) counts.inMatch += 1;
-    else if (server.busyReason === 'draining') counts.draining += 1;
-    else if (!server.busyReason) counts.inMatch += 1;
-    else counts.busy += 1;
-  }
-  return counts;
-}
+import { countFleet } from './availabilityClass';
+import { availabilityClassTone } from './fleet/serverStateMark';
 
 /** The card's numbers, asked once when it mounts: the fleet breakdown from the allocator's availability route. */
 function useFleetSummary(): { loaded: boolean; fleet: ServerFleetCounts | null } {
@@ -61,16 +33,6 @@ function useFleetSummary(): { loaded: boolean; fleet: ServerFleetCounts | null }
   return { loaded, fleet };
 }
 
-/** The server list's availability colours (fleet/readyup/AvailabilityChip.tsx availabilityTone). */
-const TONE = {
-  inMatch: tokens.color.accent,
-  busy: 'warning.main',
-  draining: tokens.color.info,
-  spare: tokens.color.info,
-  free: tokens.color.live,
-  offline: tokens.color.ban,
-} as const;
-
 /** A thin stacked bar: in a match / busy / draining / spare / free / offline, in that order. */
 function FleetBar({ fleet }: { fleet: ServerFleetCounts }) {
   const total = fleet.total || 1;
@@ -86,12 +48,12 @@ function FleetBar({ fleet }: { fleet: ServerFleetCounts }) {
         display: 'flex',
       }}
     >
-      <Box sx={{ width: pct(fleet.inMatch), bgcolor: TONE.inMatch }} />
-      <Box sx={{ width: pct(fleet.busy), bgcolor: TONE.busy }} />
-      <Box sx={{ width: pct(fleet.draining), bgcolor: TONE.draining }} />
-      <Box sx={{ width: pct(fleet.spare), bgcolor: TONE.spare }} />
-      <Box sx={{ width: pct(fleet.free), bgcolor: TONE.free }} />
-      <Box sx={{ width: pct(fleet.offline), bgcolor: TONE.offline }} />
+      <Box sx={{ width: pct(fleet.inMatch), bgcolor: availabilityClassTone.inMatch }} />
+      <Box sx={{ width: pct(fleet.busy), bgcolor: availabilityClassTone.busy }} />
+      <Box sx={{ width: pct(fleet.draining), bgcolor: availabilityClassTone.draining }} />
+      <Box sx={{ width: pct(fleet.spare), bgcolor: availabilityClassTone.spare }} />
+      <Box sx={{ width: pct(fleet.free), bgcolor: availabilityClassTone.free }} />
+      <Box sx={{ width: pct(fleet.offline), bgcolor: availabilityClassTone.offline }} />
     </Box>
   );
 }
@@ -153,7 +115,12 @@ export function ServersOverviewCard() {
                   <Box display="flex" alignItems="center" gap={1}>
                     <Box
                       aria-hidden
-                      sx={{ width: 8, height: 8, borderRadius: radii.pill, bgcolor: TONE[k] }}
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: radii.pill,
+                        bgcolor: availabilityClassTone[k],
+                      }}
                     />
                     <Typography variant="body2" color="text.secondary">
                       {t(`dashboard.servers.${k}`)}

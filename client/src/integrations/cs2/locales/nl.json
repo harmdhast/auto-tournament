@@ -120,7 +120,6 @@
     },
     "errors": {
       "loadMaps": "Kan kaarten niet laden",
-      "loadPools": "Kan kaartpools niet laden",
       "defaultPoolCannotDelete": "De standaard kaartpool kan niet worden verwijderd.",
       "setDefaultPool": "Kan de standaard kaartpool niet instellen",
       "togglePool": "Kan de status van de kaartpool niet wijzigen",
@@ -194,7 +193,6 @@
     },
     "buttons": {
       "cancel": "Annuleren",
-      "saving": "Opslaan...",
       "update": "Bijwerken",
       "create": "Aanmaken"
     }
@@ -219,87 +217,6 @@
       "enable": "Inschakelen",
       "disable": "Uitschakelen",
       "setDefault": "Als standaard instellen"
-    }
-  },
-  "batchServerModal": {
-    "title": "Servers in bulk aanmaken",
-    "info": "Maak meerdere servers aan met poorten die per 10 oplopen (27015, 27025, 27035...). Ideaal voor LAN-opstellingen met servers op dezelfde machine.",
-    "sections": {
-      "identification": {
-        "title": "Server-identificatie"
-      },
-      "connection": {
-        "title": "Verbindingsinstellingen"
-      },
-      "configuration": {
-        "title": "Serverconfiguratie"
-      }
-    },
-    "baseId": {
-      "label": "Basis-ID",
-      "placeholder": "server",
-      "helper": "Server-ID’s worden: base_1, base_2, base_3..."
-    },
-    "baseName": {
-      "label": "Basisnaam",
-      "placeholder": "Auto Tournament",
-      "helper": "Servernamen worden: Basis #1, Basis #2, Basis #3..."
-    },
-    "host": {
-      "label": "Host / IP-adres",
-      "placeholder": "192.168.1.100"
-    },
-    "rconPassword": {
-      "label": "RCON-wachtwoord",
-      "placeholder": "shared-rcon-password",
-      "helper": "Hetzelfde wachtwoord voor alle servers"
-    },
-    "numServers": {
-      "label": "Aantal servers",
-      "placeholder": "3",
-      "helper": "Maximaal: 50"
-    },
-    "assignPorts": {
-      "label": "Poorten toewijzen",
-      "helper": "API → server (RCON-test)"
-    },
-    "serverPortLabel": "Server nr. {{index}}",
-    "portPlaceholder": "27015",
-    "enabled": {
-      "label": "Servers ingeschakeld",
-      "helper": "Alle servers worden aangemaakt als ingeschakeld/uitgeschakeld"
-    },
-    "preview": {
-      "more": "...en nog {{count}}",
-      "titleFirst10": "Voorbeeld (eerste 10)",
-      "titleAll": "Voorbeeld (alle)"
-    },
-    "checkServersButton": {
-      "default": "Servers controleren",
-      "checking": "Controleren..."
-    },
-    "createServersButton": {
-      "creating": "Aanmaken...",
-      "default_one": "{{count}} server aanmaken",
-      "default_other": "{{count}} servers aanmaken"
-    },
-    "warnings": {
-      "notAllVerified": "Sommige servers zijn niet door de connectiviteitscontrole gekomen. Ze worden opgeslagen, maar kunnen als offline worden weergegeven totdat RCON en webhook zijn geconfigureerd."
-    },
-    "success": {
-      "createdAll_one": "{{count}} server aangemaakt",
-      "createdAll_other": "{{count}} servers aangemaakt"
-    },
-    "errors": {
-      "baseNameRequired": "Basisnaam is verplicht",
-      "baseIdRequired": "Basis-ID is verplicht",
-      "hostRequired": "Host is verplicht",
-      "countRange": "Aantal servers moet tussen 1 en 50 liggen",
-      "passwordRequired": "RCON-wachtwoord is verplicht",
-      "portRange": "Poort van server #{{index}} moet tussen 1 en 65535 liggen",
-      "connectionFailed": "Verbinding mislukt",
-      "createFailed": "Servers aanmaken mislukt",
-      "partialCreate": "{{created}}/{{total}} servers aangemaakt. Fouten:\n{{details}}"
     }
   },
   "matchesPage": {
@@ -333,18 +250,12 @@
     "vetoCompleted": "Veto voltooid!",
     "vetoCompletedSubtitle": "De kaartselectie is voltooid. De match begint binnenkort.",
     "selectedMaps": "Geselecteerde kaarten",
-    "yourTurnToBan": "UW TEAM IS AAN DE BEURT OM EEN KAART TE BANNEN",
-    "yourTurnToPick": "UW TEAM IS AAN DE BEURT OM EEN KAART TE KIEZEN",
-    "yourTurnToChooseSide": "UW TEAM IS AAN DE BEURT OM EEN KANT TE KIEZEN",
     "clickMapToConfirm": "Klik op een van de gemarkeerde kaarten om uw keuze te bevestigen.",
     "waitingToBan": "Wachten op {{team}} om een kaart te bannen",
     "waitingToPick": "Wachten op {{team}} om een kaart te kiezen",
     "waitingToChooseSide": "Wachten op {{team}} om een kant te kiezen",
     "pageUpdatesAutomatically": "Houd deze pagina open – deze wordt automatisch bijgewerkt wanneer het uw beurt is.",
     "stepOf": "Stap {{current}} van {{total}}",
-    "banPhase": "Ban-fase",
-    "pickPhase": "Pick-fase",
-    "sideChoice": "Zijkeuze",
     "chooseYourStartingSide": "Kies uw startkant",
     "waitingForSidePick": "Wachten op {{team}} om de startkant te kiezen...",
     "counterTerrorist": "Counter-Terrorist",
@@ -411,7 +322,6 @@
       "pausedWaiting_one": "Gepauzeerd: wachten tot {{names}} opnieuw verbindt.",
       "pausedWaiting_other": "Gepauzeerd: wachten tot {{names}} opnieuw verbinden.",
       "waitingBody": "Er wordt automatisch een server toegewezen zodra er een beschikbaar is. Na elke wedstrijd gaan servers kort in cooldown (ongeveer 2 minuten) zodat demo's kunnen uploaden en de server volledig kan resetten. Deze pagina wordt automatisch bijgewerkt zodra je server klaar is.",
-      "serverName": "Server: {{name}}",
       "status": "Status: {{status}}",
       "connect": "Verbinden met server",
       "connecting": "✓ Verbinden...",
@@ -439,196 +349,9 @@
   },
   "serversPage": {
     "title": "Spelservers",
-    "headerActions": {
-      "refreshChecking": "Controleren…",
-      "refresh": "Status vernieuwen",
-      "batchAdd": "Batch toevoegen",
-      "addServer": "Server toevoegen",
-      "retryUninitialized": "Niet geïnitialiseerd opnieuw proberen ({{count}})",
-      "retryUninitializedChecking": "Opnieuw proberen...",
-      "select": "Selecteren",
-      "done": "Klaar met selecteren",
-      "selectAll": "Alles selecteren",
-      "unselectAll": "Alles deselecteren",
-      "deleteSelected": "Selectie verwijderen"
-    },
-    "empty": {
-      "createServers": "Link a machine or create servers",
-      "addExisting": "Add an existing server (RCON)",
-      "title": "Geen servers geregistreerd",
-      "description": "Voeg je eerste CS2-server toe om met het toernooi te beginnen",
-      "addServer": "Server toevoegen",
-      "batchAdd": "Of meerdere servers in batch toevoegen"
-    },
-    "errors": {
-      "loadServers": "Kon servers niet laden",
-      "noMatchesForServer": "Geen wedstrijden gevonden voor deze server",
-      "loadCurrentMatch": "Huidige wedstrijd voor deze server laden mislukt",
-      "bulkDelete": "Kon één of meer servers niet verwijderen"
-    },
-    "allocation": {
-      "loading": "Toewijzingsstatus laden...",
-      "nextPass": "Volgende allocator-run over ~{{seconds}}s",
-      "cooldownLabel": "Afkoelperiode",
-      "cooldownDescription": "Onlangs is er een wedstrijd afgerond — in afkoelperiode zodat demo’s kunnen uploaden en de server volledig kan resetten (ongeveer 2 minuten).",
-      "cooldownEta": "Klaar over ~{{seconds}}s"
-    },
-    "statusChip": {
-      "checking": "Controleren...",
-      "disabled": "Uitgeschakeld",
-      "offline": "Offline (uit)",
-      "onlineOk": "Online (API ↔ server OK)",
-      "onlineRconOnly": "Online (alleen RCON)",
-      "rconFailed": "RCON mislukt",
-      "onlineTesting": "Online (test)",
-      "noEventsYet": "Nog geen events",
-      "notConfigured": "Niet geconfigureerd",
-      "onlineIdle": "Online (inactief — geen recente events)",
-      "onlineActive": "Online (actief)",
-      "online": "Online"
-    },
-    "ipBanned": {
-      "title": "Server heeft mogelijk ons IP geband",
-      "message": "De server is bereikbaar maar weigert herhaaldelijk RCON-authenticatie. Dit kan duiden op een IP-ban. Als het RCON-wachtwoord klopt, controleer dan de banlijst van de server en unban ons IP-adres."
-    },
-    "connectivity": {
-      "apiToServer": "Auto Tournament API → CS2-server",
-      "serverToApi": "Server → API (/api/events) (gebeurtenissen)",
-      "unreachable": "Onbereikbaar",
-      "reachable": "Bereikbaar",
-      "unknown": "Onbekend",
-      "loading": "Laden…"
-    },
-    "currentMatch": {
-      "view": "Wedstrijd bekijken",
-      "loading": "Laden...",
-      "queuedPrefix": "In wachtrij: "
-    },
-    "bulkDelete": {
-      "title": "Servers verwijderen",
-      "message_one": "Weet je zeker dat je {{count}} server wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.",
-      "message_other": "Weet je zeker dat je {{count}} servers wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt."
-    },
-    "autoConfig": {
-      "configuring": "Nieuwe servers configureren (MatchZy Enhanced-config via RCON versturen)…",
-      "done": "Nieuwe servers geconfigureerd. Status verversen…"
-    },
-    "checkServerLogs": "Controleer de gameserverconsole/logs om te zien of de Auto Tournament-plugin config ontvangt en events verstuurt.",
     "fleet": {
-      "title": "Status van alle servers",
       "total_one": "{{count}} server",
-      "total_other": "{{count}} servers",
-      "latestRelease": "Nieuwste MatchZy Enhanced-release: v{{version}}",
-      "olderVersion_one": "{{count}} server draait een oudere versie dan de nieuwste release.",
-      "olderVersion_other": "{{count}} servers draaien een oudere versie dan de nieuwste release.",
-      "downloadLatest": "Nieuwste downloaden"
-    },
-    "cs2Update": {
-      "title": "CS2-update vereist",
-      "snackbarBody_one": "{{count}} server is verouderd. Werk de serverinstallatie bij en herstart.",
-      "snackbarBody_other": "{{count}} servers zijn verouderd. Werk de serverinstallatie bij en herstart.",
-      "fleetTitle": "CS2-servers verouderd — update vereist",
-      "fleetBody_one": "{{count}} server heeft van Steam een verplichte CS2-update gemeld. Werk de serverinstallatie bij (SteamCMD/host) en herstart.",
-      "fleetBody_other": "{{count}} servers hebben van Steam een verplichte CS2-update gemeld. Werk de serverinstallatie bij (SteamCMD/host) en herstart."
-    },
-    "versionMismatch": {
-      "title": "Versieverschil gedetecteerd",
-      "chip_one": "v{{version}}: {{count}} server",
-      "chip_other": "v{{version}}: {{count}} servers",
-      "recommended": "Aanbevolen: werk alle servers bij naar v{{version}} voor consistentie"
-    },
-    "notInitialized": {
-      "title": "Server niet geïnitialiseerd",
-      "checking": "Verbinding controleren…",
-      "rconUnreachable": "RCON onbereikbaar. Controleer host en poort en of de gameserver draait. Gebruik Opnieuw proberen zodra hij bereikbaar is.",
-      "noEvents": "RCON bereikbaar, maar de Auto Tournament-plugin heeft nog geen events verstuurd. Klik op Opnieuw proberen om hem te configureren.",
-      "notChecked": "Verbinding nog niet gecontroleerd. Zie de status hieronder. Klik op Opnieuw proberen om te configureren zodra RCON bereikbaar is."
-    },
-    "chips": {
-      "versionMismatch": "Versieverschil",
-      "ipBanned": "IP geblokkeerd",
-      "pluginDbDown": "Plugin-DB onbereikbaar",
-      "cs2UpdateRequired": "CS2-update vereist ({{version}})"
-    },
-    "tooltips": {
-      "fixGuide": "Oplossingsgids",
-      "disabledTitle": "Uitgeschakelde server",
-      "disabledBody": "Uitgeschakelde servers worden genegeerd bij toewijzing en health checks.",
-      "noEventsTitle": "Nog geen events ontvangen van de Auto Tournament-plugin",
-      "noEventsBody": "Auto Tournament heeft de webhookconfiguratie via RCON verstuurd, maar nog geen events ontvangen. Meestal betekent dit dat de server de webhook-URL van Auto Tournament niet kan bereiken, of dat de Auto Tournament-plugin niet draait.",
-      "notConfiguredTitle": "Niet geconfigureerd",
-      "notConfiguredBody": "Auto Tournament heeft de vaste configuratie nog niet naar deze server gestuurd. Gebruik Opnieuw proberen om hem te initialiseren.",
-      "unreachableTitle": "Server onbereikbaar vanaf Auto Tournament",
-      "unreachableBody": "Auto Tournament kan de server niet via RCON bereiken. Controleer host/poort, RCON-wachtwoord, firewall en of de server draait.",
-      "webhookTitle": "Server kan Auto Tournament niet bereiken (webhook)",
-      "webhookBody": "Auto Tournament kan de server via RCON bereiken, maar de server kan de webhook van Auto Tournament niet bereiken. Controleer uitgaand verkeer, DNS en de ingestelde webhook-URL.",
-      "versionDiffTitle": "Pluginversies verschillen per server",
-      "versionDiffBody": "Sommige servers draaien een andere MatchZy Enhanced-versie. Gebruik je CSM, voer dan {{command}} uit en herstart de servers.",
-      "ipBannedTitle": "RCON-IP geblokkeerd",
-      "ipBannedBody": "De server heeft het IP van Auto Tournament tijdelijk geblokkeerd na herhaalde mislukte RCON-authenticatie. Corrigeer het RCON-wachtwoord en hef de IP-blokkade op.",
-      "pluginDbTitle": "De Auto Tournament-plugin kan zijn database niet bereiken.",
-      "pluginDbBody": "Gebruik je CSM, voer dan {{path}} uit.",
-      "cs2UpdateBody": "Auto Tournament heeft vastgesteld dat de build van deze server achterloopt op Steam. De server wordt niet gebruikt voor nieuwe toewijzingen (en het starten van toernooien) totdat hij is bijgewerkt."
-    },
-    "lastActive": {
-      "justNow": "Zojuist actief",
-      "minutesAgo_one": "{{count}} minuut geleden actief",
-      "minutesAgo_other": "{{count}} minuten geleden actief",
-      "hoursAgo_one": "{{count}} uur geleden actief",
-      "hoursAgo_other": "{{count}} uur geleden actief",
-      "daysAgo_one": "{{count}} dag geleden actief",
-      "daysAgo_other": "{{count}} dagen geleden actief"
-    },
-    "pluginStatus": {
-      "idle": "Inactief",
-      "loading": "Laden",
-      "warmup": "Warmup",
-      "knife": "Knife-round",
-      "live": "Live",
-      "playing": "Bezig",
-      "paused": "Gepauzeerd",
-      "halftime": "Rust",
-      "postgame": "Na de wedstrijd",
-      "queued": "In wachtrij",
-      "error": "Fout"
-    },
-    "retry": {
-      "sendingConfig": "Vaste configuratie naar de server versturen…",
-      "triggered": "Serverinitialisatie gestart",
-      "failed": "Opnieuw initialiseren mislukt: {{message}}",
-      "retryingAll_one": "Initialisatie opnieuw proberen voor {{count}} server…",
-      "retryingAll_other": "Initialisatie opnieuw proberen voor {{count}} servers…",
-      "triggeredAll_one": "Opnieuw proberen gestart voor {{count}} server",
-      "triggeredAll_other": "Opnieuw proberen gestart voor {{count}} servers",
-      "failedAll": "Opnieuw proberen mislukt: {{message}}"
-    },
-    "row": {
-      "details": "Details for {{name}}",
-      "actions": "Actions for {{name}}",
-      "edit": "Edit",
-      "retryInit": "Retry initialization",
-      "disabled": "Disabled: allocation skips it",
-      "waitingForPlugin": "Config sent, waiting for the plugin's first event",
-      "running": "Running {{match}}",
-      "ready": "Ready for the next match"
-    },
-    "details": {
-      "host": "Host",
-      "port": "Port",
-      "cs2Name": "CS2 name",
-      "plugin": "Plugin",
-      "cs2Build": "CS2 build",
-      "pluginStatus": "Plugin status",
-      "lastEvent": "Last event",
-      "id": "ID"
-    },
-    "strip": {
-      "online": "ONLINE",
-      "offline": "OFFLINE",
-      "notConfigured": "NOT SET UP",
-      "disabled": "DISABLED",
-      "free": "FREE",
-      "waiting": "WAITING"
+      "total_other": "{{count}} servers"
     },
     "limit": {
       "unlimited": "no server limit (non-commercial use)",
@@ -639,13 +362,6 @@
     },
     "machineCount_one": "{{count}} machine",
     "machineCount_other": "{{count}} machines",
-    "settings": "Server settings",
-    "other": {
-      "title": "Other servers",
-      "summary_one": "{{count}} server not on a machine",
-      "summary_other": "{{count}} servers not on a machine",
-      "about": "Servers added by address, not run by csm on a linked machine."
-    },
     "add": {
       "button": "Toevoegen",
       "machine": "Machine",
@@ -660,21 +376,8 @@
     "enabledHelper": "Uitgeschakelde servers worden niet gebruikt voor wedstrijden",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
-    "chatPrefixLabel": "Chatprefix-overschrijving",
-    "chatPrefixPlaceholder": "[{Green}Auto Tournament{Default}]",
-    "adminChatPrefixLabel": "Admin-chatprefix-overschrijving",
-    "adminChatPrefixPlaceholder": "[{Red}ADMIN{Default}]",
-    "knifeOverrideLabel": "Knife-round standaard ingeschakeld (overschrijven)",
-    "connectivity": {
-      "apiToServer": "Auto Tournament API → CS2-server:",
-      "serverToApi": "Server → API (/api/events) (gebeurtenissen):",
-      "reachable": "Bereikbaar",
-      "unreachable": "Onbereikbaar"
-    },
     "errors": {
       "nameRequired": "Servernaam is verplicht",
-      "duplicateHostPort": "Er bestaat al een server met host:poort '{{host}}:{{port}}' (ID: {{id}}, Naam: {{name}})",
-      "testConnectionSaveFirst": "Sla de server eerst op voordat je de verbinding test",
       "saveFailed": "Server opslaan mislukt",
       "deleteFailed": "Server verwijderen mislukt"
     },
@@ -692,8 +395,6 @@
       "title": "Server verwijderen",
       "message": "Weet je zeker dat je \"{{name}}\" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt."
     },
-    "skinsLabel": "Skins on this server",
-    "skinsHelper": "Players' equipped virtual skins are sent to the server in warmup and between maps, never mid-map. Needs Ready Up's skins plugin and a server without a Steam server token.",
     "skinsTokenWarning": "This server runs with a Steam server token (+sv_setsteamaccount), so it gets no skins: Valve bans the token, and the account behind it, of a server that hands out items. Remove the token in csm to use skins here.",
     "failoverUseLabel": "Gebruiken voor failover",
     "failoverUseHelper": "Uit: automatische failover zet hier nooit een match neer en houdt hem ook niet als reserve."
@@ -782,161 +483,6 @@
     "info_other": "Dit slaat een map pool op met {{count}} maps."
   },
   "adminTools": {
-    "description": "Voer veelgebruikte wedstrijd- en serveracties uit op je CS2-servers. Snelle acties worden eerst getoond; meer geavanceerde tools vind je hieronder.",
-    "refresh": "Servers vernieuwen",
-    "serverSelect": {
-      "label": "Doelserver(s)",
-      "allServersChip": "Alle servers",
-      "sendStatus": "Status sturen",
-      "allServersDescription_one": "Uitvoeren op {{count}} server",
-      "allServersDescription_other": "Uitvoeren op alle {{count}} servers"
-    },
-    "command": {
-      "execute": "Uitvoeren"
-    },
-    "customRconWarning": "Waarschuwing: voorzichtig gebruiken!",
-    "results": {
-      "title": "Uitvoerresultaten",
-      "successChip": "✓ Gelukt",
-      "failedChip": "✗ Mislukt",
-      "errorPrefix": "Fout:"
-    },
-    "quickActions": {
-      "title": "Snelle acties"
-    },
-    "advanced": {
-      "title": "Geavanceerde tools"
-    },
-    "noServers": "Geen ingeschakelde servers gevonden. Voeg servers toe en schakel ze in op de pagina Spelservers.",
-    "toasts": {
-      "commandExecuted_one": "Commando uitgevoerd op {{count}} server",
-      "commandExecuted_other": "Commando uitgevoerd op {{count}} servers",
-      "commandPartial": "Commando gelukt op {{succeeded}} van {{total}} servers ({{failed}} mislukt)",
-      "commandFailed": "Commando uitvoeren mislukt"
-    },
-    "commands": {
-      "matchStart": {
-        "label": "Wedstrijd starten",
-        "description": "Start de wedstrijd direct."
-      },
-      "matchEnd": {
-        "label": "Wedstrijd beëindigen",
-        "description": "Beëindig de huidige wedstrijd geforceerd op de geselecteerde servers en zet ze terug naar warmup met css_restart."
-      },
-      "forcePause": {
-        "label": "Geforceerd pauzeren",
-        "description": "Pauzeer de wedstrijd geforceerd."
-      },
-      "forceUnpause": {
-        "label": "Pauze geforceerd opheffen",
-        "description": "Hef de pauze van de wedstrijd geforceerd op."
-      },
-      "skipVeto": {
-        "label": "Veto overslaan",
-        "description": "Sla de vetofase over."
-      },
-      "toggleKnife": {
-        "label": "Knife-round aan/uit",
-        "description": "Zet de knife-round voor de sidekeuze aan of uit (alias: rk)."
-      },
-      "togglePlayout": {
-        "label": "Playout aan/uit",
-        "description": "Zet het uitspelen van alle rondes aan of uit."
-      },
-      "toggleWhitelist": {
-        "label": "Whitelist aan/uit",
-        "description": "Zet de teamwhitelist aan of uit."
-      },
-      "showSettings": {
-        "label": "Instellingen tonen",
-        "description": "Toon de huidige wedstrijdinstellingen."
-      },
-      "reloadAdmins": {
-        "label": "Admins herladen",
-        "description": "Laad de adminlijst opnieuw uit admins.json."
-      },
-      "readyRequired": {
-        "label": "Aantal spelers voor ready instellen",
-        "description": "Stel in hoeveel spelers ready moeten zijn voordat de wedstrijd start.",
-        "inputLabel": "Aantal spelers"
-      },
-      "restoreBackup": {
-        "label": "Rondeback-up herstellen",
-        "description": "Zet de wedstrijd terug naar een specifieke ronde.",
-        "inputLabel": "Rondenummer"
-      },
-      "cleanServers": {
-        "label": "Servers opschonen",
-        "description": "Beëindig lopende wedstrijden op de geselecteerde servers en zet ze terug naar warmup met css_restart. Dit is destructief."
-      },
-      "changeMap": {
-        "label": "Map wisselen",
-        "description": "Wissel naar een andere map (css_map <mapname>).",
-        "inputLabel": "Mapnaam (de_dust2)"
-      },
-      "team1Name": {
-        "label": "Naam team 1 instellen",
-        "description": "Stel de naam van team 1 in.",
-        "inputLabel": "Teamnaam"
-      },
-      "team2Name": {
-        "label": "Naam team 2 instellen",
-        "description": "Stel de naam van team 2 in.",
-        "inputLabel": "Teamnaam"
-      },
-      "startPractice": {
-        "label": "Oefenmodus starten",
-        "description": "Zet de oefenmodus aan met .commands."
-      },
-      "exitPractice": {
-        "label": "Oefenmodus verlaten",
-        "description": "Zet de oefenmodus uit."
-      },
-      "broadcast": {
-        "label": "Bericht uitzenden",
-        "description": "Stuur een adminbericht naar alle spelers.",
-        "inputLabel": "Bericht"
-      },
-      "customRcon": {
-        "label": "Eigen RCON-commando uitvoeren",
-        "description": "Voer direct een willekeurig RCON-commando uit.",
-        "inputLabel": "RCON-commando"
-      }
-    },
-    "categories": {
-      "matchControl": "Wedstrijdbeheer",
-      "matchSettings": "Wedstrijdinstellingen",
-      "backupRestore": "Back-up & herstel",
-      "serverMgmt": "Serverbeheer",
-      "teamMgmt": "Teambeheer",
-      "practiceMode": "Oefenmodus",
-      "adminComm": "Admin-communicatie",
-      "advanced": "Geavanceerde RCON"
-    },
-    "events": {
-      "title": "Server-eventmonitor",
-      "healthCheckFailed": "Health check van de events-API mislukt. Controleer of de API draait en /api/events/test bereikbaar is.",
-      "loadFailed": "Events laden mislukt",
-      "connected": "Verbonden",
-      "disconnected": "Verbinding verbroken",
-      "paused": "Gepauzeerd",
-      "pause": "Pauzeren",
-      "resume": "Hervatten",
-      "refresh": "Events vernieuwen",
-      "clear": "Console wissen",
-      "filterLabel": "Filteren op server (optioneel)",
-      "noServers": "Geen servers beschikbaar",
-      "refreshServers": "Serverlijst vernieuwen",
-      "noEvents": "Nog geen events van deze server ontvangen.",
-      "noEventsHint": "Na 15 seconden nog steeds geen events. Controleer of je CS2-server is ingesteld om MatchZy Enhanced-webhooks naar /api/events/:matchSlugOrServerId te sturen met de juiste X-Auto-Tournament-Token.",
-      "waiting": "Wachten op events van de server…",
-      "footer_one": "{{count}} event getoond (max. 100)",
-      "footer_other": "{{count}} events getoond (max. 100)",
-      "footerForServer_one": "{{count}} event getoond voor server {{server}} (max. 100)",
-      "footerForServer_other": "{{count}} events getoond voor server {{server}} (max. 100)",
-      "realtime": "Events worden in realtime bijgewerkt via WebSocket",
-      "downloadDemo": "Demo downloaden"
-    },
     "title": "Counter-Strike 2 servers"
   },
   "settings": {
@@ -1226,7 +772,12 @@
     "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
     "updateAvailable": "Update beschikbaar: {{version}}",
     "upToDate": "Bijgewerkt",
-    "noUpdateCheck": "Nog geen updatecontrole"
+    "noUpdateCheck": "Nog geen updatecontrole",
+    "unlinked": "Wordt niet meer voor matches gebruikt",
+    "linked": "Wordt voor matches gebruikt",
+    "unlink": "Niet meer voor matches gebruiken",
+    "link": "Voor matches gebruiken",
+    "save": "Opslaan"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -1284,20 +835,11 @@
       "add": "Could not add the machine",
       "command": "The command failed"
     },
-    "sent": "Sent to {{name}}",
     "queued": "{{name}} is offline; it runs when csm reconnects",
     "rotateSent": "New token sent",
     "rotateQueued": "The machine gets a new token when it next connects",
-    "process": {
-      "running": "Running",
-      "stopped": "Stopped"
-    },
-    "restarts": "{{count}} restarts in 24 h",
     "readyUp": "Ready Up {{version}}",
     "noReadyUp": "No Ready Up",
-    "matchInProgress": "Match in progress",
-    "linked": "on the fleet link",
-    "linkedOffline": "fleet link offline",
     "start": "Start",
     "restart": "Restart",
     "stop": "Stop",
@@ -1305,22 +847,15 @@
     "queuedShort": "Queued",
     "waiting": "Waiting for csm…",
     "refusedMatch": "csm refused: a match is in progress",
-    "title": "Machines",
     "add": "Add machine",
-    "description": "Machines run CS2 Server Manager (csm). Link one with a single command, then create, start, stop and update its servers from here.",
-    "empty": "No machines yet.",
     "codeExpires": "Code valid until {{time}}",
     "lastSeen": "Last seen {{time}}",
-    "resources": "{{cpus}} CPU · load {{load}} · {{free}}/{{total}} GB RAM free",
     "disk": "{{mount}}: {{free}} GB free",
-    "cs2Build": "CS2 {{build}}",
     "cs2UpdateAvailable": "CS2 update available",
     "newCode": "New code",
     "rotate": "Rotate token",
     "revoke": "Revoke machine",
     "remove": "Remove",
-    "createServer": "Create server",
-    "createN": "Create several…",
     "updateGame": "Update CS2",
     "updateReadyUp": "Update Ready Up…",
     "updatesHold": "Automatic updates",
@@ -1329,7 +864,6 @@
       "on": "Paused",
       "off": "Always (even during tournaments)"
     },
-    "noServers": "No servers on this machine yet.",
     "enrolledElsewhere": "Enrolled from this machine: {{names}}",
     "activity": "Recent actions",
     "addHelp": "You get one command to run on the machine. It needs CS2 Server Manager (csm) installed.",
@@ -1342,7 +876,6 @@
     "linkWaiting": "Waiting for the machine to connect…",
     "insecureNote": "Deze site draait op onversleuteld http://, dus de opdracht bevat --insecure en het token gaat onversleuteld over het netwerk. Draai het platform zo mogelijk via https://.",
     "done": "Done",
-    "createHelp": "New servers get Ready Up and connect to this platform on their own.",
     "count": "How many",
     "create": "Create",
     "version": "Version",
@@ -1369,10 +902,7 @@
       "revoked": "Revoked"
     },
     "status": {
-      "pending": "In progress",
-      "ok": "Done",
-      "rejected": "Refused",
-      "failed": "Failed"
+      "ok": "Done"
     },
     "health": {
       "ok": "Ready Up healthy",
@@ -1418,33 +948,12 @@
       "failed": "Failed",
       "timeout": "No answer from csm"
     },
-    "summary": "{{machines}} machine(s), {{online}} online · {{servers}} server(s)",
-    "about": "Machines run CS2 Server Manager (csm). The platform starts, stops and creates servers on them by itself.",
     "deleteServer": "Delete server",
-    "deleting": "Deleting…",
-    "ago": {
-      "seconds": "{{count}} s ago",
-      "minutes": "{{count}} min ago"
-    },
     "working": "csm is on it",
-    "tile": {
-      "free": "Free",
-      "match": "In a match",
-      "starting": "Starting…",
-      "stopping": "Stopping…",
-      "restarting": "Restarting…",
-      "updating": "Updating…",
-      "deleting": "Deleting…",
-      "stopped": "Stopped",
-      "offline": "Offline"
-    },
     "tryAgain": "Try again",
-    "load": "Load {{load}} · {{free}} GB RAM free",
-    "offlineSince": "Offline since {{time}}",
     "waitingFor_one": "{{count}} action waits for it",
     "waitingFor_other": "{{count}} actions wait for it",
     "addServers": "Add servers",
-    "back": "All machines",
     "more": "More for {{name}}",
     "machine": "Machine",
     "cpu": "CPU load",
@@ -1467,7 +976,10 @@
     "noReportYet": "Gekoppeld, wacht op het eerste rapport van csm",
     "pendingHelp": "Voer op de machine, als de gebruiker die csm draait, csm link uit met een nieuwe code. CPU, schijf, CS2-build en servers verschijnen hier zodra csm verbinding maakt.",
     "revokedHelp": "Het token werkt niet meer. Verwijder hem of voeg de machine opnieuw toe.",
-    "noReportHelp": "csm stuurt binnen een minuut na het verbinden wat de machine heeft en draait."
+    "noReportHelp": "csm stuurt binnen een minuut na het verbinden wat de machine heeft en draait.",
+    "licenseNote": "Je licentie dekt maximaal {{count}} servers. Elke server telt mee, ook reserveservers.",
+    "progress": "Voortgang van het commando",
+    "waitingFor": "{{count}} actie(s) wachten erop"
   },
   "failover": {
     "title": "Failover",
@@ -1580,10 +1092,133 @@
   "autoscale": {
     "summaryOn": "On",
     "summaryOff": "Off",
-    "empty": "Automatisch schalen heeft een machine nodig die met csm is gekoppeld."
+    "empty": "Automatisch schalen heeft een machine nodig die met csm is gekoppeld.",
+    "saveFailed": "Kon de schaalinstellingen niet opslaan",
+    "title": "Automatisch schalen",
+    "enabled": "Servers automatisch starten en stoppen",
+    "help": "Gestopte Ready Up-servers op je machines worden gestart voordat een ronde ze nodig heeft, en inactieve servers worden na de afkoeltijd gestopt. Als alle servers in gebruik zijn en een machine ruimte heeft, wordt een nieuwe server aangemaakt en aan de pool toegevoegd. Servers worden nooit verwijderd. Elke server telt mee voor je licentie.",
+    "leadTime": "Vooraf starten met",
+    "cooldown": "Stoppen na inactiviteit van",
+    "maxPerHost": "Maximaal aantal servers per machine",
+    "status": "{{warm}} klaar, {{desired}} nodig: {{running}} actief, {{waiting}} wachtend, {{soon}} bijna klaar, {{reserve}} reserve",
+    "activity": "Recente activiteit",
+    "noActivity": "Nog niets gestart of gestopt.",
+    "state": {
+      "busy": "bezet",
+      "idle": "vrij",
+      "starting": "start op",
+      "stopping": "stopt",
+      "stopped": "gestopt",
+      "updating": "werkt bij",
+      "unreachable": "onbereikbaar",
+      "practice": "training"
+    },
+    "action": {
+      "start": "starten",
+      "stop": "stoppen",
+      "create": "aanmaken",
+      "link": "koppelen",
+      "note": "opmerking"
+    }
   },
   "fleetPush": {
-    "summary": "Admins, settings and plugins sent to Ready Up servers"
+    "summary": "Admins, settings and plugins sent to Ready Up servers",
+    "errors": {
+      "save": "Opslaan van de instellingen mislukt",
+      "admins": "Opslaan van de admins mislukt",
+      "push": "Verzenden mislukt",
+      "practice": "Wisselen van trainingsmodus mislukt",
+      "whitelist": "Instellen van de whitelist mislukt",
+      "plugins": "Wijzigen van de plugins mislukt"
+    },
+    "savedDefaults": "Opgeslagen; verzonden naar {{count}} server(s)",
+    "badAdminLine": "Niet \"SteamID64 naam\": {{line}}",
+    "adminsPushed": "Adminlijst rev. {{rev}} verzonden",
+    "adminsUnchanged": "De adminlijst is niet gewijzigd",
+    "adminsPushedTo": "Verzonden naar {{count}} server(s)",
+    "title": "Vlootinstellingen",
+    "editDefaults": "Standaardinstellingen van de vloot",
+    "adminsTitle": "Admins in het spel",
+    "adminsRev": "rev. {{rev}} · {{count}} admin(s)",
+    "editExtras": "Extra admins in het spel",
+    "pushAgain": "Opnieuw verzenden",
+    "adminsHelp": "Websiteadmins met een Steam-account, plus de extra admins in het spel. Elke Ready Up-server krijgt deze lijst als hij verandert en als de server opnieuw verbinding maakt met een oudere.",
+    "extrasHelp": "Admins in het spel die geen websiteadmins zijn (scheidsrechters, casters). Eén per regel: SteamID64, dan een naam.",
+    "saveAndPush": "Opslaan en verzenden",
+    "notSent": "Niet verzonden",
+    "inheritValue": "Vlootstandaard ({{value}})",
+    "inherit": "Vlootstandaard",
+    "notAppliedYet": "Opgeslagen op de server; Ready Up gebruikt het nog niet",
+    "on": "Aan",
+    "off": "Uit",
+    "tokenSet": "Ingesteld (leeg laten om te behouden)",
+    "clearToken": "Wissen",
+    "overrideHelp": "Lege velden gebruiken de vlootstandaard. Een veld dat je leegmaakt behoudt zijn laatste waarde op de server totdat iets het opnieuw instelt.",
+    "defaultHelp": "Wordt bij het opslaan naar elke Ready Up-server verzonden (server.config en settings.set), en opnieuw als een server opnieuw verbinding maakt met een oudere versie. Lege velden worden niet verzonden.",
+    "serverConfig": "Serverconfiguratie",
+    "matchSettings": "Instellingen van de matchplugin",
+    "clearOverride": "Vlootstandaard gebruiken",
+    "status": {
+      "acked": "bevestigd",
+      "queued": "in wachtrij",
+      "ok": "ok",
+      "pending": "in behandeling",
+      "rejected": "geweigerd",
+      "failed": "mislukt",
+      "expired": "verlopen"
+    },
+    "sentNoAnswer": "Verzonden; nog geen antwoord",
+    "queuedOffline": "In de wachtrij: de server krijgt het zodra hij opnieuw verbinding maakt",
+    "savedServer": "Opgeslagen en verzonden naar {{name}}",
+    "pushed": "Verzonden",
+    "practiceOn": "Trainingsmodus aan",
+    "practiceOff": "Trainingsmodus uit",
+    "whitelistSet": "Whitelist bijgewerkt",
+    "pluginsSet": "Plugins bijgewerkt",
+    "hasOverride": "Eigen instellingen",
+    "usesDefault": "Standaardinstellingen van de vloot",
+    "practice": "Training",
+    "settings": "Instellingen",
+    "whitelist": "Whitelist",
+    "plugins": "Plugins",
+    "serverSettingsTitle": "Instellingen: {{name}}",
+    "whitelistTitle": "Whitelist: {{name}}",
+    "whitelistHelp": "Vervangt de lijst en de schakelaar van de whitelistplugin op deze server (whitelist.set). Eén SteamID64 per regel, maximaal 1000. Servers zonder de whitelistplugin antwoorden \"unsupported\".",
+    "whitelistEnabled": "Whitelist aan",
+    "send": "Verzenden",
+    "pluginsTitle": "Plugins: {{name}}",
+    "kind": {
+      "admins": "admins",
+      "serverConfig": "serverconfiguratie",
+      "settings": "instellingen",
+      "whitelist": "whitelist",
+      "practice": "training",
+      "plugins": "plugins"
+    },
+    "fields": {
+      "config_hostname_format": "Hostnaamformaat",
+      "config_scrim_knife": "Messenronde in scrims",
+      "config_series_end_kick_delay_no_demo": "Kickvertraging aan het einde van de serie, zonder demo (s)",
+      "config_series_end_kick_delay_demo_no_upload": "Kickvertraging aan het einde van de serie, demo niet geüpload (s)",
+      "config_series_end_kick_delay_demo_upload": "Kickvertraging aan het einde van de serie, demo geüpload (s)",
+      "config_chat_prefix": "Chatvoorvoegsel",
+      "config_admin_chat_prefix": "Voorvoegsel admin-chat",
+      "config_demo_path": "Demomap",
+      "config_demo_name_format": "Bestandsnaamformaat van demo's",
+      "config_offline_pause_minutes": "Pauze bij offline (minuten)",
+      "config_scrim_when_idle": "Scrim-modus bij inactiviteit",
+      "config_warmup_respawn": "Respawn tijdens de warming-up",
+      "config_warmup_money": "Geld tijdens de warming-up",
+      "config_warmup_message_html": "Warming-upbericht (HTML)",
+      "config_status_http_token": "Status-HTTP-token",
+      "match_minimum_ready_required": "Minimaal aantal spelers klaar",
+      "match_playout_enabled_default": "Standaard alle rondes uitspelen",
+      "match_autoready_enabled": "Automatisch klaar",
+      "match_use_pause_command_for_tactical_pause": "Pauzecommando gebruiken voor tactische pauzes",
+      "match_kick_when_no_match_loaded": "Spelers kicken als er geen match is geladen",
+      "match_whitelist_enabled_default": "Whitelist standaard aan",
+      "match_reset_cvars_on_series_end": "Cvars resetten aan het einde van de serie"
+    }
   },
   "profile": {
     "title": "Performance",
@@ -2040,8 +1675,6 @@
   },
   "highlights": {
     "title": "Highlights",
-    "queued_one": "{{count}} more on the way",
-    "queued_other": "{{count}} more on the way",
     "pending": "Waiting for the recorder",
     "recording": "Recording…",
     "mapN": "Map {{n}}",
@@ -2049,16 +1682,10 @@
     "moments_one": "{{count}} moment",
     "moments_other": "{{count}} moments",
     "matchReel": "Match reel",
-    "close": "Close",
     "roundN": "Round {{n}}",
-    "seeAll": "See all {{count}}",
     "reelBadge": "REEL",
     "favourite": "Favourite",
-    "makeFavourite": "Make it your favourite",
-    "unfavourite": "No longer your favourite",
     "favouriteFailed": "Could not save your favourite",
-    "beingRecorded_one": "{{count}} highlight is being recorded.",
-    "beingRecorded_other": "{{count}} highlights are being recorded.",
     "pageTitle": "{{name}}'s highlights",
     "summary": "{{clips}} clips · {{reels}} reels · from {{maps}} maps",
     "loading": "Loading highlights",
@@ -2124,7 +1751,6 @@
       "playOfTheTournament": "Play of the tournament",
       "firstSoon": "The first plays show up here soon"
     },
-    "readyIn": "ready in about {{minutes}} min",
     "matchReelRecording": "Match reel · being recorded",
     "teamReelButton": "{{team}} highlights",
     "wholeSeries": "Whole series",
@@ -2187,7 +1813,7 @@
     "createN_other": "Create {{count}} servers",
     "restarts_one": "{{count}} restart in 24 h",
     "restarts_other": "{{count}} restarts in 24 h",
-    "offlineFor": "Offline for {{time}}",
+    "offlineLastSeen": "Offline, laatst gezien {{time}}",
     "readyUp": {
       "tabs": {
         "servers": "Servers",
@@ -2249,7 +1875,9 @@
         "unsupported": "Werk Ready Up bij om de live console te zien",
         "dropped": "{{count}} regels overgeslagen"
       }
-    }
+    },
+    "createN": "{{count}} servers aanmaken",
+    "restarts": "{{count}} herstarts in 24 u"
   },
   "matchPage": {
     "recordingClips": "Recording clips",
@@ -2263,11 +1891,8 @@
     "highlights": "Highlights"
   },
   "highlightsAdmin": {
-    "title": "Highlights",
-    "subtitle": "The recorders that turn demos into highlight clips and reels: how they're doing, what they make, and how to add one.",
     "tabs": {
       "recorders": "Recorders",
-      "settings": "Settings",
       "overlays": "Overlays",
       "clips": "Clips"
     },
@@ -2275,7 +1900,6 @@
     "actionError": "That didn't work",
     "empty": "No recorder has asked for work yet",
     "emptyHelp": "Start one with the steps under Add a recorder; it shows up here when it first asks for work.",
-    "online": "Online",
     "offline": "Offline",
     "paused": "Paused",
     "oldVersion": "Version {{version}}: update it for frame checks and benchmarks",
@@ -2329,7 +1953,6 @@
     "forget": "Forget",
     "forgotten": "Forgotten. It shows up again if it asks for work.",
     "clips": {
-      "tab": "Clips",
       "current": "Clips and reels are made at {{quality}} now.",
       "outdated_other": "{{count}} made at other settings",
       "redoOutdated": "Make the outdated ones again",
@@ -2375,12 +1998,7 @@
       "revoke": "Revoke",
       "revoked": "Revoked. A recorder with that key gets no more work.",
       "title": "Add a recorder",
-      "needs": "Run this on a Linux PC with Docker, Steam (signed in) and CS2 installed, from its desktop session. The recorder uses its GPU and finds CS2 in its Steam libraries.",
-      "name": "Name for this PC",
-      "nvidia": "NVIDIA graphics card",
-      "make": "Make the command",
       "once": "This key is shown once. Copy the command now; to add another PC, make a new one.",
-      "after": "Paste it in a terminal on the PC. It starts now and again whenever Docker does.",
       "copy": "Copy command",
       "copied": "Copied",
       "copyFailed": "Could not copy: select the command and copy it",
@@ -2660,5 +2278,8 @@
     },
     "copyConnect": "Connect-opdracht kopiëren",
     "connectCopied": "Connect-opdracht gekopieerd"
+  },
+  "serverAllocation": {
+    "readyIn": "Tijd tot de server klaar is"
   }
 }

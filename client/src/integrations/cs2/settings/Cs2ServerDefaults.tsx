@@ -113,7 +113,7 @@ const KEYS = Object.keys(DEFAULTS) as Key[];
 const DEV_KEYS: ReadonlySet<Key> = new Set<Key>(['simulateMatches', 'simulationTimescale']);
 
 /** The fields as `GET`/`PUT /api/settings` answer them, with the defaults for the missing ones. */
-export function cs2DefaultsFrom(settings: Record<string, unknown> | undefined): Cs2DefaultsValues {
+function cs2DefaultsFrom(settings: Record<string, unknown> | undefined): Cs2DefaultsValues {
   const values = { ...DEFAULTS } as Record<Key, unknown>;
   for (const key of KEYS) {
     const value = settings?.[key];

@@ -120,7 +120,6 @@
     },
     "errors": {
       "loadMaps": "加载地图失败",
-      "loadPools": "加载地图池失败",
       "defaultPoolCannotDelete": "默认地图池无法删除。",
       "setDefaultPool": "设置默认地图池失败",
       "togglePool": "切换地图池状态失败",
@@ -194,7 +193,6 @@
     },
     "buttons": {
       "cancel": "取消",
-      "saving": "正在保存…",
       "update": "更新",
       "create": "创建"
     }
@@ -219,87 +217,6 @@
       "enable": "启用",
       "disable": "禁用",
       "setDefault": "设为默认"
-    }
-  },
-  "batchServerModal": {
-    "title": "批量创建服务器",
-    "info": "按端口递增 10（27015、27025、27035…）批量创建多台服务器，非常适合多台服务器位于同一机器的 LAN 环境。",
-    "sections": {
-      "identification": {
-        "title": "服务器标识"
-      },
-      "connection": {
-        "title": "连接设置"
-      },
-      "configuration": {
-        "title": "服务器配置"
-      }
-    },
-    "baseId": {
-      "label": "基础 ID",
-      "placeholder": "server",
-      "helper": "服务器 ID 示例：base_1、base_2、base_3…"
-    },
-    "baseName": {
-      "label": "基础名称",
-      "placeholder": "Auto Tournament",
-      "helper": "服务器名称示例：Base #1、Base #2、Base #3…"
-    },
-    "host": {
-      "label": "主机 / IP 地址",
-      "placeholder": "192.168.1.100"
-    },
-    "rconPassword": {
-      "label": "RCON 密码",
-      "placeholder": "shared-rcon-password",
-      "helper": "所有服务器共用同一密码"
-    },
-    "numServers": {
-      "label": "服务器数量",
-      "placeholder": "3",
-      "helper": "最大值：50"
-    },
-    "assignPorts": {
-      "label": "端口分配",
-      "helper": "API → 服务器（RCON 测试）"
-    },
-    "serverPortLabel": "服务器 #{{index}}",
-    "portPlaceholder": "27015",
-    "enabled": {
-      "label": "服务器启用状态",
-      "helper": "所有服务器将按此设置为启用或禁用"
-    },
-    "preview": {
-      "more": "……以及另外 {{count}} 台",
-      "titleFirst10": "预览（前 10 条）",
-      "titleAll": "预览（全部）"
-    },
-    "checkServersButton": {
-      "default": "检查服务器",
-      "checking": "正在检查…"
-    },
-    "createServersButton": {
-      "creating": "正在创建…",
-      "default_one": "创建 {{count}} 台服务器",
-      "default_other": "创建 {{count}} 台服务器"
-    },
-    "warnings": {
-      "notAllVerified": "部分服务器尚未通过连通性测试。它们仍会被保存，但在正确配置 RCON 和 Webhook 之前可能显示为离线。"
-    },
-    "success": {
-      "createdAll_one": "已创建 {{count}} 台服务器",
-      "createdAll_other": "已创建 {{count}} 台服务器"
-    },
-    "errors": {
-      "baseNameRequired": "基础名称为必填项",
-      "baseIdRequired": "基础 ID 为必填项",
-      "hostRequired": "主机地址为必填项",
-      "countRange": "服务器数量必须在 1 到 50 之间",
-      "passwordRequired": "RCON 密码为必填项",
-      "portRange": "服务器 #{{index}} 端口必须在 1 到 65535 之间",
-      "connectionFailed": "连接失败",
-      "createFailed": "创建服务器失败",
-      "partialCreate": "已创建 {{created}}/{{total}} 台服务器。错误详情：\n{{details}}"
     }
   },
   "matchesPage": {
@@ -333,18 +250,12 @@
     "vetoCompleted": "禁选完成！",
     "vetoCompletedSubtitle": "地图选择已完成。比赛即将开始。",
     "selectedMaps": "已选地图",
-    "yourTurnToBan": "轮到你的队伍禁用地图",
-    "yourTurnToPick": "轮到你的队伍选择地图",
-    "yourTurnToChooseSide": "轮到你的队伍选择阵营",
     "clickMapToConfirm": "点击下方高亮地图以确认你的选择。",
     "waitingToBan": "等待 {{team}} 禁用地图",
     "waitingToPick": "等待 {{team}} 选择地图",
     "waitingToChooseSide": "等待 {{team}} 选择阵营",
     "pageUpdatesAutomatically": "请保持此页面打开——轮到你时将自动更新。",
     "stepOf": "第 {{current}} 步，共 {{total}} 步",
-    "banPhase": "禁用阶段",
-    "pickPhase": "选择阶段",
-    "sideChoice": "阵营选择",
     "chooseYourStartingSide": "选择你的初始阵营",
     "waitingForSidePick": "等待 {{team}} 选择初始阵营...",
     "counterTerrorist": "反恐精英",
@@ -411,7 +322,6 @@
       "pausedWaiting_one": "已暂停：等待 {{names}} 重新连接。",
       "pausedWaiting_other": "已暂停：等待 {{names}} 重新连接。",
       "waitingBody": "一旦有可用服务器，将自动为你分配。每场比赛结束后，服务器会进入短暂的冷却期（约 2 分钟），以便上传录像并完全重置服务器。服务器就绪后此页面会自动更新。",
-      "serverName": "服务器：{{name}}",
       "status": "状态：{{status}}",
       "connect": "连接服务器",
       "connecting": "✓ 正在连接...",
@@ -439,196 +349,9 @@
   },
   "serversPage": {
     "title": "服务器",
-    "headerActions": {
-      "refreshChecking": "正在检查…",
-      "refresh": "刷新状态",
-      "retryUninitialized": "重试未初始化 ({{count}})",
-      "retryUninitializedChecking": "正在重试…",
-      "batchAdd": "批量新增",
-      "select": "选择",
-      "done": "完成选择",
-      "selectAll": "全选",
-      "unselectAll": "取消全选",
-      "deleteSelected": "删除所选",
-      "addServer": "新增服务器"
-    },
-    "empty": {
-      "createServers": "Link a machine or create servers",
-      "addExisting": "Add an existing server (RCON)",
-      "title": "还没有服务器",
-      "description": "添加第一台 CS2 服务器以开始锦标赛",
-      "addServer": "新增服务器",
-      "batchAdd": "或批量新增多个服务器"
-    },
-    "allocation": {
-      "loading": "正在加载分配状态…",
-      "nextPass": "下一次分配轮约在 ~{{seconds}} 秒后",
-      "cooldownLabel": "冷却",
-      "cooldownDescription": "最近完成了一场比赛——进入冷却，以便上传 Demo 并让服务器完全重置（约 2 分钟）。",
-      "cooldownEta": "约 {{seconds}} 秒后就绪"
-    },
-    "statusChip": {
-      "checking": "正在检查…",
-      "disabled": "已禁用",
-      "offline": "离线",
-      "onlineOk": "在线（API ↔ 服务器正常）",
-      "onlineRconOnly": "在线（仅 RCON 可达）",
-      "rconFailed": "RCON 失败",
-      "onlineTesting": "在线（测试中）",
-      "noEventsYet": "暂无事件",
-      "notConfigured": "未配置",
-      "onlineIdle": "在线（空闲 — 近期无事件）",
-      "onlineActive": "在线（活跃）",
-      "online": "在线"
-    },
-    "ipBanned": {
-      "title": "服务器可能已封禁我们的 IP",
-      "message": "服务器可达但反复拒绝 RCON 身份验证。这可能表示 IP 被封禁。如果 RCON 密码正确，请检查服务器的封禁列表并解封我们的 IP 地址。"
-    },
-    "connectivity": {
-      "apiToServer": "Auto Tournament API → CS2 服务器",
-      "serverToApi": "服务器 → API（/api/events）",
-      "unreachable": "不可达",
-      "reachable": "可达",
-      "unknown": "未知",
-      "loading": "加载中…"
-    },
-    "currentMatch": {
-      "view": "查看比赛",
-      "loading": "正在加载…",
-      "queuedPrefix": "已排队："
-    },
-    "errors": {
-      "loadServers": "加载服务器失败",
-      "noMatchesForServer": "未找到该服务器的比赛",
-      "loadCurrentMatch": "加载该服务器的当前比赛失败",
-      "bulkDelete": "删除一台或多台服务器时出错"
-    },
-    "bulkDelete": {
-      "title": "删除服务器",
-      "message_one": "确定要删除 {{count}} 台服务器吗？该操作无法撤销。",
-      "message_other": "确定要删除 {{count}} 台服务器吗？该操作无法撤销。"
-    },
-    "autoConfig": {
-      "configuring": "正在配置新服务器（通过 RCON 发送 MatchZy Enhanced 配置）…",
-      "done": "新服务器已配置，正在刷新状态…"
-    },
-    "checkServerLogs": "请查看游戏服务器控制台/日志，确认 Auto Tournament 插件是否收到配置并发送事件。",
     "fleet": {
-      "title": "服务器集群状态",
       "total_one": "{{count}} 台服务器",
-      "total_other": "{{count}} 台服务器",
-      "latestRelease": "MatchZy Enhanced 最新版本：v{{version}}",
-      "olderVersion_one": "{{count}} 台服务器运行的版本低于最新版本。",
-      "olderVersion_other": "{{count}} 台服务器运行的版本低于最新版本。",
-      "downloadLatest": "下载最新版本"
-    },
-    "cs2Update": {
-      "title": "需要更新 CS2",
-      "snackbarBody_one": "{{count}} 台服务器版本过旧。请更新服务器安装并重启。",
-      "snackbarBody_other": "{{count}} 台服务器版本过旧。请更新服务器安装并重启。",
-      "fleetTitle": "CS2 服务器版本过旧 — 需要更新",
-      "fleetBody_one": "{{count}} 台服务器收到 Steam 的 CS2 强制更新通知。请更新服务器安装（SteamCMD/主机）并重启。",
-      "fleetBody_other": "{{count}} 台服务器收到 Steam 的 CS2 强制更新通知。请更新服务器安装（SteamCMD/主机）并重启。"
-    },
-    "versionMismatch": {
-      "title": "检测到版本不一致",
-      "chip_one": "v{{version}}：{{count}} 台服务器",
-      "chip_other": "v{{version}}：{{count}} 台服务器",
-      "recommended": "建议：将所有服务器更新到 v{{version}} 以保持一致"
-    },
-    "notInitialized": {
-      "title": "服务器未初始化",
-      "checking": "正在检查连接…",
-      "rconUnreachable": "无法连接 RCON。请检查主机、端口以及游戏服务器是否正在运行。可以连接后点击“重试”。",
-      "noEvents": "RCON 可连接，但 Auto Tournament 插件尚未发送任何事件。点击“重试”进行配置。",
-      "notChecked": "尚未检查连接，请查看下方状态。RCON 可连接后点击“重试”进行配置。"
-    },
-    "chips": {
-      "versionMismatch": "版本不一致",
-      "ipBanned": "IP 已被封禁",
-      "pluginDbDown": "插件数据库不可用",
-      "cs2UpdateRequired": "需要更新 CS2（{{version}}）"
-    },
-    "tooltips": {
-      "fixGuide": "修复指南",
-      "disabledTitle": "已禁用的服务器",
-      "disabledBody": "已禁用的服务器不会参与分配和健康检查。",
-      "noEventsTitle": "尚未收到 Auto Tournament 插件的事件",
-      "noEventsBody": "Auto Tournament 已通过 RCON 发送 Webhook 配置，但尚未收到任何事件。这通常表示服务器无法访问 Auto Tournament 的 Webhook URL，或 Auto Tournament 插件未运行。",
-      "notConfiguredTitle": "未配置",
-      "notConfiguredBody": "Auto Tournament 尚未向此服务器发送持久配置。点击“重试”进行初始化。",
-      "unreachableTitle": "Auto Tournament 无法连接服务器",
-      "unreachableBody": "Auto Tournament 无法通过 RCON 连接服务器。请检查主机/端口、RCON 密码、防火墙以及服务器是否正在运行。",
-      "webhookTitle": "服务器无法连接 Auto Tournament（Webhook）",
-      "webhookBody": "Auto Tournament 可以通过 RCON 连接服务器，但服务器无法访问 Auto Tournament 的 Webhook。请检查出站网络、DNS 和已配置的 Webhook URL。",
-      "versionDiffTitle": "各服务器的插件版本不一致",
-      "versionDiffBody": "部分服务器运行的 MatchZy Enhanced 版本不同。如果使用 CSM，请运行 {{command}} 并重启服务器。",
-      "ipBannedTitle": "RCON IP 已被封禁",
-      "ipBannedBody": "由于 RCON 认证多次失败，服务器已暂时封禁 Auto Tournament 的 IP。请修正 RCON 密码并解封该 IP。",
-      "pluginDbTitle": "Auto Tournament 插件无法连接其数据库。",
-      "pluginDbBody": "如果使用 CSM，请运行 {{path}}。",
-      "cs2UpdateBody": "Auto Tournament 已确认此服务器的构建版本落后于 Steam。更新前，该服务器不会被分配新比赛（也无法用于开始锦标赛）。"
-    },
-    "lastActive": {
-      "justNow": "刚刚活跃",
-      "minutesAgo_one": "{{count}} 分钟前活跃",
-      "minutesAgo_other": "{{count}} 分钟前活跃",
-      "hoursAgo_one": "{{count}} 小时前活跃",
-      "hoursAgo_other": "{{count}} 小时前活跃",
-      "daysAgo_one": "{{count}} 天前活跃",
-      "daysAgo_other": "{{count}} 天前活跃"
-    },
-    "pluginStatus": {
-      "idle": "空闲",
-      "loading": "加载中",
-      "warmup": "热身",
-      "knife": "刀局",
-      "live": "进行中",
-      "playing": "比赛中",
-      "paused": "已暂停",
-      "halftime": "半场",
-      "postgame": "赛后",
-      "queued": "排队中",
-      "error": "错误"
-    },
-    "retry": {
-      "sendingConfig": "正在向服务器发送持久配置…",
-      "triggered": "已触发服务器初始化",
-      "failed": "重试初始化失败：{{message}}",
-      "retryingAll_one": "正在为 {{count}} 台服务器重试初始化…",
-      "retryingAll_other": "正在为 {{count}} 台服务器重试初始化…",
-      "triggeredAll_one": "已为 {{count}} 台服务器触发重试",
-      "triggeredAll_other": "已为 {{count}} 台服务器触发重试",
-      "failedAll": "重试失败：{{message}}"
-    },
-    "row": {
-      "details": "Details for {{name}}",
-      "actions": "Actions for {{name}}",
-      "edit": "Edit",
-      "retryInit": "Retry initialization",
-      "disabled": "Disabled: allocation skips it",
-      "waitingForPlugin": "Config sent, waiting for the plugin's first event",
-      "running": "Running {{match}}",
-      "ready": "Ready for the next match"
-    },
-    "details": {
-      "host": "Host",
-      "port": "Port",
-      "cs2Name": "CS2 name",
-      "plugin": "Plugin",
-      "cs2Build": "CS2 build",
-      "pluginStatus": "Plugin status",
-      "lastEvent": "Last event",
-      "id": "ID"
-    },
-    "strip": {
-      "online": "ONLINE",
-      "offline": "OFFLINE",
-      "notConfigured": "NOT SET UP",
-      "disabled": "DISABLED",
-      "free": "FREE",
-      "waiting": "WAITING"
+      "total_other": "{{count}} 台服务器"
     },
     "limit": {
       "unlimited": "no server limit (non-commercial use)",
@@ -639,13 +362,6 @@
     },
     "machineCount_one": "{{count}} machine",
     "machineCount_other": "{{count}} machines",
-    "settings": "Server settings",
-    "other": {
-      "title": "Other servers",
-      "summary_one": "{{count}} server not on a machine",
-      "summary_other": "{{count}} servers not on a machine",
-      "about": "Servers added by address, not run by csm on a linked machine."
-    },
     "add": {
       "button": "添加",
       "machine": "机器",
@@ -660,21 +376,8 @@
     "enabledHelper": "被禁用的服务器不会用于比赛",
     "tournamentUseLabel": "Use for tournament matches",
     "tournamentUseHelper": "Off: a practice or community server. Tournament matches, auto-scaling and failover never use it. It still counts toward your license.",
-    "chatPrefixLabel": "聊天前缀覆盖",
-    "chatPrefixPlaceholder": "[{Green}Auto Tournament{Default}]",
-    "adminChatPrefixLabel": "管理员聊天前缀覆盖",
-    "adminChatPrefixPlaceholder": "[{Red}ADMIN{Default}]",
-    "knifeOverrideLabel": "默认启用刀局（覆盖）",
-    "connectivity": {
-      "apiToServer": "Auto Tournament API → CS2 服务器：",
-      "serverToApi": "服务器 → API（/api/events）：",
-      "reachable": "可达",
-      "unreachable": "不可达"
-    },
     "errors": {
       "nameRequired": "服务器名称为必填项",
-      "duplicateHostPort": "已存在使用主机与端口 '{{host}}:{{port}}' 的服务器（ID：{{id}}，名称：{{name}}）",
-      "testConnectionSaveFirst": "请先保存服务器，然后再测试连通性",
       "saveFailed": "保存服务器失败",
       "deleteFailed": "删除服务器失败"
     },
@@ -692,8 +395,6 @@
       "title": "删除服务器",
       "message": "确定要删除 “{{name}}” 吗？该操作无法撤销。"
     },
-    "skinsLabel": "Skins on this server",
-    "skinsHelper": "Players' equipped virtual skins are sent to the server in warmup and between maps, never mid-map. Needs Ready Up's skins plugin and a server without a Steam server token.",
     "skinsTokenWarning": "This server runs with a Steam server token (+sv_setsteamaccount), so it gets no skins: Valve bans the token, and the account behind it, of a server that hands out items. Remove the token in csm to use skins here.",
     "failoverUseLabel": "用于故障转移",
     "failoverUseHelper": "关闭：自动故障转移不会将比赛移到此服务器，也不会将其保留为备用。"
@@ -782,161 +483,6 @@
     "info_other": "将保存一个包含 {{count}} 张地图的地图池。"
   },
   "adminTools": {
-    "description": "在所有 CS2 服务器上批量执行常用比赛与服务器操作。常用操作会优先展示，更高级的工具可以在下方展开查看。",
-    "refresh": "刷新服务器",
-    "serverSelect": {
-      "label": "目标服务器",
-      "allServersChip": "全部服务器",
-      "sendStatus": "发送 status 命令",
-      "allServersDescription_one": "在 {{count}} 台服务器上运行",
-      "allServersDescription_other": "在全部 {{count}} 台服务器上运行"
-    },
-    "command": {
-      "execute": "执行"
-    },
-    "customRconWarning": "警告：请谨慎使用！",
-    "results": {
-      "title": "执行结果",
-      "successChip": "✓ 成功",
-      "failedChip": "✗ 失败",
-      "errorPrefix": "错误："
-    },
-    "quickActions": {
-      "title": "快速操作"
-    },
-    "advanced": {
-      "title": "高级工具"
-    },
-    "noServers": "未找到已启用的服务器。请在“服务器”页面添加并启用至少一台服务器。",
-    "toasts": {
-      "commandExecuted_one": "命令已在 {{count}} 台服务器上执行",
-      "commandExecuted_other": "命令已在 {{count}} 台服务器上执行",
-      "commandPartial": "命令在 {{total}} 台服务器中的 {{succeeded}} 台上执行成功（{{failed}} 台失败）",
-      "commandFailed": "执行命令失败"
-    },
-    "commands": {
-      "matchStart": {
-        "label": "开始比赛",
-        "description": "立即开始比赛。"
-      },
-      "matchEnd": {
-        "label": "结束比赛（css_restart）",
-        "description": "强制结束所选服务器上的当前比赛，并使用 css_restart 将其重置为热身。"
-      },
-      "forcePause": {
-        "label": "强制暂停",
-        "description": "强制暂停比赛。"
-      },
-      "forceUnpause": {
-        "label": "强制取消暂停",
-        "description": "强制取消比赛暂停。"
-      },
-      "skipVeto": {
-        "label": "跳过选图",
-        "description": "跳过选图（veto）阶段。"
-      },
-      "toggleKnife": {
-        "label": "切换刀局",
-        "description": "开启或关闭用于选边的刀局（别名：rk）。"
-      },
-      "togglePlayout": {
-        "label": "切换打满全部回合",
-        "description": "开启或关闭打满全部回合。"
-      },
-      "toggleWhitelist": {
-        "label": "切换白名单",
-        "description": "开启或关闭战队白名单。"
-      },
-      "showSettings": {
-        "label": "显示设置",
-        "description": "显示当前比赛设置。"
-      },
-      "reloadAdmins": {
-        "label": "重新加载管理员",
-        "description": "从 admins.json 重新加载管理员列表。"
-      },
-      "readyRequired": {
-        "label": "设置需准备的玩家数",
-        "description": "设置比赛开始前需要准备的玩家数量。",
-        "inputLabel": "玩家数量"
-      },
-      "restoreBackup": {
-        "label": "恢复回合备份",
-        "description": "将比赛恢复到指定回合。",
-        "inputLabel": "回合编号"
-      },
-      "cleanServers": {
-        "label": "清理服务器（css_restart）",
-        "description": "结束所选服务器上正在进行的比赛，并使用 css_restart 将其重置为热身。此操作具有破坏性。"
-      },
-      "changeMap": {
-        "label": "更换地图",
-        "description": "切换到其他地图（css_map <mapname>）。",
-        "inputLabel": "地图名称（de_dust2）"
-      },
-      "team1Name": {
-        "label": "设置战队 1 名称",
-        "description": "设置战队 1 的名称。",
-        "inputLabel": "战队名称"
-      },
-      "team2Name": {
-        "label": "设置战队 2 名称",
-        "description": "设置战队 2 的名称。",
-        "inputLabel": "战队名称"
-      },
-      "startPractice": {
-        "label": "开启练习模式",
-        "description": "开启支持 .commands 的练习模式。"
-      },
-      "exitPractice": {
-        "label": "退出练习模式",
-        "description": "关闭练习模式。"
-      },
-      "broadcast": {
-        "label": "广播消息",
-        "description": "向所有玩家发送管理员消息。",
-        "inputLabel": "消息"
-      },
-      "customRcon": {
-        "label": "执行自定义 RCON 命令",
-        "description": "直接执行任意 RCON 命令。",
-        "inputLabel": "RCON 命令"
-      }
-    },
-    "categories": {
-      "matchControl": "比赛控制",
-      "matchSettings": "比赛设置",
-      "backupRestore": "备份与恢复",
-      "serverMgmt": "服务器管理",
-      "teamMgmt": "战队管理",
-      "practiceMode": "练习模式",
-      "adminComm": "管理员通知",
-      "advanced": "高级 RCON"
-    },
-    "events": {
-      "title": "服务器事件监控",
-      "healthCheckFailed": "事件 API 健康检查失败。请检查 API 是否正在运行，以及 /api/events/test 是否可访问。",
-      "loadFailed": "加载事件失败",
-      "connected": "已连接",
-      "disconnected": "已断开",
-      "paused": "已暂停",
-      "pause": "暂停",
-      "resume": "继续",
-      "refresh": "刷新事件",
-      "clear": "清空控制台",
-      "filterLabel": "按服务器筛选（可选）",
-      "noServers": "没有可用的服务器",
-      "refreshServers": "刷新服务器列表",
-      "noEvents": "尚未收到此服务器的事件。",
-      "noEventsHint": "15 秒后仍未收到事件。请检查你的 CS2 服务器是否已配置为使用正确的 X-Auto-Tournament-Token 将 MatchZy Enhanced Webhook 发送到 /api/events/:matchSlugOrServerId。",
-      "waiting": "正在等待服务器事件…",
-      "footer_one": "显示 {{count}} 条事件（最多 100 条）",
-      "footer_other": "显示 {{count}} 条事件（最多 100 条）",
-      "footerForServer_one": "显示服务器 {{server}} 的 {{count}} 条事件（最多 100 条）",
-      "footerForServer_other": "显示服务器 {{server}} 的 {{count}} 条事件（最多 100 条）",
-      "realtime": "事件通过 WebSocket 实时更新",
-      "downloadDemo": "下载 Demo"
-    },
     "title": "Counter-Strike 2 servers"
   },
   "settings": {
@@ -1226,7 +772,12 @@
     "connectGuessed": "Guessed from where the server connects from. Check it, or set the address players use.",
     "updateAvailable": "有可用更新：{{version}}",
     "upToDate": "已是最新",
-    "noUpdateCheck": "尚未检查更新"
+    "noUpdateCheck": "尚未检查更新",
+    "unlinked": "不再用于比赛",
+    "linked": "用于比赛",
+    "unlink": "不再用于比赛",
+    "link": "用于比赛",
+    "save": "保存"
   },
   "roundBackups": {
     "title": "Round backups",
@@ -1284,20 +835,11 @@
       "add": "Could not add the machine",
       "command": "The command failed"
     },
-    "sent": "Sent to {{name}}",
     "queued": "{{name}} is offline; it runs when csm reconnects",
     "rotateSent": "New token sent",
     "rotateQueued": "The machine gets a new token when it next connects",
-    "process": {
-      "running": "Running",
-      "stopped": "Stopped"
-    },
-    "restarts": "{{count}} restarts in 24 h",
     "readyUp": "Ready Up {{version}}",
     "noReadyUp": "No Ready Up",
-    "matchInProgress": "Match in progress",
-    "linked": "on the fleet link",
-    "linkedOffline": "fleet link offline",
     "start": "Start",
     "restart": "Restart",
     "stop": "Stop",
@@ -1305,22 +847,15 @@
     "queuedShort": "Queued",
     "waiting": "Waiting for csm…",
     "refusedMatch": "csm refused: a match is in progress",
-    "title": "Machines",
     "add": "Add machine",
-    "description": "Machines run CS2 Server Manager (csm). Link one with a single command, then create, start, stop and update its servers from here.",
-    "empty": "No machines yet.",
     "codeExpires": "Code valid until {{time}}",
     "lastSeen": "Last seen {{time}}",
-    "resources": "{{cpus}} CPU · load {{load}} · {{free}}/{{total}} GB RAM free",
     "disk": "{{mount}}: {{free}} GB free",
-    "cs2Build": "CS2 {{build}}",
     "cs2UpdateAvailable": "CS2 update available",
     "newCode": "New code",
     "rotate": "Rotate token",
     "revoke": "Revoke machine",
     "remove": "Remove",
-    "createServer": "Create server",
-    "createN": "Create several…",
     "updateGame": "Update CS2",
     "updateReadyUp": "Update Ready Up…",
     "updatesHold": "Automatic updates",
@@ -1329,7 +864,6 @@
       "on": "Paused",
       "off": "Always (even during tournaments)"
     },
-    "noServers": "No servers on this machine yet.",
     "enrolledElsewhere": "Enrolled from this machine: {{names}}",
     "activity": "Recent actions",
     "addHelp": "You get one command to run on the machine. It needs CS2 Server Manager (csm) installed.",
@@ -1342,7 +876,6 @@
     "linkWaiting": "Waiting for the machine to connect…",
     "insecureNote": "此站点使用未加密的 http://，因此命令带有 --insecure，令牌将以明文传输。请尽量通过 https:// 提供平台。",
     "done": "Done",
-    "createHelp": "New servers get Ready Up and connect to this platform on their own.",
     "count": "How many",
     "create": "Create",
     "version": "Version",
@@ -1369,10 +902,7 @@
       "revoked": "Revoked"
     },
     "status": {
-      "pending": "In progress",
-      "ok": "Done",
-      "rejected": "Refused",
-      "failed": "Failed"
+      "ok": "Done"
     },
     "health": {
       "ok": "Ready Up healthy",
@@ -1418,33 +948,12 @@
       "failed": "Failed",
       "timeout": "No answer from csm"
     },
-    "summary": "{{machines}} machine(s), {{online}} online · {{servers}} server(s)",
-    "about": "Machines run CS2 Server Manager (csm). The platform starts, stops and creates servers on them by itself.",
     "deleteServer": "Delete server",
-    "deleting": "Deleting…",
-    "ago": {
-      "seconds": "{{count}} s ago",
-      "minutes": "{{count}} min ago"
-    },
     "working": "csm is on it",
-    "tile": {
-      "free": "Free",
-      "match": "In a match",
-      "starting": "Starting…",
-      "stopping": "Stopping…",
-      "restarting": "Restarting…",
-      "updating": "Updating…",
-      "deleting": "Deleting…",
-      "stopped": "Stopped",
-      "offline": "Offline"
-    },
     "tryAgain": "Try again",
-    "load": "Load {{load}} · {{free}} GB RAM free",
-    "offlineSince": "Offline since {{time}}",
     "waitingFor_one": "{{count}} action waits for it",
     "waitingFor_other": "{{count}} actions wait for it",
     "addServers": "Add servers",
-    "back": "All machines",
     "more": "More for {{name}}",
     "machine": "Machine",
     "cpu": "CPU load",
@@ -1467,7 +976,10 @@
     "noReportYet": "已关联，等待 csm 的首次报告",
     "pendingHelp": "在该机器上，以运行 csm 的用户执行带新代码的 csm link。csm 连接后，这里会显示其 CPU、磁盘、CS2 版本和服务器。",
     "revokedHelp": "其令牌已失效。请移除它，或重新添加该机器。",
-    "noReportHelp": "csm 连接后一分钟内会发送机器的资源和运行情况。"
+    "noReportHelp": "csm 连接后一分钟内会发送机器的资源和运行情况。",
+    "licenseNote": "您的许可证最多覆盖 {{count}} 台服务器。每台服务器都计入，包括备用服务器。",
+    "progress": "命令进度",
+    "waitingFor": "{{count}} 个操作正在等待"
   },
   "failover": {
     "title": "Failover",
@@ -1580,10 +1092,133 @@
   "autoscale": {
     "summaryOn": "On",
     "summaryOff": "Off",
-    "empty": "自动扩缩需要一台通过 csm 关联的机器。"
+    "empty": "自动扩缩需要一台通过 csm 关联的机器。",
+    "saveFailed": "无法保存扩缩容设置",
+    "title": "自动扩缩容",
+    "enabled": "自动启动和停止服务器",
+    "help": "您机器上已停止的 Ready Up 服务器会在某一轮需要之前启动，空闲的服务器会在冷却时间后停止。当所有服务器都在使用且某台机器还有余量时，会新建一台服务器并加入池中。服务器不会被删除。每台服务器都计入您的许可证。",
+    "leadTime": "提前启动时间",
+    "cooldown": "空闲多久后停止",
+    "maxPerHost": "每台机器的最大服务器数",
+    "status": "就绪 {{warm}} 台，需要 {{desired}} 台：运行中 {{running}} 台，等待中 {{waiting}} 台，即将就绪 {{soon}} 台，备用 {{reserve}} 台",
+    "activity": "最近活动",
+    "noActivity": "尚未启动或停止任何内容。",
+    "state": {
+      "busy": "占用",
+      "idle": "空闲",
+      "starting": "启动中",
+      "stopping": "停止中",
+      "stopped": "已停止",
+      "updating": "更新中",
+      "unreachable": "无法访问",
+      "practice": "练习"
+    },
+    "action": {
+      "start": "启动",
+      "stop": "停止",
+      "create": "创建",
+      "link": "关联",
+      "note": "备注"
+    }
   },
   "fleetPush": {
-    "summary": "Admins, settings and plugins sent to Ready Up servers"
+    "summary": "Admins, settings and plugins sent to Ready Up servers",
+    "errors": {
+      "save": "保存设置失败",
+      "admins": "保存管理员失败",
+      "push": "推送失败",
+      "practice": "切换练习模式失败",
+      "whitelist": "设置白名单失败",
+      "plugins": "更改插件失败"
+    },
+    "savedDefaults": "已保存；已推送到 {{count}} 台服务器",
+    "badAdminLine": "不是“SteamID64 名称”格式：{{line}}",
+    "adminsPushed": "已推送管理员列表版本 {{rev}}",
+    "adminsUnchanged": "管理员列表没有变化",
+    "adminsPushedTo": "已发送到 {{count}} 台服务器",
+    "title": "服务器组设置",
+    "editDefaults": "服务器组默认设置",
+    "adminsTitle": "游戏内管理员",
+    "adminsRev": "版本 {{rev}} · {{count}} 名管理员",
+    "editExtras": "额外的游戏内管理员",
+    "pushAgain": "重新推送",
+    "adminsHelp": "拥有 Steam 账号的网站管理员，加上额外的游戏内管理员。列表变化时，以及服务器以旧版本重新连接时，每台 Ready Up 服务器都会收到此列表。",
+    "extrasHelp": "不是网站管理员的游戏内管理员（裁判、解说）。每行一个：SteamID64，然后是名称。",
+    "saveAndPush": "保存并推送",
+    "notSent": "不发送",
+    "inheritValue": "服务器组默认值（{{value}}）",
+    "inherit": "服务器组默认值",
+    "notAppliedYet": "已保存在服务器上；Ready Up 暂未使用",
+    "on": "开",
+    "off": "关",
+    "tokenSet": "已设置（留空则保持不变）",
+    "clearToken": "清除",
+    "overrideHelp": "留空的字段使用服务器组默认值。清空的字段会在服务器上保留其最后的值，直到再次被设置。",
+    "defaultHelp": "保存时会发送到每台 Ready Up 服务器（server.config 和 settings.set），服务器以旧版本重新连接时会再次发送。空字段不会发送。",
+    "serverConfig": "服务器配置",
+    "matchSettings": "比赛插件设置",
+    "clearOverride": "使用服务器组默认值",
+    "status": {
+      "acked": "已确认",
+      "queued": "排队中",
+      "ok": "成功",
+      "pending": "待处理",
+      "rejected": "已拒绝",
+      "failed": "失败",
+      "expired": "已过期"
+    },
+    "sentNoAnswer": "已发送；暂无响应",
+    "queuedOffline": "已排队：服务器重新连接后会收到",
+    "savedServer": "已保存并推送到 {{name}}",
+    "pushed": "已推送",
+    "practiceOn": "练习模式已开启",
+    "practiceOff": "练习模式已关闭",
+    "whitelistSet": "白名单已更新",
+    "pluginsSet": "插件已更新",
+    "hasOverride": "独立设置",
+    "usesDefault": "服务器组默认设置",
+    "practice": "练习",
+    "settings": "设置",
+    "whitelist": "白名单",
+    "plugins": "插件",
+    "serverSettingsTitle": "设置：{{name}}",
+    "whitelistTitle": "白名单：{{name}}",
+    "whitelistHelp": "替换此服务器上白名单插件的列表和开关（whitelist.set）。每行一个 SteamID64，最多 1000 个。没有白名单插件的服务器会回复“unsupported”。",
+    "whitelistEnabled": "启用白名单",
+    "send": "发送",
+    "pluginsTitle": "插件：{{name}}",
+    "kind": {
+      "admins": "管理员",
+      "serverConfig": "服务器配置",
+      "settings": "设置",
+      "whitelist": "白名单",
+      "practice": "练习",
+      "plugins": "插件"
+    },
+    "fields": {
+      "config_hostname_format": "主机名格式",
+      "config_scrim_knife": "训练赛中的刀局",
+      "config_series_end_kick_delay_no_demo": "系列赛结束后的踢出延迟，无 demo（秒）",
+      "config_series_end_kick_delay_demo_no_upload": "系列赛结束后的踢出延迟，demo 未上传（秒）",
+      "config_series_end_kick_delay_demo_upload": "系列赛结束后的踢出延迟，demo 已上传（秒）",
+      "config_chat_prefix": "聊天前缀",
+      "config_admin_chat_prefix": "管理员聊天前缀",
+      "config_demo_path": "Demo 文件夹",
+      "config_demo_name_format": "Demo 文件名格式",
+      "config_offline_pause_minutes": "离线时暂停（分钟）",
+      "config_scrim_when_idle": "空闲时使用训练赛模式",
+      "config_warmup_respawn": "热身时重生",
+      "config_warmup_money": "热身金钱",
+      "config_warmup_message_html": "热身消息（HTML）",
+      "config_status_http_token": "状态 HTTP 令牌",
+      "match_minimum_ready_required": "最少就绪玩家数",
+      "match_playout_enabled_default": "默认打满所有回合",
+      "match_autoready_enabled": "自动准备",
+      "match_use_pause_command_for_tactical_pause": "战术暂停使用暂停命令",
+      "match_kick_when_no_match_loaded": "未加载比赛时踢出玩家",
+      "match_whitelist_enabled_default": "默认启用白名单",
+      "match_reset_cvars_on_series_end": "系列赛结束时重置 cvar"
+    }
   },
   "profile": {
     "title": "Performance",
@@ -2040,8 +1675,6 @@
   },
   "highlights": {
     "title": "Highlights",
-    "queued_one": "{{count}} more on the way",
-    "queued_other": "{{count}} more on the way",
     "pending": "Waiting for the recorder",
     "recording": "Recording…",
     "mapN": "Map {{n}}",
@@ -2049,16 +1682,10 @@
     "moments_one": "{{count}} moment",
     "moments_other": "{{count}} moments",
     "matchReel": "Match reel",
-    "close": "Close",
     "roundN": "Round {{n}}",
-    "seeAll": "See all {{count}}",
     "reelBadge": "REEL",
     "favourite": "Favourite",
-    "makeFavourite": "Make it your favourite",
-    "unfavourite": "No longer your favourite",
     "favouriteFailed": "Could not save your favourite",
-    "beingRecorded_one": "{{count}} highlight is being recorded.",
-    "beingRecorded_other": "{{count}} highlights are being recorded.",
     "pageTitle": "{{name}}'s highlights",
     "summary": "{{clips}} clips · {{reels}} reels · from {{maps}} maps",
     "loading": "Loading highlights",
@@ -2124,7 +1751,6 @@
       "playOfTheTournament": "Play of the tournament",
       "firstSoon": "The first plays show up here soon"
     },
-    "readyIn": "ready in about {{minutes}} min",
     "matchReelRecording": "Match reel · being recorded",
     "teamReelButton": "{{team}} highlights",
     "wholeSeries": "Whole series",
@@ -2187,7 +1813,7 @@
     "createN_other": "Create {{count}} servers",
     "restarts_one": "{{count}} restart in 24 h",
     "restarts_other": "{{count}} restarts in 24 h",
-    "offlineFor": "Offline for {{time}}",
+    "offlineLastSeen": "离线，最后在线 {{time}}",
     "readyUp": {
       "tabs": {
         "servers": "服务器",
@@ -2249,7 +1875,9 @@
         "unsupported": "更新 Ready Up 以查看实时控制台",
         "dropped": "已跳过 {{count}} 行"
       }
-    }
+    },
+    "createN": "创建 {{count}} 台服务器",
+    "restarts": "24 小时内重启 {{count}} 次"
   },
   "matchPage": {
     "recordingClips": "Recording clips",
@@ -2263,11 +1891,8 @@
     "highlights": "Highlights"
   },
   "highlightsAdmin": {
-    "title": "Highlights",
-    "subtitle": "The recorders that turn demos into highlight clips and reels: how they're doing, what they make, and how to add one.",
     "tabs": {
       "recorders": "Recorders",
-      "settings": "Settings",
       "overlays": "Overlays",
       "clips": "Clips"
     },
@@ -2275,7 +1900,6 @@
     "actionError": "That didn't work",
     "empty": "No recorder has asked for work yet",
     "emptyHelp": "Start one with the steps under Add a recorder; it shows up here when it first asks for work.",
-    "online": "Online",
     "offline": "Offline",
     "paused": "Paused",
     "oldVersion": "Version {{version}}: update it for frame checks and benchmarks",
@@ -2329,7 +1953,6 @@
     "forget": "Forget",
     "forgotten": "Forgotten. It shows up again if it asks for work.",
     "clips": {
-      "tab": "Clips",
       "current": "Clips and reels are made at {{quality}} now.",
       "outdated_other": "{{count}} made at other settings",
       "redoOutdated": "Make the outdated ones again",
@@ -2375,12 +1998,7 @@
       "revoke": "Revoke",
       "revoked": "Revoked. A recorder with that key gets no more work.",
       "title": "Add a recorder",
-      "needs": "Run this on a Linux PC with Docker, Steam (signed in) and CS2 installed, from its desktop session. The recorder uses its GPU and finds CS2 in its Steam libraries.",
-      "name": "Name for this PC",
-      "nvidia": "NVIDIA graphics card",
-      "make": "Make the command",
       "once": "This key is shown once. Copy the command now; to add another PC, make a new one.",
-      "after": "Paste it in a terminal on the PC. It starts now and again whenever Docker does.",
       "copy": "Copy command",
       "copied": "Copied",
       "copyFailed": "Could not copy: select the command and copy it",
@@ -2660,5 +2278,8 @@
     },
     "copyConnect": "复制 connect 命令",
     "connectCopied": "已复制 connect 命令"
+  },
+  "serverAllocation": {
+    "readyIn": "距服务器就绪的时间"
   }
 }

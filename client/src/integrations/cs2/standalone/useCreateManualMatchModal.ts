@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, useModuleTranslation, useSnackbar } from '../../../module-sdk';
-import type {
-  Map as MapType,
-  MapPool,
-  MapPoolsResponse,
-  MapsResponse,
-  Server,
-  ServersResponse,
+import {
+  SERVER_AVAILABILITY_ENDPOINT,
+  type Map as MapType,
+  type MapPool,
+  type MapPoolsResponse,
+  type MapsResponse,
+  type Server,
+  type ServersResponse,
 } from '../cs2.types';
 import type {
   MatchResponse,
@@ -305,7 +306,7 @@ export function useCreateManualMatchModal({
           secondsUntilReady: number | null;
           allocatable: boolean;
         }>;
-      }>('/api/tournament/server-availability');
+      }>(SERVER_AVAILABILITY_ENDPOINT);
 
       if (!availability.success || !availability.servers) {
         return;

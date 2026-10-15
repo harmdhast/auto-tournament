@@ -38,13 +38,8 @@ import {
 } from '../../../../module-sdk';
 import type { FleetServer } from '../../cs2.types';
 import { insecureFlag, platformIsPlainHttp } from '../insecureLink';
-
-export type Secret = {
-  kind: 'code' | 'key';
-  value: string;
-  expiresAt: number | null;
-  name: string;
-};
+import type { Secret } from '../secret.types';
+import { formatWhen } from '../time';
 
 export interface ServerAction {
   id: 'open' | 'match' | 'newCode' | 'link' | 'address' | 'rotate' | 'revoke' | 'rename' | 'remove';
@@ -58,11 +53,6 @@ export interface ServerAction {
 /** The link / connect-address dialog: `link` links the server, `edit` changes a linked server's address. */
 type AddressDialog = { mode: 'link' | 'edit'; server: FleetServer; host: string; port: string };
 type Pending = { action: 'revoke' | 'remove'; server: FleetServer };
-
-function when(unixSeconds: number | null | undefined, locale: string): string {
-  if (!unixSeconds) return '—';
-  return new Date(unixSeconds * 1000).toLocaleString(locale);
-}
 
 export function useFleetServerActions(reload: () => Promise<void>): {
   actionsFor: (server: FleetServer) => ServerAction[];
@@ -456,7 +446,7 @@ export function useFleetServerActions(reload: () => Promise<void>): {
           >
             {addressDialog?.mode === 'link'
               ? t('fleetPanel.link', { defaultValue: 'Use for matches' })
-              : t('common.save', { defaultValue: 'Save' })}
+              : t('fleetPanel.save', { defaultValue: 'Save' })}
           </Button>
         </DialogActions>
       </Dialog>
@@ -474,7 +464,7 @@ export function useFleetServerActions(reload: () => Promise<void>): {
               ? t('fleetPanel.keyCreatedHelp', { name: secret?.name })
               : t('fleetPanel.codeCreatedHelp', {
                   name: secret?.name,
-                  time: when(secret?.expiresAt, locale),
+                  time: formatWhen(secret?.expiresAt, locale),
                 })}
           </Typography>
           <Box

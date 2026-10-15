@@ -9,6 +9,7 @@ import { CopyConnect } from './CopyConnect';
 import { StateMark, useStateLabel } from '../fleet/serverStateMark';
 import type { Fleet } from '../fleet/useFleet';
 import type { ServerMatch } from '../fleet/useServerMatches';
+import { formatWhen } from '../time';
 
 const { color } = tokens;
 
@@ -38,9 +39,7 @@ export function MachineServerSection({
   const state = s ? serverState(host, s, deleting) : 'offline';
   const canAct = host.online && !deleting;
   const last = s ? host.servers[host.servers.length - 1]?.name === s.name : false;
-  const since = s?.process.started_at
-    ? new Date(s.process.started_at * 1000).toLocaleString(i18n.language)
-    : null;
+  const since = s?.process.started_at ? formatWhen(s.process.started_at, i18n.language) : null;
 
   return (
     <Box data-testid="server-panel-machine" sx={{ display: 'grid', gap: 2 }}>
