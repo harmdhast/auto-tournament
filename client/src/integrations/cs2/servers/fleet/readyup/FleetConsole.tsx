@@ -9,7 +9,7 @@ const SECRET_CVAR =
   /((?:^|[\s;+])(?:rcon_password|sv_password|sv_setsteamaccount|readyup_license_key)(?:\s*=\s*|\s+))("[^"]*"|'[^']*'|[^\s;"']+)/gi;
 const TOKEN = /\b(?:(?:rus|rfk|rhs|rst)_|RUE-)[\w-]+|\bBearer\s+[\w.~+/=-]+/g;
 
-export function redactCommand(command: string): string {
+function redactCommand(command: string): string {
   return command
     .replace(SECRET_CVAR, (_m, head: string) => `${head}***`)
     .replace(TOKEN, (m) =>

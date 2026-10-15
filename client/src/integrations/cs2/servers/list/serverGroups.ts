@@ -23,7 +23,7 @@ export interface ServerGroup {
 }
 
 /** Online machines first; then the ones waiting to be linked, the offline ones, the revoked. */
-export function hostRank(host: FleetHost): number {
+function hostRank(host: FleetHost): number {
   if (host.status === 'enrolled') return host.online ? 0 : 2;
   return host.status === 'pending' ? 1 : 3;
 }

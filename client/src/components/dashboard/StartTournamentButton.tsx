@@ -3,7 +3,7 @@
  *
  * The button owns the start itself: refresh, confirm, POST, navigate. What
  * starting *does* is the game module's, and it used to be written in here —
- * servers checked, allocated, loaded over RCON, put in warmup, counted — on
+ * servers checked, allocated, loaded, put in warmup, counted — on
  * every install, including one whose tournament is reported by hand and has no
  * servers at all. That body, its labels and its "go look at the servers"
  * escape hatch are now `integration.tournamentStart` (see
