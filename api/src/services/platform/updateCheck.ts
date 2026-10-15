@@ -66,15 +66,12 @@ export async function checkPlatformUpdate(options?: {
   running?: string;
   fetchImpl?: ReleaseFetch;
   forceRefresh?: boolean;
-  /** False: a newer release is still looked up but never reported as `available`. */
-  notices?: boolean;
 }): Promise<PlatformUpdate> {
   const running = options?.running ?? packageJson.version;
   const channel = (semver.prerelease(clean(running) ?? '') ?? []).length > 0 ? 'beta' : 'stable';
-  const notices = options?.notices ?? true;
   const now = Date.now();
   if (!options?.forceRefresh && cache && cache.channel === channel && now - cache.at < CACHE_MS) {
-    return result(running, cache.latest, notices);
+    return result(running, cache.latest);
   }
   const doFetch: ReleaseFetch = options?.fetchImpl ?? (fetch as unknown as ReleaseFetch);
   try {
@@ -83,21 +80,20 @@ export async function checkPlatformUpdate(options?: {
     });
     if (!res.ok) {
       log.warn('[UPDATE] Could not read the platform releases', { status: res.status });
-      return result(running, null, notices);
+      return result(running, null);
     }
     const latest = newestRelease((await res.json()) as GitHubRelease[], running);
     cache = { at: now, latest, channel };
-    return result(running, latest, notices);
+    return result(running, latest);
   } catch (error) {
     log.warn('[UPDATE] Could not read the platform releases', { error: (error as Error).message });
-    return result(running, null, notices);
+    return result(running, null);
   }
 }
 
 export function result(
   running: string,
-  latest: { version: string; url: string } | null,
-  notices = true
+  latest: { version: string; url: string } | null
 ): PlatformUpdate {
   const r = clean(running);
   // A release list from before this version came out (cached, or GitHub not
@@ -106,7 +102,7 @@ export function result(
   return {
     running,
     latest: behind ? r : (latest?.version ?? null),
-    available: notices && !!(latest && r && semver.gt(latest.version, r)),
+    available: !!(latest && r && semver.gt(latest.version, r)),
     releaseUrl: behind ? null : latest?.url || null,
   };
 }
