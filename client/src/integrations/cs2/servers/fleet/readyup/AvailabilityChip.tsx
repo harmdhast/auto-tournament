@@ -2,17 +2,10 @@
 import { Chip, Typography } from '@mui/material';
 import { tokens, useModuleTranslation } from '../../../../../module-sdk';
 import type { FleetServer } from '../../../cs2.types';
-import { busyTone } from '../serverStateMark';
+import { BUSY_REASON_KEY, type AvailabilityClass } from '../../availabilityClass';
+import { availabilityClassTone, busyTone } from '../serverStateMark';
 
-const REASON_KEY: Record<string, string> = {
-  local_match: 'managePage.servers.busyReason.localMatch',
-  awaiting_reset: 'managePage.servers.busyReason.awaitingReset',
-  match_disabled: 'managePage.servers.busyReason.matchDisabled',
-  draining: 'managePage.servers.busyReason.draining',
-  reserved: 'managePage.servers.busyReason.reserved',
-};
-
-type Availability = 'free' | 'busy' | 'spare' | 'draining' | 'offline';
+type Availability = Exclude<AvailabilityClass, 'inMatch'>;
 
 export function availabilityOf(server: FleetServer): Availability {
   if (!server.online) return 'offline';
@@ -23,24 +16,11 @@ export function availabilityOf(server: FleetServer): Availability {
 
 const { color } = tokens;
 
-/**
- * One colour per availability, shared by the dots, the chips and the admin
- * home: free green, in a match the accent, busy for another reason amber,
- * spare or draining blue, offline red, not enrolled muted.
- */
+/** The colour of a server's availability: not enrolled muted, otherwise `availabilityClassTone`. */
 export function availabilityTone(server: FleetServer): string {
   if (server.status !== 'enrolled') return color.muted;
-  switch (availabilityOf(server)) {
-    case 'free':
-      return color.live;
-    case 'spare':
-    case 'draining':
-      return color.info;
-    case 'offline':
-      return color.ban;
-    default:
-      return busyTone(server.availabilityReason);
-  }
+  const state = availabilityOf(server);
+  return state === 'busy' ? busyTone(server.availabilityReason) : availabilityClassTone[state];
 }
 
 export function AvailabilityChip({ server }: { server: FleetServer }) {
@@ -63,7 +43,7 @@ export function AvailabilityChip({ server }: { server: FleetServer }) {
 
 function reasonKey(server: FleetServer): string | undefined {
   return server.online && server.availabilityReason
-    ? REASON_KEY[server.availabilityReason]
+    ? BUSY_REASON_KEY[server.availabilityReason]
     : undefined;
 }
 

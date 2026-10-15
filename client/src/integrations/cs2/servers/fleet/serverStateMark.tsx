@@ -1,5 +1,6 @@
 import { Box, Chip, CircularProgress } from '@mui/material';
 import { radii, tokens, useModuleTranslation } from '../../../../module-sdk';
+import type { AvailabilityClass } from '../availabilityClass';
 import type { ServerTileState } from '../machineState';
 import type { ServerMatch } from './useServerMatches';
 
@@ -18,9 +19,23 @@ export const stateTone: Record<ServerTileState, string> = {
   offline: color.ban,
 };
 
+/**
+ * One colour per availability, shared by the dots, the chips and the admin
+ * home: free green, in a match the accent, busy for another reason amber,
+ * spare or draining blue, offline red.
+ */
+export const availabilityClassTone: Record<AvailabilityClass, string> = {
+  inMatch: color.accent,
+  busy: 'warning.main',
+  draining: color.info,
+  spare: color.info,
+  free: color.live,
+  offline: color.ban,
+};
+
 /** A busy server's colour: the accent for a match or no reason, amber for any other reason. */
 export function busyTone(reason: string | null | undefined): string {
-  return !reason ? color.accent : 'warning.main';
+  return availabilityClassTone[reason ? 'busy' : 'inMatch'];
 }
 
 export const MOVING: ServerTileState[] = [

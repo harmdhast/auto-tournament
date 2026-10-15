@@ -23,6 +23,7 @@ import {
   useTileMatchLine,
 } from './fleet/serverStateMark';
 import { useServerAvailability } from './useServerAvailability';
+import { BUSY_REASON_KEY, serverRank } from './availabilityClass';
 
 /**
  * The Manage console's server grid (`dashboardWidgets.manageResources`). It
@@ -45,36 +46,6 @@ function bracketLabel(server: ServerAllocationInfo): string | null {
     round: server.matchRound ?? 0,
     matchNumber: server.matchNumber ?? 0,
   });
-}
-
-const PHASE_RANK: Record<string, number> = { live: 0, knife: 1, warmup: 2, veto: 3 };
-const OTHER_PHASE_RANK = 4;
-const FREE_RANK = 10;
-const RESTING_RANK = 11;
-const BUSY_RANK = 12;
-const CHECKING_RANK = 13;
-const OFFLINE_RANK = 14;
-
-/**
- * Where a tile goes on the dashboard, lowest first: servers in a match (live,
- * knife, warmup, veto, then the rest), free ones, resting or spare ones, busy
- * ones, ones still being checked, offline ones. Not configured servers follow.
- */
-export function serverRank(
-  server: ServerAllocationInfo,
-  match: ServerMatch | undefined,
-  checking: boolean
-): number {
-  if (!server.online) return checking && !server.updatedAt ? CHECKING_RANK : OFFLINE_RANK;
-  if (match) return PHASE_RANK[match.phase ?? ''] ?? OTHER_PHASE_RANK;
-  if (server.allocatable) return FREE_RANK;
-  if (
-    server.notAllocatableReason === 'grace-window' ||
-    server.busyReason === 'reserved' ||
-    server.busyReason === 'draining'
-  )
-    return RESTING_RANK;
-  return BUSY_RANK;
 }
 
 function timeAgo(
@@ -102,14 +73,6 @@ function heldBackKey(reason: ServerAllocationInfo['notAllocatableReason']): stri
       return 'managePage.servers.heldBack.other';
   }
 }
-
-const BUSY_REASON_KEY: Record<string, string> = {
-  local_match: 'managePage.servers.busyReason.localMatch',
-  awaiting_reset: 'managePage.servers.busyReason.awaitingReset',
-  match_disabled: 'managePage.servers.busyReason.matchDisabled',
-  draining: 'managePage.servers.busyReason.draining',
-  reserved: 'managePage.servers.busyReason.reserved',
-};
 
 /** The busy tile's line: what Ready Up says, else why the allocator holds it back. */
 function busyLine(
