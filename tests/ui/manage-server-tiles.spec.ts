@@ -226,3 +226,53 @@ test('draining reads Draining and a local match reads Busy', async ({ page }) =>
   await expect(tile('s-local').locator('.MuiChip-root')).toHaveText('Busy');
   await expect(grid.getByText('Local match cup-final still loaded')).toBeVisible();
 });
+
+test('one match:update for a watched slug fetches that match once', async ({ page }) => {
+  await ensureSignedIn(page);
+  const sockets: { send: (m: string) => void }[] = [];
+  await page.routeWebSocket(/\/socket\.io\//, (ws) => {
+    const server = ws.connectToServer();
+    ws.onMessage((m) => server.send(m));
+    server.onMessage((m) => ws.send(m));
+    sockets.push({ send: (m) => ws.send(m) });
+  });
+  const fetches: Record<string, number> = {};
+  let availabilityReads = 0;
+  await page.route('**/api/tournament/server-availability', (route) => {
+    availabilityReads++;
+    return route.fulfill({
+      json: {
+        success: true,
+        availableServerCount: 0,
+        gracePeriodSeconds: 0,
+        nextAllocationInSeconds: null,
+        requiredServerCount: 0,
+        simulationEnabled: false,
+        servers: [
+          entry('s-a', { matchSlug: 'm-a', notAllocatableReason: null }),
+          entry('s-b', { matchSlug: 'm-b', notAllocatableReason: null }),
+          entry('s-c', { matchSlug: 'm-c', notAllocatableReason: null }),
+        ],
+      },
+    });
+  });
+  await page.route('**/api/matches/*', (route) => {
+    const slug = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop()!);
+    if (!['m-a', 'm-b', 'm-c'].includes(slug)) return route.continue();
+    fetches[slug] = (fetches[slug] ?? 0) + 1;
+    return route.fulfill({ json: { success: true, match: match(slug) } });
+  });
+  await page.goto('/manage');
+  const grid = page.getByTestId('manage-servers');
+  await expect(grid.getByRole('button', { name: /s-c/ })).toBeVisible({ timeout: 15000 });
+  await expect.poll(() => sockets.length).toBeGreaterThan(0);
+  await page.waitForTimeout(1500);
+  for (const slug of ['m-a', 'm-b', 'm-c']) expect(fetches[slug]).toBe(1);
+
+  const reads = availabilityReads;
+  for (const s of sockets) s.send('42["match:update",{"slug":"m-b"}]');
+  await expect.poll(() => fetches['m-b']).toBe(2);
+  await expect.poll(() => availabilityReads).toBeGreaterThan(reads);
+  await page.waitForTimeout(1500);
+  expect(fetches).toEqual({ 'm-a': 1, 'm-b': 2, 'm-c': 1 });
+});
