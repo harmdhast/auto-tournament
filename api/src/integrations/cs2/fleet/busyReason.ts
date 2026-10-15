@@ -1,20 +1,5 @@
 import type { BusyReason } from './protocol/v1/types';
 
-/**
- * Why a Ready Up server takes no match. Ready Up reports `local_match`,
- * `awaiting_reset`, `match_disabled` and `draining` with its availability;
- * older Ready Up sends free text (`assigned`, `series_end`), read as none.
- * `reserved` (a spare held back for failover) and `match_disabled` (the
- * plugin set turns match off) also come from the platform itself.
- */
-export const BUSY_REASONS: readonly BusyReason[] = [
-  'local_match',
-  'awaiting_reset',
-  'match_disabled',
-  'draining',
-  'reserved',
-];
-
 const REPORTED = new Set<string>(['local_match', 'awaiting_reset', 'match_disabled', 'draining']);
 const DETAIL_MAX = 128;
 

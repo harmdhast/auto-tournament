@@ -1087,8 +1087,7 @@ export async function fenceEpoch(
 
 /** `welcome.assignment`: the match this server holds on the platform's side, still being played. */
 export async function resolveWelcomeAssignment(
-  fleetServerId: string,
-  _hello: HelloPayload
+  fleetServerId: string
 ): Promise<WelcomePayload['assignment']> {
   for (const assignment of await openAssignmentsOf(fleetServerId)) {
     const record = await liveStateStore.getLiveState(assignment.matchSlug);
@@ -1187,7 +1186,7 @@ async function checkHello(fleetServerId: string, hello: HelloPayload): Promise<v
       );
     }
   } else {
-    const assignment = await resolveWelcomeAssignment(fleetServerId, hello);
+    const assignment = await resolveWelcomeAssignment(fleetServerId);
     if (assignment) {
       log.warn(
         `[FLEET] ${fleetServerId} came back without ${assignment.match_id} (epoch ${assignment.epoch}) loaded; ` +
