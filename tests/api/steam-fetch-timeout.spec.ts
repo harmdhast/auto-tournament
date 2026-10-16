@@ -26,6 +26,8 @@ test('a Steam lookup that never answers gives up', { tag: ['@api'] }, async () =
   try {
     const player = await steamService.getPlayerInfo('76561197960287930');
     expect(player).toBeNull();
+    expect(sockets.length).toBeGreaterThan(0);
+    expect(Date.now() - started).toBeGreaterThan(9_000);
     expect(Date.now() - started).toBeLessThan(15_000);
   } finally {
     agent.createConnection = original;
