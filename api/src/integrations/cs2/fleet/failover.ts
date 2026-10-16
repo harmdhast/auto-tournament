@@ -728,15 +728,30 @@ async function runScan(options: ScanOptions): Promise<ScanResult> {
 /** Servers a failover's auto move already failed on (refused, no answer): not tried again for it. */
 const failedTargets = new Map<string, Set<string>>();
 
+/** Automatic moves of a failover that threw: after this many an admin decides. */
+const AUTO_MAX_ERRORS = 3;
+const autoErrors = new Map<string, number>();
+
 async function autoAccept(proposal: FailoverProposal): Promise<AcceptOutcome> {
+  const errors = autoErrors.get(proposal.id) ?? 0;
+  if (errors >= AUTO_MAX_ERRORS)
+    return refuse(409, 'auto_gave_up', 'Automatic moves kept failing; an admin decides', proposal);
   const exclude = [...(failedTargets.get(proposal.id) ?? [])];
-  const outcome = await acceptFailover(proposal.id, {
-    actor: RECOVERY_ACTOR,
-    auto: true,
-    exclude,
-  });
+  let outcome: AcceptOutcome;
+  try {
+    outcome = await acceptFailover(proposal.id, {
+      actor: RECOVERY_ACTOR,
+      auto: true,
+      exclude,
+    });
+  } catch (error) {
+    autoErrors.set(proposal.id, errors + 1);
+    if (autoErrors.size > 1000) autoErrors.clear();
+    throw error;
+  }
   if (outcome.ok) {
     failedTargets.delete(proposal.id);
+    autoErrors.delete(proposal.id);
   } else if (outcome.code === 'assign_failed' && outcome.target) {
     const set = failedTargets.get(proposal.id) ?? new Set<string>();
     set.add(outcome.target);

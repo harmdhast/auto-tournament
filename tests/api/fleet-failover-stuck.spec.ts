@@ -173,4 +173,48 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     expect(after?.lastError).toBeTruthy();
     expect((await matchRow(request, slug))?.serverId).toBe(cs2A);
   });
+
+  test('automatic moves that keep throwing stop after three, the failover waits for an admin', async ({
+    request,
+  }) => {
+    test.setTimeout(120_000);
+    await setFailover(request, { auto: true, csm: false });
+    const slug = `fleet-stuck-auto-${Date.now()}`;
+    const a = await FakeReadyUp.enroll(request, key.value);
+    fakes.push(a);
+    fleetIds.push(a.serverId);
+    await a.hello();
+    await link(request, a.serverId);
+    await createMatch(request, slug);
+    const assign = await acceptAssign(a, slug);
+    await expect
+      .poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 })
+      .toBe('loaded');
+    a.availability('busy', 'assigned');
+    a.snapshot(slug, assign.epoch as number);
+    const b = await FakeReadyUp.enroll(request, key.value);
+    fakes.push(b);
+    fleetIds.push(b.serverId);
+    await b.hello();
+    const cs2B = await link(request, b.serverId);
+
+    psql(
+      `CREATE OR REPLACE FUNCTION stb10_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'stb10'; END $$`
+    );
+    psql(
+      `CREATE TRIGGER stb10 BEFORE UPDATE OF server_id ON matches FOR EACH ROW WHEN (NEW.server_id = '${cs2B}') EXECUTE FUNCTION stb10_fail()`
+    );
+    cleanup.push(() => {
+      psql('DROP TRIGGER IF EXISTS stb10 ON matches');
+    });
+    a.kill();
+    await new Promise((r) => setTimeout(r, 1500));
+    for (let i = 0; i < 6; i++) await scan(request);
+    expect(
+      psql(
+        `SELECT count(*) FROM cs2_fleet_audit WHERE match_slug = '${slug}' AND command LIKE 'failover %'`
+      )
+    ).toBe('3');
+    expect((await proposalOf(request, slug))?.status).toBe('open');
+  });
 });
