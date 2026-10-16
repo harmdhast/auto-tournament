@@ -579,6 +579,7 @@
   "POST /api/test/cs2-tables/handover": "requireTestEndpoints + requireAuth",
   "POST /api/test/cs2-tables/handover-probe": "requireTestEndpoints + requireAuth",
   "POST /api/test/cs2-tables/match-runtime": "requireTestEndpoints + requireAuth",
+  "POST /api/test/db-hold": "requireTestEndpoints + requireAuth",
   "POST /api/test/env-import": "requireTestEndpoints + requireLoopback",
   "POST /api/test/fake-oauth/:provider/token": "requireTestEndpoints",
   "POST /api/test/fleet/age-token": "requireAuth + requireTestHelpers",
