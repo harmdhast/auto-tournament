@@ -20,7 +20,11 @@ import {
 } from '../utils/signedPendingSteamLink';
 import { shouldBlockAdminAsDirectAccess } from '../utils/canonicalOrigin';
 import { signImpersonatedSteamId, IMPERSONATION_COOKIE_NAME } from '../utils/impersonationCookie';
-import { resolveViewerAccount, resolveViewerIdentity } from '../utils/viewerIdentity';
+import {
+  accountNeedsSession,
+  resolveViewerAccount,
+  resolveViewerIdentity,
+} from '../utils/viewerIdentity';
 import { authenticateServiceToken, requireAuth } from '../middleware/auth';
 import {
   peekOAuthLinkIntent,
@@ -747,7 +751,9 @@ export function ssoCallbackHandler(expectedProvider: AuthProvider) {
       log.info(`${label} callback: checking for existing player_steam_id cookie`, {
         cookieSteamId: cookieSteamId ?? null,
       });
-      if (cookieSteamId) {
+      // Not for an admin or local-login account: the cookie must not decide who
+      // the browser signs in as; the normal lookup below applies.
+      if (cookieSteamId && !(await accountNeedsSession(cookieSteamId))) {
         const outcome = await authIdentityService.linkIdentityUnlessOwnedElsewhere(
           provider,
           providerUserId,
@@ -1004,6 +1010,11 @@ export function startAccountLink(
       const player = await playerService.getPlayerById(identity.realSteamId);
       if (!player) {
         return res.status(404).json({ success: false, error: 'No player record for this account' });
+      }
+      if (!identity.hasSession && (await accountNeedsSession(identity.realSteamId))) {
+        return res
+          .status(401)
+          .json({ success: false, error: 'Sign in again to connect an account' });
       }
 
       // An account with a local admin login re-confirms its password first.
@@ -1277,6 +1288,10 @@ export async function beginSteamLink(req: Request, res: Response): Promise<boole
       success: false,
       error: 'You are impersonating a player. Stop impersonating to manage your own account.',
     });
+    return false;
+  }
+  if (!identity.hasSession && (await accountNeedsSession(identity.realSteamId))) {
+    res.status(401).json({ success: false, error: 'Sign in again to connect an account' });
     return false;
   }
   if (
