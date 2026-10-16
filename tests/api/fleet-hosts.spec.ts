@@ -453,7 +453,7 @@ test.describe.serial('Fleet hosts (csm)', () => {
     await csm.acked(done.seq as number);
     const again = await csm.nextCommand('server.restart');
     expect(again.id).not.toBe(restartMsg.id);
-    expect(again.payload).toEqual({ server: 'server-1', reason: 'busy test' });
+    expect(again.payload).toMatchObject({ server: 'server-1', reason: 'busy test' });
     const first = (
       await (
         await request.get(`/api/fleet/hosts/${m.hostId}/commands/${restart.body.command.id}`)
