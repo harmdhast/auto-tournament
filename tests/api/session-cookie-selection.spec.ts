@@ -86,6 +86,9 @@ test.describe('session cookie selection (pure)', () => {
       );
       expect(stores).toHaveLength(2);
       expect(stores[0]).not.toBe(stores[1]);
+      const blocks = [...src.matchAll(/=\s*session\(\{[\s\S]*?\n\}\);/g)].map((m) => m[0]);
+      expect(blocks).toHaveLength(2);
+      for (const block of blocks) expect(block).toMatch(/\bproxy: true,/);
     }
   );
 });
