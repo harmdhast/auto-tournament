@@ -414,7 +414,30 @@ export class Scheduler {
    * Allocate a single specific match to the first available server, once it
    * is its turn in the queue.
    */
-  async allocateSingleMatch(
+  allocateSingleMatch(
+    matchSlug: string,
+    baseUrl: string
+  ): Promise<{
+    success: boolean;
+    serverId?: string;
+    error?: string;
+  }> {
+    // One allocation per match at a time: concurrent callers share its result.
+    const running = this.allocatingMatches.get(matchSlug);
+    if (running) return running;
+    const started = this.allocateSingleMatchOnce(matchSlug, baseUrl).finally(() => {
+      this.allocatingMatches.delete(matchSlug);
+    });
+    this.allocatingMatches.set(matchSlug, started);
+    return started;
+  }
+
+  private allocatingMatches = new Map<
+    string,
+    Promise<{ success: boolean; serverId?: string; error?: string }>
+  >();
+
+  private async allocateSingleMatchOnce(
     matchSlug: string,
     baseUrl: string
   ): Promise<{
@@ -1352,7 +1375,10 @@ export class Scheduler {
       `[POLLING] Starting server polling for match ${matchSlug} (checking every 10 seconds)`
     );
 
+    let polling = false;
     const pollInterval = setInterval(async () => {
+      if (polling) return;
+      polling = true;
       try {
         // Check if match still exists and is ready
         const match = await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [
@@ -1397,6 +1423,8 @@ export class Scheduler {
       } catch (error) {
         log.error(`Error during polling for match ${matchSlug}`, error);
         // Continue polling even on error
+      } finally {
+        polling = false;
       }
     }, 10000); // Check every 10 seconds
 
