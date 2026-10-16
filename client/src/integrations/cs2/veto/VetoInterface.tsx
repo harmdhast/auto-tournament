@@ -252,6 +252,30 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
   // player click both sides, and the last click won).
   const [submitting, setSubmitting] = useState(false);
 
+  // The map picked out by a first tap; a second tap on it, or the confirm button, commits it.
+  const [selectedMap, setSelectedMap] = useState<string | null>(null);
+  useEffect(() => {
+    setSelectedMap(null);
+  }, [vetoState?.currentStep, vetoState?.currentTurn, vetoState?.status, actFor]);
+  useEffect(() => {
+    if (!selectedMap) return undefined;
+    const onKey = (event: { key: string; defaultPrevented: boolean; target: unknown }) => {
+      const target = event.target as { closest?: (selector: string) => unknown } | null;
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (target?.closest?.('[role="dialog"], input, textarea')) return;
+      setSelectedMap(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedMap]);
+
+  const handleMapClick = (mapName: string) => {
+    if (!vetoState || vetoState.status === 'completed' || !isMyTurn || submitting) return;
+    if (vetoState.currentAction === 'side_pick') return;
+    if (selectedMap === mapName) void handleMapAction(mapName);
+    else setSelectedMap(mapName);
+  };
+
   const handleMapAction = async (mapName: string) => {
     if (!vetoState || vetoState.status === 'completed' || !isMyTurn || submitting) return;
 
@@ -283,6 +307,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
       setActionError(t('vetoInterface.errors.failedToSubmitVetoAction'));
     } finally {
       setSubmitting(false);
+      setSelectedMap(null);
     }
   };
 
@@ -663,6 +688,30 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
                     {t('vetoInterface.clickMapToConfirm')}
                   </Typography>
                 )}
+                <Box
+                  role="status"
+                  aria-live="polite"
+                  sx={{
+                    position: 'absolute',
+                    width: 1,
+                    height: 1,
+                    overflow: 'hidden',
+                    clip: 'rect(0 0 0 0)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {currentAction !== 'side_pick' && selectedMap
+                    ? t(
+                        currentAction === 'ban'
+                          ? 'vetoInterface.selectedBan'
+                          : 'vetoInterface.selectedPick',
+                        {
+                          map:
+                            allMaps.get(selectedMap)?.displayName || getMapDisplayName(selectedMap),
+                        }
+                      )
+                    : ''}
+                </Box>
               </>
             ) : (
               <>
@@ -896,6 +945,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
           sx={
             isMyTurn
               ? {
+                  pb: selectedMap ? 10 : undefined,
                   p: 1.5,
                   borderRadius: `${radius.lg}px`,
                   border: '1px dashed',
@@ -959,12 +1009,40 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
                       state={mapState}
                       mapNumber={pickedMap?.mapNumber}
                       side={displaySide}
-                      onClick={() => handleMapAction(map.name)}
+                      onClick={() => handleMapClick(map.name)}
+                      selected={selectedMap === map.name}
                       disabled={mapState !== 'available' || !isMyTurn || submitting}
                       isCurrentTurn={isMyTurn && mapState === 'available'}
                       currentAction={currentAction}
                       isDecider={mapState === 'picked' && isDeciderMap(map.name)}
                     />
+                    {selectedMap === map.name && (
+                      <Button
+                        variant="contained"
+                        data-testid="veto-confirm-button"
+                        disabled={submitting}
+                        onClick={() => void handleMapAction(map.name)}
+                        sx={{
+                          position: 'fixed',
+                          bottom: 16,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          zIndex: (theme) => theme.zIndex.snackbar - 1,
+                          boxShadow: 6,
+                          maxWidth: 'calc(100vw - 176px)',
+                          bgcolor: actionColor,
+                          color: color.accentInk,
+                          '&:hover': { bgcolor: actionColor, filter: 'brightness(1.1)' },
+                        }}
+                      >
+                        {t(
+                          currentAction === 'ban'
+                            ? 'vetoInterface.confirmBan'
+                            : 'vetoInterface.confirmPick',
+                          { map: map.displayName }
+                        )}
+                      </Button>
+                    )}
                   </Grid>
                 );
               })}

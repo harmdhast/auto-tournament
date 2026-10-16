@@ -17,6 +17,8 @@ interface VetoMapCardProps {
   side?: MapSide; // For picked maps with side selection
   onClick?: () => void;
   disabled?: boolean;
+  /** Chosen by a first tap, waiting for the confirm. */
+  selected?: boolean;
   /**
    * When true, this card is the primary actionable choice for the current team
    * (e.g. it is their turn and the map is available). Used to visually
@@ -42,6 +44,7 @@ export const VetoMapCard: React.FC<VetoMapCardProps> = ({
   side,
   onClick,
   disabled,
+  selected,
   isCurrentTurn,
   currentAction,
   isDecider,
@@ -58,11 +61,13 @@ export const VetoMapCard: React.FC<VetoMapCardProps> = ({
       ? t('vetoInterface.mapCardAria.banned', { map: displayName })
       : state === 'picked'
         ? t('vetoInterface.mapCardAria.picked', { map: displayName })
-        : currentAction === 'pick'
-          ? t('vetoInterface.mapCardAria.pick', { map: displayName })
-          : currentAction === 'ban'
-            ? t('vetoInterface.mapCardAria.ban', { map: displayName })
-            : displayName;
+        : isClickable && (currentAction === 'pick' || currentAction === 'ban')
+          ? t('vetoInterface.mapCardAria.select', { map: displayName })
+          : currentAction === 'pick'
+            ? t('vetoInterface.mapCardAria.pick', { map: displayName })
+            : currentAction === 'ban'
+              ? t('vetoInterface.mapCardAria.ban', { map: displayName })
+              : displayName;
 
   // On your turn a tile takes the action's colour (ban red, pick green), and hovering it shows
   // the action's icon over the map, so it is clear what a click does.
@@ -238,13 +243,16 @@ export const VetoMapCard: React.FC<VetoMapCardProps> = ({
         borderRadius: `${radius.md}px`,
         // Banned tiles dim the image (scrim overlay) but keep the red name readable.
         border: 1,
-        borderColor: state === 'picked' ? color.pick : isCurrentTurn ? actionColor : color.rule,
+        borderColor:
+          state === 'picked' ? color.pick : selected || isCurrentTurn ? actionColor : color.rule,
         boxShadow:
           state === 'picked'
             ? `0 0 0 1px ${color.pick}`
-            : isCurrentTurn
-              ? `0 0 0 1px ${withAlpha(actionColor, 0.5)}`
-              : 'none',
+            : selected
+              ? `0 0 0 3px ${actionColor}`
+              : isCurrentTurn
+                ? `0 0 0 1px ${withAlpha(actionColor, 0.5)}`
+                : 'none',
         transition: `box-shadow ${duration.base}ms ${ease.out}, border-color ${duration.base}ms ${ease.out}`,
         '&:hover': isClickable
           ? {
@@ -252,6 +260,7 @@ export const VetoMapCard: React.FC<VetoMapCardProps> = ({
             }
           : {},
         '&:hover .veto-hover-action, &:focus-within .veto-hover-action': { opacity: 1 },
+        ...(selected ? { '& .veto-hover-action': { opacity: 1 } } : {}),
       }}
     >
       {isInteractive ? (
@@ -259,6 +268,7 @@ export const VetoMapCard: React.FC<VetoMapCardProps> = ({
           data-testid={`veto-map-button-${mapName}`}
           aria-label={accessibleName}
           aria-disabled={!isClickable}
+          aria-pressed={isClickable ? !!selected : undefined}
           onClick={isClickable ? onClick : undefined}
           disableRipple={!isClickable}
           sx={{
