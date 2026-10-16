@@ -4,7 +4,7 @@
 #
 #   scripts/test-local-shards.sh [-n shards] [-p base-port] [--since <ref> | spec...]
 #
-#   -n       stacks (default 4, about 1.2 GB and 20 Postgres connections each)
+#   -n       stacks (default 3, about 1.2 GB and 25 Postgres connections each)
 #   -p       stack i serves the client on base+2i and the API on base+2i+1; the skin fixture on base+99 (default 4200)
 #   --since  only the specs tests/ci-affected.mjs says the changes since <ref> (committed and not) reach
 #
@@ -13,7 +13,7 @@
 set -uo pipefail
 
 ROOT=$(git rev-parse --show-toplevel)
-N=4 BASE=4200 SINCE= SPECS=()
+N=3 BASE=4200 SINCE= SPECS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -n) N=$2; shift ;;
@@ -69,10 +69,10 @@ if [ -n "$SINCE" ]; then
 fi
 [ ${#SPECS[@]} -gt 0 ] && export CI_SPECS="${SPECS[*]}"
 
-# Each API pool holds up to 20 connections (api/src/config/database.ts), specs open a few more.
+# Per stack: the API db pool (20, api/src/config/database.ts), the session pool (5, api/src/index.ts) and about 3 for the spec process.
 pg 'const max = +(await c.query("SHOW max_connections")).rows[0].max_connections;
     const used = +(await c.query("SELECT count(*) FROM pg_stat_activity")).rows[0].count;
-    const need = +argv[0] * 22;
+    const need = +argv[0] * 28;
     if (used + need > max) throw new Error(`Postgres has ${max - used} free connections, ${need} needed for ${argv[0]} stacks: use fewer stacks or raise max_connections`);' "$N" || exit 1
 
 KEYS=$(bash scripts/build-module-snapshot.sh --ephemeral | sed -n 's/^MODULE_TRUSTED_KEYS=//p')
