@@ -92,6 +92,8 @@ test.describe('Ready Up fleet: console', () => {
     const input = page.getByTestId('fleet-console-input');
     await input.fill('status');
     await input.press('Enter');
-    await expect(page.getByTestId('fleet-console-output')).toContainText('offline');
+    const out = page.getByTestId('fleet-console-output');
+    await expect(out).toContainText('The Ready Up server is offline');
+    await expect(out).not.toContainText('success');
   });
 });

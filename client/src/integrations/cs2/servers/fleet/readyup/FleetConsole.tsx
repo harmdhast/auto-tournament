@@ -1,7 +1,13 @@
 /** One terminal view on a Ready Up server: live log lines, plus root admins' commands (fleet `exec`, FLEET.md D10). */
 import { useEffect, useRef, useState } from 'react';
 import { Box, TextField, Typography } from '@mui/material';
-import { api, mono, useAuth, useModuleTranslation } from '../../../../../module-sdk';
+import {
+  api,
+  apiErrorMessage,
+  mono,
+  useAuth,
+  useModuleTranslation,
+} from '../../../../../module-sdk';
 import type { FleetServer } from '../../../cs2.types';
 import { useFleetLogs } from './useFleetLogs';
 
@@ -51,7 +57,7 @@ export function FleetConsole({ server }: { server: FleetServer }) {
       if (res.success === false) fail(res.error ?? t('serversBoard.readyUp.console.noOutput'));
       else if (!live) append(res.response || t('serversBoard.readyUp.console.noOutput'));
     } catch (err) {
-      fail((err as Error).message);
+      fail(apiErrorMessage(err, t('serversBoard.errors.command')));
     } finally {
       setBusy(false);
     }
