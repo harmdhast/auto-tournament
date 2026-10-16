@@ -103,4 +103,16 @@ test.describe.serial('Match room', () => {
     });
     await expect(page.getByTestId('veto-interface')).toHaveCount(0);
   });
+
+  test('the veto step strip reads on a phone', TAGS, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await impersonatePlayer(page.request, player)).toBe(true);
+    await openOwnMatchRoom(page);
+    await expect(page.getByTestId('veto-interface')).toBeVisible({ timeout: 20000 });
+    const first = page.getByTestId('veto-step-strip').locator('li').first();
+    expect((await first.boundingBox())!.width).toBeGreaterThanOrEqual(80);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390
+    );
+  });
 });

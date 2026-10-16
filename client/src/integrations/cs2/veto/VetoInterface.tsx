@@ -1143,8 +1143,16 @@ function VetoStepStrip({
       : teamName(team);
   const tone = (action: string) =>
     action === 'ban' ? color.ban : action === 'pick' ? color.pick : color.info;
+  const stripRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const strip = stripRef.current;
+    const now = strip?.querySelector<HTMLElement>('[aria-current="step"]');
+    if (!strip || !now || strip.scrollWidth <= strip.clientWidth) return;
+    strip.scrollLeft = now.offsetLeft - (strip.clientWidth - now.offsetWidth) / 2;
+  }, [vetoState.currentStep, vetoState.status]);
   return (
     <Box
+      ref={stripRef}
       component="ol"
       aria-label={t('vetoInterface.stepOf', {
         current: Math.min(vetoState.currentStep, vetoState.totalSteps),
@@ -1156,8 +1164,16 @@ function VetoStepStrip({
         m: 0,
         p: 0,
         display: 'grid',
-        gridTemplateColumns: `repeat(${Math.max(1, vetoState.totalSteps)}, minmax(0, 1fr))`,
+        gridTemplateColumns: {
+          xs: `repeat(${Math.max(1, vetoState.totalSteps)}, 112px)`,
+          sm: `repeat(${Math.max(1, vetoState.totalSteps)}, minmax(0, 1fr))`,
+        },
         gap: 0.75,
+        overflowX: { xs: 'auto', sm: 'visible' },
+        scrollSnapType: { xs: 'x proximity', sm: 'none' },
+        '& > li': { scrollSnapAlign: 'center' },
+        position: 'relative',
+        pb: { xs: 0.5, sm: 0 },
       }}
     >
       {steps.map((step) => {
