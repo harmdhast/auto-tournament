@@ -113,3 +113,61 @@ test(
     }
   }
 );
+
+test(
+  'a single allocation joining a running batch allocation of one match loads it once',
+  { tag: ['@api'] },
+  async () => {
+    const slug = `${SLUG}-batch-first`;
+    const tournament = await db.insertAsync('tournament', {
+      name: slug,
+      type: 'single_elimination',
+      format: 'bo1',
+      status: 'setup',
+      team_ids: '[]',
+    });
+    const tournamentId = Number(tournament.lastInsertRowid);
+    await db.insertAsync('matches', {
+      slug,
+      tournament_id: tournamentId,
+      round: 0,
+      match_number: 0,
+      config: '{}',
+      status: 'ready',
+    });
+
+    const integration = getIntegration('cs2');
+    const original = {
+      capacity: integration.capacity,
+      allocate: integration.allocate,
+      allocateBatch: integration.allocateBatch,
+      poolStatus: integration.poolStatus,
+    };
+    const loads: string[] = [];
+    const load = async () => {
+      loads.push(`fake-server-${loads.length + 1}`);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return { status: 'assigned' as const, resourceId: loads[loads.length - 1] };
+    };
+    integration.capacity = async () => 2;
+    integration.allocate = load;
+    integration.poolStatus = undefined;
+    integration.allocateBatch = async (ctxs) => Promise.all(ctxs.map(load));
+
+    try {
+      const batch = scheduler.allocateSpecificMatches(tournamentId, [slug], '');
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const single = await scheduler.allocateSingleMatch(slug, '');
+      await batch;
+      expect(single.success).toBe(true);
+      expect(loads).toHaveLength(1);
+    } finally {
+      integration.capacity = original.capacity;
+      integration.allocate = original.allocate;
+      integration.allocateBatch = original.allocateBatch;
+      integration.poolStatus = original.poolStatus;
+      await db.runAsync('DELETE FROM matches WHERE slug = ?', [slug]);
+      await db.runAsync('DELETE FROM tournament WHERE id = ?', [tournamentId]);
+    }
+  }
+);
