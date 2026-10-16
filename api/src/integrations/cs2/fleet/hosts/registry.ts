@@ -704,8 +704,8 @@ export async function mintCreateKey(input: {
   const host = await getHost(input.hostId);
   const issued = issueFleetKey();
   await db.runAsync(
-    `INSERT INTO cs2_fleet_enrollment_keys (id, tenant_id, name, secret_hash, name_prefix, max_servers, expires_at, created_by, host_id, command_id, host_machine_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO cs2_fleet_enrollment_keys (id, tenant_id, name, secret_hash, name_prefix, max_servers, expires_at, created_by, host_id, command_id, host_machine_id, host_csm_user)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       issued.id,
       FLEET_TENANT,
@@ -718,6 +718,7 @@ export async function mintCreateKey(input: {
       input.hostId,
       input.commandId,
       host?.machine_id ?? null,
+      host?.csm_user ?? null,
     ]
   );
   return issued.value;

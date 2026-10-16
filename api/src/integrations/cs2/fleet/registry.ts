@@ -109,6 +109,7 @@ export interface FleetKeyRow {
   host_id: string | null;
   /** That machine's id, kept after the machine is removed (host_id is then null). */
   host_machine_id: string | null;
+  host_csm_user: string | null;
 }
 
 async function tx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
@@ -546,21 +547,33 @@ async function enrollWithCode(req: EnrollRequest): Promise<EnrollOutcome> {
   });
 }
 
-/** Both keys were minted for the same csm machine's commands (also after it was removed and linked again). */
+/**
+ * Both keys were minted for the same csm machine's commands: the same machine record, or
+ * (the earlier machine removed, its keys' host_id null) the same machine id and csm user.
+ * Another csm user on the same machine is another machine record.
+ */
 async function sameMachineKey(
   c: PoolClient,
   enrolledWith: string | null,
   key: FleetKeyRow
 ): Promise<boolean> {
   if (!enrolledWith || !key.host_id) return false;
-  const r = await c.query<{ host_id: string | null; host_machine_id: string | null }>(
-    `SELECT host_id, host_machine_id FROM cs2_fleet_enrollment_keys WHERE id = $1 AND tenant_id = $2`,
+  const r = await c.query<{
+    host_id: string | null;
+    host_machine_id: string | null;
+    host_csm_user: string | null;
+  }>(
+    `SELECT host_id, host_machine_id, host_csm_user FROM cs2_fleet_enrollment_keys WHERE id = $1 AND tenant_id = $2`,
     [enrolledWith, FLEET_TENANT]
   );
   const earlier = r.rows[0];
   if (!earlier) return false;
-  if (earlier.host_id === key.host_id) return true;
-  return !!earlier.host_machine_id && earlier.host_machine_id === key.host_machine_id;
+  if (earlier.host_id !== null) return earlier.host_id === key.host_id;
+  return (
+    !!earlier.host_machine_id &&
+    earlier.host_machine_id === key.host_machine_id &&
+    (earlier.host_csm_user ?? '') === (key.host_csm_user ?? '')
+  );
 }
 
 async function enrollWithKey(req: EnrollRequest): Promise<EnrollOutcome> {

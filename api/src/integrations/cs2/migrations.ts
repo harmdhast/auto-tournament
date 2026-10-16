@@ -1667,11 +1667,19 @@ export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
 `,
   },
   {
-    // The csm machine a host key was minted for, kept when the machine is removed
-    // (host_id is then nulled): a machine linked again enrolls its servers again.
+    // The csm machine (and csm user) a host key was minted for, kept when the machine is
+    // removed (host_id is then nulled): a machine linked again enrolls its servers again.
+    // prev_move: the assignment and live record a failover move replaces, to put back when
+    // the move is interrupted.
     id: CS2_FLEET_KEY_MACHINE_MIGRATION_ID,
     up: `
     ALTER TABLE cs2_fleet_enrollment_keys ADD COLUMN IF NOT EXISTS host_machine_id TEXT;
+    ALTER TABLE cs2_fleet_enrollment_keys ADD COLUMN IF NOT EXISTS host_csm_user TEXT;
+    UPDATE cs2_fleet_enrollment_keys k
+       SET host_machine_id = (SELECT h.machine_id FROM cs2_fleet_hosts h WHERE h.id = k.host_id),
+           host_csm_user = (SELECT h.csm_user FROM cs2_fleet_hosts h WHERE h.id = k.host_id)
+     WHERE k.host_machine_id IS NULL AND k.host_id IS NOT NULL;
+    ALTER TABLE cs2_fleet_failovers ADD COLUMN IF NOT EXISTS prev_move TEXT;
 `,
   },
 ];

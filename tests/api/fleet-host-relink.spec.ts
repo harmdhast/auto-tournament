@@ -28,9 +28,13 @@ const CAPABILITIES = [
   'servers.enroll',
 ];
 
-async function link(request: APIRequestContext, name: string, machineId: string) {
+async function link(request: APIRequestContext, name: string, machineId: string, csmUser?: string) {
   const pending = await createPendingHost(request, `${name}-${Date.now()}`);
-  const linked = await enrollHost(request, { code: pending.code }, machineId);
+  const linked = await enrollHost(
+    request,
+    { code: pending.code, ...(csmUser ? { csm_user: csmUser } : {}) },
+    machineId
+  );
   expect(linked.status, JSON.stringify(linked.body)).toBe(201);
   const csm = await FakeCsm.connect(linked.body.token, linked.body.host_id, machineId);
   await csm.handshake({ capabilities: CAPABILITIES });
@@ -111,6 +115,35 @@ test.describe.serial('Fleet: a machine removed and linked again', () => {
     } finally {
       first.csm.close();
       other.csm.close();
+    }
+  });
+
+  test("another csm user's key on the same machine does not take the record", async ({
+    request,
+  }) => {
+    test.setTimeout(60_000);
+    const machineId = newMachineId();
+    const one = await link(request, 'sibling-1', machineId, 'csm-one');
+    const two = await link(request, 'sibling-2', machineId, 'csm-two');
+    try {
+      expect(two.hostId).not.toBe(one.hostId);
+      const installId = newInstallId();
+      const enrolled = await enroll(
+        request,
+        { key: await strayKey(one.csm, one.hostId) },
+        installId
+      );
+      expect(enrolled.status, JSON.stringify(enrolled.body)).toBe(201);
+      const refused = await enroll(
+        request,
+        { key: await strayKey(two.csm, two.hostId) },
+        installId
+      );
+      expect(refused.status, JSON.stringify(refused.body)).toBe(409);
+      expect(refused.body.code).toBe('install_conflict');
+    } finally {
+      one.csm.close();
+      two.csm.close();
     }
   });
 });
