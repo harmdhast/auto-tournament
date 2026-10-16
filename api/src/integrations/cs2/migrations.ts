@@ -124,6 +124,7 @@ export const CS2_FLEET_AVAILABILITY_REASON_MIGRATION_ID = '037-fleet-availabilit
 export const CS2_SERVER_FAILOVER_USE_MIGRATION_ID = '040-server-failover-use';
 export const CS2_MATCH_RUNTIME_CASCADE_MIGRATION_ID = '050-match-runtime-cascade';
 export const CS2_ROUND_BACKUP_SIDES_MIGRATION_ID = '051-round-backup-sides';
+export const CS2_FLEET_KEY_MACHINE_MIGRATION_ID = '059-fleet-key-machine-id';
 
 export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
   {
@@ -1663,6 +1664,14 @@ export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
     id: CS2_ROUND_BACKUP_SIDES_MIGRATION_ID,
     up: `
     ALTER TABLE cs2_match_round_backups ADD COLUMN IF NOT EXISTS round_sides TEXT;
+`,
+  },
+  {
+    // The csm machine a host key was minted for, kept when the machine is removed
+    // (host_id is then nulled): a machine linked again enrolls its servers again.
+    id: CS2_FLEET_KEY_MACHINE_MIGRATION_ID,
+    up: `
+    ALTER TABLE cs2_fleet_enrollment_keys ADD COLUMN IF NOT EXISTS host_machine_id TEXT;
 `,
   },
 ];

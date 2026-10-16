@@ -107,6 +107,8 @@ export interface FleetKeyRow {
   skins: number;
   /** A key minted for one csm machine's command (server.create, server.enroll). */
   host_id: string | null;
+  /** That machine's id, kept after the machine is removed (host_id is then null). */
+  host_machine_id: string | null;
 }
 
 async function tx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
@@ -544,18 +546,21 @@ async function enrollWithCode(req: EnrollRequest): Promise<EnrollOutcome> {
   });
 }
 
-/** Both keys were minted for the same csm machine's commands. */
+/** Both keys were minted for the same csm machine's commands (also after it was removed and linked again). */
 async function sameMachineKey(
   c: PoolClient,
   enrolledWith: string | null,
   key: FleetKeyRow
 ): Promise<boolean> {
   if (!enrolledWith || !key.host_id) return false;
-  const r = await c.query<{ host_id: string | null }>(
-    `SELECT host_id FROM cs2_fleet_enrollment_keys WHERE id = $1 AND tenant_id = $2`,
+  const r = await c.query<{ host_id: string | null; host_machine_id: string | null }>(
+    `SELECT host_id, host_machine_id FROM cs2_fleet_enrollment_keys WHERE id = $1 AND tenant_id = $2`,
     [enrolledWith, FLEET_TENANT]
   );
-  return r.rows[0]?.host_id === key.host_id;
+  const earlier = r.rows[0];
+  if (!earlier) return false;
+  if (earlier.host_id === key.host_id) return true;
+  return !!earlier.host_machine_id && earlier.host_machine_id === key.host_machine_id;
 }
 
 async function enrollWithKey(req: EnrollRequest): Promise<EnrollOutcome> {

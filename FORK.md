@@ -53,6 +53,7 @@ Fork-only migrations (`api/src/integrations/cs2/migrations.ts`, after upstream's
 | `040-server-failover-use`       | feat/failover-server-opt-out |
 | `050-match-runtime-cascade`     | match-delete-orphans         |
 | `051-round-backup-sides`        | feat/backup-round-sides      |
+| `059-fleet-key-machine-id`      | fix/stability-fleet          |
 
 Their numbers overlap upstream's `037-*`, `040-*`, `050-player-roles` and `051-skin-choices` ids; ids are unique strings and the runner applies the list in array order, so only the full id matters.
 
