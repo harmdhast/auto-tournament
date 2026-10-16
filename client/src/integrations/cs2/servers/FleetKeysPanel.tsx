@@ -294,6 +294,7 @@ export default function FleetKeysPanel({ showSecret }: { showSecret: (secret: Se
         open={pendingKey !== null}
         title={t('fleetPanel.confirm.revokeKeyTitle')}
         message={t('fleetPanel.confirm.revokeKeyMessage', { name: pendingKey?.name ?? '' })}
+        confirmLabel={t('fleetPanel.revoke')}
         confirmColor="error"
         loading={busy}
         onConfirm={() => void confirmRevokeKey()}

@@ -202,3 +202,17 @@ test.describe('Keys tab', () => {
     expect(errors.filter((e) => e.includes('validateDOMNesting'))).toEqual([]);
   });
 });
+
+test.describe('Revoke confirmation', () => {
+  test('the machine revoke dialog confirms with Revoke', async ({ page, request }) => {
+    await setupTestContext(page, request);
+    await stubFleet(page, []);
+    await stubMachines(page, [machineHost('m1', [])]);
+    await page.goto('/manage/servers');
+    await page.getByTestId('machine-more-m1').click();
+    await page.getByTestId('machine-revoke-m1').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('button', { name: 'Revoke' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+  });
+});

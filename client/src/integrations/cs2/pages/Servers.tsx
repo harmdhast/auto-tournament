@@ -558,6 +558,7 @@ export default function Servers() {
                 name: pending?.host.name ?? '',
               })
         }
+        confirmLabel={pending?.action === 'remove' ? undefined : t('fleetPanel.revoke')}
         confirmColor="error"
         loading={busy}
         onConfirm={() => void confirmPending()}
