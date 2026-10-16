@@ -124,8 +124,19 @@ export function initializeSocket(
         next: (err?: unknown) => void
       ) => {
         const isHandshake = req._query?.sid === undefined;
-        if (isHandshake) middleware(req, res, next);
-        else next();
+        if (!isHandshake) return next();
+        // express-session reports a store failure at commit through next(err)
+        // after the response ended; Engine.IO would answer it with a second
+        // writeHead, which throws.
+        middleware(req, res, (err?: unknown) => {
+          if (err && (res.headersSent || res.writableEnded)) {
+            log.warn(
+              `[SOCKET] handshake middleware failed after the response: ${err instanceof Error ? err.message : String(err)}`
+            );
+            return;
+          }
+          next(err);
+        });
       }
     );
   }
@@ -136,7 +147,9 @@ export function initializeSocket(
       try {
         listener(socket);
       } catch (err) {
-        log.error(`[SOCKET] connection listener failed: ${err instanceof Error ? err.message : String(err)}`);
+        log.error(
+          `[SOCKET] connection listener failed: ${err instanceof Error ? err.message : String(err)}`
+        );
       }
     }
 
