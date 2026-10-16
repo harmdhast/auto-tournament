@@ -107,6 +107,34 @@ test.describe.serial('Skins catalogue picker', () => {
     }
   );
 
+  const openPick = async (page: import('@playwright/test').Page) => {
+    await page.goto('/inventory');
+    await catalogue(page).click();
+    await page.getByRole('searchbox').fill('desert eagle');
+    await page
+      .getByTestId('catalog-tile')
+      .filter({ hasText: 'Desert Eagle' })
+      .first()
+      .getByRole('button', { name: /^Equip/ })
+      .click();
+    const dialog = page.getByTestId('catalog-pick-dialog');
+    await expect(dialog).toBeVisible();
+    return dialog;
+  };
+
+  test(
+    'an out-of-range float or pattern says what is allowed',
+    { tag: ['@ui'] },
+    async ({ page }) => {
+      const dialog = await openPick(page);
+      await dialog.getByLabel('Float').fill('2');
+      await expect(dialog).toContainText('0 to 1');
+      await dialog.getByLabel('Pattern').fill('5000');
+      await expect(dialog).toContainText('0 to 1000');
+      await expect(dialog.getByTestId('catalog-pick-dialog-ct')).toBeDisabled();
+    }
+  );
+
   test('a one-side weapon asks no side', { tag: ['@ui'] }, async ({ page }) => {
     await page.goto('/inventory');
     await catalogue(page).click();

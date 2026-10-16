@@ -1660,7 +1660,9 @@
       "loadFailed": "Could not load the catalogue",
       "wear": "Wear",
       "cancel": "Cancel",
-      "equip": "Equip"
+      "equip": "Equip",
+      "floatRange": "0 to 1",
+      "patternRange": "Whole number, 0 to 1000"
     },
     "takeOffSide": "Take {{name}} off {{side}}",
     "takeOffOn": "Take off {{side}}",
