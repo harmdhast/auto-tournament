@@ -187,7 +187,7 @@ export async function restoreAssignment(prev: FleetAssignment): Promise<void> {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
      ON CONFLICT (match_slug) DO UPDATE SET epoch = EXCLUDED.epoch, server_id = EXCLUDED.server_id,
        cs2_server_id = EXCLUDED.cs2_server_id, password = EXCLUDED.password, config = EXCLUDED.config,
-       updated_at = EXCLUDED.updated_at, ended_at = NULL`,
+       updated_at = EXCLUDED.updated_at, ended_at = NULL, sent_config = NULL`,
     [
       prev.matchSlug,
       prev.epoch,
@@ -216,13 +216,14 @@ async function saveAssignment(input: {
   serverId: string;
   cs2ServerId: string;
   password: string;
+  sentConfig?: string;
 }): Promise<void> {
   await db.runAsync(
-    `INSERT INTO cs2_fleet_assignments (match_slug, epoch, server_id, cs2_server_id, password, config, created_at, updated_at, ended_at)
-     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, NULL)
+    `INSERT INTO cs2_fleet_assignments (match_slug, epoch, server_id, cs2_server_id, password, config, created_at, updated_at, ended_at, sent_config)
+     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, NULL, ?)
      ON CONFLICT (match_slug) DO UPDATE SET epoch = EXCLUDED.epoch, server_id = EXCLUDED.server_id,
        cs2_server_id = EXCLUDED.cs2_server_id, password = EXCLUDED.password, config = NULL,
-       updated_at = EXCLUDED.updated_at, ended_at = NULL`,
+       updated_at = EXCLUDED.updated_at, ended_at = NULL, sent_config = EXCLUDED.sent_config`,
     [
       input.matchSlug,
       input.epoch,
@@ -231,6 +232,7 @@ async function saveAssignment(input: {
       input.password,
       nowS(),
       nowS(),
+      input.sentConfig ?? null,
     ]
   );
   // The server takes one match at a time: an older assignment it still had
@@ -538,8 +540,17 @@ export async function assignMatch(
         `[FLEET] ${matchSlug}: ${stale} round backup(s) from an earlier match with this slug removed`
       );
   }
-  await saveAssignment({ matchSlug, epoch, serverId: fleetServerId, cs2ServerId, password });
-
+  // Kept with the epoch: a failover interrupted before the ack knows what the target was sent.
+  const sentConfig: Partial<AssignConfig> = { ...config };
+  delete sentConfig.password;
+  await saveAssignment({
+    matchSlug,
+    epoch,
+    serverId: fleetServerId,
+    cs2ServerId,
+    password,
+    sentConfig: JSON.stringify(sentConfig),
+  });
   let sent;
   try {
     sent = await sendReliable(fleetServerId, {

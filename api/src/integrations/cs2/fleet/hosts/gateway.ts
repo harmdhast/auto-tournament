@@ -76,6 +76,13 @@ export type HostEventMap = {
 };
 
 export const hostEvents = new EventEmitter();
+
+/** Looks at a queued command before it is written (./service.ts): expired or no longer safe, it comes back rewritten. */
+export type QueuedVetter = (hostId: string, envelope: Envelope) => Promise<Envelope>;
+let vetQueued: QueuedVetter | null = null;
+export function setQueuedVetter(fn: QueuedVetter | null): void {
+  vetQueued = fn;
+}
 hostEvents.setMaxListeners(0);
 
 function closeReason(text: string): string {
@@ -539,8 +546,9 @@ class HostSession {
     const run = this.sendChain.then(async () => {
       if (this.closed || !this.hostId) return false;
       let sent = false;
-      for (const env of await registry.pendingHostOutbox(this.hostId, this.lastSentSeq)) {
+      for (const queued of await registry.pendingHostOutbox(this.hostId, this.lastSentSeq)) {
         if (this.closed) break;
+        const env = vetQueued ? await vetQueued(this.hostId, queued).catch(() => queued) : queued;
         await this.sendReliable(env);
         this.lastSentSeq = env.seq as number;
         sent = true;
@@ -557,6 +565,8 @@ class HostSession {
   /** Write one outbox message; secrets are minted here, never stored. */
   private async sendReliable(env: Envelope): Promise<boolean> {
     let out = env;
+    // Rewritten as expired (./service.ts vetQueued): no secret for a command that will not run.
+    const expired = Number((env.payload as { expires_at?: unknown }).expires_at) <= Date.now();
     if (env.type === 'auth.rotate') {
       const p = env.payload as { token_id?: string; old_valid_until?: number };
       const token = p.token_id ? await registry.mintHostRotationSecret(p.token_id) : null;
@@ -567,6 +577,7 @@ class HostSession {
       }
       out = { ...env, payload: { token, old_valid_until: p.old_valid_until } };
     } else if (
+      !expired &&
       env.type === 'server.create' &&
       (env.payload as { enroll?: boolean }).enroll === true
     ) {
@@ -578,7 +589,7 @@ class HostSession {
         namePrefix: null,
       });
       out = { ...env, payload: { ...env.payload, enroll_key: key } };
-    } else if (env.type === 'server.enroll') {
+    } else if (!expired && env.type === 'server.enroll') {
       const p = env.payload as { servers?: string[] };
       const key = await registry.mintCreateKey({
         hostId: this.hostId as string,

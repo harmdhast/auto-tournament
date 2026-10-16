@@ -57,9 +57,18 @@ import type { DbMatchRow } from '../../../types/database.types';
 import { ulid } from './credentials';
 import { roundBackupStore, type RoundBackupMeta } from './backups';
 import { inlineBackupFor, sendBackupParts } from './restore';
-import { assignMatch, fenceEpoch, getAssignment, restoreAssignment } from './driver';
+import {
+  assignMatch,
+  fenceEpoch,
+  getAssignment,
+  openAssignmentOn,
+  restoreAssignment,
+  unassignEpoch,
+  type FleetAssignment,
+} from './driver';
 import { fleetBus, onFleetServerReady } from './service';
-import { liveStateStore } from './state';
+import { liveStateStore, type LiveMatchRecord } from './state';
+import { tvDelayFromCvars, serverTurnoverTracker } from '../utils/serverTurnover';
 import { cs2ServerIdOf } from './link';
 import { hostEvents, hostServers } from './hosts/service';
 import { getFailoverSettings, reserveCount } from './failoverSettings';
@@ -130,6 +139,8 @@ export interface FailoverProposal {
 
 interface ProposalRow {
   id: string;
+  /** JSON: the assignment and live record a move replaces. */
+  prev_move?: string | null;
   match_slug: string;
   status: FailoverStatus;
   reason: FailoverReason;
@@ -242,19 +253,33 @@ async function savedState(
   return { state: parsed?.state ?? null, mapStats: parsed?.mapStats ?? null };
 }
 
+/** Set a failover's status; with `from`, only while it still has that status. Reports whether it changed. */
 async function setStatus(
   id: string,
   status: FailoverStatus,
-  patch: { detail?: string; lastError?: string | null } = {}
-): Promise<void> {
-  await db.runAsync(
-    `UPDATE cs2_fleet_failovers SET status = ?, detail = COALESCE(?, detail), last_error = COALESCE(?, last_error), updated_at = ? WHERE id = ?`,
-    [status, patch.detail ?? null, patch.lastError ?? null, nowS(), id]
+  patch: { detail?: string; lastError?: string | null; from?: FailoverStatus } = {}
+): Promise<boolean> {
+  const guard = patch.from ? ' AND status = ?' : '';
+  const res = await db.runAsync(
+    `UPDATE cs2_fleet_failovers SET status = ?, detail = COALESCE(?, detail), last_error = COALESCE(?, last_error), updated_at = ? WHERE id = ?${guard}`,
+    [
+      status,
+      patch.detail ?? null,
+      patch.lastError ?? null,
+      nowS(),
+      id,
+      ...(patch.from ? [patch.from] : []),
+    ]
   );
+  return res.changes > 0;
 }
 
 function announce(matchSlug: string, proposal: FailoverProposal | null): void {
   // The admins' bell: a failover that is over (moved, the server back, dismissed) needs nobody.
+  if (proposal && ['moved', 'withdrawn', 'dismissed'].includes(proposal.status)) {
+    failedTargets.delete(proposal.id);
+    autoErrors.delete(proposal.id);
+  }
   if (!proposal || ['moved', 'withdrawn', 'dismissed'].includes(proposal.status)) {
     void import('../../../services/adminNoticeService').then(({ adminNoticeService }) =>
       adminNoticeService.resolve(`failover:${matchSlug}`)
@@ -413,7 +438,22 @@ async function serverTraits(
 // ---------------------------------------------------------------------------
 
 /** csm's last `host.health` per fleet server (process gone / hung), cleared by `recovered` / `restarted`. */
-const healthByServer = new Map<string, HostHealthSignal>();
+const healthByServer = new Map<string, HostHealthSignal & { epoch: number | null }>();
+/**
+ * csm's word on a server counts for the match it holds now only if it was sent while that
+ * assignment (epoch) was open on the server: an `exited` / `hung` from before is the
+ * previous match's (or the idle server's), and a lost `recovered` must not fail a new match over.
+ */
+function currentHealth(fleetServerId: string, epoch: number): HostHealthSignal | null {
+  const health = healthByServer.get(fleetServerId);
+  if (!health) return null;
+  if (health.epoch !== epoch) {
+    healthByServer.delete(fleetServerId);
+    return null;
+  }
+  return health;
+}
+
 /** When this process first saw a server of an open assignment offline. */
 const offlineSeen = new Map<string, number>();
 /** Links are all down while the platform starts: their clock starts no earlier than this. */
@@ -449,16 +489,236 @@ export function scanForFailovers(options: ScanOptions = {}): Promise<ScanResult>
 }
 
 async function withdraw(result: ScanResult, p: FailoverProposal, detail: string): Promise<void> {
-  await setStatus(p.id, 'withdrawn', { detail });
+  // Only an open failover: an admin's claim (moving) landing meanwhile stays.
+  if (!(await setStatus(p.id, 'withdrawn', { detail, from: 'open' }))) return;
   log.info(`[FAILOVER] ${p.matchSlug}: failover ${p.id} withdrawn (${detail})`);
   result.withdrawn.push(p.id);
   announce(p.matchSlug, { ...p, status: 'withdrawn' });
+}
+
+/**
+ * Not before the fleet had time to reconnect and replay the acks that were in flight when the
+ * API stopped: a target that took the match must not be told to drop it.
+ */
+export function sweepDue(
+  nowSeconds: number,
+  startedAtSeconds: number,
+  delayMs: number = STARTUP_SWEEP_MS
+): boolean {
+  return nowSeconds - startedAtSeconds >= delayMs / 1000;
+}
+
+/** A target that stays offline this long no longer holds an interrupted move up. */
+const TARGET_WAIT_S = 600;
+
+/** Failover ids this process is carrying out now: the stuck-move sweep leaves them alone. */
+const moving = new Set<string>();
+
+/** A `moving` row with no move running behind it is stuck after this many seconds. */
+const STUCK_MOVE_S = 60;
+
+/** A move that threw after `match.assign` may have been sent: take that epoch back. */
+async function cancelTargetEpoch(
+  slug: string,
+  fromEpoch: number,
+  targetFleetServerId: string
+): Promise<void> {
+  const current = await getAssignment(slug).catch(() => null);
+  if (!current || current.endedAt !== null || current.epoch <= fromEpoch) return;
+  if (current.serverId !== targetFleetServerId) return;
+  await unassignEpoch(targetFleetServerId, slug, current.epoch, 'cancelled').catch(() => undefined);
+}
+
+/** The target answered the platform's `match.assign` of this epoch `ok` (the command row says so even when this process was not up to store the config). */
+async function assignAcked(slug: string, epoch: number): Promise<boolean> {
+  const row = await db.queryOneAsync<{ message_id: string }>(
+    `SELECT message_id FROM cs2_fleet_commands WHERE match_slug = ? AND epoch = ? AND type = 'match.assign' AND status = 'ok' LIMIT 1`,
+    [slug, epoch]
+  );
+  return !!row;
+}
+
+/** The match.assign config that was sent for this epoch, without the password. */
+async function sentConfigOf(
+  slug: string,
+  epoch: number
+): Promise<{
+  rules?: { demo?: { upload?: boolean } };
+  cvars?: Record<string, string | number>;
+} | null> {
+  const row = await db.queryOneAsync<{ sent_config: string | null }>(
+    'SELECT sent_config FROM cs2_fleet_assignments WHERE match_slug = ? AND epoch = ?',
+    [slug, epoch]
+  );
+  return parseJson(row?.sent_config ?? null);
+}
+
+/** The audit row a move wrote when it started and never settled. */
+async function settleFailoverAudit(
+  slug: string,
+  failoverId: string,
+  status: string,
+  output: string
+): Promise<void> {
+  await db.runAsync(
+    `UPDATE cs2_fleet_audit SET status = ?, output = ?, answered_at = ? WHERE match_slug = ? AND status = 'pending' AND command LIKE ?`,
+    [status, output, nowS(), slug, `failover %${failoverId}%`]
+  );
+}
+
+/**
+ * Failovers left in `moving` by a crash, a restart or an error nobody caught: the
+ * move is either done on the target (`moved`) or not (the match goes back to its old
+ * server and the failover is open again, so the next pass or an admin moves it).
+ * `minAgeS` 0 at startup, when no move can be running.
+ */
+export async function recoverStuckMoves(
+  minAgeS: number = STUCK_MOVE_S,
+  now = nowS(),
+  upSince = startedAt
+): Promise<number> {
+  const rows = await db.queryAsync<ProposalRow>(
+    `SELECT * FROM cs2_fleet_failovers WHERE status = 'moving' AND updated_at <= ?`,
+    [now - minAgeS]
+  );
+  let recovered = 0;
+  for (const row of rows) {
+    if (moving.has(row.id)) continue;
+    const p = fromRow(row);
+    const prev = parseJson<{ assignment: FleetAssignment; record: LiveMatchRecord | null }>(
+      row.prev_move
+    );
+    const assignment = await getAssignment(p.matchSlug);
+    const newer =
+      assignment !== null && assignment.endedAt === null && assignment.epoch > p.fromEpoch;
+    // The target took the match: this process stored the acked config, or (an ack replayed after
+    // a restart) the command says it was acked, or the target already reports the new epoch.
+    let onTarget = false;
+    if (newer) {
+      const record = await liveStateStore.getLiveState(p.matchSlug);
+      const reporting =
+        record?.epoch === assignment.epoch &&
+        record.serverId === assignment.serverId &&
+        record.state !== null;
+      onTarget =
+        assignment.config !== null ||
+        reporting ||
+        (await assignAcked(p.matchSlug, assignment.epoch));
+    }
+    if (onTarget) {
+      const taken = assignment as FleetAssignment;
+      const done = await db.runAsync(
+        `UPDATE cs2_fleet_failovers SET status = 'moved', new_epoch = ?, new_cs2_server_id = ?, updated_at = ?, prev_move = NULL WHERE id = ? AND status = 'moving'`,
+        [taken.epoch, taken.cs2ServerId, nowS(), p.id]
+      );
+      if (done.changes === 0) continue;
+      const sent = await sentConfigOf(p.matchSlug, taken.epoch);
+      if (taken.config === null) {
+        // The config the server acked: the one that was sent, else (before it was kept) the old one.
+        const stand = JSON.stringify(sent ?? prev?.assignment.config ?? {});
+        await db.runAsync(
+          'UPDATE cs2_fleet_assignments SET config = ?, updated_at = ? WHERE match_slug = ? AND epoch = ? AND config IS NULL',
+          [stand, nowS(), p.matchSlug, taken.epoch]
+        );
+      }
+      if (p.reason !== 'restarted' && p.fromServerId && p.fromServerId !== taken.serverId)
+        await fenceEpoch(p.fromServerId, p.matchSlug, p.fromEpoch, 'superseded').catch(
+          () => undefined
+        );
+      await settleFailoverAudit(p.matchSlug, p.id, 'ok', `epoch ${taken.epoch}`);
+      const updated = await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [
+        p.matchSlug,
+      ]);
+      if (updated) {
+        if (taken.cs2ServerId) {
+          // What assignMatch does once the server answered: the turnover bookkeeping of the new server.
+          serverTurnoverTracker.matchLoaded(
+            taken.cs2ServerId,
+            updated.id,
+            sent?.rules?.demo?.upload === true,
+            tvDelayFromCvars(sent?.cvars)
+          );
+        }
+        emitMatchUpdate(updated);
+        emitBracketUpdate({
+          action: 'server_assigned',
+          matchSlug: p.matchSlug,
+          serverId: taken.cs2ServerId ?? '',
+        });
+      }
+      log.warn(
+        `[FAILOVER] ${p.matchSlug}: failover ${p.id} was left moving; the target holds the match`
+      );
+    } else {
+      // The target is offline, or just came back: its ack may still be on its way. Wait for it
+      // to be connected for a while (a long outage of the API counts from the start, the target
+      // may still be backing off its reconnects) before telling it to drop the match.
+      if (newer && assignment?.serverId) {
+        const connected = fleetBus().isConnected(assignment.serverId);
+        const since = await db.queryOneAsync<{ connected_at: number | null }>(
+          'SELECT connected_at FROM cs2_fleet_servers WHERE id = ?',
+          [assignment.serverId]
+        );
+        const settled =
+          connected &&
+          (since?.connected_at == null ||
+            now - Number(since.connected_at) >= SERVER_BACK_GRACE_MS / 1000);
+        const waited = now - Math.max(Number(row.updated_at), upSince);
+        if (!settled && waited < TARGET_WAIT_S) continue;
+      }
+      const reopened = await db.runAsync(
+        `UPDATE cs2_fleet_failovers SET status = 'open', last_error = ?, decided_by = NULL, decided_at = NULL, updated_at = ?, prev_move = NULL WHERE id = ? AND status = 'moving'`,
+        ['The move was interrupted; the failover is open again.', nowS(), p.id]
+      );
+      if (reopened.changes === 0) continue;
+      if (newer && assignment.serverId) {
+        // The target's assignment was never acked: take it back.
+        await unassignEpoch(assignment.serverId, p.matchSlug, assignment.epoch, 'cancelled').catch(
+          () => undefined
+        );
+      }
+      const oldStillOpen =
+        !!prev?.assignment &&
+        assignment !== null &&
+        assignment.endedAt === null &&
+        assignment.epoch === prev.assignment.epoch;
+      if (prev?.assignment && !oldStillOpen) {
+        // The old assignment and live record, as they were before the move (the target's epoch may
+        // be open or already ended): the old server keeps the match when it reconnects at its epoch.
+        await restoreAssignment(prev.assignment).catch(() => undefined);
+        if (prev.record) await liveStateStore.restoreRecord(prev.record).catch(() => undefined);
+      } else if (!prev && newer) {
+        await db.runAsync(
+          'UPDATE cs2_fleet_assignments SET ended_at = ?, updated_at = ? WHERE match_slug = ? AND epoch = ? AND ended_at IS NULL',
+          [nowS(), nowS(), p.matchSlug, assignment.epoch]
+        );
+      }
+      if (p.fromCs2ServerId) {
+        await db
+          .updateAsync('matches', { server_id: p.fromCs2ServerId }, 'slug = ?', [p.matchSlug])
+          .catch(() => undefined);
+      }
+      const { serverAllocationTracker } = await import('../services/serverAllocationTracker');
+      if (p.targetCs2ServerId && p.targetCs2ServerId !== p.fromCs2ServerId)
+        serverAllocationTracker.markIdle(p.targetCs2ServerId);
+      if (p.fromCs2ServerId) serverAllocationTracker.markAllocated(p.fromCs2ServerId, p.matchSlug);
+      await settleFailoverAudit(p.matchSlug, p.id, 'failed', 'The move was interrupted.');
+      log.warn(`[FAILOVER] ${p.matchSlug}: failover ${p.id} was left moving; open again`);
+    }
+    recovered++;
+    announce(p.matchSlug, await getProposal(p.id));
+  }
+  return recovered;
 }
 
 async function runScan(options: ScanOptions): Promise<ScanResult> {
   const now = options.now ?? nowS();
   const grace = options.grace ?? failoverGraceFromEnv();
   const result: ScanResult = { proposed: [], withdrawn: [] };
+  if (sweepDue(now, startedAt))
+    await recoverStuckMoves(STUCK_MOVE_S, now).catch((error) =>
+      log.warn(`[FAILOVER] stuck-move sweep failed: ${(error as Error).message}`)
+    );
 
   const rows = await db.queryAsync<OpenAssignmentRow>(
     `SELECT a.match_slug, a.epoch, a.server_id, a.cs2_server_id, f.last_seen
@@ -491,7 +751,7 @@ async function runScan(options: ScanOptions): Promise<ScanResult> {
       offlineSince,
       now,
       phase,
-      health: healthByServer.get(row.server_id) ?? null,
+      health: currentHealth(row.server_id, epoch),
       grace,
     });
 
@@ -568,8 +828,12 @@ async function runScan(options: ScanOptions): Promise<ScanResult> {
     if (auto) {
       // Restart the dead server through csm first (./failoverRecovery.ts).
       if (viaCsm && (await restartBeforeMove(p, now)) === 'wait') continue;
-      const outcome = await autoAccept(p);
-      if (viaCsm && !outcome.ok && outcome.code === 'no_target') await createWhenNoneFree(p, now);
+      const outcome = await autoAccept(p).catch((error) => {
+        log.warn(`[FAILOVER] ${p.matchSlug}: automatic move failed: ${(error as Error).message}`);
+        return null;
+      });
+      if (viaCsm && outcome && !outcome.ok && outcome.code === 'no_target')
+        await createWhenNoneFree(p, now);
       free = null;
       continue;
     }
@@ -602,15 +866,29 @@ async function runScan(options: ScanOptions): Promise<ScanResult> {
 /** Servers a failover's auto move already failed on (refused, no answer): not tried again for it. */
 const failedTargets = new Map<string, Set<string>>();
 
+/** Automatic moves of a failover that threw: after this many an admin decides. */
+const AUTO_MAX_ERRORS = 3;
+const autoErrors = new Map<string, number>();
+
 async function autoAccept(proposal: FailoverProposal): Promise<AcceptOutcome> {
+  const errors = autoErrors.get(proposal.id) ?? 0;
+  if (errors >= AUTO_MAX_ERRORS)
+    return refuse(409, 'auto_gave_up', 'Automatic moves kept failing; an admin decides', proposal);
   const exclude = [...(failedTargets.get(proposal.id) ?? [])];
-  const outcome = await acceptFailover(proposal.id, {
-    actor: RECOVERY_ACTOR,
-    auto: true,
-    exclude,
-  });
+  let outcome: AcceptOutcome;
+  try {
+    outcome = await acceptFailover(proposal.id, {
+      actor: RECOVERY_ACTOR,
+      auto: true,
+      exclude,
+    });
+  } catch (error) {
+    autoErrors.set(proposal.id, errors + 1);
+    throw error;
+  }
   if (outcome.ok) {
     failedTargets.delete(proposal.id);
+    autoErrors.delete(proposal.id);
   } else if (outcome.code === 'assign_failed' && outcome.target) {
     const set = failedTargets.get(proposal.id) ?? new Set<string>();
     set.add(outcome.target);
@@ -820,12 +1098,15 @@ export async function acceptFailover(id: string, req: AcceptRequest): Promise<Ac
   // (DbMatchRow's status type predates 'loaded'.)
   const matchStatus = match ? String(match.status) : null;
   if (!match || (matchStatus !== 'loaded' && matchStatus !== 'live')) {
-    await setStatus(id, 'withdrawn', { detail: 'The match is no longer running.' });
+    await setStatus(id, 'withdrawn', { detail: 'The match is no longer running.', from: 'open' });
     return refuse(409, 'not_running', 'The match is no longer running', await getProposal(id));
   }
   const assignment = await getAssignment(slug);
   if (assignment && assignment.endedAt === null && assignment.epoch !== proposal.fromEpoch) {
-    await setStatus(id, 'withdrawn', { detail: 'The match was assigned to a server again.' });
+    await setStatus(id, 'withdrawn', {
+      detail: 'The match was assigned to a server again.',
+      from: 'open',
+    });
     return refuse(
       409,
       'stale',
@@ -916,73 +1197,110 @@ export async function acceptFailover(id: string, req: AcceptRequest): Promise<Ac
     );
   }
 
-  // Claim it: one move wins.
-  const claimed = await db.runAsync(
-    `UPDATE cs2_fleet_failovers
-        SET status = 'moving', target_cs2_server_id = ?, round = ?, backup_id = ?, backup_sha256 = ?, score = ?,
-            inline = ?, auto = ?, decided_by = ?, decided_at = ?, updated_at = ?
-      WHERE id = ? AND status = 'open'`,
-    [
-      target.cs2ServerId,
-      round,
-      backupMeta?.id ?? null,
-      backupMeta?.sha256 ?? null,
-      backupMeta ? JSON.stringify(backupMeta.score) : null,
-      inline ? 1 : 0,
-      req.auto ? 1 : 0,
-      req.actor,
-      nowS(),
-      nowS(),
-      id,
-    ]
-  );
-  if (claimed.changes === 0)
-    return refuse(409, 'not_open', 'The failover was decided meanwhile', await getProposal(id));
-  announce(slug, await getProposal(id));
-
-  const { state, mapStats } = await savedState(id);
-  const resume = buildResume({
-    fromEpoch: proposal.fromEpoch,
-    mapNumber: proposal.mapNumber,
-    round,
-    backup: inline,
-    backupRef: !inline && backupMeta ? { file: backupMeta.file, sha256: backupMeta.sha256 } : null,
-    state,
-    mapStats,
-    roundSides: backupMeta?.roundSides ?? null,
-  });
-  const how = round >= 1 ? `round ${round} (${inline ? 'backup inline' : 'backup_ref'})` : 'warmup';
-  const auditId = await writeAudit({
-    actor: req.actor,
-    serverId: target.fleetServerId,
-    matchSlug: slug,
-    command:
-      `failover ${slug} (${proposal.reason}): ${proposal.fromServerId ?? '?'} epoch ${proposal.fromEpoch} -> ` +
-      `${target.fleetServerId}, map ${proposal.mapNumber} ${how}${req.auto ? ' (auto)' : ''}`,
-  });
-
-  // What the move replaces, put back if the target refuses (the old server keeps the match).
+  // What the move replaces, kept with the claim: an interrupted move puts it back (recoverStuckMoves).
   const previousRecord = inPlace ? null : await liveStateStore.getLiveState(slug);
+  const prevMove =
+    !inPlace && assignment && assignment.endedAt === null
+      ? JSON.stringify({ assignment, record: previousRecord })
+      : null;
 
-  const { serverAllocationTracker } = await import('../services/serverAllocationTracker');
-  const previousServer = match.server_id ?? proposal.fromCs2ServerId;
-  if (previousServer && previousServer !== target.cs2ServerId)
-    serverAllocationTracker.markIdle(previousServer);
-  serverAllocationTracker.markAllocated(target.cs2ServerId, slug);
-  await db.updateAsync('matches', { server_id: target.cs2ServerId }, 'slug = ?', [slug]);
-
-  if (sendParts && backupMeta) {
-    const row = await roundBackupStore.get(slug, proposal.mapNumber, round);
-    if (row) await sendBackupParts(target.fleetServerId, slug, row);
+  // Claim it: one move wins.
+  moving.add(id);
+  const claimed = await db
+    .runAsync(
+      `UPDATE cs2_fleet_failovers
+        SET status = 'moving', target_cs2_server_id = ?, round = ?, backup_id = ?, backup_sha256 = ?, score = ?,
+            inline = ?, auto = ?, decided_by = ?, decided_at = ?, updated_at = ?, prev_move = ?
+      WHERE id = ? AND status = 'open'`,
+      [
+        target.cs2ServerId,
+        round,
+        backupMeta?.id ?? null,
+        backupMeta?.sha256 ?? null,
+        backupMeta ? JSON.stringify(backupMeta.score) : null,
+        inline ? 1 : 0,
+        req.auto ? 1 : 0,
+        req.actor,
+        nowS(),
+        nowS(),
+        prevMove,
+        id,
+      ]
+    )
+    .catch((error) => {
+      moving.delete(id);
+      throw error;
+    });
+  if (claimed.changes === 0) {
+    moving.delete(id);
+    return refuse(409, 'not_open', 'The failover was decided meanwhile', await getProposal(id));
   }
-  const load = await assignMatch(slug, target.cs2ServerId, { resume });
-  if (!load.success) {
-    const error = load.error ?? 'The server did not take the match';
-    if (previousServer !== target.cs2ServerId) serverAllocationTracker.markIdle(target.cs2ServerId);
-    await db.updateAsync('matches', { server_id: previousServer ?? null }, 'slug = ?', [slug]);
+  return moveClaimed({
+    id,
+    req,
+    proposal,
+    match,
+    assignment,
+    previousRecord,
+    target,
+    backupMeta,
+    round,
+    inline,
+    sendParts,
+    inPlace,
+  }).finally(() => moving.delete(id));
+}
+
+interface ClaimedMove {
+  id: string;
+  req: AcceptRequest;
+  proposal: FailoverProposal;
+  match: DbMatchRow;
+  assignment: Awaited<ReturnType<typeof getAssignment>>;
+  previousRecord: Awaited<ReturnType<typeof liveStateStore.getLiveState>>;
+  target: FailoverCandidate;
+  backupMeta: RoundBackupMeta | null;
+  round: number;
+  inline: Awaited<ReturnType<typeof inlineBackupFor>>;
+  sendParts: boolean;
+  inPlace: boolean;
+}
+
+/** A claimed failover (status `moving`): sends the match to the target, undoes it if it throws or is refused. */
+async function moveClaimed(ctx: ClaimedMove): Promise<AcceptOutcome> {
+  const {
+    id,
+    req,
+    proposal,
+    match,
+    assignment,
+    previousRecord,
+    target,
+    backupMeta,
+    round,
+    inline,
+    sendParts,
+    inPlace,
+  } = ctx;
+  const slug = proposal.matchSlug;
+  announce(slug, await getProposal(id));
+  const how = round >= 1 ? `round ${round} (${inline ? 'backup inline' : 'backup_ref'})` : 'warmup';
+  const previousServer = match.server_id ?? proposal.fromCs2ServerId;
+  let auditId: string | null = null;
+  const { serverAllocationTracker } = await import('../services/serverAllocationTracker');
+  let touched = false;
+  const undo = async (error: string, commandId: string | null): Promise<void> => {
+    const message = error.slice(0, 500);
+    if (touched) {
+      if (previousServer !== target.cs2ServerId)
+        serverAllocationTracker.markIdle(target.cs2ServerId);
+      await db
+        .updateAsync('matches', { server_id: previousServer ?? null }, 'slug = ?', [slug])
+        .catch((e) => log.warn(`[FAILOVER] ${slug}: restoring the server failed: ${e.message}`));
+    }
     await db.runAsync(
-      `UPDATE cs2_fleet_failovers SET status = 'open', last_error = ?, decided_by = NULL, decided_at = NULL, updated_at = ? WHERE id = ?`,
-      [error.slice(0, 500), nowS(), id]
+      `UPDATE cs2_fleet_failovers SET status = 'open', last_error = ?, decided_by = NULL, decided_at = NULL, updated_at = ?, prev_move = NULL WHERE id = ? AND status = 'moving'`,
+      [message, nowS(), id]
     );
     if (!inPlace && assignment && assignment.endedAt === null) {
       await restoreAssignment(assignment).catch((e) =>
@@ -990,7 +1308,55 @@ export async function acceptFailover(id: string, req: AcceptRequest): Promise<Ac
       );
       if (previousRecord) await liveStateStore.restoreRecord(previousRecord).catch(() => undefined);
     }
-    await settleAudit(auditId, 'failed', load.commandId ?? null, error.slice(0, 500));
+    if (auditId) await settleAudit(auditId, 'failed', commandId, message).catch(() => undefined);
+  };
+
+  let load: Awaited<ReturnType<typeof assignMatch>>;
+  try {
+    const { state, mapStats } = await savedState(id);
+    const resume = buildResume({
+      fromEpoch: proposal.fromEpoch,
+      mapNumber: proposal.mapNumber,
+      round,
+      backup: inline,
+      backupRef:
+        !inline && backupMeta ? { file: backupMeta.file, sha256: backupMeta.sha256 } : null,
+      state,
+      mapStats,
+      roundSides: backupMeta?.roundSides ?? null,
+    });
+    auditId = await writeAudit({
+      actor: req.actor,
+      serverId: target.fleetServerId,
+      matchSlug: slug,
+      command:
+        `failover ${slug} (${proposal.reason}, ${id}): ${proposal.fromServerId ?? '?'} epoch ${proposal.fromEpoch} -> ` +
+        `${target.fleetServerId}, map ${proposal.mapNumber} ${how}${req.auto ? ' (auto)' : ''}`,
+    });
+    touched = true;
+    if (previousServer && previousServer !== target.cs2ServerId)
+      serverAllocationTracker.markIdle(previousServer);
+    serverAllocationTracker.markAllocated(target.cs2ServerId, slug);
+    await db.updateAsync('matches', { server_id: target.cs2ServerId }, 'slug = ?', [slug]);
+
+    if (sendParts && backupMeta) {
+      const row = await roundBackupStore.get(slug, proposal.mapNumber, round);
+      if (row) await sendBackupParts(target.fleetServerId, slug, row);
+    }
+    load = await assignMatch(slug, target.cs2ServerId, { resume });
+  } catch (error) {
+    // Not left in `moving`: the match goes back to its old server and the failover is open again.
+    await cancelTargetEpoch(slug, proposal.fromEpoch, target.fleetServerId);
+    await undo(`The move failed: ${(error as Error).message}`, null);
+    log.warn(
+      `[FAILOVER] ${slug}: moving to ${target.cs2ServerId} threw: ${(error as Error).message}`
+    );
+    announce(slug, await getProposal(id));
+    throw error;
+  }
+  if (!load.success) {
+    const error = load.error ?? 'The server did not take the match';
+    await undo(error, load.commandId ?? null);
     log.warn(`[FAILOVER] ${slug}: moving to ${target.cs2ServerId} failed: ${error}`);
     const back = await getProposal(id);
     announce(slug, back);
@@ -1015,10 +1381,10 @@ export async function acceptFailover(id: string, req: AcceptRequest): Promise<Ac
   }
 
   await db.runAsync(
-    `UPDATE cs2_fleet_failovers SET status = 'moved', new_epoch = ?, new_cs2_server_id = ?, command_id = ?, last_error = NULL, updated_at = ? WHERE id = ?`,
+    `UPDATE cs2_fleet_failovers SET status = 'moved', new_epoch = ?, new_cs2_server_id = ?, command_id = ?, last_error = NULL, updated_at = ?, prev_move = NULL WHERE id = ? AND status = 'moving'`,
     [load.epoch ?? null, target.cs2ServerId, load.commandId ?? null, nowS(), id]
   );
-  await settleAudit(auditId, 'ok', load.commandId ?? null, `epoch ${load.epoch}`);
+  if (auditId) await settleAudit(auditId, 'ok', load.commandId ?? null, `epoch ${load.epoch}`);
   log.warn(
     `[FAILOVER] ${slug} ${inPlace ? 'resumed on' : 'moved to'} ${target.fleetServerId} (epoch ${load.epoch}) from ${proposal.fromServerId} (epoch ${proposal.fromEpoch}), map ${proposal.mapNumber} ${how}, by ${req.actor ?? 'unknown'}`
   );
@@ -1030,7 +1396,11 @@ export async function acceptFailover(id: string, req: AcceptRequest): Promise<Ac
   ]);
   if (updated) {
     emitMatchUpdate(updated);
-    emitBracketUpdate({ action: 'server_assigned', matchSlug: slug, serverId: target.cs2ServerId });
+    emitBracketUpdate({
+      action: 'server_assigned',
+      matchSlug: slug,
+      serverId: target.cs2ServerId,
+    });
   }
   const done = (await getProposal(id)) as FailoverProposal;
   announce(slug, done);
@@ -1057,7 +1427,8 @@ export async function moveMatch(
   const open = await activeProposal(matchSlug);
   if (open?.status === 'moving') return refuse(409, 'not_open', 'The match is being moved', open);
   if (open && open.reason !== 'restarted') return acceptFailover(open.id, req);
-  if (open) await setStatus(open.id, 'withdrawn', { detail: 'An admin moved the match.' });
+  if (open)
+    await setStatus(open.id, 'withdrawn', { detail: 'An admin moved the match.', from: 'open' });
 
   const assignment = await getAssignment(matchSlug);
   const match = await db.queryOneAsync<{ status: string }>(
@@ -1155,6 +1526,7 @@ async function onServerBack(fleetServerId: string, hello: HelloPayload): Promise
     if (open)
       await setStatus(open.id, 'withdrawn', {
         detail: 'The server came back without the match; it resumes there.',
+        from: 'open',
       });
     const record = await liveStateStore.getLiveState(slug);
     const epoch = Number(row.epoch);
@@ -1191,12 +1563,16 @@ async function onHostHealth(hostId: string, payload: HostHealthPayload): Promise
     healthByServer.set(fleetServerId, {
       event: payload.event,
       at: nowS(),
+      epoch: (await openAssignmentOn(fleetServerId))?.epoch ?? null,
       ...(payload.detail ? { detail: payload.detail } : {}),
     });
   }
   scheduleScan();
 }
 
+/** The first stuck-move sweep waits for the fleet to reconnect and replay its acks. */
+const STARTUP_SWEEP_MS = Number(process.env.FLEET_FAILOVER_SWEEP_DELAY_MS ?? 30_000);
+let startSweep: NodeJS.Timeout | null = null;
 let scanTimer: NodeJS.Timeout | null = null;
 let soon: NodeJS.Timeout | null = null;
 let started = false;
@@ -1225,6 +1601,13 @@ export function startFleetFailover(): void {
   if (started) return;
   started = true;
   startedAt = nowS();
+  // After the fleet reconnected and the acks that were in flight were replayed.
+  startSweep = setTimeout(() => {
+    void recoverStuckMoves(0).catch((error) =>
+      log.warn(`[FAILOVER] stuck-move sweep failed: ${(error as Error).message}`)
+    );
+  }, STARTUP_SWEEP_MS);
+  startSweep.unref?.();
   hostEvents.on('health', healthListener);
   if (!readyHooked) {
     readyHooked = true;
@@ -1254,6 +1637,8 @@ export function startFleetFailover(): void {
 export function stopFleetFailover(): void {
   if (scanTimer) clearInterval(scanTimer);
   if (soon) clearTimeout(soon);
+  if (startSweep) clearTimeout(startSweep);
+  startSweep = null;
   scanTimer = null;
   soon = null;
   hostEvents.off('health', healthListener);

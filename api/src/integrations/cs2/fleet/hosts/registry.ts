@@ -704,8 +704,8 @@ export async function mintCreateKey(input: {
   const host = await getHost(input.hostId);
   const issued = issueFleetKey();
   await db.runAsync(
-    `INSERT INTO cs2_fleet_enrollment_keys (id, tenant_id, name, secret_hash, name_prefix, max_servers, expires_at, created_by, host_id, command_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO cs2_fleet_enrollment_keys (id, tenant_id, name, secret_hash, name_prefix, max_servers, expires_at, created_by, host_id, command_id, host_machine_id, host_csm_user)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       issued.id,
       FLEET_TENANT,
@@ -717,6 +717,8 @@ export async function mintCreateKey(input: {
       `fleet-host:${input.hostId}`,
       input.hostId,
       input.commandId,
+      host?.machine_id ?? null,
+      host?.csm_user ?? null,
     ]
   );
   return issued.value;
@@ -901,6 +903,27 @@ export async function pendingHostOutbox(hostId: string, afterSeq: number): Promi
     [hostId, afterSeq]
   );
   return rows.map((r) => JSON.parse(r.message) as Envelope);
+}
+
+/** Replace a queued message in place (same seq), e.g. one that expired before delivery. */
+export async function rewriteHostOutbox(
+  hostId: string,
+  seq: number,
+  envelope: Envelope
+): Promise<void> {
+  await db.runAsync('UPDATE cs2_fleet_host_outbox SET message = ? WHERE host_id = ? AND seq = ?', [
+    JSON.stringify(envelope),
+    hostId,
+    seq,
+  ]);
+}
+
+/** Fail a command the platform will not have run (the host's own answer, if any, replaces this). */
+export async function failHostCommand(id: string, code: string, message: string): Promise<void> {
+  await db.runAsync(
+    `UPDATE cs2_fleet_host_commands SET status = 'failed', error_code = ?, error_message = ?, answered_at = ? WHERE message_id = ? AND status = 'pending'`,
+    [code, message, nowS(), id]
+  );
 }
 
 export async function ackHostOutbox(hostId: string, ack: number): Promise<void> {

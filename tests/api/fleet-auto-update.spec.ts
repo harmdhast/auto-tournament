@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { planHostUpdates, type PlannerInput } from '../../api/src/integrations/cs2/fleet/hosts/autoUpdate';
+import { planHostUpdates, runAutoUpdates, type PlannerInput } from '../../api/src/integrations/cs2/fleet/hosts/autoUpdate';
+import { db } from '../../api/src/config/database';
 
 /**
  * The platform drives CS2 and Ready Up updates on enrolled machines
@@ -105,5 +106,17 @@ test.describe('Platform-driven updates', () => {
       })
     );
     expect(plan.plugins).toEqual({ servers: ['server-1'], version: '0.1.0-beta.14', reason: 'Ready Up 0.1.0-beta.14' });
+  });
+
+  test('a pass that cannot read the machines resolves instead of rejecting', { tag: ['@api'] }, async () => {
+    const original = db.queryAsync;
+    db.queryAsync = (async () => {
+      throw new Error('db down');
+    }) as typeof db.queryAsync;
+    try {
+      await expect(runAutoUpdates()).resolves.toBeUndefined();
+    } finally {
+      db.queryAsync = original;
+    }
   });
 });
