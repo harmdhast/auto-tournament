@@ -140,7 +140,7 @@ export function MatchmakingOverlay() {
           })}
         >
           <CircularProgress size={16} thickness={5} aria-hidden />
-          <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
+          <Typography variant="body2" sx={{ minWidth: 0 }}>
             {t('matchmaking.queue.searching', { mode: me.queue?.mode ?? '5v5' })}{' '}
             <Box
               component="span"
@@ -169,6 +169,7 @@ export function MatchmakingOverlay() {
           {isLeader && (
             <Button
               size="small"
+              sx={{ flexShrink: 0 }}
               onClick={() => void cancel()}
               disabled={busy}
               data-testid="mm-queue-cancel"
