@@ -95,6 +95,19 @@ test.describe('admin account without a session', () => {
     }
   });
 
+  test('removing a sign-in method needs the session', TAGS, async ({ playwright }) => {
+    const { admin, cookieOnly } = await adminPair(playwright);
+    try {
+      const withCookie = await cookieOnly.post('/api/me/connections/github/remove', { data: {} });
+      expect(withCookie.status()).toBe(401);
+      const withSession = await admin.post('/api/me/connections/github/remove', { data: {} });
+      expect(withSession.status()).not.toBe(401);
+    } finally {
+      await cookieOnly.dispose();
+      await admin.dispose();
+    }
+  });
+
   test(
     'a plain player keeps linking and email with the cookie alone',
     TAGS,
