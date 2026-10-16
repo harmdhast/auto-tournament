@@ -66,6 +66,12 @@ class DatabaseManager {
     this.postgresPool.on('error', (err) => {
       log.warn(`[PostgreSQL] idle client error (pool recovers): ${err.message}`);
     });
+    // The pool drops its own listener while a client is checked out.
+    this.postgresPool.on('connect', (client) => {
+      client.on('error', (err) => {
+        log.warn(`[PostgreSQL] client error (pool recovers): ${err.message}`);
+      });
+    });
 
     log.database(`[PostgreSQL] Database pool created: ${connString.replace(/:[^:@]+@/, ':****@')}`);
   }
