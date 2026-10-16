@@ -9,7 +9,14 @@ import {
   passwordProblem,
   verifyPassword,
 } from '../../api/src/utils/localAdminCrypto';
-import { base32Decode, base32Encode, totpAt, totpStep, verifyTotp } from '../../api/src/utils/totp';
+import {
+  TOTP_STEP_SECONDS,
+  base32Decode,
+  base32Encode,
+  totpAt,
+  totpStep,
+  verifyTotp,
+} from '../../api/src/utils/totp';
 import { LoginThrottle } from '../../api/src/utils/loginThrottle';
 import { parseAdminAccessPatch, shouldImportSetting } from '../../api/src/utils/adminAccessPatch';
 import { signInViaRequest } from '../helpers/auth';
@@ -186,7 +193,10 @@ test.describe.serial('setup, local login, TOTP and reset-admin', () => {
   async function nextTotp(): Promise<string> {
     for (;;) {
       const now = totpStep();
-      const step = Math.max(lastStep + 1, now - 1);
+      // The earlier step only while the current one has seconds left: the server
+      // checks its window a moment after this clock read.
+      const secondsLeft = TOTP_STEP_SECONDS - ((Date.now() / 1000) % TOTP_STEP_SECONDS);
+      const step = Math.max(lastStep + 1, secondsLeft > 2 ? now - 1 : now);
       if (step <= now + 1) {
         lastStep = step;
         return totpAt(totpSecret, step);
