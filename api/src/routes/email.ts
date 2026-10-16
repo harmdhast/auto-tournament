@@ -7,7 +7,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { requireAuth, requestActorId } from '../middleware/auth';
 import { isSameSiteRequest } from '../utils/accountConnections';
-import { resolveViewerIdentity } from '../utils/viewerIdentity';
+import { accountNeedsSession, resolveViewerIdentity } from '../utils/viewerIdentity';
 import { log } from '../utils/logger';
 import {
   emailService,
@@ -171,7 +171,7 @@ emailSettingsRouter.post('/test', guardWrite, async (req: Request, res: Response
 // ---------------------------------------------------------------------------
 
 /** The signed-in player (not while impersonating), or null with the answer sent. */
-async function ownPlayer(req: Request, res: Response): Promise<string | null> {
+async function ownPlayer(req: Request, res: Response, write = false): Promise<string | null> {
   const identity = await resolveViewerIdentity(req);
   if (!identity.realSteamId) {
     res.status(401).json({ success: false, error: 'Sign in first' });
@@ -181,6 +181,11 @@ async function ownPlayer(req: Request, res: Response): Promise<string | null> {
     res
       .status(403)
       .json({ success: false, error: 'Stop impersonating to manage your own account.' });
+    return null;
+  }
+  // An address on an admin or local-login account is a way to reset its password.
+  if (write && !identity.hasSession && (await accountNeedsSession(identity.realSteamId))) {
+    res.status(401).json({ success: false, error: 'Sign in again to change your email' });
     return null;
   }
   return identity.realSteamId;
@@ -234,7 +239,7 @@ meEmailRouter.get('/', async (req: Request, res: Response) => {
  *         description: A confirmation was just sent
  */
 meEmailRouter.put('/', guardWrite, async (req: Request, res: Response) => {
-  const playerId = await ownPlayer(req, res);
+  const playerId = await ownPlayer(req, res, true);
   if (!playerId) return;
   try {
     return res.json({
@@ -266,7 +271,7 @@ meEmailRouter.put('/', guardWrite, async (req: Request, res: Response) => {
  *         description: No email address yet
  */
 meEmailRouter.put('/notifications', guardWrite, async (req: Request, res: Response) => {
-  const playerId = await ownPlayer(req, res);
+  const playerId = await ownPlayer(req, res, true);
   if (!playerId) return;
   const on = (req.body ?? {}).tournaments;
   if (typeof on !== 'boolean')
@@ -292,7 +297,7 @@ meEmailRouter.put('/notifications', guardWrite, async (req: Request, res: Respon
  *         description: Removed
  */
 meEmailRouter.delete('/', guardWrite, async (req: Request, res: Response) => {
-  const playerId = await ownPlayer(req, res);
+  const playerId = await ownPlayer(req, res, true);
   if (!playerId) return;
   try {
     await playerEmailService.remove(playerId);

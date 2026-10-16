@@ -28,6 +28,8 @@ export interface ViewerIdentity {
   isImpersonating: boolean;
   /** True when the real user is an admin. */
   isRealAdmin: boolean;
+  /** True when the Passport session (not just the player cookie) names the real user. */
+  hasSession: boolean;
 }
 
 /** The Steam ID of the Passport session, or null without one. */
@@ -56,6 +58,18 @@ async function isAdminSteamId(steamId: string): Promise<boolean> {
 }
 
 /**
+ * Whether changing how this account signs in or recovers needs the Passport
+ * session: an admin, or an account with a local login.
+ */
+export async function accountNeedsSession(playerId: string): Promise<boolean> {
+  if (await isAdminSteamId(playerId).catch(() => false)) return true;
+  const local = await db
+    .queryOneAsync<{ id: number }>('SELECT id FROM local_admins WHERE player_id = ?', [playerId])
+    .catch(() => null);
+  return !!local;
+}
+
+/**
  * Resolve both the real and effective identity for a request.
  *
  * An impersonation cookie is only honoured when the real user is an admin, so a
@@ -72,6 +86,7 @@ export async function resolveViewerIdentity(req: Request): Promise<ViewerIdentit
       effectiveSteamId: null,
       isImpersonating: false,
       isRealAdmin: false,
+      hasSession,
     };
   }
 
@@ -83,6 +98,7 @@ export async function resolveViewerIdentity(req: Request): Promise<ViewerIdentit
       effectiveSteamId: realSteamId,
       isImpersonating: false,
       isRealAdmin: await isAdmin(realSteamId),
+      hasSession,
     };
   }
 
@@ -95,6 +111,7 @@ export async function resolveViewerIdentity(req: Request): Promise<ViewerIdentit
       effectiveSteamId: realSteamId,
       isImpersonating: false,
       isRealAdmin: false,
+      hasSession,
     };
   }
 
@@ -103,6 +120,7 @@ export async function resolveViewerIdentity(req: Request): Promise<ViewerIdentit
     effectiveSteamId: impersonatedSteamId,
     isImpersonating: true,
     isRealAdmin: true,
+    hasSession,
   };
 }
 
