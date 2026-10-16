@@ -8,6 +8,7 @@ import { db } from '../config/database';
 import { log } from '../utils/logger';
 import { notificationService } from './notificationService';
 import { notifyChannels } from './notifyChannels';
+import { guarded } from '../utils/guarded';
 
 /** A window that opened longer ago than this is not announced (an old tournament, a first start). */
 const FRESH_SECONDS = 6 * 3600;
@@ -109,8 +110,9 @@ let started = false;
 export function startTournamentNotices(): void {
   if (started) return;
   started = true;
+  const sweep = guarded(sweepCheckIns);
   const run = () =>
-    sweepCheckIns().catch((error) => {
+    sweep().catch((error) => {
       log.debug('[NOTIFY] check-in sweep failed', { error });
     });
   setTimeout(run, 15_000).unref?.();
