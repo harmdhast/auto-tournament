@@ -80,7 +80,8 @@ import { localAdminService } from './services/localAdminService';
 import { authProviderSettingsService } from './services/authProviderSettingsService';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
-import { isIP } from 'net';
+import { Pool } from 'pg';
+import { createSessionMiddleware } from './utils/sessionCookies';
 import { DATABASE_NAME, DatabaseRenameRefused } from './config/databaseRename';
 import { TRUST_PROXY_HOPS } from './config/trustProxy';
 import {
@@ -153,88 +154,28 @@ const sessionDbConnectionString =
     process.env.DB_HOST || '127.0.0.1'
   }:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || DATABASE_NAME}`;
 
-// Determine if we should use secure cookies (HTTPS only)
-// Check FRONTEND_BASE_URL to see if we're using HTTPS
-const frontendBaseUrl = process.env.FRONTEND_BASE_URL || '';
-const useSecureCookies =
-  process.env.NODE_ENV === 'production' && frontendBaseUrl.startsWith('https://');
-
-// When behind Cloudflare Tunnel or another reverse proxy, the app often sees an
-// internal Host (e.g. from Caddy). Without an explicit domain, the session cookie
-// is set for that host, so the browser (which only talks to the public URL) never
-// sends it → admin session fails. Use FRONTEND_BASE_URL host as cookie domain.
-let sessionCookieDomain: string | undefined;
-try {
-  if (frontendBaseUrl) {
-    const u = new URL(
-      frontendBaseUrl.startsWith('http') ? frontendBaseUrl : `https://${frontendBaseUrl}`
-    );
-    const host = u.hostname.toLowerCase();
-    // Only set an explicit cookie domain for real DNS names.
-    // Setting Domain= on an IP can cause cookies to be dropped or behave unexpectedly.
-    if (host && host !== 'localhost' && host !== '127.0.0.1' && isIP(host) === 0) {
-      sessionCookieDomain = host;
-    }
-  }
-} catch {
-  // Invalid URL, skip domain
-}
-
-const sessionCookie: {
-  sameSite: 'lax' | 'strict' | 'none';
-  secure: boolean;
-  httpOnly: boolean;
-  domain?: string;
-} = {
-  sameSite: 'lax',
-  secure: useSecureCookies,
-  httpOnly: true, // Prevent JavaScript access to cookie (security best practice)
-};
-if (sessionCookieDomain) {
-  sessionCookie.domain = sessionCookieDomain;
-}
-
 // Persist sessions in PostgreSQL so admin logins survive API restarts.
 // Note: Session table is created by our database schema, so we don't need
 // connect-pg-simple to create it (which would require table.sql file).
-const sessionStore = new PgSession({
-  conString: sessionDbConnectionString,
-  tableName: 'session',
-  createTableIfMissing: false, // Table is created by our schema
-});
-// The session cookie's own name: express-session's default `connect.sid` is
-// shared with every other Express app, and one on a parent domain (e.g.
-// another site on *.example.com with Domain=example.com) is sent along too.
-// The browser sends the older cookie first and express-session reads the
-// first, so a fresh install behind such a domain never saw its own session
-// (setup signed the new admin in, the next request was signed out).
-const SESSION_COOKIE_NAME = 'at.sid';
-const sessionMiddleware = session({
-  name: SESSION_COOKIE_NAME,
-  store: sessionStore,
+const sessionPool = new Pool({ connectionString: sessionDbConnectionString });
+const newSessionStore = (prune = true) =>
+  new PgSession({
+    pool: sessionPool,
+    tableName: 'session',
+    createTableIfMissing: false, // Table is created by our schema
+    ...(prune ? {} : { pruneSessionInterval: false as const }),
+  });
+const sessionMiddleware = createSessionMiddleware({
+  domainStore: newSessionStore(),
+  hostOnlyStore: newSessionStore(false),
   secret: sessionSecret,
-  resave: false,
-  saveUninitialized: false,
-  cookie: sessionCookie,
-});
-// Opened by IP address (a fresh install before its domain points here, e.g.
-// http://10.0.0.5:3069/setup): a cookie for FRONTEND_BASE_URL's domain, or a
-// Secure one over plain http, is dropped by the browser, so setup signed the
-// new admin out at once. Such requests get a cookie for the address they
-// came on, Secure only over https.
-const addressSessionMiddleware = session({
-  name: SESSION_COOKIE_NAME,
-  store: sessionStore,
-  secret: sessionSecret,
-  resave: false,
-  saveUninitialized: false,
-  cookie: { sameSite: 'lax', secure: 'auto', httpOnly: true },
+  frontendBaseUrl: process.env.FRONTEND_BASE_URL || '',
+  production: process.env.NODE_ENV === 'production',
+  warn: (message) => log.warn(message),
 });
 const passportInitialize = passport.initialize();
 const passportSession = passport.session();
-app.use((req, res, next) =>
-  (isIP(req.hostname) !== 0 ? addressSessionMiddleware : sessionMiddleware)(req, res, next)
-);
+app.use(sessionMiddleware);
 app.use(passportInitialize);
 app.use(passportSession);
 // A banned or deleted player is signed out on their next request.
