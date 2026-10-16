@@ -386,7 +386,9 @@
       "button": "Aggiungi",
       "machine": "Macchina",
       "readyUp": "Server Ready Up"
-    }
+    },
+    "loadError": "Impossibile caricare i server",
+    "retry": "Riprova"
   },
   "serverModal": {
     "titleEdit": "Modifica server",

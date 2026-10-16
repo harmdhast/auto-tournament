@@ -386,7 +386,9 @@
       "button": "Legg til",
       "machine": "Maskin",
       "readyUp": "Ready Up-server"
-    }
+    },
+    "loadError": "Kunne ikke laste serverne",
+    "retry": "Prøv igjen"
   },
   "serverModal": {
     "titleEdit": "Rediger server",

@@ -386,7 +386,9 @@
       "button": "添加",
       "machine": "机器",
       "readyUp": "Ready Up 服务器"
-    }
+    },
+    "loadError": "无法加载服务器",
+    "retry": "重试"
   },
   "serverModal": {
     "titleEdit": "编辑服务器",

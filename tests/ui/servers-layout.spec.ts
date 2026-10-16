@@ -66,3 +66,74 @@ test.describe('Servers page layout', () => {
     expect(await noOverflow(page)).toBe(true);
   });
 });
+
+test.describe('Servers page loading', () => {
+  test.beforeEach(async ({ page, request }) => {
+    await setupTestContext(page, request);
+  });
+
+  test('a failed load shows an error with Retry, not the first-run guide', async ({ page }) => {
+    await stubFleet(page, []);
+    let fail = true;
+    await page.route(
+      (url) => url.pathname === '/api/fleet/hosts',
+      (route) =>
+        fail
+          ? route.fulfill({ status: 500, json: { success: false, error: 'boom' } })
+          : route.fulfill({ json: { success: true, count: 1, hosts: [machineHost('m1', [])] } })
+    );
+    await page.goto('/manage/servers');
+    const alert = page.getByTestId('servers-load-error');
+    await expect(alert).toBeVisible();
+    await expect(page.getByTestId('machines-empty')).toHaveCount(0);
+    fail = false;
+    await alert.getByRole('button', { name: 'Retry' }).click();
+    await expect(page.getByTestId('machine-m1')).toBeVisible();
+    await expect(alert).toHaveCount(0);
+  });
+
+  test('the first load shows a loading state, then the guide for an empty fleet', async ({
+    page,
+  }) => {
+    await stubFleet(page, []);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(
+      (url) => url.pathname === '/api/fleet/hosts',
+      async (route) => {
+        await held;
+        await route.fulfill({ json: { success: true, count: 0, hosts: [] } });
+      }
+    );
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('servers-loading')).toBeVisible();
+    release();
+    await expect(page.getByTestId('servers-loading')).toHaveCount(0);
+    await expect(page.getByTestId('machines-empty')).toBeVisible();
+  });
+
+  test('a failed poll after a good load shows no alert', async ({ page }) => {
+    await stubMachines(page, [machineHost('m1', [])]);
+    let fail = false;
+    await page.route(
+      (url) => url.pathname === '/api/fleet/servers',
+      (route) =>
+        fail
+          ? route.fulfill({ status: 500, json: { success: false, error: 'boom' } })
+          : route.fulfill({ json: { success: true, count: 0, servers: [] } })
+    );
+    await page.route(
+      (url) => url.pathname === '/api/fleet/keys',
+      (route) => route.fulfill({ json: { success: true, keys: [] } })
+    );
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId('machine-m1')).toBeVisible();
+    fail = true;
+    await page.waitForResponse(
+      (r) => new URL(r.url()).pathname === '/api/fleet/servers' && r.status() === 500,
+      { timeout: 15000 }
+    );
+    await expect(page.getByTestId('servers-load-error')).toHaveCount(0);
+    await expect(page.getByTestId('machine-m1')).toBeVisible();
+  });
+});

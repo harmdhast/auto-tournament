@@ -388,7 +388,9 @@
       "button": "Dodaj",
       "machine": "Maszyna",
       "readyUp": "Serwer Ready Up"
-    }
+    },
+    "loadError": "Nie udało się wczytać serwerów",
+    "retry": "Spróbuj ponownie"
   },
   "serverModal": {
     "titleEdit": "Edytuj serwer",

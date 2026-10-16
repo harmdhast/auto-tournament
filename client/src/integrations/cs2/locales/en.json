@@ -386,7 +386,9 @@
       "button": "Add",
       "machine": "Machine",
       "readyUp": "Ready Up server"
-    }
+    },
+    "loadError": "Could not load the servers",
+    "retry": "Retry"
   },
   "serverModal": {
     "titleEdit": "Edit Server",

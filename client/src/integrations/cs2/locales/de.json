@@ -386,7 +386,9 @@
       "button": "Hinzufügen",
       "machine": "Maschine",
       "readyUp": "Ready-Up-Server"
-    }
+    },
+    "loadError": "Die Server konnten nicht geladen werden",
+    "retry": "Erneut versuchen"
   },
   "serverModal": {
     "titleEdit": "Server bearbeiten",

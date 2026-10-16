@@ -386,7 +386,9 @@
       "button": "Toevoegen",
       "machine": "Machine",
       "readyUp": "Ready Up-server"
-    }
+    },
+    "loadError": "De servers konden niet worden geladen",
+    "retry": "Opnieuw proberen"
   },
   "serverModal": {
     "titleEdit": "Server bewerken",

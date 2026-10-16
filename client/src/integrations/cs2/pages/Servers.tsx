@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Box, Button, Menu, MenuItem, Tab, Tabs, Typography } from '@mui/material';
+import { Alert, Box, Button, Menu, MenuItem, Skeleton, Tab, Tabs, Typography } from '@mui/material';
 import { CaretDownIcon, PlusIcon } from '@phosphor-icons/react';
 import {
   api,
@@ -103,6 +103,11 @@ export default function Servers() {
       return next;
     });
   const ready = loaded && sources.loaded;
+  const loadFailed = fleet.failed || sources.failed;
+  const retryLoad = () => {
+    void fleet.load();
+    void sources.reload();
+  };
   const panelRow = serverKey
     ? (groups.flatMap((g) => g.rows).find((r) => r.key === serverKey) ?? null)
     : null;
@@ -345,7 +350,29 @@ export default function Servers() {
 
       {tab === 'servers' && (
         <>
-          {firstSetup ? (
+          {loadFailed && hosts.length === 0 && groups.length === 0 && (
+            <Alert
+              severity="error"
+              data-testid="servers-load-error"
+              action={
+                <Button color="inherit" size="small" onClick={retryLoad}>
+                  {t('serversPage.retry')}
+                </Button>
+              }
+            >
+              {t('serversPage.loadError')}
+            </Alert>
+          )}
+          {loadFailed && hosts.length === 0 && groups.length === 0 ? null : !ready ? (
+            <Box
+              data-testid="servers-loading"
+              aria-busy
+              sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+            >
+              <Skeleton variant="rounded" height={96} />
+              <Skeleton variant="rounded" height={96} />
+            </Box>
+          ) : firstSetup ? (
             <FirstMachine
               link={linkInline ? link : null}
               busy={busy}
