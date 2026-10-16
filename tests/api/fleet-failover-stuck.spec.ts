@@ -122,17 +122,19 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     a.kill();
     // The platform's own pass (default grace) has run by now and made nothing to withdraw.
     await new Promise((r) => setTimeout(r, 1500));
+    let proposal: { id: string } | null = null;
     await expect
       .poll(
         async () => {
           await scan(request);
-          return (await proposalOf(request, slug))?.status ?? null;
+          const p = await proposalOf(request, slug);
+          if (p?.status === 'open') proposal = p;
+          return p?.status ?? null;
         },
         { timeout: 30_000 }
       )
       .toBe('open');
-    const proposal = (await proposalOf(request, slug)) as { id: string };
-    return { a, b, cs2A, cs2B, proposal };
+    return { a, b, cs2A, cs2B, proposal: proposal as unknown as { id: string } };
   }
 
   test('a move that throws after the claim reopens the failover and keeps the old server', async ({
@@ -292,7 +294,7 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
       `UPDATE cs2_fleet_failovers SET status = 'moving', target_cs2_server_id = '${cs2B}', prev_move = '${prev}', updated_at = updated_at - ${opts.ageS ?? 600} WHERE id = '${proposalId}'`
     );
     psql(
-      `INSERT INTO cs2_fleet_audit (id, actor, server_id, match_slug, command, status) VALUES ('stb10-${slug}', 'test', '${b.serverId}', '${slug}', 'failover ${slug} (offline)', 'pending')`
+      `INSERT INTO cs2_fleet_audit (id, actor, server_id, match_slug, command, status) VALUES ('stb10-${slug}', 'test', '${b.serverId}', '${slug}', 'failover ${slug} (offline, ${proposalId})', 'pending')`
     );
     return assignment as { epoch: number; password: string };
   }
