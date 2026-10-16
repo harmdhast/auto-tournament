@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createServer, type Server } from 'http';
+import { createServer, get, type Server } from 'http';
 import type { AddressInfo } from 'net';
 import session from 'express-session';
 import { sign } from 'cookie-signature';
@@ -50,10 +50,16 @@ test('socket handshake survives a session store failing at commit', async () => 
 
   try {
     const cookie = `at.sid=${encodeURIComponent('s:' + sign('known-sid', SECRET))}`;
-    const res = await fetch(`http://127.0.0.1:${port}/socket.io/?EIO=4&transport=polling`, {
-      headers: { cookie },
+    await new Promise<void>((resolve, reject) => {
+      get(
+        `http://127.0.0.1:${port}/socket.io/?EIO=4&transport=polling`,
+        { headers: { cookie } },
+        (res) => {
+          res.resume();
+          res.on('end', resolve);
+        }
+      ).on('error', reject);
     });
-    await res.text();
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(uncaught).toEqual([]);
   } finally {
