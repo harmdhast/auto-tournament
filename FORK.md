@@ -125,7 +125,7 @@ Resolved in custom:
   - `TRUST_PROXY_HOPS` sets the number of trusted proxy hops (default 1).
   - The Development page's wipe and reset actions ask for a typed confirmation.
   - Server module API `0.1.3`: the host bridge also exports `utils/rootAccess` and `utils/accountConnections`.
-  - Admin pages need the sign-in session (sign in again if it was lost); the session cookie follows the request host and forwarded protocol and lasts 30 days. Sessions now use a second connection pool (10 more Postgres connections per API).
+  - Admin pages need the sign-in session (sign in again if it was lost); the session cookie follows the request host and forwarded protocol and lasts 30 days. The session stores share one pool (connection count unchanged).
 - **chore/deps**: keep the root `package.json` `resolutions` block until upstream's parents require the fixed versions.
 
 ### Cherry-picked
