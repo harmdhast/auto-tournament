@@ -4,6 +4,7 @@ import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
 import {
   FakeReadyUp,
+  example,
   acceptAssign,
   createMatch,
   link,
@@ -54,6 +55,19 @@ async function scan(request: APIRequestContext) {
   });
   expect(res.ok(), await res.text()).toBe(true);
   return res.json();
+}
+
+/** Detection passes until `done` (the stuck-move sweep waits for the API to be up a while). */
+async function scanUntil(request: APIRequestContext, done: () => boolean, timeout = 60_000) {
+  await expect
+    .poll(
+      async () => {
+        await scan(request);
+        return done();
+      },
+      { timeout }
+    )
+    .toBe(true);
 }
 
 test.describe.serial('Fleet failover: no move is left in moving', () => {
@@ -168,10 +182,18 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     );
     expect((await proposalOf(request, slug))?.status).toBe('moving');
 
-    await scan(request);
-    const after = await proposalOf(request, slug);
-    expect(after).toMatchObject({ id: proposal.id, status: 'open' });
-    expect(after?.lastError).toBeTruthy();
+    await scanUntil(
+      request,
+      () =>
+        !psql(`SELECT status FROM cs2_fleet_failovers WHERE id = '${proposal.id}'`).startsWith(
+          'moving'
+        )
+    );
+    expect(
+      psql(
+        `SELECT status || '|' || last_error FROM cs2_fleet_failovers WHERE id = '${proposal.id}'`
+      )
+    ).toMatch(/^(open|withdrawn)\|The move was interrupted/);
     expect((await matchRow(request, slug))?.serverId).toBe(cs2A);
   });
 
@@ -210,28 +232,23 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
       psql('DROP FUNCTION IF EXISTS stb10_fail()');
     });
     a.kill();
-    const attempts = () =>
-      Number(
-        psql(
-          `SELECT count(*) FROM cs2_fleet_audit WHERE match_slug = '${slug}' AND command LIKE 'failover %'`
-        )
-      );
-    await expect
-      .poll(
-        async () => {
-          await scan(request);
-          return attempts();
-        },
-        { timeout: 60_000 }
-      )
-      .toBeGreaterThanOrEqual(3);
-    // Further passes try nothing more. (The platform's own pass, with its grace, may withdraw a
-    // failover of the server that just went down; the next one starts its own count.)
+    // Attempts per failover: the platform's own pass (default grace) may withdraw one for the
+    // server that just went down, and the next one starts its own count.
+    const perFailover = () =>
+      psql(`SELECT id FROM cs2_fleet_failovers WHERE match_slug = '${slug}'`)
+        .split('\n')
+        .filter(Boolean)
+        .map((id) =>
+          Number(
+            psql(
+              `SELECT count(*) FROM cs2_fleet_audit WHERE match_slug = '${slug}' AND command LIKE '%${id}%'`
+            )
+          )
+        );
+    await scanUntil(request, () => Math.max(0, ...perFailover()) >= 3);
+    // Further passes try nothing more.
     for (let i = 0; i < 4; i++) await scan(request);
-    const failovers = Number(
-      psql(`SELECT count(*) FROM cs2_fleet_failovers WHERE match_slug = '${slug}'`)
-    );
-    expect(attempts()).toBeLessThanOrEqual(3 * failovers);
+    expect(Math.max(...perFailover())).toBe(3);
     expect((await proposalOf(request, slug))?.status).toBe('open');
   });
 
@@ -244,7 +261,8 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     slug: string,
     proposalId: string,
     b: FakeReadyUp,
-    cs2B: string
+    cs2B: string,
+    opts: { ageS?: number; ended?: boolean } = {}
   ) {
     const assignment = JSON.parse(
       psql(
@@ -264,9 +282,13 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     psql(
       `UPDATE cs2_fleet_assignments SET epoch = ${assignment.epoch + 1}, server_id = '${b.serverId}', cs2_server_id = '${cs2B}', password = 'new-pw', config = NULL WHERE match_slug = '${slug}'`
     );
+    if (opts.ended)
+      psql(
+        `UPDATE cs2_fleet_assignments SET ended_at = EXTRACT(epoch FROM now())::integer WHERE match_slug = '${slug}'`
+      );
     psql(`UPDATE matches SET server_id = '${cs2B}' WHERE slug = '${slug}'`);
     psql(
-      `UPDATE cs2_fleet_failovers SET status = 'moving', target_cs2_server_id = '${cs2B}', prev_move = '${prev}', updated_at = updated_at - 600 WHERE id = '${proposalId}'`
+      `UPDATE cs2_fleet_failovers SET status = 'moving', target_cs2_server_id = '${cs2B}', prev_move = '${prev}', updated_at = updated_at - ${opts.ageS ?? 600} WHERE id = '${proposalId}'`
     );
     psql(
       `INSERT INTO cs2_fleet_audit (id, actor, server_id, match_slug, command, status) VALUES ('stb10-${slug}', 'test', '${b.serverId}', '${slug}', 'failover ${slug} (offline)', 'pending')`
@@ -274,21 +296,27 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     return assignment as { epoch: number; password: string };
   }
 
-  test('an interrupted move whose target never acked gives the old server its assignment and epoch back', async ({
-    request,
-  }) => {
-    test.setTimeout(120_000);
-    const slug = `fleet-stuck-unacked-${Date.now()}`;
-    const { a, b, cs2A, cs2B, proposal } = await deadServerWithSpare(request, slug);
-    const before = await forgeInterruptedMove(request, slug, proposal.id, b, cs2B);
+  const failoverState = (id: string) =>
+    psql(
+      `SELECT status || '|' || coalesce(last_error, '') FROM cs2_fleet_failovers WHERE id = '${id}'`
+    );
+  const moved = (id: string) => () => !failoverState(id).startsWith('moving');
 
-    await scan(request);
+  /** The old server's rows are back and it keeps the match when it reconnects at its epoch. */
+  async function expectOldServerRestored(
+    request: APIRequestContext,
+    slug: string,
+    proposalId: string,
+    a: FakeReadyUp,
+    cs2A: string,
+    before: { epoch: number; password: string }
+  ) {
+    await scanUntil(request, moved(proposalId));
     // Open again (the platform's own pass, with its grace, may withdraw it at once: the server just went down).
+    expect(failoverState(proposalId)).toMatch(/^(open|withdrawn)\|The move was interrupted/);
     expect(
-      psql(
-        `SELECT status || '|' || last_error FROM cs2_fleet_failovers WHERE id = '${proposal.id}'`
-      )
-    ).toMatch(/^(open|withdrawn)\|The move was interrupted/);
+      psql(`SELECT prev_move IS NULL FROM cs2_fleet_failovers WHERE id = '${proposalId}'`)
+    ).toBe('t');
     expect((await matchRow(request, slug))?.serverId).toBe(cs2A);
     expect(
       psql(
@@ -300,13 +328,60 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     });
     expect((await live.json()).record.epoch).toBe(before.epoch);
     expect(psql(`SELECT status FROM cs2_fleet_audit WHERE id = 'stb10-${slug}'`)).toBe('failed');
+
+    // The old server comes back holding the match at its own epoch: it is not told to drop it.
+    const state = JSON.parse(JSON.stringify(example('live.state.snapshot.json').payload.state));
+    state.match_id = slug;
+    state.epoch = before.epoch;
+    await a.reconnect({ availability: 'busy', state });
+    expect(await a.next('match.unassign', 4_000).catch(() => null)).toBeNull();
+  }
+
+  test('an interrupted move whose target never acked gives the old server its assignment and epoch back', async ({
+    request,
+  }) => {
+    test.setTimeout(150_000);
+    const slug = `fleet-stuck-unacked-${Date.now()}`;
+    const { a, b, cs2A, cs2B, proposal } = await deadServerWithSpare(request, slug);
+    const before = await forgeInterruptedMove(request, slug, proposal.id, b, cs2B);
+    await expectOldServerRestored(request, slug, proposal.id, a, cs2A, before);
     expect((await b.next('match.unassign', 10_000)).payload).toMatchObject({ match_id: slug });
+  });
+
+  test('an interrupted move whose target epoch was already ended gives the old server its assignment back', async ({
+    request,
+  }) => {
+    test.setTimeout(150_000);
+    const slug = `fleet-stuck-ended-${Date.now()}`;
+    const { a, b, cs2A, cs2B, proposal } = await deadServerWithSpare(request, slug);
+    // assignMatch timed out and took the target's epoch back, then the API died before the undo.
+    const before = await forgeInterruptedMove(request, slug, proposal.id, b, cs2B, {
+      ended: true,
+    });
+    await expectOldServerRestored(request, slug, proposal.id, a, cs2A, before);
+  });
+
+  test('a move whose target is offline waits for it, then cancels what it never acked', async ({
+    request,
+  }) => {
+    test.setTimeout(150_000);
+    const slug = `fleet-stuck-offline-${Date.now()}`;
+    const { b, cs2A, cs2B, proposal } = await deadServerWithSpare(request, slug);
+    await forgeInterruptedMove(request, slug, proposal.id, b, cs2B, { ageS: 120 });
+    b.kill();
+    await new Promise((r) => setTimeout(r, 1500));
+    for (let i = 0; i < 3; i++) await scan(request);
+    expect(failoverState(proposal.id)).toMatch(/^moving\|/);
+    await b.reconnect();
+    await scanUntil(request, moved(proposal.id));
+    expect(failoverState(proposal.id)).toMatch(/^(open|withdrawn)\|The move was interrupted/);
+    expect((await matchRow(request, slug))?.serverId).toBe(cs2A);
   });
 
   test('an interrupted move whose target acked the assignment is a finished move', async ({
     request,
   }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(150_000);
     const slug = `fleet-stuck-acked-${Date.now()}`;
     const { b, cs2B, proposal } = await deadServerWithSpare(request, slug);
     const before = await forgeInterruptedMove(request, slug, proposal.id, b, cs2B);
@@ -314,15 +389,19 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     psql(
       `INSERT INTO cs2_fleet_commands (message_id, server_id, type, match_slug, epoch, status) VALUES ('stb10-cmd-${slug}', '${b.serverId}', 'match.assign', '${slug}', ${before.epoch + 1}, 'ok')`
     );
-
-    await scan(request);
-    expect(psql(`SELECT status FROM cs2_fleet_failovers WHERE id = '${proposal.id}'`)).toBe(
-      'moved'
+    psql(
+      `UPDATE cs2_fleet_assignments SET sent_config = '{"marker":"sent","rules":{"demo":{"upload":false}}}' WHERE match_slug = '${slug}'`
     );
-    expect((await matchRow(request, slug))?.serverId).toBe(cs2B);
+
+    await scanUntil(request, moved(proposal.id));
+    expect(failoverState(proposal.id)).toBe('moved|');
     expect(
-      psql(`SELECT (config IS NOT NULL) FROM cs2_fleet_assignments WHERE match_slug = '${slug}'`)
+      psql(`SELECT prev_move IS NULL FROM cs2_fleet_failovers WHERE id = '${proposal.id}'`)
     ).toBe('t');
+    expect((await matchRow(request, slug))?.serverId).toBe(cs2B);
+    expect(psql(`SELECT config FROM cs2_fleet_assignments WHERE match_slug = '${slug}'`)).toContain(
+      '"marker":"sent"'
+    );
     expect(psql(`SELECT status FROM cs2_fleet_audit WHERE id = 'stb10-${slug}'`)).toBe('ok');
     expect(await b.next('match.unassign', 3_000).catch(() => null)).toBeNull();
   });

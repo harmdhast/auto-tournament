@@ -539,6 +539,15 @@ export async function assignMatch(
       );
   }
   await saveAssignment({ matchSlug, epoch, serverId: fleetServerId, cs2ServerId, password });
+  {
+    // Kept with the epoch: a failover interrupted before the ack knows what the target was sent.
+    const sentConfig: Partial<AssignConfig> = { ...config };
+    delete sentConfig.password;
+    await db.runAsync(
+      'UPDATE cs2_fleet_assignments SET sent_config = ? WHERE match_slug = ? AND epoch = ?',
+      [JSON.stringify(sentConfig), matchSlug, epoch]
+    );
+  }
 
   let sent;
   try {
