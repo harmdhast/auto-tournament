@@ -1,23 +1,28 @@
 #!/usr/bin/env bash
-# Runs the E2E suite on N parallel local stacks (own database, API from source, vite dev), no Docker.
-# Spec files are packed per stack by tests/ci-shard.mjs.
+# Runs the E2E suite on N parallel local stacks (own database, API from source, one shared prebuilt client served by vite preview), no Docker.
+# Spec files are packed per stack by tests/ci-shard.mjs, weighted by the durations of previous local runs (logs/local-shard-weights.json,
+# updated after every run; unknown files fall back to the committed CI weights).
 #
-#   scripts/test-local-shards.sh [-n shards] [-p base-port] [--since <ref> | spec...]
+#   scripts/test-local-shards.sh [-n stacks] [-p base-port] [--dev] [--since <ref> | spec...]
 #
-#   -n       stacks (default 3, about 1.2 GB and 25 Postgres connections each)
+#   -n       stacks (default: as many as free Postgres connections and free RAM allow, at most 6)
 #   -p       stack i serves the client on base+2i and the API on base+2i+1; the skin fixture on base+99 (default 4200)
+#   --dev    serve each stack with its own vite dev server instead of the prebuilt client
 #   --since  only the specs tests/ci-affected.mjs says the changes since <ref> (committed and not) reach
 #
+# The client is built once in development mode with CS2 compiled in and the dev tools on (VITE_ENABLE_DEV_PAGE), cached in logs/client-dist/<hash of client sources + yarn.lock>.
+# Pools are DB_POOL_MAX=6 and SESSION_DB_POOL_MAX=2 per API (env overrides); a stack needs those plus 3 spec connections, about 1.2 GB.
 # Needs Postgres reachable with DB_HOST/DB_PORT/DB_USER/DB_PASSWORD (default 127.0.0.1:5432 postgres/postgres).
 # Logs and results go to logs/local-shards-<base-port>/.
 set -uo pipefail
 
 ROOT=$(git rev-parse --show-toplevel)
-N=3 BASE=4200 SINCE= SPECS=()
+N= BASE=4200 SINCE= DEV=0 SPECS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -n) N=$2; shift ;;
     -p) BASE=$2; shift ;;
+    --dev) DEV=1 ;;
     --since) SINCE=$2; shift ;;
     *) SPECS+=("$1") ;;
   esac
@@ -27,6 +32,12 @@ done
 OUT="$ROOT/logs/local-shards-$BASE"
 FIX=$((BASE + 99))
 WEIGHTS="$ROOT/logs/local-shard-weights.json"
+# Test pools: enough for the suite (db-pool-resilience, session specs) without the 20 + 5 production defaults.
+export DB_POOL_MAX=${DB_POOL_MAX:-6} SESSION_DB_POOL_MAX=${SESSION_DB_POOL_MAX:-2}
+SPEC_CONNS=3
+PER_STACK_CONNS=$((DB_POOL_MAX + SESSION_DB_POOL_MAX + SPEC_CONNS))
+STACK_MB=${STACK_MB:-1200}
+MAX_STACKS=6
 export DB_HOST=${DB_HOST:-127.0.0.1} DB_PORT=${DB_PORT:-5432} DB_USER=${DB_USER:-postgres} DB_PASSWORD=${DB_PASSWORD:-postgres}
 mkdir -p "$OUT"
 cd "$ROOT"
@@ -70,11 +81,33 @@ if [ -n "$SINCE" ]; then
 fi
 [ ${#SPECS[@]} -gt 0 ] && export CI_SPECS="${SPECS[*]}"
 
-# Per stack: the API db pool (20, api/src/config/database.ts), the session pool (5, api/src/index.ts) and about 3 for the spec process.
-pg 'const max = +(await c.query("SHOW max_connections")).rows[0].max_connections;
+# Per stack: the API db pool, the session pool and a few connections for the spec process.
+free=$(pg 'const max = +(await c.query("SHOW max_connections")).rows[0].max_connections;
     const used = +(await c.query("SELECT count(*) FROM pg_stat_activity")).rows[0].count;
-    const need = +argv[0] * 28;
-    if (used + need > max) throw new Error(`Postgres has ${max - used} free connections, ${need} needed for ${argv[0]} stacks: use fewer stacks or raise max_connections`);' "$N" || exit 1
+    console.log(max - used);') || exit 1
+if [ -z "$N" ]; then
+  mem_mb=$(($(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024))
+  N=$(( free / PER_STACK_CONNS < mem_mb / STACK_MB ? free / PER_STACK_CONNS : mem_mb / STACK_MB ))
+  [ "$N" -gt "$MAX_STACKS" ] && N=$MAX_STACKS
+  [ "$N" -lt 1 ] && N=1
+  echo "stacks: $N ($free free connections, $mem_mb MB available)"
+fi
+[ $((N * PER_STACK_CONNS)) -le "$free" ] || { echo "Postgres has $free free connections, $((N * PER_STACK_CONNS)) needed for $N stacks: use fewer stacks or raise max_connections"; exit 1; }
+
+DIST=
+if [ "$DEV" -eq 0 ]; then
+  # One production-mode client (CS2 compiled in, as on the dev server) shared by every stack, rebuilt only when its sources change.
+  sum=$( (git ls-files -co --exclude-standard -z -- client yarn.lock | xargs -0 -r sha256sum 2>/dev/null; echo "vite5 development cs2 devpage") | sha256sum | cut -c1-16)
+  DIST="$ROOT/logs/client-dist/$sum"
+  if [ ! -f "$DIST/index.html" ]; then
+    echo "building client ($sum)"
+    rm -rf "$DIST.tmp"
+    (cd client && AT_CS2_BUILTIN=1 VITE_ENABLE_DEV_PAGE=true npx vite build --mode development --outDir "$DIST.tmp" --emptyOutDir >"$OUT/client-build.log" 2>&1) \
+      || { echo "client build failed, see $OUT/client-build.log"; tail -5 "$OUT/client-build.log"; exit 1; }
+    mv "$DIST.tmp" "$DIST"
+    find "$ROOT/logs/client-dist" -mindepth 1 -maxdepth 1 -not -name "$sum" -mtime +2 -exec rm -rf {} +
+  fi
+fi
 
 KEYS=$(bash scripts/build-module-snapshot.sh --ephemeral | sed -n 's/^MODULE_TRUSTED_KEYS=//p')
 [ -n "$KEYS" ] || { echo "module snapshot build failed"; exit 1; }
@@ -100,6 +133,11 @@ for i in $(seq 1 "$N"); do
     npx tsx src/index.ts) </dev/null >"$OUT/api-$i.log" 2>&1 &
   echo $! >"$OUT/api-$i.pid"
 
+  if [ -n "$DIST" ]; then
+    SERVE=preview CLIENT_SETUP="cfg.preview = { host: '::', port: $WEB, strictPort: true, proxy }; cfg.build = { ...cfg.build, outDir: '$DIST' };"
+  else
+    SERVE= CLIENT_SETUP="cfg.server = { ...cfg.server, host: '::', port: $WEB, strictPort: true, proxy };"
+  fi
   cat >"$OUT/vite-$i.mts" <<VITE
 import base from '$ROOT/client/vite.config.ts';
 const target = 'http://localhost:$API';
@@ -112,11 +150,11 @@ const proxy = {
 };
 export default (env: any) => {
   const cfg = (base as any)(env);
-  cfg.server = { ...cfg.server, host: '::', port: $WEB, strictPort: true, proxy };
+  $CLIENT_SETUP
   return cfg;
 };
 VITE
-  (cd client && exec npx vite --config "$OUT/vite-$i.mts") </dev/null >"$OUT/vite-$i.log" 2>&1 &
+  (cd client && exec npx vite $SERVE --config "$OUT/vite-$i.mts") </dev/null >"$OUT/vite-$i.log" 2>&1 &
   echo $! >"$OUT/vite-$i.pid"
 done
 
