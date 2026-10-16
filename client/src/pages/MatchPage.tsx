@@ -302,7 +302,12 @@ export default function MatchPage() {
   const playerCard = !!viewerTeamId && matchIsOn && playsThroughModule;
 
   return (
-    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }} data-testid="match-page">
+    <Container
+      component="main"
+      maxWidth="lg"
+      sx={{ py: { xs: 3, md: 5 } }}
+      data-testid="match-page"
+    >
       {/* Back to the tournament this match is part of: its page and bracket. */}
       {match.tournamentId && match.tournament && (
         <Stack
