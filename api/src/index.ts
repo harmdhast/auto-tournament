@@ -60,7 +60,10 @@ import {
 } from './modules/catalogService';
 import { installHostBridge } from './modules/hostBridge';
 import { environmentTrustedKeys } from './modules/trustedKeys';
-import { recoverActiveMatches } from './services/matchRecoveryService';
+import {
+  recoverActiveMatches,
+  releaseStrandedReadyMatches,
+} from './services/matchRecoveryService';
 import { enrichBuiltinGames } from './services/gameEnrichmentService';
 import { refreshGameIcons } from './services/gameIconService';
 import { scheduler } from './core/scheduler';
@@ -558,6 +561,10 @@ process.on('uncaughtException', (err) => {
     // Initialize database first (including schema)
     await db.init();
     log.success('Database initialized successfully');
+
+    await releaseStrandedReadyMatches().catch((error) => {
+      log.warn('Failed to release matches stranded in allocation', { error });
+    });
 
     // Music an earlier beta downloaded by itself, gone (bring your own now).
     void import('./services/highlights/music')

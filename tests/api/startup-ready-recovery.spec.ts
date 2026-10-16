@@ -1,19 +1,19 @@
 import { test, expect } from '@playwright/test';
 import { db } from '../../api/src/config/database';
-import { recoverActiveMatches } from '../../api/src/services/matchRecoveryService';
+import { getIntegration } from '../../api/src/integrations/registry';
+import { releaseStrandedReadyMatches } from '../../api/src/services/matchRecoveryService';
 
 /**
  * A match left `ready` with a server_id by a crash mid-allocation is released
- * by the startup recovery (the first run in a process), so it can be allocated
- * again. Later runs (the admin route) leave it alone: an allocation may be in
- * flight.
+ * at startup: its server is told to drop the match and the match can be
+ * allocated again. Matches already loaded keep their server.
  *
  * @tag api
  */
 const stamp = Date.now();
 const SERVER = `ready-recovery-server-${stamp}`;
-const FIRST = `ready-recovery-a-${stamp}`;
-const LATER = `ready-recovery-b-${stamp}`;
+const READY = `ready-recovery-a-${stamp}`;
+const LOADED = `ready-recovery-b-${stamp}`;
 
 const serverOf = async (slug: string) =>
   (
@@ -23,18 +23,16 @@ const serverOf = async (slug: string) =>
     )
   )?.server_id ?? null;
 
-const addReadyMatch = (slug: string) =>
+const addMatch = (slug: string, status: string) =>
   db.insertAsync('matches', {
     slug,
     tournament_id: null,
     round: 0,
     match_number: 0,
     config: '{}',
-    status: 'ready',
+    status,
     server_id: SERVER,
   });
-
-test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
   await db.insertAsync('cs2_servers', {
@@ -47,18 +45,49 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await db.runAsync('DELETE FROM matches WHERE slug IN (?, ?)', [FIRST, LATER]);
+  await db.runAsync('DELETE FROM matches WHERE slug IN (?, ?)', [READY, LOADED]);
   await db.runAsync('DELETE FROM cs2_servers WHERE id = ?', [SERVER]);
 });
 
-test('startup recovery releases a ready match that holds a server', { tag: ['@api'] }, async () => {
-  await addReadyMatch(FIRST);
-  await recoverActiveMatches();
-  expect(await serverOf(FIRST)).toBeNull();
-});
+test(
+  'a ready match left on a server is released and its server told to drop it',
+  { tag: ['@api'] },
+  async () => {
+    await addMatch(READY, 'ready');
+    await addMatch(LOADED, 'loaded');
+    const integration = getIntegration('cs2');
+    const original = integration.cancel;
+    const cancelled: Array<{ slug: string; resourceId?: string | null }> = [];
+    integration.cancel = async (ctx) => {
+      cancelled.push({ slug: ctx.slug, resourceId: ctx.resourceId });
+    };
+    try {
+      await releaseStrandedReadyMatches();
+    } finally {
+      integration.cancel = original;
+    }
+    expect(await serverOf(READY)).toBeNull();
+    expect(await serverOf(LOADED)).toBe(SERVER);
+    expect(cancelled).toContainEqual({ slug: READY, resourceId: SERVER });
+    expect(cancelled.map((c) => c.slug)).not.toContain(LOADED);
+  }
+);
 
-test('a later recovery run leaves a ready match alone', { tag: ['@api'] }, async () => {
-  await addReadyMatch(LATER);
-  await recoverActiveMatches();
-  expect(await serverOf(LATER)).toBe(SERVER);
+test('a server that cannot be told still releases the match', { tag: ['@api'] }, async () => {
+  await db.runAsync('UPDATE matches SET status = ?, server_id = ? WHERE slug = ?', [
+    'ready',
+    SERVER,
+    READY,
+  ]);
+  const integration = getIntegration('cs2');
+  const original = integration.cancel;
+  integration.cancel = async () => {
+    throw new Error('server offline');
+  };
+  try {
+    await releaseStrandedReadyMatches();
+  } finally {
+    integration.cancel = original;
+  }
+  expect(await serverOf(READY)).toBeNull();
 });
