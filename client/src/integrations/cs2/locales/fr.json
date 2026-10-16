@@ -124,6 +124,7 @@
     },
     "errors": {
       "loadMaps": "Impossible de charger les cartes",
+      "retryLoadMaps": "Réessayer",
       "defaultPoolCannotDelete": "Le pool de cartes par défaut ne peut pas être supprimé.",
       "setDefaultPool": "Impossible de définir le pool de cartes par défaut",
       "togglePool": "Impossible de changer le statut du pool de cartes",

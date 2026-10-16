@@ -124,6 +124,7 @@
     },
     "errors": {
       "loadMaps": "Failed to load maps",
+      "retryLoadMaps": "Retry",
       "defaultPoolCannotDelete": "Default map pool cannot be deleted.",
       "setDefaultPool": "Failed to set default map pool",
       "togglePool": "Failed to toggle map pool status",

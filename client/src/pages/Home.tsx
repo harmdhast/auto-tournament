@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { TopNavBar } from '../components/layout/TopNavBar';
 import { PendingTeamInvites } from '../components/team/PendingTeamInvites';
 import { LiveChip } from '../components/common/ui';
+import { LoadError } from '../components/shared/LoadError';
 import { useAuth } from '../contexts/AuthContext';
 import { useTeamMatchData } from '../hooks/useTeamMatchData';
 import { useTournamentList, type TournamentSummary } from '../hooks/useTournamentList';
@@ -128,7 +129,12 @@ export default function Home() {
   const { playerSteamId, isAuthenticated: isAdmin } = useAuth();
   const [myTeam, setMyTeam] = useState<ViewerTeam | null>(null);
   const [teamLoading, setTeamLoading] = useState(true);
-  const { tournaments, loading: tournamentsLoading } = useTournamentList();
+  const {
+    tournaments,
+    loading: tournamentsLoading,
+    error: tournamentsError,
+    reload: reloadTournaments,
+  } = useTournamentList();
   const { available: matchmakingAvailable } = useMatchmaking();
   const {
     team: myTeamMatchTeam,
@@ -326,428 +332,455 @@ export default function Home() {
               </Box>
             )}
 
-            <Box component="section" aria-labelledby="home-live-title">
-              <SectionTitle
-                id="home-live-title"
-                title={quiet ? t('home.quiet.title') : t('home.live.title')}
-                aside={quiet ? undefined : t('home.live.count', { count: live.length })}
-                link={{ to: paths.tournamentList, label: t('home.allTournaments') }}
-              />
-              <Box
-                data-testid="home-tournaments-list"
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: {
-                    xs: 'minmax(0, 1fr)',
-                    md: 'minmax(0, 1.65fr) minmax(0, 1fr)',
-                  },
-                  gap: 2.5,
-                }}
-              >
-                {hero ? (
-                  <HeroCard tour={hero} when={when} />
-                ) : (
+            {tournamentsError ? (
+              <LoadError onRetry={() => void reloadTournaments()} />
+            ) : (
+              <>
+                <Box component="section" aria-labelledby="home-live-title">
+                  <SectionTitle
+                    id="home-live-title"
+                    title={quiet ? t('home.quiet.title') : t('home.live.title')}
+                    aside={quiet ? undefined : t('home.live.count', { count: live.length })}
+                    link={{ to: paths.tournamentList, label: t('home.allTournaments') }}
+                  />
                   <Box
-                    data-testid="home-tournaments-empty"
+                    data-testid="home-tournaments-list"
                     sx={{
-                      minHeight: { xs: 260, md: 440 },
-                      borderRadius: '26px',
-                      overflow: 'hidden',
-                      display: 'flex',
-                      ...artSx(0),
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: 'minmax(0, 1fr)',
+                        md: 'minmax(0, 1.65fr) minmax(0, 1fr)',
+                      },
+                      gap: 2.5,
                     }}
                   >
-                    <Box
-                      sx={{
-                        flex: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'flex-end',
-                        gap: 1,
-                        p: { xs: 2.5, md: 3.5 },
-                        background: SCRIM_GRADIENT,
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Pill>{t('home.empty.soon')}</Pill>
-                      </Box>
-                      <Typography
+                    {hero ? (
+                      <HeroCard tour={hero} when={when} />
+                    ) : (
+                      <Box
+                        data-testid="home-tournaments-empty"
                         sx={{
-                          fontFamily: fontDisplay,
-                          fontSize: { xs: '2rem', md: '2.75rem' },
-                          fontWeight: 700,
-                          letterSpacing: '-0.02em',
-                          lineHeight: 1.05,
+                          minHeight: { xs: 260, md: 440 },
+                          borderRadius: '26px',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          ...artSx(0),
                         }}
                       >
-                        {t('home.empty.heroTitle')}
-                      </Typography>
-                      <Typography sx={{ color: color.ink2, maxWidth: 560 }}>
-                        {t('home.empty.heroHint')}
-                      </Typography>
-                      {isAdmin && (
-                        <Button
-                          component={RouterLink}
-                          to={paths.tournaments}
-                          variant="contained"
-                          sx={{ alignSelf: 'flex-start', mt: 1.5 }}
+                        <Box
+                          sx={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'flex-end',
+                            gap: 1,
+                            p: { xs: 2.5, md: 3.5 },
+                            background: SCRIM_GRADIENT,
+                          }}
                         >
-                          {t('home.empty.create')}
-                        </Button>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Pill>{t('home.empty.soon')}</Pill>
+                          </Box>
+                          <Typography
+                            sx={{
+                              fontFamily: fontDisplay,
+                              fontSize: { xs: '2rem', md: '2.75rem' },
+                              fontWeight: 700,
+                              letterSpacing: '-0.02em',
+                              lineHeight: 1.05,
+                            }}
+                          >
+                            {t('home.empty.heroTitle')}
+                          </Typography>
+                          <Typography sx={{ color: color.ink2, maxWidth: 560 }}>
+                            {t('home.empty.heroHint')}
+                          </Typography>
+                          {isAdmin && (
+                            <Button
+                              component={RouterLink}
+                              to={paths.tournaments}
+                              variant="contained"
+                              sx={{ alignSelf: 'flex-start', mt: 1.5 }}
+                            >
+                              {t('home.empty.create')}
+                            </Button>
+                          )}
+                        </Box>
+                      </Box>
+                    )}
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                      {side[0] ? (
+                        <SideCard tour={side[0]} when={when} />
+                      ) : (
+                        <Box
+                          sx={{
+                            display: { xs: 'none', md: 'flex' },
+                            flex: 1,
+                            flexDirection: 'column',
+                          }}
+                        >
+                          <Placeholder
+                            icon={<CalendarBlankIcon size={22} />}
+                            title={t('home.empty.nextTitle')}
+                            hint={t('home.empty.nextHint')}
+                            grow
+                          />
+                        </Box>
+                      )}
+                      {matchmakingAvailable ? (
+                        <Box
+                          component={RouterLink}
+                          to={paths.play}
+                          data-testid="home-play"
+                          sx={{
+                            p: 2.75,
+                            borderRadius: radii.lg,
+                            bgcolor: color.paper2,
+                            border: `1px solid ${color.rule}`,
+                            color: color.ink,
+                            textDecoration: 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 1.75,
+                            '&:hover': { borderColor: color.muted },
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box
+                              sx={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: '12px',
+                                bgcolor: color.paper3,
+                                color: color.pick,
+                                display: 'grid',
+                                placeItems: 'center',
+                              }}
+                            >
+                              <PlayCircleIcon size={22} />
+                            </Box>
+                            <Box>
+                              <Typography
+                                sx={{
+                                  fontFamily: fontDisplay,
+                                  fontSize: '1.25rem',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {quiet ? t('home.play.quietTitle') : t('home.play.title')}
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.875rem', color: color.muted }}>
+                                {t('home.play.hint')}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Box
+                            component="span"
+                            sx={{
+                              alignSelf: 'flex-start',
+                              px: 2.5,
+                              py: 1.25,
+                              borderRadius: radii.pill,
+                              bgcolor: quiet ? color.pick : color.paper3,
+                              color: quiet ? color.accentInk : color.ink,
+                              fontWeight: 600,
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            {t('home.play.cta')}
+                          </Box>
+                        </Box>
+                      ) : (
+                        <Box
+                          component={RouterLink}
+                          to={paths.communityPlayers}
+                          data-testid="home-browse"
+                          sx={{
+                            p: 2.75,
+                            borderRadius: radii.lg,
+                            bgcolor: color.paper2,
+                            border: `1px solid ${color.rule}`,
+                            color: color.ink,
+                            textDecoration: 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 1.75,
+                            '&:hover': { borderColor: color.muted },
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box
+                              sx={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: '12px',
+                                bgcolor: color.paper3,
+                                color: color.accent,
+                                display: 'grid',
+                                placeItems: 'center',
+                              }}
+                            >
+                              <UsersThreeIcon size={22} />
+                            </Box>
+                            <Box>
+                              <Typography
+                                sx={{
+                                  fontFamily: fontDisplay,
+                                  fontSize: '1.25rem',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {t('home.browse.title')}
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.875rem', color: color.muted }}>
+                                {t('home.browse.hint')}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Box
+                            component="span"
+                            sx={{
+                              alignSelf: 'flex-start',
+                              px: 2.5,
+                              py: 1.25,
+                              borderRadius: radii.pill,
+                              bgcolor: color.paper3,
+                              fontWeight: 600,
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            {t('home.browse.cta')}
+                          </Box>
+                        </Box>
                       )}
                     </Box>
                   </Box>
-                )}
-
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                  {side[0] ? (
-                    <SideCard tour={side[0]} when={when} />
-                  ) : (
-                    <Box
-                      sx={{ display: { xs: 'none', md: 'flex' }, flex: 1, flexDirection: 'column' }}
-                    >
-                      <Placeholder
-                        icon={<CalendarBlankIcon size={22} />}
-                        title={t('home.empty.nextTitle')}
-                        hint={t('home.empty.nextHint')}
-                        grow
-                      />
-                    </Box>
-                  )}
-                  {matchmakingAvailable ? (
-                    <Box
-                      component={RouterLink}
-                      to={paths.play}
-                      data-testid="home-play"
-                      sx={{
-                        p: 2.75,
-                        borderRadius: radii.lg,
-                        bgcolor: color.paper2,
-                        border: `1px solid ${color.rule}`,
-                        color: color.ink,
-                        textDecoration: 'none',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 1.75,
-                        '&:hover': { borderColor: color.muted },
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Box
-                          sx={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: '12px',
-                            bgcolor: color.paper3,
-                            color: color.pick,
-                            display: 'grid',
-                            placeItems: 'center',
-                          }}
-                        >
-                          <PlayCircleIcon size={22} />
-                        </Box>
-                        <Box>
-                          <Typography
-                            sx={{ fontFamily: fontDisplay, fontSize: '1.25rem', fontWeight: 600 }}
-                          >
-                            {quiet ? t('home.play.quietTitle') : t('home.play.title')}
-                          </Typography>
-                          <Typography sx={{ fontSize: '0.875rem', color: color.muted }}>
-                            {t('home.play.hint')}
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Box
-                        component="span"
-                        sx={{
-                          alignSelf: 'flex-start',
-                          px: 2.5,
-                          py: 1.25,
-                          borderRadius: radii.pill,
-                          bgcolor: quiet ? color.pick : color.paper3,
-                          color: quiet ? color.accentInk : color.ink,
-                          fontWeight: 600,
-                          fontSize: '0.875rem',
-                        }}
-                      >
-                        {t('home.play.cta')}
-                      </Box>
-                    </Box>
-                  ) : (
-                    <Box
-                      component={RouterLink}
-                      to={paths.communityPlayers}
-                      data-testid="home-browse"
-                      sx={{
-                        p: 2.75,
-                        borderRadius: radii.lg,
-                        bgcolor: color.paper2,
-                        border: `1px solid ${color.rule}`,
-                        color: color.ink,
-                        textDecoration: 'none',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 1.75,
-                        '&:hover': { borderColor: color.muted },
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Box
-                          sx={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: '12px',
-                            bgcolor: color.paper3,
-                            color: color.accent,
-                            display: 'grid',
-                            placeItems: 'center',
-                          }}
-                        >
-                          <UsersThreeIcon size={22} />
-                        </Box>
-                        <Box>
-                          <Typography
-                            sx={{ fontFamily: fontDisplay, fontSize: '1.25rem', fontWeight: 600 }}
-                          >
-                            {t('home.browse.title')}
-                          </Typography>
-                          <Typography sx={{ fontSize: '0.875rem', color: color.muted }}>
-                            {t('home.browse.hint')}
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Box
-                        component="span"
-                        sx={{
-                          alignSelf: 'flex-start',
-                          px: 2.5,
-                          py: 1.25,
-                          borderRadius: radii.pill,
-                          bgcolor: color.paper3,
-                          fontWeight: 600,
-                          fontSize: '0.875rem',
-                        }}
-                      >
-                        {t('home.browse.cta')}
-                      </Box>
-                    </Box>
-                  )}
                 </Box>
-              </Box>
-            </Box>
 
-            <Box component="section" aria-labelledby="home-signup-title">
-              <SectionTitle
-                id="home-signup-title"
-                title={t('home.signup.title')}
-                aside={t('home.signup.aside')}
-                link={{ to: paths.tournamentList, label: t('home.allTournaments') }}
-              />
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: {
-                    xs: 'minmax(0, 1fr)',
-                    sm: 'repeat(2, minmax(0, 1fr))',
-                    md: 'repeat(3, minmax(0, 1fr))',
-                  },
-                  gap: 2.5,
-                }}
-              >
-                {signups.map((tour) => (
+                <Box component="section" aria-labelledby="home-signup-title">
+                  <SectionTitle
+                    id="home-signup-title"
+                    title={t('home.signup.title')}
+                    aside={t('home.signup.aside')}
+                    link={{ to: paths.tournamentList, label: t('home.allTournaments') }}
+                  />
                   <Box
-                    key={tour.id}
-                    component={RouterLink}
-                    to={tournamentTabPath(tour.id)}
-                    data-testid={`home-pick-${tour.id}`}
                     sx={{
-                      borderRadius: radii.lg,
-                      overflow: 'hidden',
-                      bgcolor: color.paper2,
-                      border: `1px solid ${color.rule}`,
-                      color: color.ink,
-                      textDecoration: 'none',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      '&:hover': { borderColor: color.muted },
-                    }}
-                  >
-                    <Box sx={{ height: 120, ...artSx(tour.id, tour.bannerUrl) }} />
-                    <Box
-                      sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1 }}
-                    >
-                      <Typography
-                        sx={{ fontFamily: fontDisplay, fontSize: '1.25rem', fontWeight: 600 }}
-                      >
-                        {tour.name}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.875rem', color: color.ink2 }}>
-                        {[formatBadge(tour.format), when(tour.startsAt)]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </Typography>
-                      {tour.startsAt ? (
-                        <StartCountdown at={tour.startsAt} color={color.accent} />
-                      ) : null}
-                      {tour.maxEntries ? (
-                        <Progress value={tour.entries ?? 0} max={tour.maxEntries} />
-                      ) : null}
-                      <Box
-                        component="span"
-                        sx={{
-                          mt: 'auto',
-                          alignSelf: 'flex-start',
-                          px: 2.25,
-                          py: 1.25,
-                          borderRadius: radii.pill,
-                          bgcolor: tour.registrationOpen ? color.accent : color.paper3,
-                          color: tour.registrationOpen ? color.accentInk : color.ink,
-                          fontWeight: 600,
-                          fontSize: '0.875rem',
-                        }}
-                      >
-                        {tour.registrationOpen ? t('home.signup.cta') : t('home.signup.view')}
-                      </Box>
-                    </Box>
-                  </Box>
-                ))}
-                {Array.from({ length: Math.max(0, 3 - signups.length) }, (_, i) => (
-                  <Box
-                    key={`signup-slot-${i}`}
-                    sx={{
-                      display: {
-                        xs: i === 0 && signups.length === 0 ? 'flex' : 'none',
-                        md: 'flex',
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: 'minmax(0, 1fr)',
+                        sm: 'repeat(2, minmax(0, 1fr))',
+                        md: 'repeat(3, minmax(0, 1fr))',
                       },
-                      flexDirection: 'column',
+                      gap: 2.5,
                     }}
                   >
-                    <Placeholder
-                      art={i + 1}
-                      icon={<CalendarPlusIcon size={22} />}
-                      title={
-                        i === 0 && signups.length === 0
-                          ? t('home.empty.signupTitle')
-                          : t('home.empty.slotTitle')
-                      }
-                      hint={
-                        i === 0 && signups.length === 0
-                          ? t('home.empty.signupHint')
-                          : t('home.empty.slotHint')
-                      }
-                      grow
-                    />
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-
-            {quiet && finished[0] ? (
-              <LastTime tournament={finished[0]} />
-            ) : (
-              <Box component="section" aria-labelledby="home-champions-title">
-                <SectionTitle
-                  id="home-champions-title"
-                  title={t('home.champions.title')}
-                  aside={t('home.champions.aside')}
-                  link={{ to: paths.tournamentList, label: t('home.champions.all') }}
-                />
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(3, minmax(0, 1fr))' },
-                    gap: 2.5,
-                  }}
-                >
-                  {champions.map((tour) => (
-                    <Box
-                      key={tour.id}
-                      component={RouterLink}
-                      to={tournamentTabPath(tour.id)}
-                      data-testid={`home-champion-${tour.id}`}
-                      sx={{
-                        p: 2.25,
-                        borderRadius: '20px',
-                        bgcolor: color.paper2,
-                        border: `1px solid ${color.rule}`,
-                        color: color.ink,
-                        textDecoration: 'none',
-                        display: 'grid',
-                        gridTemplateColumns: 'auto minmax(0, 1fr)',
-                        gap: 1.75,
-                        alignItems: 'center',
-                        '&:hover': { borderColor: color.muted },
-                      }}
-                    >
+                    {signups.map((tour) => (
                       <Box
+                        key={tour.id}
+                        component={RouterLink}
+                        to={tournamentTabPath(tour.id)}
+                        data-testid={`home-pick-${tour.id}`}
                         sx={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: '14px',
-                          bgcolor: 'rgba(232,176,75,0.16)',
-                          color: color.medalGold,
-                          display: 'grid',
-                          placeItems: 'center',
-                        }}
-                      >
-                        <TrophyIcon size={24} />
-                      </Box>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontWeight: 600 }}>
-                          {tour.winner?.name ?? tour.name}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.8125rem', color: color.muted }}>
-                          {tour.winner
-                            ? t('home.champions.won', { name: tour.name })
-                            : t('home.champions.finished')}
-                          {tour.completedAt
-                            ? ` · ${new Date(tour.completedAt).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })}`
-                            : ''}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  ))}
-                  {Array.from({ length: 3 - champions.length }, (_, i) => (
-                    <Box
-                      key={`champion-slot-${i}`}
-                      sx={{
-                        display: {
-                          xs: i === 0 && champions.length === 0 ? 'grid' : 'none',
-                          md: 'grid',
-                        },
-                        p: 2.25,
-                        borderRadius: '20px',
-                        border: `1px dashed ${color.rule}`,
-                        gridTemplateColumns: 'auto minmax(0, 1fr)',
-                        gap: 1.75,
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: '14px',
+                          borderRadius: radii.lg,
+                          overflow: 'hidden',
                           bgcolor: color.paper2,
-                          color: color.muted,
-                          display: 'grid',
-                          placeItems: 'center',
+                          border: `1px solid ${color.rule}`,
+                          color: color.ink,
+                          textDecoration: 'none',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          '&:hover': { borderColor: color.muted },
                         }}
                       >
-                        <TrophyIcon size={24} />
+                        <Box sx={{ height: 120, ...artSx(tour.id, tour.bannerUrl) }} />
+                        <Box
+                          sx={{
+                            p: 2.5,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 1.5,
+                            flex: 1,
+                          }}
+                        >
+                          <Typography
+                            sx={{ fontFamily: fontDisplay, fontSize: '1.25rem', fontWeight: 600 }}
+                          >
+                            {tour.name}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.875rem', color: color.ink2 }}>
+                            {[formatBadge(tour.format), when(tour.startsAt)]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </Typography>
+                          {tour.startsAt ? (
+                            <StartCountdown at={tour.startsAt} color={color.accent} />
+                          ) : null}
+                          {tour.maxEntries ? (
+                            <Progress value={tour.entries ?? 0} max={tour.maxEntries} />
+                          ) : null}
+                          <Box
+                            component="span"
+                            sx={{
+                              mt: 'auto',
+                              alignSelf: 'flex-start',
+                              px: 2.25,
+                              py: 1.25,
+                              borderRadius: radii.pill,
+                              bgcolor: tour.registrationOpen ? color.accent : color.paper3,
+                              color: tour.registrationOpen ? color.accentInk : color.ink,
+                              fontWeight: 600,
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            {tour.registrationOpen ? t('home.signup.cta') : t('home.signup.view')}
+                          </Box>
+                        </Box>
                       </Box>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontWeight: 600, color: color.ink2 }}>
-                          {t('home.empty.championTitle')}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.8125rem', color: color.muted }}>
-                          {t('home.empty.championHint')}
-                        </Typography>
+                    ))}
+                    {Array.from({ length: Math.max(0, 3 - signups.length) }, (_, i) => (
+                      <Box
+                        key={`signup-slot-${i}`}
+                        sx={{
+                          display: {
+                            xs: i === 0 && signups.length === 0 ? 'flex' : 'none',
+                            md: 'flex',
+                          },
+                          flexDirection: 'column',
+                        }}
+                      >
+                        <Placeholder
+                          art={i + 1}
+                          icon={<CalendarPlusIcon size={22} />}
+                          title={
+                            i === 0 && signups.length === 0
+                              ? t('home.empty.signupTitle')
+                              : t('home.empty.slotTitle')
+                          }
+                          hint={
+                            i === 0 && signups.length === 0
+                              ? t('home.empty.signupHint')
+                              : t('home.empty.slotHint')
+                          }
+                          grow
+                        />
                       </Box>
-                    </Box>
-                  ))}
+                    ))}
+                  </Box>
                 </Box>
-              </Box>
+
+                {quiet && finished[0] ? (
+                  <LastTime tournament={finished[0]} />
+                ) : (
+                  <Box component="section" aria-labelledby="home-champions-title">
+                    <SectionTitle
+                      id="home-champions-title"
+                      title={t('home.champions.title')}
+                      aside={t('home.champions.aside')}
+                      link={{ to: paths.tournamentList, label: t('home.champions.all') }}
+                    />
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: {
+                          xs: 'minmax(0, 1fr)',
+                          md: 'repeat(3, minmax(0, 1fr))',
+                        },
+                        gap: 2.5,
+                      }}
+                    >
+                      {champions.map((tour) => (
+                        <Box
+                          key={tour.id}
+                          component={RouterLink}
+                          to={tournamentTabPath(tour.id)}
+                          data-testid={`home-champion-${tour.id}`}
+                          sx={{
+                            p: 2.25,
+                            borderRadius: '20px',
+                            bgcolor: color.paper2,
+                            border: `1px solid ${color.rule}`,
+                            color: color.ink,
+                            textDecoration: 'none',
+                            display: 'grid',
+                            gridTemplateColumns: 'auto minmax(0, 1fr)',
+                            gap: 1.75,
+                            alignItems: 'center',
+                            '&:hover': { borderColor: color.muted },
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: '14px',
+                              bgcolor: 'rgba(232,176,75,0.16)',
+                              color: color.medalGold,
+                              display: 'grid',
+                              placeItems: 'center',
+                            }}
+                          >
+                            <TrophyIcon size={24} />
+                          </Box>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={{ fontWeight: 600 }}>
+                              {tour.winner?.name ?? tour.name}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.8125rem', color: color.muted }}>
+                              {tour.winner
+                                ? t('home.champions.won', { name: tour.name })
+                                : t('home.champions.finished')}
+                              {tour.completedAt
+                                ? ` · ${new Date(tour.completedAt).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })}`
+                                : ''}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                      {Array.from({ length: 3 - champions.length }, (_, i) => (
+                        <Box
+                          key={`champion-slot-${i}`}
+                          sx={{
+                            display: {
+                              xs: i === 0 && champions.length === 0 ? 'grid' : 'none',
+                              md: 'grid',
+                            },
+                            p: 2.25,
+                            borderRadius: '20px',
+                            border: `1px dashed ${color.rule}`,
+                            gridTemplateColumns: 'auto minmax(0, 1fr)',
+                            gap: 1.75,
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: '14px',
+                              bgcolor: color.paper2,
+                              color: color.muted,
+                              display: 'grid',
+                              placeItems: 'center',
+                            }}
+                          >
+                            <TrophyIcon size={24} />
+                          </Box>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={{ fontWeight: 600, color: color.ink2 }}>
+                              {t('home.empty.championTitle')}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.8125rem', color: color.muted }}>
+                              {t('home.empty.championHint')}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </>
             )}
           </>
         )}

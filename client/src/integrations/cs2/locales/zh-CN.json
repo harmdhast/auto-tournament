@@ -124,6 +124,7 @@
     },
     "errors": {
       "loadMaps": "加载地图失败",
+      "retryLoadMaps": "重试",
       "defaultPoolCannotDelete": "默认地图池无法删除。",
       "setDefaultPool": "设置默认地图池失败",
       "togglePool": "切换地图池状态失败",

@@ -124,6 +124,7 @@
     },
     "errors": {
       "loadMaps": "Klarte ikke å laste kart",
+      "retryLoadMaps": "Prøv igjen",
       "defaultPoolCannotDelete": "Standard kartpool kan ikke slettes.",
       "setDefaultPool": "Klarte ikke å sette standard kartpool",
       "togglePool": "Klarte ikke å endre status på kartpool",

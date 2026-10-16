@@ -124,6 +124,7 @@
     },
     "errors": {
       "loadMaps": "Karten konnten nicht geladen werden",
+      "retryLoadMaps": "Erneut versuchen",
       "defaultPoolCannotDelete": "Der Standard-Kartenpool kann nicht gelöscht werden.",
       "setDefaultPool": "Standard-Kartenpool konnte nicht festgelegt werden",
       "togglePool": "Fehler beim Umschalten des Kartenpool-Status",
