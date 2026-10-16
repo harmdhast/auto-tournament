@@ -1422,6 +1422,55 @@ export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
     `,
   },
   {
+    // Why a Ready Up server is busy (fleet/busyReason.ts): the reason and its
+    // detail from hello, state.snapshot and server.availability.
+    id: CS2_FLEET_AVAILABILITY_REASON_MIGRATION_ID,
+    up: `
+    ALTER TABLE cs2_fleet_servers ADD COLUMN IF NOT EXISTS availability_reason TEXT;
+    ALTER TABLE cs2_fleet_servers ADD COLUMN IF NOT EXISTS availability_detail TEXT;
+`,
+  },
+  {
+    // 0 = automatic failover never moves a match to this server or keeps it
+    // as a spare; an admin can still move one there.
+    id: CS2_SERVER_FAILOVER_USE_MIGRATION_ID,
+    up: `
+    ALTER TABLE cs2_servers ADD COLUMN IF NOT EXISTS failover_use INTEGER NOT NULL DEFAULT 1;
+`,
+  },
+  {
+    // Runtime state follows its match row: a deleted match leaves none behind
+    // for a reused slug. Logs, audit and media rows stay.
+    id: CS2_MATCH_RUNTIME_CASCADE_MIGRATION_ID,
+    up: `
+    DELETE FROM cs2_match_live_state WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_match_live_state.match_slug);
+    DELETE FROM cs2_fleet_assignments WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_fleet_assignments.match_slug);
+    DELETE FROM cs2_fleet_failovers WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_fleet_failovers.match_slug);
+    DELETE FROM cs2_match_round_backups WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_match_round_backups.match_slug);
+    DELETE FROM cs2_match_round_backup_parts WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_match_round_backup_parts.match_slug);
+    DELETE FROM cs2_match_round_restores WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_match_round_restores.match_slug);
+    ALTER TABLE cs2_match_live_state DROP CONSTRAINT IF EXISTS cs2_match_live_state_match_slug_fkey;
+    ALTER TABLE cs2_match_live_state ADD CONSTRAINT cs2_match_live_state_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
+    ALTER TABLE cs2_fleet_assignments DROP CONSTRAINT IF EXISTS cs2_fleet_assignments_match_slug_fkey;
+    ALTER TABLE cs2_fleet_assignments ADD CONSTRAINT cs2_fleet_assignments_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
+    ALTER TABLE cs2_fleet_failovers DROP CONSTRAINT IF EXISTS cs2_fleet_failovers_match_slug_fkey;
+    ALTER TABLE cs2_fleet_failovers ADD CONSTRAINT cs2_fleet_failovers_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
+    ALTER TABLE cs2_match_round_backups DROP CONSTRAINT IF EXISTS cs2_match_round_backups_match_slug_fkey;
+    ALTER TABLE cs2_match_round_backups ADD CONSTRAINT cs2_match_round_backups_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
+    ALTER TABLE cs2_match_round_backup_parts DROP CONSTRAINT IF EXISTS cs2_match_round_backup_parts_match_slug_fkey;
+    ALTER TABLE cs2_match_round_backup_parts ADD CONSTRAINT cs2_match_round_backup_parts_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
+    ALTER TABLE cs2_match_round_restores DROP CONSTRAINT IF EXISTS cs2_match_round_restores_match_slug_fkey;
+    ALTER TABLE cs2_match_round_restores ADD CONSTRAINT cs2_match_round_restores_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
+`,
+  },
+  {
+    // The sides played in the round, sent back with a resume / restore.
+    id: CS2_ROUND_BACKUP_SIDES_MIGRATION_ID,
+    up: `
+    ALTER TABLE cs2_match_round_backups ADD COLUMN IF NOT EXISTS round_sides TEXT;
+`,
+  },
+  {
     id: '044-recorder-update-requests',
     up: `
       ALTER TABLE cs2_recorders ADD COLUMN IF NOT EXISTS update_id TEXT;
@@ -1615,54 +1664,5 @@ export const CS2_MIGRATIONS: ReadonlyArray<ModuleMigration> = [
       CREATE INDEX IF NOT EXISTS cs2_movement_records_board
         ON cs2_movement_records(map, mode, course, time_ms);
     `,
-  },
-  {
-    // Why a Ready Up server is busy (fleet/busyReason.ts): the reason and its
-    // detail from hello, state.snapshot and server.availability.
-    id: CS2_FLEET_AVAILABILITY_REASON_MIGRATION_ID,
-    up: `
-    ALTER TABLE cs2_fleet_servers ADD COLUMN IF NOT EXISTS availability_reason TEXT;
-    ALTER TABLE cs2_fleet_servers ADD COLUMN IF NOT EXISTS availability_detail TEXT;
-`,
-  },
-  {
-    // 0 = automatic failover never moves a match to this server or keeps it
-    // as a spare; an admin can still move one there.
-    id: CS2_SERVER_FAILOVER_USE_MIGRATION_ID,
-    up: `
-    ALTER TABLE cs2_servers ADD COLUMN IF NOT EXISTS failover_use INTEGER NOT NULL DEFAULT 1;
-`,
-  },
-  {
-    // Runtime state follows its match row: a deleted match leaves none behind
-    // for a reused slug. Logs, audit and media rows stay.
-    id: CS2_MATCH_RUNTIME_CASCADE_MIGRATION_ID,
-    up: `
-    DELETE FROM cs2_match_live_state WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_match_live_state.match_slug);
-    DELETE FROM cs2_fleet_assignments WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_fleet_assignments.match_slug);
-    DELETE FROM cs2_fleet_failovers WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_fleet_failovers.match_slug);
-    DELETE FROM cs2_match_round_backups WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_match_round_backups.match_slug);
-    DELETE FROM cs2_match_round_backup_parts WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_match_round_backup_parts.match_slug);
-    DELETE FROM cs2_match_round_restores WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.slug = cs2_match_round_restores.match_slug);
-    ALTER TABLE cs2_match_live_state DROP CONSTRAINT IF EXISTS cs2_match_live_state_match_slug_fkey;
-    ALTER TABLE cs2_match_live_state ADD CONSTRAINT cs2_match_live_state_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
-    ALTER TABLE cs2_fleet_assignments DROP CONSTRAINT IF EXISTS cs2_fleet_assignments_match_slug_fkey;
-    ALTER TABLE cs2_fleet_assignments ADD CONSTRAINT cs2_fleet_assignments_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
-    ALTER TABLE cs2_fleet_failovers DROP CONSTRAINT IF EXISTS cs2_fleet_failovers_match_slug_fkey;
-    ALTER TABLE cs2_fleet_failovers ADD CONSTRAINT cs2_fleet_failovers_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
-    ALTER TABLE cs2_match_round_backups DROP CONSTRAINT IF EXISTS cs2_match_round_backups_match_slug_fkey;
-    ALTER TABLE cs2_match_round_backups ADD CONSTRAINT cs2_match_round_backups_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
-    ALTER TABLE cs2_match_round_backup_parts DROP CONSTRAINT IF EXISTS cs2_match_round_backup_parts_match_slug_fkey;
-    ALTER TABLE cs2_match_round_backup_parts ADD CONSTRAINT cs2_match_round_backup_parts_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
-    ALTER TABLE cs2_match_round_restores DROP CONSTRAINT IF EXISTS cs2_match_round_restores_match_slug_fkey;
-    ALTER TABLE cs2_match_round_restores ADD CONSTRAINT cs2_match_round_restores_match_slug_fkey FOREIGN KEY (match_slug) REFERENCES matches(slug) ON DELETE CASCADE;
-`,
-  },
-  {
-    // The sides played in the round, sent back with a resume / restore.
-    id: CS2_ROUND_BACKUP_SIDES_MIGRATION_ID,
-    up: `
-    ALTER TABLE cs2_match_round_backups ADD COLUMN IF NOT EXISTS round_sides TEXT;
-`,
   },
 ];
