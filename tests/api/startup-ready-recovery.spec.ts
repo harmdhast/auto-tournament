@@ -16,8 +16,12 @@ const FIRST = `ready-recovery-a-${stamp}`;
 const LATER = `ready-recovery-b-${stamp}`;
 
 const serverOf = async (slug: string) =>
-  (await db.queryOneAsync<{ server_id: string | null }>('SELECT server_id FROM matches WHERE slug = ?', [slug]))
-    ?.server_id ?? null;
+  (
+    await db.queryOneAsync<{ server_id: string | null }>(
+      'SELECT server_id FROM matches WHERE slug = ?',
+      [slug]
+    )
+  )?.server_id ?? null;
 
 const addReadyMatch = (slug: string) =>
   db.insertAsync('matches', {
@@ -33,7 +37,13 @@ const addReadyMatch = (slug: string) =>
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
-  await db.insertAsync('cs2_servers', { id: SERVER, name: SERVER, host: '127.0.0.1', port: 27015, password: 'x' });
+  await db.insertAsync('cs2_servers', {
+    id: SERVER,
+    name: SERVER,
+    host: '127.0.0.1',
+    port: 27015,
+    password: 'x',
+  });
 });
 
 test.afterAll(async () => {
