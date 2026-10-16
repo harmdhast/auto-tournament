@@ -107,4 +107,38 @@ test.describe('admin needs a session', () => {
       await ctx.dispose();
     }
   });
+
+  test(
+    'admin-status ignores a session that belongs to someone else',
+    TAGS,
+    async ({ playwright }) => {
+      const idA = `7656119${Math.floor(Math.random() * 1e10)
+        .toString()
+        .padStart(10, '0')}`;
+      const a = await playwright.request.newContext({ baseURL: BASE_URL });
+      const b = await adminLogin(playwright);
+      try {
+        expect((await a.post('/api/test/login-admin', { data: { steamId: idA } })).ok()).toBe(true);
+        const demote = await b.ctx.put(`/api/players/${idA}`, { data: { isAdmin: false } });
+        expect(demote.ok(), await demote.text()).toBe(true);
+        const sessionA = (await a.storageState()).cookies.filter((c) => c.name === 'at.sid');
+        const cookieB = (await b.ctx.storageState()).cookies.filter(
+          (c) => c.name === 'player_steam_id'
+        );
+        const mixed = await playwright.request.newContext({
+          baseURL: BASE_URL,
+          storageState: { cookies: [...sessionA, ...cookieB], origins: [] },
+        });
+        try {
+          const status = await (await mixed.get('/api/auth/admin-status')).json();
+          expect(status.isAdmin).toBe(false);
+        } finally {
+          await mixed.dispose();
+        }
+      } finally {
+        await a.dispose();
+        await b.ctx.dispose();
+      }
+    }
+  );
 });

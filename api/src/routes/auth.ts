@@ -1658,7 +1658,7 @@ router.get('/admin-status', async (req: Request, res: Response) => {
     }
 
     const steamId = getVerifiedPlayerSteamId(req.headers.cookie);
-    const hasSession = !!(req as Request & { user?: { steamId?: string } }).user?.steamId;
+    const hasSession = (req as Request & { user?: { steamId?: string } }).user?.steamId === steamId;
 
     if (!steamId) {
       return res.json({
