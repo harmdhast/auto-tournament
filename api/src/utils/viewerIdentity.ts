@@ -5,7 +5,8 @@
  * to answer one question: *which Steam user is this request acting as?*
  *
  * There are two answers:
- *  - **real**: who actually signed in (Passport session or signed player cookie)
+ *  - **real**: who actually signed in (Passport session or signed player cookie;
+ *    the cookie alone never makes them an admin)
  *  - **effective**: who they are acting as – identical to `real`, unless a
  *    verified admin has started an impersonation session.
  *
@@ -29,19 +30,21 @@ export interface ViewerIdentity {
   isRealAdmin: boolean;
 }
 
+/** The Steam ID of the Passport session, or null without one. */
+function getSessionSteamId(req: Request): string | null {
+  const sessionSteamId = (req as Request & { user?: { steamId?: string } }).user?.steamId;
+  return typeof sessionSteamId === 'string' && sessionSteamId.trim().length > 0
+    ? sessionSteamId.trim()
+    : null;
+}
+
 /**
  * Resolve the Steam ID of the actually-authenticated user, ignoring any
  * impersonation. Prefers the Passport session, falling back to the signed
- * player_steam_id cookie.
+ * player_steam_id cookie. Only the session can make this user an admin.
  */
 export function getRealViewerSteamId(req: Request): string | null {
-  const anyReq = req as Request & { user?: { steamId?: string } };
-  const sessionSteamId = anyReq.user?.steamId;
-  if (typeof sessionSteamId === 'string' && sessionSteamId.trim().length > 0) {
-    return sessionSteamId.trim();
-  }
-
-  return getVerifiedPlayerSteamId(req.headers.cookie);
+  return getSessionSteamId(req) ?? getVerifiedPlayerSteamId(req.headers.cookie);
 }
 
 async function isAdminSteamId(steamId: string): Promise<boolean> {
@@ -60,6 +63,8 @@ async function isAdminSteamId(steamId: string): Promise<boolean> {
  */
 export async function resolveViewerIdentity(req: Request): Promise<ViewerIdentity> {
   const realSteamId = getRealViewerSteamId(req);
+  const hasSession = getSessionSteamId(req) !== null;
+  const isAdmin = async (id: string) => hasSession && (await isAdminSteamId(id).catch(() => false));
 
   if (!realSteamId) {
     return {
@@ -77,11 +82,11 @@ export async function resolveViewerIdentity(req: Request): Promise<ViewerIdentit
       realSteamId,
       effectiveSteamId: realSteamId,
       isImpersonating: false,
-      isRealAdmin: await isAdminSteamId(realSteamId).catch(() => false),
+      isRealAdmin: await isAdmin(realSteamId),
     };
   }
 
-  const isRealAdmin = await isAdminSteamId(realSteamId).catch(() => false);
+  const isRealAdmin = await isAdmin(realSteamId);
 
   if (!isRealAdmin) {
     // Cookie present but the requester is not an admin – ignore it entirely.

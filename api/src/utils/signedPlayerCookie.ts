@@ -1,10 +1,11 @@
 /**
  * Signed player_steam_id cookie.
  *
- * We use the player_steam_id cookie for admin auth (when Passport session is
- * missing, e.g. behind Cloudflare Tunnel). The cookie is only set server-side
- * after Steam/OAuth login. To prevent forgery (e.g. setting it to an admin's
- * Steam ID in devtools), we sign it with SESSION_SECRET and verify on read.
+ * The player_steam_id cookie names the signed-in player for player-facing
+ * endpoints. It never grants admin: that needs the Passport session. The cookie
+ * is only set server-side after Steam/OAuth login. To prevent forgery (e.g.
+ * setting it to another player's Steam ID in devtools), we sign it with
+ * SESSION_SECRET and verify on read.
  *
  * The value is `<id>|<iat>|<exp>.<sig>` (seconds since the epoch), signed as
  * `player:<id>|<iat>|<exp>`; it stops verifying after `exp`. Older forms
