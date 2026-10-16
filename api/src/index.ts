@@ -205,7 +205,10 @@ if (sessionCookieDomain) {
 // Persist sessions in PostgreSQL so admin logins survive API restarts.
 // Note: Session table is created by our database schema, so we don't need
 // connect-pg-simple to create it (which would require table.sql file).
-const sessionPool = new Pool({ connectionString: sessionDbConnectionString, max: 5 });
+const sessionPool = new Pool({
+  connectionString: sessionDbConnectionString,
+  max: Number(process.env.SESSION_DB_POOL_MAX) || 5,
+});
 sessionPool.on('error', (err) => log.error('Session store connection error', err));
 const newSessionStore = (opts: { pruneSessionInterval?: false } = {}) =>
   new PgSession({
