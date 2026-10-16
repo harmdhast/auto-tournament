@@ -26,6 +26,7 @@ done
 
 OUT="$ROOT/logs/local-shards-$BASE"
 FIX=$((BASE + 99))
+WEIGHTS="$ROOT/logs/local-shard-weights.json"
 export DB_HOST=${DB_HOST:-127.0.0.1} DB_PORT=${DB_PORT:-5432} DB_USER=${DB_USER:-postgres} DB_PASSWORD=${DB_PASSWORD:-postgres}
 mkdir -p "$OUT"
 cd "$ROOT"
@@ -124,21 +125,23 @@ for i in $(seq 1 "$N"); do
   healthy "$i" || { echo "stack $i did not start, see $OUT/api-$i.log"; tail -5 "$OUT/api-$i.log"; exit 1; }
 done
 
+rm -f "$OUT"/timing-*.json
 start=$(date +%s)
 pids=()
 for i in $(seq 1 "$N"); do
   rm -f "$OUT/shard-$i.txt"
-  files=$(node tests/ci-shard.mjs "$i" "$N")
+  files=$(CI_SHARD_WEIGHTS="$WEIGHTS" node tests/ci-shard.mjs "$i" "$N")
   [ -z "$files" ] && continue
   # shellcheck disable=SC2086
-  SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL="http://localhost:$(web_port "$i")" BASE_URL="http://localhost:$(web_port "$i")" DB_NAME=$(db_name "$i") \
-    node_modules/.bin/playwright test -c tests/playwright.config.ts --reporter=list \
+  PLAYWRIGHT_JSON_OUTPUT_NAME="$OUT/timing-$i.json" SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL="http://localhost:$(web_port "$i")" BASE_URL="http://localhost:$(web_port "$i")" DB_NAME=$(db_name "$i") \
+    node_modules/.bin/playwright test -c tests/playwright.config.ts --reporter=list,json \
     --output "$OUT/results-$i" $files >"$OUT/shard-$i.txt" 2>&1 &
   pids+=($!)
 done
 status=0
 for p in "${pids[@]}"; do wait "$p" || status=1; done
 
+node scripts/merge-shard-timings.mjs "$WEIGHTS" "$OUT"/timing-*.json
 echo "ran in $(($(date +%s) - start))s"
 for i in $(seq 1 "$N"); do
   [ -f "$OUT/shard-$i.txt" ] || continue
