@@ -43,9 +43,11 @@ CS2 ships as a signed module in the image's offline snapshot. The workflow signs
 
 ## Migrations
 
-`custom` keeps every branch migration's id and SQL unchanged, appended after upstream's list in merge order. Merging the same branch upstream later is then a no-op on a database that ran `custom`. If upstream ships a branch with different ids or SQL, the database needs a manual reconcile.
+`custom` keeps every branch migration's id and SQL unchanged. Merging the same branch upstream later is then a no-op on a database that ran `custom`. If upstream ships a branch with different ids or SQL, the database needs a manual reconcile.
 
-Fork-only migrations (`api/src/integrations/cs2/migrations.ts`, after upstream's `058-movement-records`):
+The runner refuses a pending migration declared before one already applied, so order is part of the contract: fork-only entries keep their position, and every later migration (upstream's or the fork's) is appended at the end of the list in merge order. Never insert before an existing entry.
+
+Fork-only migrations (`api/src/integrations/cs2/migrations.ts`, right after upstream's `043-recorder-host-identity`, where `custom` first shipped them):
 
 | id                              | branch                       |
 | ------------------------------- | ---------------------------- |
@@ -55,6 +57,8 @@ Fork-only migrations (`api/src/integrations/cs2/migrations.ts`, after upstream's
 | `051-round-backup-sides`        | feat/backup-round-sides      |
 
 Their numbers overlap upstream's `037-*`, `040-*`, `050-player-roles` and `051-skin-choices` ids; ids are unique strings and the runner applies the list in array order, so only the full id matters.
+
+A `custom` database from any point (before the first upstream sync, between syncs, current) plans cleanly (`tests/api/cs2-migration-order.spec.ts`). Known limitation: a database that ran upstream alone up to `044`..`058` and then switches to `custom` is refused (the fork entries are declared before applied `044`..`058`); reconcile it by hand.
 
 ## Branches
 
@@ -98,6 +102,7 @@ Conflict columns and resolution notes are historical: they compare against upstr
 | chore/deps                                                                      | Dependency bumps: socket.io stack, nodemailer 10, react-router-dom 6.30.6, faker to devDependencies; root `package.json` `resolutions` pins axios, engine.io, socket.io-parser, qs, ws                                                                                                                                                                                                                                                     | merged                | cut from `custom`, not compared with upstream                                                             | none                                                                                     |
 | fix/security-auth, fix/security-fleet, fix/security-routes (integrate/security) | Security hardening of sign-in, cookies, fleet enrollment and inbound messages, test endpoints and admin routes; details held until upstream disclosure                                                                                                                                                                                                                                                                                     | merged                | cut from `custom`, not compared with upstream                                                             | none                                                                                     |
 | tooling/local-shards                                                            | `scripts/test-local-shards.sh`: the E2E suite on N parallel local stacks (own database, API from source, vite dev), files packed by `tests/ci-shard.mjs`, CI e2e env, `--since <ref>` runs only the specs `tests/ci-affected.mjs` picks                                                                                                                                                                                                    | committed             | none                                                                                                      | none                                                                                     |
+| fix/migration-order                                                             | Fork-only CS2 migrations sit right after `043-recorder-host-identity`, so databases that ran `custom` before an upstream sync still migrate                                                                                                                                                                                                                                                                                                | committed             | none                                                                                                      | none                                                                                     |
 
 Resolved in custom:
 
