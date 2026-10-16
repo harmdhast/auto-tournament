@@ -1,6 +1,12 @@
+import fs from 'fs';
+import path from 'path';
 import { test, expect } from '@playwright/test';
 import { setupTestContext } from '../helpers/setup';
 import { getAuthHeader } from '../helpers/auth';
+
+const readFileFailed: string = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '../../client/src/integrations/cs2/locales/en.json'), 'utf8')
+).mapModal.errors.readFileFailed;
 
 /**
  * Maps UI tests
@@ -247,6 +253,23 @@ test.describe.serial('Tournament Map Pool Selection', () => {
       await page.unroute('**/api/maps', failing);
       await alert.getByRole('button').click();
       await expect(page.getByTestId('maps-list')).toBeVisible();
+    }
+  );
+
+  test(
+    'a file that is not an image is refused when chosen',
+    { tag: ['@ui', '@maps', '@validation'] },
+    async ({ page }) => {
+      await page.goto('/manage/maps');
+      await page.getByTestId('add-map-button').click();
+      const modal = page.getByTestId('map-modal');
+      await expect(modal).toBeVisible();
+      await modal.locator('#map-image-upload').setInputFiles({
+        name: 'notimg.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('this is not an image'),
+      });
+      await expect(modal.getByRole('alert')).toContainText(readFileFailed);
     }
   );
 });
