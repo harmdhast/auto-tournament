@@ -475,9 +475,7 @@ router.post(
           return;
         }
 
-        // Also set the signed player_steam_id cookie so that auth can fall back to
-        // cookie-based admin resolution in environments where the session cookie
-        // is not persisted (e.g. some reverse proxy / browser combinations).
+        // The signed player_steam_id cookie, as a real sign-in sets it.
         res.cookie('player_steam_id', signPlayerSteamId(testSteamId), {
           httpOnly: false,
           // Test helpers must work over plain HTTP in E2E containers.
@@ -505,7 +503,7 @@ router.post(
 );
 
 /**
- * Test-only helper: create a non-admin player session (signed player_steam_id cookie only).
+ * Test-only helper: create a non-admin player identity (signed player_steam_id cookie only).
  * Used to verify that normal users cannot access admin UI or API.
  *
  * POST /api/test/login-player
