@@ -515,7 +515,7 @@ export function YourMatchCard({
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
+            gridTemplateColumns: { xs: 'minmax(0,1fr)', sm: 'minmax(0,1fr) auto minmax(0,1fr)' },
             alignItems: 'center',
             gap: { xs: 1.5, md: 3 },
           }}
@@ -547,7 +547,15 @@ export function YourMatchCard({
               )}
             </Box>
           </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 0.5,
+              justifySelf: { xs: 'start', sm: 'center' },
+            }}
+          >
             {score}
             <Typography
               sx={{
@@ -566,17 +574,17 @@ export function YourMatchCard({
               display: 'flex',
               alignItems: 'center',
               gap: 2,
-              justifyContent: 'flex-end',
+              justifyContent: { xs: 'flex-start', sm: 'flex-end' },
               minWidth: 0,
             }}
           >
-            <Box sx={{ minWidth: 0, textAlign: 'right' }}>
+            <Box sx={{ minWidth: 0, textAlign: { xs: 'left', sm: 'right' } }}>
               <Typography
                 sx={{
                   fontFamily: fontDisplay,
                   fontSize: { xs: '1.125rem', md: '1.625rem' },
                   fontWeight: 700,
-                  textAlign: 'right',
+                  textAlign: { xs: 'left', sm: 'right' },
                   overflowWrap: 'anywhere',
                 }}
               >

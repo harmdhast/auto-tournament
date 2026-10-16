@@ -9,6 +9,7 @@ import { setupTournament } from '../helpers/tournamentSetup';
 import { findMatchByTeams } from '../helpers/matches';
 import { actingSteamIdFor } from '../helpers/veto';
 import { openOwnMatchRoom } from '../helpers/matchRoom';
+import { updateTeam } from '../helpers/teams';
 
 /**
  * The match room (`/match/:slug`) is the only place a match is played from:
@@ -114,5 +115,21 @@ test.describe.serial('Match room', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       390
     );
+  });
+
+  test('long team names stack above the score on a phone', TAGS, async ({ page, request }) => {
+    await signInViaRequest(request);
+    const long = 'A'.repeat(40);
+    expect(await updateTeam(request, team1Id, { name: `${long} Alpha` })).toBeTruthy();
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await impersonatePlayer(page.request, player)).toBe(true);
+    await openOwnMatchRoom(page);
+    await expect(page.getByTestId('veto-interface')).toBeVisible({ timeout: 20000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390
+    );
+    const name = page.getByText(long).first();
+    await expect(name).toBeVisible();
+    expect((await name.boundingBox())!.height).toBeLessThan(200);
   });
 });
