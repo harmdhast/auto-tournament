@@ -135,6 +135,18 @@ test.describe.serial('Skins catalogue picker', () => {
     }
   );
 
+  test(
+    'the pick dialog does not scroll sideways on a phone',
+    { tag: ['@ui'] },
+    async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      const dialog = await openPick(page);
+      const paper = page.locator('.MuiDialog-paper');
+      const overflow = await paper.evaluate((el) => el.scrollWidth - el.clientWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    }
+  );
+
   test('a one-side weapon asks no side', { tag: ['@ui'] }, async ({ page }) => {
     await page.goto('/inventory');
     await catalogue(page).click();
