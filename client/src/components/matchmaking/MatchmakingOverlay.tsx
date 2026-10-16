@@ -123,9 +123,11 @@ export function MatchmakingOverlay() {
           data-testid="mm-queue-bar"
           sx={(theme) => ({
             position: 'fixed',
-            left: '50%',
+            left: 16,
+            right: 16,
+            width: 'fit-content',
+            mx: 'auto',
             bottom: 16,
-            transform: 'translateX(-50%)',
             zIndex: theme.zIndex.snackbar - 1,
             display: 'flex',
             alignItems: 'center',
