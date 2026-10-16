@@ -565,6 +565,8 @@ class HostSession {
   /** Write one outbox message; secrets are minted here, never stored. */
   private async sendReliable(env: Envelope): Promise<boolean> {
     let out = env;
+    // Rewritten as expired (./service.ts vetQueued): no secret for a command that will not run.
+    const expired = Number((env.payload as { expires_at?: unknown }).expires_at) <= Date.now();
     if (env.type === 'auth.rotate') {
       const p = env.payload as { token_id?: string; old_valid_until?: number };
       const token = p.token_id ? await registry.mintHostRotationSecret(p.token_id) : null;
@@ -575,6 +577,7 @@ class HostSession {
       }
       out = { ...env, payload: { token, old_valid_until: p.old_valid_until } };
     } else if (
+      !expired &&
       env.type === 'server.create' &&
       (env.payload as { enroll?: boolean }).enroll === true
     ) {
@@ -586,7 +589,7 @@ class HostSession {
         namePrefix: null,
       });
       out = { ...env, payload: { ...env.payload, enroll_key: key } };
-    } else if (env.type === 'server.enroll') {
+    } else if (!expired && env.type === 'server.enroll') {
       const p = env.payload as { servers?: string[] };
       const key = await registry.mintCreateKey({
         hostId: this.hostId as string,

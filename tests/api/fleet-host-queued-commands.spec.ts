@@ -117,15 +117,25 @@ test.describe.serial('Fleet host: commands queued for an offline machine', () =>
     return csm;
   }
 
-  test('a queued disruptive command carries an expiry', async ({ request }) => {
+  test('a queued disruptive command has a delivery deadline the platform keeps', async ({
+    request,
+  }) => {
     const m = await offlineMachine(request);
     const before = Date.now();
-    await queueRestart(request, m.hostId);
+    const command = await queueRestart(request, m.hostId);
+    const record = (
+      await (
+        await request.get(`/api/fleet/hosts/${m.hostId}/commands/${command.id}`, {
+          headers: getAuthHeader(),
+        })
+      ).json()
+    ).command;
+    expect(record.meta.deadlineMs).toBeGreaterThan(before + 9 * 60_000);
+    expect(record.meta.deadlineMs).toBeLessThanOrEqual(Date.now() + 10 * 60_000);
+    // csm judges the payload against its own clock: no deadline in it while the command is fresh.
     const csm = await reconnect(m);
     const sent = await csm.nextCommand('server.restart');
-    const expiresAt = (sent.payload as { expires_at: number }).expires_at;
-    expect(expiresAt).toBeGreaterThan(before + 9 * 60_000);
-    expect(expiresAt).toBeLessThanOrEqual(Date.now() + 10 * 60_000);
+    expect(sent.payload).not.toHaveProperty('expires_at');
   });
 
   test('a command not forced is not run when its server got a match meanwhile', async ({
@@ -152,9 +162,9 @@ test.describe.serial('Fleet host: commands queued for an offline machine', () =>
   test('a command past its expiry is sent as expired, forced or not', async ({ request }) => {
     const m = await offlineMachine(request);
     const command = await queueRestart(request, m.hostId, { reason: 'test' });
-    // It waited past its expiry (set to 2 here; the platform sends 1).
+    // It waited past its deadline.
     psql(
-      `UPDATE cs2_fleet_host_outbox SET message = jsonb_set(message::jsonb, '{payload,expires_at}', '2')::text WHERE host_id = '${m.hostId}' AND type = 'server.restart'`
+      `UPDATE cs2_fleet_host_commands SET meta = jsonb_set(meta::jsonb, '{deadlineMs}', '2')::text WHERE message_id = '${command.id}'`
     );
     const csm = await reconnect(m);
     const sent = await csm.nextCommand('server.restart');

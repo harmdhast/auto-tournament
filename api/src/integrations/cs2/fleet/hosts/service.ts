@@ -182,6 +182,8 @@ export async function sendHostCommand<T extends HostCommandType>(
     issuedBy: string | null;
     force?: { reason: string } | null;
     meta?: Record<string, unknown>;
+    /** How long it may wait for an offline machine (default 10 min, 2 min when forced by the platform). */
+    expiresInMs?: number;
   } = { issuedBy: null }
 ): Promise<SentHostCommand> {
   const host = await registry.getHost(hostId);
@@ -240,13 +242,6 @@ export async function sendHostCommand<T extends HostCommandType>(
     }
   }
 
-  // A disruptive command that waits for an offline machine is not run long after: csm
-  // answers `expired` past this (the platform's own pass at delivery is vetQueued).
-  if (HOST_DISRUPTIVE_TYPES.has(type) && body.expires_at === undefined) {
-    body.expires_at =
-      Date.now() + (force?.by.startsWith('platform:') ? FORCED_TTL_MS : QUEUED_TTL_MS);
-  }
-
   const check = validateHostPayload(type, body);
   if (!check.ok)
     throw new HostCommandError(
@@ -275,6 +270,15 @@ export async function sendHostCommand<T extends HostCommandType>(
     meta = { ...(meta ?? {}), serversBefore: inventory?.servers.map((s) => s.name) ?? [] };
     if (plugins) meta.plugins = plugins;
     else delete meta.plugins;
+  }
+
+  // A disruptive command that waits for an offline machine is not run long after: the
+  // platform checks this deadline when it delivers it (vetQueued). It stays out of the
+  // payload, which csm judges against its own clock.
+  if (HOST_DISRUPTIVE_TYPES.has(type)) {
+    const ttl =
+      opts.expiresInMs ?? (force?.by.startsWith('platform:') ? FORCED_TTL_MS : QUEUED_TTL_MS);
+    meta = { ...(meta ?? {}), deadlineMs: Date.now() + ttl };
   }
 
   const id = ulid();
@@ -318,9 +322,9 @@ setQueuedVetter(async (hostId, env) => {
   const record = await registry.getHostCommand(env.id);
   if (!record || record.status !== 'pending') return env;
   const payload = env.payload as Record<string, unknown>;
-  const expiresAt = Number(payload.expires_at);
+  const deadline = Number(record.meta?.deadlineMs);
   let why: { code: string; message: string } | null = null;
-  if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
+  if (Number.isFinite(deadline) && deadline <= Date.now()) {
     why = {
       code: 'expired',
       message: 'The machine was offline too long; the command was not run.',
@@ -469,7 +473,6 @@ async function resendBusy(hostId: string, id: string): Promise<void> {
   const attempts = Number(record.meta?.busyRetries ?? 0) + 1;
   const payload = { ...record.payload };
   delete payload.force;
-  delete payload.expires_at;
   try {
     const sent = await sendHostCommand(hostId, record.type as HostCommandType, payload as never, {
       issuedBy: record.issuedBy,
