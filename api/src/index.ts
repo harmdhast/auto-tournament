@@ -559,10 +559,6 @@ process.on('uncaughtException', (err) => {
     await db.init();
     log.success('Database initialized successfully');
 
-    await releaseStrandedReadyMatches().catch((error) => {
-      log.warn('Failed to release matches stranded in allocation', { error });
-    });
-
     // Music an earlier beta downloaded by itself, gone (bring your own now).
     void import('./services/highlights/music')
       .then((m) => m.removeDownloadedCatalogue())
@@ -633,6 +629,11 @@ process.on('uncaughtException', (err) => {
     await autoUpdateModulesFromSnapshot();
     await scanDiskModules();
     await finishPendingUpdates();
+
+    // After the module scan: CS2 is a catalog module and must be loaded to drop the match.
+    await releaseStrandedReadyMatches().catch((error) => {
+      log.warn('Failed to release matches stranded in allocation', { error });
+    });
 
     // The games this instance can run: packs the image ships are kept up to
     // date where installed (none is installed on its own; PREINSTALL_PACKS
