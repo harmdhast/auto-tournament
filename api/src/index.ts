@@ -60,7 +60,7 @@ import {
 } from './modules/catalogService';
 import { installHostBridge } from './modules/hostBridge';
 import { environmentTrustedKeys } from './modules/trustedKeys';
-import { recoverActiveMatches } from './services/matchRecoveryService';
+import { recoverActiveMatches, releaseStrandedReadyMatches } from './services/matchRecoveryService';
 import { enrichBuiltinGames } from './services/gameEnrichmentService';
 import { refreshGameIcons } from './services/gameIconService';
 import { scheduler } from './core/scheduler';
@@ -651,6 +651,11 @@ process.on('uncaughtException', (err) => {
     await autoUpdateModulesFromSnapshot();
     await scanDiskModules();
     await finishPendingUpdates();
+
+    // After the module scan: CS2 is a catalog module and must be loaded to drop the match.
+    await releaseStrandedReadyMatches().catch((error) => {
+      log.warn('Failed to release matches stranded in allocation', { error });
+    });
 
     // The games this instance can run: packs the image ships are kept up to
     // date where installed (none is installed on its own; PREINSTALL_PACKS

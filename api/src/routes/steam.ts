@@ -251,6 +251,7 @@ router.get('/workshop-map', async (req: Request, res: Response) => {
       {
         method: 'POST',
         body: form,
+        timeout: 10_000,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       }
     );

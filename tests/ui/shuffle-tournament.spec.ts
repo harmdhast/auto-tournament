@@ -121,15 +121,15 @@ test.describe.serial('Shuffle Tournament UI', () => {
       // Bracket list: opening the match opens its match room (it used to blank the page).
       await page.goto('/manage/bracket');
       const list = page.getByRole('button', { name: 'List' });
+      const item = page.getByRole('listitem').filter({ hasText: '#1 · Map 1' }).first();
+      await expect(list.first().or(item).first()).toBeVisible({ timeout: 15000 });
       if (await list.count()) await list.first().click();
-      await page
-        .getByRole('listitem')
-        .filter({ hasText: '#1 · Map 1' })
-        .first()
-        .click({ force: true });
-      await expect(page).toHaveURL(/\/manage\/tournaments\/\d+\/matches\/[^/]+$/, {
-        timeout: 10000,
-      });
+      // The bracket keeps rendering after its first paint: retry until the click lands.
+      const matchUrl = /\/manage\/tournaments\/\d+\/matches\/[^/]+$/;
+      await expect(async () => {
+        if (!matchUrl.test(page.url())) await item.click({ timeout: 2000 });
+        await expect(page).toHaveURL(matchUrl, { timeout: 3000 });
+      }).toPass({ timeout: 15000 });
       await expect(page.getByTestId('manage-match-page')).toBeVisible({ timeout: 10000 });
       expect(errors).toEqual([]);
     }

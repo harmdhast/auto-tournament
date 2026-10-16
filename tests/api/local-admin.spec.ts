@@ -9,7 +9,14 @@ import {
   passwordProblem,
   verifyPassword,
 } from '../../api/src/utils/localAdminCrypto';
-import { base32Decode, base32Encode, totpAt, totpStep, verifyTotp } from '../../api/src/utils/totp';
+import {
+  TOTP_STEP_SECONDS,
+  base32Decode,
+  base32Encode,
+  totpAt,
+  totpStep,
+  verifyTotp,
+} from '../../api/src/utils/totp';
 import { LoginThrottle } from '../../api/src/utils/loginThrottle';
 import { parseAdminAccessPatch, shouldImportSetting } from '../../api/src/utils/adminAccessPatch';
 import { signInViaRequest } from '../helpers/auth';
@@ -175,6 +182,28 @@ async function testCode(request: APIRequestContext, purpose: 'setup' | 'reset'):
 
 test.describe.serial('setup, local login, TOTP and reset-admin', () => {
   let totpSecret = '';
+  let lastStep = 0;
+  let signedIn: APIRequestContext | null = null;
+
+  /**
+   * The next unused code the server accepts: it takes the current step and one
+   * either side, and refuses any step at or before the last one it accepted. A
+   * wait is only needed once the window has no later step left.
+   */
+  async function nextTotp(): Promise<string> {
+    for (;;) {
+      const now = totpStep();
+      // The earlier step only while the current one has seconds left: the server
+      // checks its window a moment after this clock read.
+      const secondsLeft = TOTP_STEP_SECONDS - ((Date.now() / 1000) % TOTP_STEP_SECONDS);
+      const step = Math.max(lastStep + 1, secondsLeft > 2 ? now - 1 : now);
+      if (step <= now + 1) {
+        lastStep = step;
+        return totpAt(totpSecret, step);
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
 
   test.beforeAll(async ({ request }) => {
     await request.post('/api/test/login-throttle/reset');
@@ -308,7 +337,7 @@ test.describe.serial('setup, local login, TOTP and reset-admin', () => {
     expect(
       (
         await ctx.post('/api/auth/local/totp/confirm', {
-          data: { code: totpAt(secret, totpStep()) },
+          data: { code: await nextTotp() },
         })
       ).status()
     ).toBe(200);
@@ -321,9 +350,8 @@ test.describe.serial('setup, local login, TOTP and reset-admin', () => {
     });
     expect(noCode.status()).toBe(401);
     expect((await noCode.json()).totpRequired).toBe(true);
-    // The step after the one used to confirm (the same step would be a replay).
     const withCode = await anon.post('/api/auth/local/login', {
-      data: { username: USER, password: PASSWORD, totp: totpAt(totpSecret, totpStep() + 1) },
+      data: { username: USER, password: PASSWORD, totp: await nextTotp() },
     });
     expect(withCode.status()).toBe(200);
     await anon.dispose();
@@ -331,10 +359,7 @@ test.describe.serial('setup, local login, TOTP and reset-admin', () => {
 
   test('TOTP: a code signs in once, even twice at the same time', TAGS, async ({ playwright }) => {
     test.setTimeout(60_000);
-    // The enrolment test spent the next step: wait for a fresh one.
-    const startStep = totpStep();
-    while (totpStep() <= startStep) await new Promise((r) => setTimeout(r, 500));
-    const totp = totpAt(totpSecret, totpStep() + 1);
+    const totp = await nextTotp();
     const a = await fresh(playwright);
     const b = await fresh(playwright);
     const results = await Promise.all(
@@ -343,8 +368,9 @@ test.describe.serial('setup, local login, TOTP and reset-admin', () => {
       )
     );
     expect(results.map((r) => r.status()).sort()).toEqual([200, 401]);
-    await a.dispose();
-    await b.dispose();
+    // The turn-off test below needs a signed-in account, and a code is dear.
+    signedIn = results[0].status() === 200 ? a : b;
+    await (signedIn === a ? b : a).dispose();
   });
 
   test(
@@ -352,21 +378,13 @@ test.describe.serial('setup, local login, TOTP and reset-admin', () => {
     TAGS,
     async ({ playwright }) => {
       test.setTimeout(120_000);
-      // Signed in with the password and a code; the enrolment test may have
-      // spent the next step already, so wait for a later one when it has.
-      const ctx = await fresh(playwright);
-      const used = totpStep() + 1;
-      const signIn = await ctx.post('/api/auth/local/login', {
-        data: { username: USER, password: PASSWORD, totp: totpAt(totpSecret, used) },
-      });
-      if (signIn.status() !== 200) {
-        while (totpStep() < used) await new Promise((r) => setTimeout(r, 500));
-        const again = await ctx.post('/api/auth/local/login', {
-          data: { username: USER, password: PASSWORD, totp: totpAt(totpSecret, totpStep() + 1) },
+      const ctx = signedIn ?? (await fresh(playwright));
+      if (!signedIn) {
+        const signIn = await ctx.post('/api/auth/local/login', {
+          data: { username: USER, password: PASSWORD, totp: await nextTotp() },
         });
-        expect(again.status(), await again.text()).toBe(200);
+        expect(signIn.status(), await signIn.text()).toBe(200);
       }
-      const spent = totpStep() + 1;
       // On already: a new secret can't replace it without turning it off first.
       expect((await ctx.post('/api/auth/local/totp/start', { data: {} })).status()).toBe(409);
       // The password alone, or a wrong code, is not enough.
@@ -382,10 +400,8 @@ test.describe.serial('setup, local login, TOTP and reset-admin', () => {
           })
         ).status()
       ).toBe(401);
-      // A code after the one just spent.
-      while (totpStep() < spent) await new Promise((r) => setTimeout(r, 500));
       const off = await ctx.post('/api/auth/local/totp/disable', {
-        data: { password: PASSWORD, totp: totpAt(totpSecret, totpStep() + 1) },
+        data: { password: PASSWORD, totp: await nextTotp() },
       });
       expect(off.status(), await off.text()).toBe(200);
       expect((await (await ctx.get('/api/auth/local/me')).json()).totpEnabled).toBe(false);
