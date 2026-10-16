@@ -46,3 +46,37 @@ test('cs2 migrations upgrade an install that applied 031-035 in id order', TAGS,
   if ('error' in plan) return;
   expect(plan.pending.map((m) => m.id)).not.toContain('032-fleet-key-auto-link');
 });
+
+/**
+ * Fork-only migrations (037-fleet-availability-reason, 040-server-failover-use,
+ * 050-match-runtime-cascade, 051-round-backup-sides) sit right after
+ * 043-recorder-host-identity, where `custom` first shipped them, so a database
+ * that ran `custom` before either upstream sync still plans cleanly.
+ */
+const FORK_IDS = [
+  '037-fleet-availability-reason',
+  '040-server-failover-use',
+  '050-match-runtime-cascade',
+  '051-round-backup-sides',
+];
+
+const allIds = () => CS2_MIGRATIONS.map((m) => m.id);
+
+const histories: Record<string, () => string[]> = {
+  'a fresh database': () => [],
+  'a database that ran custom before the first upstream sync': () =>
+    allIds().filter((id) => id <= '043-recorder-host-identity' || FORK_IDS.includes(id)),
+  'a database that ran custom between the upstream syncs': () =>
+    allIds().filter((id) => id <= '054-skin-stattrak' || FORK_IDS.includes(id)),
+  'a database that ran custom after the second upstream sync': allIds,
+};
+
+for (const [name, build] of Object.entries(histories)) {
+  test(`cs2 migrations plan cleanly for ${name}`, TAGS, () => {
+    const applied = build();
+    const plan = planModuleMigrations(CS2_MIGRATIONS, ledger(applied));
+    expect('error' in plan ? plan.error : null).toBeNull();
+    if ('error' in plan) return;
+    expect(plan.pending.map((m) => m.id)).toEqual(allIds().filter((id) => !applied.includes(id)));
+  });
+}
