@@ -1,5 +1,6 @@
 import { execFileSync } from 'child_process';
 import { test, expect, type APIRequestContext } from '@playwright/test';
+import { recoverStuckMoves } from '../../api/src/integrations/cs2/fleet/failover';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
 import {
@@ -376,6 +377,22 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     await scanUntil(request, moved(proposal.id));
     expect(failoverState(proposal.id)).toMatch(/^(open|withdrawn)\|The move was interrupted/);
     expect((await matchRow(request, slug))?.serverId).toBe(cs2A);
+  });
+
+  test('after a long outage of the API, an offline target gets the wait from the API start, not from the claim', async ({
+    request,
+  }) => {
+    test.setTimeout(150_000);
+    const slug = `fleet-stuck-outage-${Date.now()}`;
+    const { b, cs2B, proposal } = await deadServerWithSpare(request, slug);
+    // Claimed 12 minutes ago; the API was down since, the target is still backing off its reconnects.
+    await forgeInterruptedMove(request, slug, proposal.id, b, cs2B, { ageS: 720 });
+    b.kill();
+    await new Promise((r) => setTimeout(r, 1500));
+    const now = Math.floor(Date.now() / 1000);
+    // A sweep of an API that started 5 s ago (no delay applied: the sweep is called directly).
+    await recoverStuckMoves(60, now, now - 5);
+    expect(failoverState(proposal.id)).toMatch(/^moving\|/);
   });
 
   test('an interrupted move whose target acked the assignment is a finished move', async ({

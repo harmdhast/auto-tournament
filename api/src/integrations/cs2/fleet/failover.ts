@@ -500,8 +500,12 @@ async function withdraw(result: ScanResult, p: FailoverProposal, detail: string)
  * Not before the fleet had time to reconnect and replay the acks that were in flight when the
  * API stopped: a target that took the match must not be told to drop it.
  */
-export function sweepDue(nowSeconds: number, startedAtSeconds: number): boolean {
-  return nowSeconds - startedAtSeconds >= STARTUP_SWEEP_MS / 1000;
+export function sweepDue(
+  nowSeconds: number,
+  startedAtSeconds: number,
+  delayMs: number = STARTUP_SWEEP_MS
+): boolean {
+  return nowSeconds - startedAtSeconds >= delayMs / 1000;
 }
 
 /** A target that stays offline this long no longer holds an interrupted move up. */
@@ -550,10 +554,15 @@ async function sentConfigOf(
 }
 
 /** The audit row a move wrote when it started and never settled. */
-async function settleFailoverAudit(slug: string, status: string, output: string): Promise<void> {
+async function settleFailoverAudit(
+  slug: string,
+  failoverId: string,
+  status: string,
+  output: string
+): Promise<void> {
   await db.runAsync(
-    `UPDATE cs2_fleet_audit SET status = ?, output = ?, answered_at = ? WHERE match_slug = ? AND status = 'pending' AND command LIKE 'failover %'`,
-    [status, output, nowS(), slug]
+    `UPDATE cs2_fleet_audit SET status = ?, output = ?, answered_at = ? WHERE match_slug = ? AND status = 'pending' AND command LIKE ?`,
+    [status, output, nowS(), slug, `failover %${failoverId}%`]
   );
 }
 
@@ -565,7 +574,8 @@ async function settleFailoverAudit(slug: string, status: string, output: string)
  */
 export async function recoverStuckMoves(
   minAgeS: number = STUCK_MOVE_S,
-  now = nowS()
+  now = nowS(),
+  upSince = startedAt
 ): Promise<number> {
   const rows = await db.queryAsync<ProposalRow>(
     `SELECT * FROM cs2_fleet_failovers WHERE status = 'moving' AND updated_at <= ?`,
@@ -615,7 +625,7 @@ export async function recoverStuckMoves(
         await fenceEpoch(p.fromServerId, p.matchSlug, p.fromEpoch, 'superseded').catch(
           () => undefined
         );
-      await settleFailoverAudit(p.matchSlug, 'ok', `epoch ${taken.epoch}`);
+      await settleFailoverAudit(p.matchSlug, p.id, 'ok', `epoch ${taken.epoch}`);
       const updated = await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [
         p.matchSlug,
       ]);
@@ -640,15 +650,22 @@ export async function recoverStuckMoves(
         `[FAILOVER] ${p.matchSlug}: failover ${p.id} was left moving; the target holds the match`
       );
     } else {
-      // The target is offline: its ack may still be on its way. Wait (a while) for it to
-      // connect before telling it to drop the match.
-      if (
-        newer &&
-        !!assignment?.serverId &&
-        !fleetBus().isConnected(assignment.serverId) &&
-        now - Number(row.updated_at) < TARGET_WAIT_S
-      )
-        continue;
+      // The target is offline, or just came back: its ack may still be on its way. Wait for it
+      // to be connected for a while (a long outage of the API counts from the start, the target
+      // may still be backing off its reconnects) before telling it to drop the match.
+      if (newer && assignment?.serverId) {
+        const connected = fleetBus().isConnected(assignment.serverId);
+        const since = await db.queryOneAsync<{ connected_at: number | null }>(
+          'SELECT connected_at FROM cs2_fleet_servers WHERE id = ?',
+          [assignment.serverId]
+        );
+        const settled =
+          connected &&
+          (since?.connected_at == null ||
+            now - Number(since.connected_at) >= SERVER_BACK_GRACE_MS / 1000);
+        const waited = now - Math.max(Number(row.updated_at), upSince);
+        if (!settled && waited < TARGET_WAIT_S) continue;
+      }
       const reopened = await db.runAsync(
         `UPDATE cs2_fleet_failovers SET status = 'open', last_error = ?, decided_by = NULL, decided_at = NULL, updated_at = ?, prev_move = NULL WHERE id = ? AND status = 'moving'`,
         ['The move was interrupted; the failover is open again.', nowS(), p.id]
@@ -685,7 +702,7 @@ export async function recoverStuckMoves(
       if (p.targetCs2ServerId && p.targetCs2ServerId !== p.fromCs2ServerId)
         serverAllocationTracker.markIdle(p.targetCs2ServerId);
       if (p.fromCs2ServerId) serverAllocationTracker.markAllocated(p.fromCs2ServerId, p.matchSlug);
-      await settleFailoverAudit(p.matchSlug, 'failed', 'The move was interrupted.');
+      await settleFailoverAudit(p.matchSlug, p.id, 'failed', 'The move was interrupted.');
       log.warn(`[FAILOVER] ${p.matchSlug}: failover ${p.id} was left moving; open again`);
     }
     recovered++;
