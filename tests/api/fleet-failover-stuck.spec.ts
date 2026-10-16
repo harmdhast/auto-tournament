@@ -101,7 +101,11 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
   });
 
   /** A on a loaded match, then dead, with a free B; returns the open proposal. */
-  async function deadServerWithSpare(request: APIRequestContext, slug: string) {
+  async function deadServerWithSpare(
+    request: APIRequestContext,
+    slug: string,
+    opts: { dead?: boolean } = {}
+  ) {
     const a = await FakeReadyUp.enroll(request, key.value);
     fakes.push(a);
     fleetIds.push(a.serverId);
@@ -119,6 +123,7 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     fleetIds.push(b.serverId);
     await b.hello();
     const cs2B = await link(request, b.serverId);
+    if (opts.dead === false) return { a, b, cs2A, cs2B, proposal: null };
     a.kill();
     // The platform's own pass (default grace) has run by now and made nothing to withdraw.
     await new Promise((r) => setTimeout(r, 1500));
@@ -142,7 +147,8 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
   }) => {
     test.setTimeout(120_000);
     const slug = `fleet-stuck-throw-${Date.now()}`;
-    const { b, cs2A, cs2B, proposal } = await deadServerWithSpare(request, slug);
+    // An admin's move of a live match: a manual failover, which the platform's own passes never withdraw.
+    const { b, cs2A, cs2B } = await deadServerWithSpare(request, slug, { dead: false });
 
     // The write that points the match at B fails.
     psql(
@@ -155,7 +161,7 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
       psql('DROP TRIGGER IF EXISTS stb10 ON matches');
       psql('DROP FUNCTION IF EXISTS stb10_fail()');
     });
-    const res = await request.post(`/api/game/cs2/matches/${slug}/failover/${proposal.id}/accept`, {
+    const res = await request.post(`/api/game/cs2/matches/${slug}/failover/move`, {
       headers: getAuthHeader(),
       data: { targetServerId: cs2B },
     });
@@ -166,7 +172,7 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
 
     // The same failover can be moved once the fault is gone.
     psql('DROP TRIGGER IF EXISTS stb10 ON matches');
-    const again = request.post(`/api/game/cs2/matches/${slug}/failover/${proposal.id}/accept`, {
+    const again = request.post(`/api/game/cs2/matches/${slug}/failover/move`, {
       headers: getAuthHeader(),
       data: { targetServerId: cs2B },
     });
@@ -265,7 +271,7 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     proposalId: string,
     b: FakeReadyUp,
     cs2B: string,
-    opts: { ageS?: number; ended?: boolean } = {}
+    opts: { ageS?: number; ended?: boolean; acked?: boolean } = {}
   ) {
     const assignment = JSON.parse(
       psql(
@@ -291,10 +297,20 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
       );
     psql(`UPDATE matches SET server_id = '${cs2B}' WHERE slug = '${slug}'`);
     psql(
-      `UPDATE cs2_fleet_failovers SET status = 'moving', target_cs2_server_id = '${cs2B}', prev_move = '${prev}', updated_at = updated_at - ${opts.ageS ?? 600} WHERE id = '${proposalId}'`
-    );
-    psql(
       `INSERT INTO cs2_fleet_audit (id, actor, server_id, match_slug, command, status) VALUES ('stb10-${slug}', 'test', '${b.serverId}', '${slug}', 'failover ${slug} (offline, ${proposalId})', 'pending')`
+    );
+    if (opts.acked) {
+      // The ack was replayed after the restart: the command says ok, the config was never stored.
+      psql(
+        `INSERT INTO cs2_fleet_commands (message_id, server_id, type, match_slug, epoch, status) VALUES ('stb10-cmd-${slug}', '${b.serverId}', 'match.assign', '${slug}', ${assignment.epoch + 1}, 'ok')`
+      );
+      psql(
+        `UPDATE cs2_fleet_assignments SET sent_config = '{"marker":"sent","rules":{"demo":{"upload":false}}}' WHERE match_slug = '${slug}'`
+      );
+    }
+    // Last: the platform's passes (every second here) take it from now on.
+    psql(
+      `UPDATE cs2_fleet_failovers SET status = 'moving', target_cs2_server_id = '${cs2B}', prev_move = '${prev}', updated_at = updated_at - ${opts.ageS ?? 600} WHERE id = '${proposalId}'`
     );
     return assignment as { epoch: number; password: string };
   }
@@ -403,14 +419,7 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     test.setTimeout(150_000);
     const slug = `fleet-stuck-acked-${Date.now()}`;
     const { b, cs2B, proposal } = await deadServerWithSpare(request, slug);
-    const before = await forgeInterruptedMove(request, slug, proposal.id, b, cs2B);
-    // The ack was replayed after the restart: the command says ok, the config was never stored.
-    psql(
-      `INSERT INTO cs2_fleet_commands (message_id, server_id, type, match_slug, epoch, status) VALUES ('stb10-cmd-${slug}', '${b.serverId}', 'match.assign', '${slug}', ${before.epoch + 1}, 'ok')`
-    );
-    psql(
-      `UPDATE cs2_fleet_assignments SET sent_config = '{"marker":"sent","rules":{"demo":{"upload":false}}}' WHERE match_slug = '${slug}'`
-    );
+    await forgeInterruptedMove(request, slug, proposal.id, b, cs2B, { acked: true });
 
     await scanUntil(request, moved(proposal.id));
     expect(failoverState(proposal.id)).toBe('moved|');
