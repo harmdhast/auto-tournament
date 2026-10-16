@@ -52,4 +52,17 @@ test.describe('Servers page layout', () => {
     await expect(page.getByTestId('machine-p1')).toContainText('Code valid until');
     expect(await noOverflow(page)).toBe(true);
   });
+
+  test('a long player name keeps Kick inside the server panel', async ({ page }) => {
+    const players = [{ steamid64: '76561198000100001', name: LONG + LONG, team: 'ct' }];
+    const servers = [fleetServer('a', { players })];
+    await stubFleet(page, servers);
+    await stubFleetDetail(page, servers);
+    await page.goto('/manage/servers?server=r:a#fleet');
+    const kick = page.getByTestId('fleet-kick-76561198000100001');
+    await expect(kick).toBeVisible();
+    const right = await kick.evaluate((el) => el.getBoundingClientRect().right);
+    expect(right).toBeLessThanOrEqual(390);
+    expect(await noOverflow(page)).toBe(true);
+  });
 });

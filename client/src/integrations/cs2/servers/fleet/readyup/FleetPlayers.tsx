@@ -61,22 +61,23 @@ export function FleetPlayers({
           {t('serversBoard.readyUp.players.empty')}
         </Typography>
       ) : (
-        <Box sx={{ display: 'grid', gap: 0.5 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 0.5 }}>
           {players.map((p) => (
             <Box
               key={p.steamid64}
               data-testid={`fleet-player-${p.steamid64}`}
               sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
             >
-              <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
+              <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap title={p.name}>
                 {p.name}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
                 {t(`serversBoard.readyUp.players.team.${p.team}`)}
               </Typography>
               <Button
                 size="small"
                 color="error"
+                sx={{ flexShrink: 0 }}
                 disabled={!server.online}
                 onClick={() => setKicking(p)}
                 data-testid={`fleet-kick-${p.steamid64}`}
