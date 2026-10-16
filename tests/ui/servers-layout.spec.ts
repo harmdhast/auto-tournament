@@ -137,3 +137,27 @@ test.describe('Servers page loading', () => {
     await expect(page.getByTestId('machine-m1')).toBeVisible();
   });
 });
+
+test.describe('Servers page focus', () => {
+  test.beforeEach(async ({ page, request }) => {
+    await setupTestContext(page, request);
+  });
+
+  test('machine buttons show a focus ring from the keyboard', async ({ page }) => {
+    await stubFleet(page, []);
+    await stubMachines(page, [machineHost('m1', [])]);
+    await page.goto('/manage/servers');
+    for (const name of ['More for machine-m1', 'Add servers']) {
+      const button = page.getByRole('button', { name });
+      await button.focus();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+      await expect(button).toBeFocused();
+      const ring = await button.evaluate((el) => {
+        const s = window.getComputedStyle(el);
+        return { style: s.outlineStyle, width: parseFloat(s.outlineWidth), shadow: s.boxShadow };
+      });
+      expect(ring.style !== 'none' && ring.width > 0).toBe(true);
+    }
+  });
+});
