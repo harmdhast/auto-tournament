@@ -304,6 +304,37 @@ export class Scheduler {
     rows: DbMatchRow[],
     baseUrl: string
   ): Promise<MatchAllocationResult[]> {
+    // A match another caller is allocating right now stays queued.
+    const free = rows.filter((row) => !this.allocatingMatches.has(row.slug));
+    const wave =
+      free.length === 0
+        ? Promise.resolve<MatchAllocationResult[]>([])
+        : this.runWave(tournamentId, free, baseUrl);
+    free.forEach((row, i) => {
+      const own = wave
+        .then((results) => results[i])
+        .finally(() => {
+          this.allocatingMatches.delete(row.slug);
+        });
+      own.catch(() => undefined);
+      this.allocatingMatches.set(row.slug, own);
+    });
+    const results = await wave;
+    return rows.map(
+      (row) =>
+        results[free.indexOf(row)] ?? {
+          matchSlug: row.slug,
+          success: false,
+          error: 'No available servers',
+        }
+    );
+  }
+
+  private async runWave(
+    tournamentId: number,
+    rows: DbMatchRow[],
+    baseUrl: string
+  ): Promise<MatchAllocationResult[]> {
     const integration = await this.integrationForTournament(tournamentId);
     const ctxs = await Promise.all(rows.map((row) => matchContextFor(row)));
     const outcomes = integration.allocateBatch
@@ -395,11 +426,22 @@ export class Scheduler {
       availableServers = await this.getAvailableServerCount(tournamentId);
     }
 
+    // The wait above can take minutes: allocate what is still ready and unassigned.
+    const stillReady = new Set((await this.getReadyMatchRows(tournamentId)).map((m) => m.slug));
+    const toAllocate = readyMatches.filter((m) => stillReady.has(m.slug));
+    const gone = readyMatches
+      .filter((m) => !stillReady.has(m.slug))
+      .map((m) => ({
+        matchSlug: m.slug,
+        success: false,
+        error: 'Match is not ready or does not exist',
+      }));
+
     // The integration takes the final snapshot of free servers as it allocates.
     log.info(
-      `[ALLOCATION] Allocating ${readyMatches.length} specific match(es) (required=${requiredServers})`
+      `[ALLOCATION] Allocating ${toAllocate.length} specific match(es) (required=${requiredServers})`
     );
-    const results = await this.allocateWave(tournamentId, readyMatches, baseUrl);
+    const results = [...(await this.allocateWave(tournamentId, toAllocate, baseUrl)), ...gone];
 
     log.info(
       `[ALLOCATION] Specific allocation complete: ${

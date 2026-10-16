@@ -56,3 +56,60 @@ test('two concurrent allocations of one match allocate once', { tag: ['@api'] },
     integration.allocate = original.allocate;
   }
 });
+
+test(
+  'a batch allocation and a single allocation of one match load it once',
+  { tag: ['@api'] },
+  async () => {
+    const slug = `${SLUG}-batch`;
+    const tournament = await db.insertAsync('tournament', {
+      name: slug,
+      type: 'single_elimination',
+      format: 'bo1',
+      status: 'setup',
+      team_ids: '[]',
+    });
+    const tournamentId = Number(tournament.lastInsertRowid);
+    await db.insertAsync('matches', {
+      slug,
+      tournament_id: tournamentId,
+      round: 0,
+      match_number: 0,
+      config: '{}',
+      status: 'ready',
+    });
+
+    const integration = getIntegration('cs2');
+    const original = {
+      capacity: integration.capacity,
+      allocate: integration.allocate,
+      allocateBatch: integration.allocateBatch,
+      poolStatus: integration.poolStatus,
+    };
+    const loads: string[] = [];
+    const load = async () => {
+      loads.push(`fake-server-${loads.length + 1}`);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return { status: 'assigned' as const, resourceId: loads[loads.length - 1] };
+    };
+    integration.capacity = async () => 2;
+    integration.allocate = load;
+    integration.poolStatus = undefined;
+    integration.allocateBatch = async (ctxs) => Promise.all(ctxs.map(load));
+
+    try {
+      await Promise.all([
+        scheduler.allocateSpecificMatches(tournamentId, [slug], ''),
+        scheduler.allocateSingleMatch(slug, ''),
+      ]);
+      expect(loads).toHaveLength(1);
+    } finally {
+      integration.capacity = original.capacity;
+      integration.allocate = original.allocate;
+      integration.allocateBatch = original.allocateBatch;
+      integration.poolStatus = original.poolStatus;
+      await db.runAsync('DELETE FROM matches WHERE slug = ?', [slug]);
+      await db.runAsync('DELETE FROM tournament WHERE id = ?', [tournamentId]);
+    }
+  }
+);
