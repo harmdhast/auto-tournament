@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { log } from '../utils/logger';
 import { db } from '../config/database';
+import { getVerifiedPlayerSteamId } from '../utils/signedPlayerCookie';
 import { shouldBlockAdminAsDirectAccess } from '../utils/canonicalOrigin';
 import {
   extractPresentedToken,
@@ -177,6 +178,14 @@ export async function checkAdminAccess(req: Request): Promise<AdminAccessResult>
   };
 
   if (!(anyReq.isAuthenticated && anyReq.isAuthenticated() && anyReq.user)) {
+    if (getVerifiedPlayerSteamId(req.headers.cookie)) {
+      return {
+        ok: false,
+        status: 403,
+        error: 'Forbidden - Admin access required',
+        logReason: 'Player cookie without an admin session',
+      };
+    }
     return {
       ok: false,
       status: 401,
