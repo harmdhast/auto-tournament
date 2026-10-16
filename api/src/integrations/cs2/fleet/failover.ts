@@ -424,6 +424,21 @@ async function serverTraits(
 
 /** csm's last `host.health` per fleet server (process gone / hung), cleared by `recovered` / `restarted`. */
 const healthByServer = new Map<string, HostHealthSignal>();
+/**
+ * csm's word on a server counts for the match it holds now only if it came after the
+ * assignment: an `exited` / `hung` from before is the previous match's (or the idle
+ * server's), and a lost `recovered` must not fail a new match over.
+ */
+function currentHealth(fleetServerId: string, assignedAt: number | null): HostHealthSignal | null {
+  const health = healthByServer.get(fleetServerId);
+  if (!health) return null;
+  if (assignedAt !== null && health.at < assignedAt) {
+    healthByServer.delete(fleetServerId);
+    return null;
+  }
+  return health;
+}
+
 /** When this process first saw a server of an open assignment offline. */
 const offlineSeen = new Map<string, number>();
 /** Links are all down while the platform starts: their clock starts no earlier than this. */
@@ -434,6 +449,8 @@ interface OpenAssignmentRow {
   epoch: number;
   server_id: string;
   cs2_server_id: string | null;
+  /** When the assignment was made (acked). */
+  assigned_at: number | null;
   last_seen: number | null;
 }
 
@@ -566,7 +583,7 @@ async function runScan(options: ScanOptions): Promise<ScanResult> {
   );
 
   const rows = await db.queryAsync<OpenAssignmentRow>(
-    `SELECT a.match_slug, a.epoch, a.server_id, a.cs2_server_id, f.last_seen
+    `SELECT a.match_slug, a.epoch, a.server_id, a.cs2_server_id, a.updated_at AS assigned_at, f.last_seen
        FROM cs2_fleet_assignments a
        JOIN matches m ON m.slug = a.match_slug
        LEFT JOIN cs2_fleet_servers f ON f.id = a.server_id
@@ -596,7 +613,7 @@ async function runScan(options: ScanOptions): Promise<ScanResult> {
       offlineSince,
       now,
       phase,
-      health: healthByServer.get(row.server_id) ?? null,
+      health: currentHealth(row.server_id, num(row.assigned_at)),
       grace,
     });
 
