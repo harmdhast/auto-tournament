@@ -196,14 +196,14 @@ export function startAdminNoticeSweep(): void {
   started = true;
   const sweep = guarded(sweepStuckMatches);
   const run = () =>
-    sweep().catch((error) =>
-      log.debug('[ADMIN-NOTICES] stuck-match sweep failed', { error })
-    );
+    sweep().catch((error) => log.debug('[ADMIN-NOTICES] stuck-match sweep failed', { error }));
   setTimeout(run, 30_000).unref?.();
   setInterval(run, 60_000).unref?.();
   const sweepOfPlatform = guarded(sweepPlatform);
   const platform = () =>
-    sweepOfPlatform().catch((error) => log.debug('[ADMIN-NOTICES] platform sweep failed', { error }));
+    sweepOfPlatform().catch((error) =>
+      log.debug('[ADMIN-NOTICES] platform sweep failed', { error })
+    );
   setTimeout(platform, 60_000).unref?.();
   setInterval(platform, 3600_000).unref?.();
   setInterval(
