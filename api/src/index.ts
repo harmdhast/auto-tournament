@@ -60,10 +60,7 @@ import {
 } from './modules/catalogService';
 import { installHostBridge } from './modules/hostBridge';
 import { environmentTrustedKeys } from './modules/trustedKeys';
-import {
-  recoverActiveMatches,
-  releaseStrandedReadyMatches,
-} from './services/matchRecoveryService';
+import { recoverActiveMatches, releaseStrandedReadyMatches } from './services/matchRecoveryService';
 import { enrichBuiltinGames } from './services/gameEnrichmentService';
 import { refreshGameIcons } from './services/gameIconService';
 import { scheduler } from './core/scheduler';
