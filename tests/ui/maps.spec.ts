@@ -219,4 +219,17 @@ test.describe.serial('Tournament Map Pool Selection', () => {
       expect(await options.count()).toBeGreaterThan(0);
     }
   );
+
+  test(
+    'a map card opens its actions from the keyboard',
+    { tag: ['@ui', '@maps', '@a11y'] },
+    async ({ page }) => {
+      await page.goto('/manage/maps');
+      const card = page.getByTestId('maps-list').getByRole('button').first();
+      await expect(card).toBeVisible();
+      await card.focus();
+      await page.keyboard.press('Enter');
+      await expect(page.getByTestId('map-actions-modal')).toBeVisible();
+    }
+  );
 });
