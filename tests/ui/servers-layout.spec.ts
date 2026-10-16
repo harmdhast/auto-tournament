@@ -161,3 +161,44 @@ test.describe('Servers page focus', () => {
     }
   });
 });
+
+test.describe('Keys tab', () => {
+  test('a key with chips renders without a DOM nesting warning', async ({ page, request }) => {
+    await setupTestContext(page, request);
+    await stubFleet(page, []);
+    await stubMachines(page, [machineHost('m1', [])]);
+    await page.route(
+      (url) => url.pathname === '/api/fleet/keys',
+      (route) =>
+        route.fulfill({
+          json: {
+            success: true,
+            count: 1,
+            keys: [
+              {
+                id: 'k1',
+                name: 'ops',
+                namePrefix: null,
+                maxServers: null,
+                expiresAt: null,
+                createdAt: 1,
+                lastUsedAt: null,
+                useCount: 0,
+                enrolledServers: 0,
+                locked: true,
+                revoked: false,
+                autoLink: true,
+                skins: true,
+              },
+            ],
+          },
+        })
+    );
+    const errors: string[] = [];
+    page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+    await page.goto('/manage/servers');
+    await page.getByTestId('servers-tab-keys').click();
+    await expect(page.getByTestId('fleet-keys')).toContainText('ops');
+    expect(errors.filter((e) => e.includes('validateDOMNesting'))).toEqual([]);
+  });
+});

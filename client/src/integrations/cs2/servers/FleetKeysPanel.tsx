@@ -147,7 +147,7 @@ export default function FleetKeysPanel({ showSecret }: { showSecret: (secret: Se
               columns={{ xs: 'minmax(0, 1fr) auto', md: 'minmax(0, 1fr) minmax(0, 1fr) auto' }}
             >
               <Box minWidth={0}>
-                <Typography fontWeight={600} noWrap>
+                <Typography component="div" fontWeight={600} noWrap>
                   {key.name}
                   {key.locked && (
                     <Chip
