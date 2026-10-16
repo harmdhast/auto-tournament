@@ -125,12 +125,10 @@ test.describe.serial('Shuffle Tournament UI', () => {
       await expect(list.first().or(item).first()).toBeVisible({ timeout: 15000 });
       if (await list.count()) await list.first().click();
       // The bracket keeps rendering after its first paint: retry until the click lands.
+      const matchUrl = /\/manage\/tournaments\/\d+\/matches\/[^/]+$/;
       await expect(async () => {
-        await expect(item).toBeVisible({ timeout: 2000 });
-        await item.click({ timeout: 2000 });
-        await expect(page).toHaveURL(/\/manage\/tournaments\/\d+\/matches\/[^/]+$/, {
-          timeout: 2000,
-        });
+        if (!matchUrl.test(page.url())) await item.click({ timeout: 2000 });
+        await expect(page).toHaveURL(matchUrl, { timeout: 3000 });
       }).toPass({ timeout: 15000 });
       await expect(page.getByTestId('manage-match-page')).toBeVisible({ timeout: 10000 });
       expect(errors).toEqual([]);
