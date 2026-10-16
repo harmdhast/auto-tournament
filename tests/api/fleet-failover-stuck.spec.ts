@@ -136,6 +136,7 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     );
     cleanup.push(() => {
       psql('DROP TRIGGER IF EXISTS stb10 ON matches');
+      psql('DROP FUNCTION IF EXISTS stb10_fail()');
     });
     const res = await request.post(`/api/game/cs2/matches/${slug}/failover/${proposal.id}/accept`, {
       headers: getAuthHeader(),
@@ -206,15 +207,123 @@ test.describe.serial('Fleet failover: no move is left in moving', () => {
     );
     cleanup.push(() => {
       psql('DROP TRIGGER IF EXISTS stb10 ON matches');
+      psql('DROP FUNCTION IF EXISTS stb10_fail()');
     });
     a.kill();
-    await new Promise((r) => setTimeout(r, 1500));
-    for (let i = 0; i < 6; i++) await scan(request);
+    const attempts = () =>
+      Number(
+        psql(
+          `SELECT count(*) FROM cs2_fleet_audit WHERE match_slug = '${slug}' AND command LIKE 'failover %'`
+        )
+      );
+    await expect
+      .poll(
+        async () => {
+          await scan(request);
+          return attempts();
+        },
+        { timeout: 60_000 }
+      )
+      .toBeGreaterThanOrEqual(3);
+    // Further passes try nothing more. (The platform's own pass, with its grace, may withdraw a
+    // failover of the server that just went down; the next one starts its own count.)
+    for (let i = 0; i < 4; i++) await scan(request);
+    const failovers = Number(
+      psql(`SELECT count(*) FROM cs2_fleet_failovers WHERE match_slug = '${slug}'`)
+    );
+    expect(attempts()).toBeLessThanOrEqual(3 * failovers);
+    expect((await proposalOf(request, slug))?.status).toBe('open');
+  });
+
+  /**
+   * What an API that died inside a move leaves: the failover `moving` (with the assignment and
+   * live record it replaced), the match assigned to B at the next epoch, the old rows overwritten.
+   */
+  async function forgeInterruptedMove(
+    request: APIRequestContext,
+    slug: string,
+    proposalId: string,
+    b: FakeReadyUp,
+    cs2B: string
+  ) {
+    const assignment = JSON.parse(
+      psql(
+        `SELECT json_build_object('matchSlug', match_slug, 'epoch', epoch, 'serverId', server_id, 'cs2ServerId', cs2_server_id, 'password', password, 'config', config::json, 'endedAt', NULL) FROM cs2_fleet_assignments WHERE match_slug = '${slug}'`
+      )
+    );
+    const live = await request.get(`/api/test/fleet/live-state/${slug}`, {
+      headers: getAuthHeader(),
+    });
+    const record = (await live.json()).record;
+    const prev = JSON.stringify({ assignment, record }).replace(/'/g, "''");
+    const next = await request.post('/api/test/fleet/assign', {
+      headers: getAuthHeader(),
+      data: { matchSlug: slug, serverId: b.serverId },
+    });
+    expect(next.ok(), await next.text()).toBe(true);
+    psql(
+      `UPDATE cs2_fleet_assignments SET epoch = ${assignment.epoch + 1}, server_id = '${b.serverId}', cs2_server_id = '${cs2B}', password = 'new-pw', config = NULL WHERE match_slug = '${slug}'`
+    );
+    psql(`UPDATE matches SET server_id = '${cs2B}' WHERE slug = '${slug}'`);
+    psql(
+      `UPDATE cs2_fleet_failovers SET status = 'moving', target_cs2_server_id = '${cs2B}', prev_move = '${prev}', updated_at = updated_at - 600 WHERE id = '${proposalId}'`
+    );
+    psql(
+      `INSERT INTO cs2_fleet_audit (id, actor, server_id, match_slug, command, status) VALUES ('stb10-${slug}', 'test', '${b.serverId}', '${slug}', 'failover ${slug} (offline)', 'pending')`
+    );
+    return assignment as { epoch: number; password: string };
+  }
+
+  test('an interrupted move whose target never acked gives the old server its assignment and epoch back', async ({
+    request,
+  }) => {
+    test.setTimeout(120_000);
+    const slug = `fleet-stuck-unacked-${Date.now()}`;
+    const { a, b, cs2A, cs2B, proposal } = await deadServerWithSpare(request, slug);
+    const before = await forgeInterruptedMove(request, slug, proposal.id, b, cs2B);
+
+    await scan(request);
+    // Open again (the platform's own pass, with its grace, may withdraw it at once: the server just went down).
     expect(
       psql(
-        `SELECT count(*) FROM cs2_fleet_audit WHERE match_slug = '${slug}' AND command LIKE 'failover %'`
+        `SELECT status || '|' || last_error FROM cs2_fleet_failovers WHERE id = '${proposal.id}'`
       )
-    ).toBe('3');
-    expect((await proposalOf(request, slug))?.status).toBe('open');
+    ).toMatch(/^(open|withdrawn)\|The move was interrupted/);
+    expect((await matchRow(request, slug))?.serverId).toBe(cs2A);
+    expect(
+      psql(
+        `SELECT epoch || '|' || server_id || '|' || password || '|' || (ended_at IS NULL) || '|' || (config IS NOT NULL) FROM cs2_fleet_assignments WHERE match_slug = '${slug}'`
+      )
+    ).toBe(`${before.epoch}|${a.serverId}|${before.password}|true|true`);
+    const live = await request.get(`/api/test/fleet/live-state/${slug}`, {
+      headers: getAuthHeader(),
+    });
+    expect((await live.json()).record.epoch).toBe(before.epoch);
+    expect(psql(`SELECT status FROM cs2_fleet_audit WHERE id = 'stb10-${slug}'`)).toBe('failed');
+    expect((await b.next('match.unassign', 10_000)).payload).toMatchObject({ match_id: slug });
+  });
+
+  test('an interrupted move whose target acked the assignment is a finished move', async ({
+    request,
+  }) => {
+    test.setTimeout(120_000);
+    const slug = `fleet-stuck-acked-${Date.now()}`;
+    const { b, cs2B, proposal } = await deadServerWithSpare(request, slug);
+    const before = await forgeInterruptedMove(request, slug, proposal.id, b, cs2B);
+    // The ack was replayed after the restart: the command says ok, the config was never stored.
+    psql(
+      `INSERT INTO cs2_fleet_commands (message_id, server_id, type, match_slug, epoch, status) VALUES ('stb10-cmd-${slug}', '${b.serverId}', 'match.assign', '${slug}', ${before.epoch + 1}, 'ok')`
+    );
+
+    await scan(request);
+    expect(psql(`SELECT status FROM cs2_fleet_failovers WHERE id = '${proposal.id}'`)).toBe(
+      'moved'
+    );
+    expect((await matchRow(request, slug))?.serverId).toBe(cs2B);
+    expect(
+      psql(`SELECT (config IS NOT NULL) FROM cs2_fleet_assignments WHERE match_slug = '${slug}'`)
+    ).toBe('t');
+    expect(psql(`SELECT status FROM cs2_fleet_audit WHERE id = 'stb10-${slug}'`)).toBe('ok');
+    expect(await b.next('match.unassign', 3_000).catch(() => null)).toBeNull();
   });
 });
