@@ -39,7 +39,7 @@
       "online": "kjører",
       "inMatch": "I kamp",
       "free": "Ledig",
-      "offline": "I dvale",
+      "offline": "Frakoblet",
       "none": "Ingen servere tilkoblet enda.",
       "busy": "Opptatt",
       "spare": "Reserve",

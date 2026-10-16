@@ -39,7 +39,7 @@
       "online": "running",
       "inMatch": "In a match",
       "free": "Free",
-      "offline": "Idle",
+      "offline": "Offline",
       "none": "No servers connected yet.",
       "busy": "Busy",
       "spare": "Spare",
