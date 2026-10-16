@@ -57,7 +57,14 @@ import type { DbMatchRow } from '../../../types/database.types';
 import { ulid } from './credentials';
 import { roundBackupStore, type RoundBackupMeta } from './backups';
 import { inlineBackupFor, sendBackupParts } from './restore';
-import { assignMatch, fenceEpoch, getAssignment, restoreAssignment, unassignEpoch } from './driver';
+import {
+  assignMatch,
+  fenceEpoch,
+  getAssignment,
+  openAssignmentOn,
+  restoreAssignment,
+  unassignEpoch,
+} from './driver';
 import { fleetBus, onFleetServerReady } from './service';
 import { liveStateStore } from './state';
 import { cs2ServerIdOf } from './link';
@@ -423,16 +430,16 @@ async function serverTraits(
 // ---------------------------------------------------------------------------
 
 /** csm's last `host.health` per fleet server (process gone / hung), cleared by `recovered` / `restarted`. */
-const healthByServer = new Map<string, HostHealthSignal>();
+const healthByServer = new Map<string, HostHealthSignal & { epoch: number | null }>();
 /**
- * csm's word on a server counts for the match it holds now only if it came after the
- * assignment: an `exited` / `hung` from before is the previous match's (or the idle
- * server's), and a lost `recovered` must not fail a new match over.
+ * csm's word on a server counts for the match it holds now only if it was sent while that
+ * assignment (epoch) was open on the server: an `exited` / `hung` from before is the
+ * previous match's (or the idle server's), and a lost `recovered` must not fail a new match over.
  */
-function currentHealth(fleetServerId: string, assignedAt: number | null): HostHealthSignal | null {
+function currentHealth(fleetServerId: string, epoch: number): HostHealthSignal | null {
   const health = healthByServer.get(fleetServerId);
   if (!health) return null;
-  if (assignedAt !== null && health.at < assignedAt) {
+  if (health.epoch !== epoch) {
     healthByServer.delete(fleetServerId);
     return null;
   }
@@ -449,8 +456,6 @@ interface OpenAssignmentRow {
   epoch: number;
   server_id: string;
   cs2_server_id: string | null;
-  /** When the assignment was made (acked). */
-  assigned_at: number | null;
   last_seen: number | null;
 }
 
@@ -583,7 +588,7 @@ async function runScan(options: ScanOptions): Promise<ScanResult> {
   );
 
   const rows = await db.queryAsync<OpenAssignmentRow>(
-    `SELECT a.match_slug, a.epoch, a.server_id, a.cs2_server_id, a.updated_at AS assigned_at, f.last_seen
+    `SELECT a.match_slug, a.epoch, a.server_id, a.cs2_server_id, f.last_seen
        FROM cs2_fleet_assignments a
        JOIN matches m ON m.slug = a.match_slug
        LEFT JOIN cs2_fleet_servers f ON f.id = a.server_id
@@ -613,7 +618,7 @@ async function runScan(options: ScanOptions): Promise<ScanResult> {
       offlineSince,
       now,
       phase,
-      health: currentHealth(row.server_id, num(row.assigned_at)),
+      health: currentHealth(row.server_id, epoch),
       grace,
     });
 
@@ -1382,6 +1387,7 @@ async function onHostHealth(hostId: string, payload: HostHealthPayload): Promise
     healthByServer.set(fleetServerId, {
       event: payload.event,
       at: nowS(),
+      epoch: (await openAssignmentOn(fleetServerId))?.epoch ?? null,
       ...(payload.detail ? { detail: payload.detail } : {}),
     });
   }

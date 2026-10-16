@@ -138,4 +138,60 @@ test.describe.serial('Fleet failover: a stale csm health signal', () => {
     ).json();
     expect(view.proposal).toBeNull();
   });
+
+  test('a hung signal sent while the match is on the server opens a failover that a refused move does not withdraw', async ({
+    request,
+  }) => {
+    test.setTimeout(120_000);
+    const a = await FakeReadyUp.enroll(request, key.value);
+    fakes.push(a);
+    fleetIds.push(a.serverId);
+    await a.hello();
+    await link(request, a.serverId);
+    const csm = await hostWith(request, a);
+    const slug = `fleet-health-live-${Date.now()}`;
+    await createMatch(request, slug);
+    const assign = await acceptAssign(a, slug);
+    await expect
+      .poll(async () => (await matchRow(request, slug))?.status, { timeout: 20_000 })
+      .toBe('loaded');
+    a.availability('busy', 'assigned');
+    a.snapshot(slug, assign.epoch as number);
+    const b = await FakeReadyUp.enroll(request, key.value);
+    fakes.push(b);
+    fleetIds.push(b.serverId);
+    await b.hello();
+    const cs2B = await link(request, b.serverId);
+
+    const hung = csm.sendReliable('host.health', { server: 'server-1', event: 'hung' });
+    await csm.acked(hung.seq as number);
+    const view = async () =>
+      (
+        await (
+          await request.get(`/api/game/cs2/matches/${slug}/failover`, { headers: getAuthHeader() })
+        ).json()
+      ).proposal as { id: string; status: string; reason: string } | null;
+    await expect
+      .poll(
+        async () => {
+          await scan(request);
+          return (await view())?.status ?? null;
+        },
+        { timeout: 20_000 }
+      )
+      .toBe('open');
+    const proposal = (await view()) as { id: string; reason: string };
+    expect(proposal.reason).toBe('hung');
+
+    // B refuses the move: the assignment is restored, the failover stays.
+    const moving = request.post(`/api/game/cs2/matches/${slug}/failover/${proposal.id}/accept`, {
+      headers: getAuthHeader(),
+      data: { targetServerId: cs2B },
+    });
+    const offered = await b.next('match.assign', 30_000);
+    b.answer(offered, 'rejected', { error: { code: 'busy', message: 'busy' } });
+    expect((await moving).status()).toBe(502);
+    await scan(request);
+    expect((await view())?.status).toBe('open');
+  });
 });
