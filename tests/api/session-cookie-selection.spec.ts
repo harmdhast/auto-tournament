@@ -1,15 +1,16 @@
 import { test, expect } from '@playwright/test';
-import express from 'express';
-import session from 'express-session';
-import http from 'http';
-import type { AddressInfo } from 'net';
-import { createSessionMiddleware } from '../../api/src/utils/sessionCookies';
+import { readFileSync } from 'fs';
+import path from 'path';
+import {
+  SESSION_COOKIE_MAX_AGE_MS,
+  createInsecureSessionWarner,
+  requestHost,
+  useHostOnlySession,
+} from '../../api/src/utils/sessionCookies';
 
 /**
- * Which cookie the session gets: a Domain cookie for FRONTEND_BASE_URL's host,
- * or a host-only cookie (Secure over https) on any other host, so the browser
- * does not drop it. Behind a proxy the Secure decision follows
- * X-Forwarded-Proto even when Express does not trust the proxy.
+ * Which session cookie a request gets: a Domain cookie for FRONTEND_BASE_URL's
+ * host, or a host-only cookie on any other host, so the browser does not drop it.
  *
  * @tag api
  * @tag auth
@@ -17,112 +18,74 @@ import { createSessionMiddleware } from '../../api/src/utils/sessionCookies';
  */
 
 const TAGS = { tag: ['@api', '@auth', '@security'] };
-
-async function setCookieFor(
-  frontendBaseUrl: string,
-  headers: Record<string, string>,
-  production = true,
-  warn: (msg: string) => void = () => undefined,
-  trustProxy = false
-): Promise<string | undefined> {
-  const app = express();
-  app.set('trust proxy', trustProxy);
-  app.use(
-    createSessionMiddleware({
-      domainStore: new session.MemoryStore(),
-      hostOnlyStore: new session.MemoryStore(),
-      secret: 'x',
-      frontendBaseUrl,
-      production,
-      warn,
-    })
-  );
-  app.get('/', (req, res) => {
-    (req.session as unknown as Record<string, unknown>).seen = true;
-    res.end('ok');
-  });
-  const server = app.listen(0, '127.0.0.1');
-  await new Promise((r) => server.once('listening', r));
-  try {
-    const { port } = server.address() as AddressInfo;
-    return await new Promise<string | undefined>((resolve, reject) => {
-      http
-        .get({ host: '127.0.0.1', port, path: '/', headers }, (res) => {
-          res.resume();
-          resolve(res.headers['set-cookie']?.join('\n'));
-        })
-        .on('error', reject);
-    });
-  } finally {
-    server.close();
-  }
-}
+const DOMAIN = 'tournament.example.com';
+const raw = (host?: string) => ({ headers: host === undefined ? {} : { host } });
+const express = (hostname: string) => ({ hostname, headers: { host: hostname } });
 
 test.describe('session cookie selection (pure)', () => {
-  test('https base URL: a proxied https request gets a Secure Domain cookie', TAGS, async () => {
-    const cookie = await setCookieFor('https://tournament.example.com', {
-      Host: 'tournament.example.com',
-      'X-Forwarded-Proto': 'https',
-    });
-    expect(cookie).toMatch(/^at\.sid=/);
-    expect(cookie).toMatch(/Domain=tournament\.example\.com/i);
-    expect(cookie).toMatch(/Secure/i);
+  test('the base host and its subdomains keep the Domain cookie', TAGS, () => {
+    expect(useHostOnlySession(express(DOMAIN), DOMAIN)).toBe(false);
+    expect(useHostOnlySession(express(`app.${DOMAIN}`), DOMAIN)).toBe(false);
   });
 
-  test('a subdomain of the base host keeps the Domain cookie', TAGS, async () => {
-    const cookie = await setCookieFor('https://example.com', {
-      Host: 'app.example.com',
-      'X-Forwarded-Proto': 'https',
-    });
-    expect(cookie).toMatch(/Domain=example\.com/i);
+  test('another host, a lookalike and an IP get the host-only cookie', TAGS, () => {
+    expect(useHostOnlySession(express('mybox.local'), DOMAIN)).toBe(true);
+    expect(useHostOnlySession(express(`not${DOMAIN}`), DOMAIN)).toBe(true);
+    expect(useHostOnlySession(express('10.0.0.5'), DOMAIN)).toBe(true);
+    expect(useHostOnlySession(express('10.0.0.5'), undefined)).toBe(true);
   });
 
-  test('a host that is not the base host gets a host-only cookie', TAGS, async () => {
-    const cookie = await setCookieFor('https://tournament.example.com', {
-      Host: 'mybox.local',
-    });
-    expect(cookie).toMatch(/^at\.sid=/);
-    expect(cookie).not.toMatch(/Domain=/i);
-    expect(cookie).not.toMatch(/Secure/i);
+  test('without a cookie domain a DNS name keeps the one session', TAGS, () => {
+    expect(useHostOnlySession(express('mybox.local'), undefined)).toBe(false);
   });
 
-  test('a lookalike host is not the base host', TAGS, async () => {
-    const cookie = await setCookieFor('https://example.com', { Host: 'notexample.com' });
-    expect(cookie).not.toMatch(/Domain=/i);
+  test('a raw handshake request does not throw and reads the Host header', TAGS, () => {
+    expect(() => useHostOnlySession(raw(`${DOMAIN}:3069`), DOMAIN)).not.toThrow();
+    expect(useHostOnlySession(raw(`${DOMAIN}:3069`), DOMAIN)).toBe(false);
+    expect(useHostOnlySession(raw('mybox.local:3069'), DOMAIN)).toBe(true);
+    expect(() => useHostOnlySession(raw(), DOMAIN)).not.toThrow();
+    expect(() => useHostOnlySession(raw(''), DOMAIN)).not.toThrow();
+    expect(useHostOnlySession(raw(), DOMAIN)).toBe(false);
   });
 
-  test('an IP host gets a host-only cookie, Secure only over https', TAGS, async () => {
-    const plain = await setCookieFor('https://tournament.example.com', { Host: '10.0.0.5:3069' });
-    expect(plain).not.toMatch(/Domain=|Secure/i);
-    const tls = await setCookieFor(
-      'https://tournament.example.com',
-      {
-        Host: '10.0.0.5:3069',
-        'X-Forwarded-Proto': 'https',
-      },
-      true,
-      undefined,
-      true
-    );
-    expect(tls).toMatch(/Secure/i);
+  test('IPv6 hosts lose their brackets and port', TAGS, () => {
+    expect(requestHost(raw('[::1]:3069'))).toBe('::1');
+    expect(useHostOnlySession(raw('[::1]:3069'), DOMAIN)).toBe(true);
+    expect(useHostOnlySession(express('[fd00::5]'), DOMAIN)).toBe(true);
   });
 
-  test('warns once when an https deployment sees plain http on its own host', TAGS, async () => {
+  test('the session cookie lasts as long as the player cookie', TAGS, () => {
+    expect(SESSION_COOKIE_MAX_AGE_MS).toBe(30 * 24 * 60 * 60 * 1000);
+  });
+
+  test('warns once when an https deployment sees plain http', TAGS, () => {
     const warnings: string[] = [];
-    const warn = (m: string) => warnings.push(m);
-    const headers = { Host: 'tournament.example.com' };
-    await setCookieFor('https://tournament.example.com', headers, true, warn);
-    expect(warnings.join('\n')).toContain('TRUSTED_PROXIES');
+    const warn = createInsecureSessionWarner((m) => warnings.push(m));
+    warn({ headers: {}, secure: false }, true);
+    warn({ headers: {}, secure: false }, true);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('TRUSTED_PROXIES');
   });
 
-  test('no warning for a proxied https request', TAGS, async () => {
+  test('no warning for forwarded https, secure requests or http deployments', TAGS, () => {
     const warnings: string[] = [];
-    await setCookieFor(
-      'https://tournament.example.com',
-      { Host: 'tournament.example.com', 'X-Forwarded-Proto': 'https' },
-      true,
-      (m) => warnings.push(m)
-    );
+    const warn = createInsecureSessionWarner((m) => warnings.push(m));
+    warn({ headers: { 'x-forwarded-proto': 'https' }, secure: false }, true);
+    warn({ headers: {}, secure: true }, true);
+    warn({ headers: {}, secure: false }, false);
     expect(warnings).toEqual([]);
   });
+
+  test(
+    'each session middleware has a store of its own (express-session puts its cookie options on the store)',
+    TAGS,
+    () => {
+      const src = readFileSync(path.join(__dirname, '../../api/src/index.ts'), 'utf8');
+      const stores = [...src.matchAll(/session\(\{[^}]*?store:\s*([^,]+),/gs)].map((m) =>
+        m[1].trim()
+      );
+      expect(stores).toHaveLength(2);
+      expect(stores[0]).not.toBe(stores[1]);
+    }
+  );
 });
