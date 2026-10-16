@@ -20,6 +20,8 @@ export interface RecoveryResult {
   error?: string;
 }
 
+let startupDone = false;
+
 /**
  * Recover all active matches on startup
  * Syncs match state from servers and reconfigures webhooks/demos
@@ -28,6 +30,18 @@ export async function recoverActiveMatches(): Promise<RecoveryResult[]> {
   log.info('[Recovery] Starting match recovery on startup...');
 
   try {
+    // A crash mid-allocation leaves a ready match holding the server it was being
+    // loaded on. Nothing is allocating yet on the first run of a process.
+    if (!startupDone) {
+      startupDone = true;
+      const released = await db.runAsync(
+        `UPDATE matches SET server_id = NULL WHERE status = 'ready' AND server_id IS NOT NULL`
+      );
+      if (released.changes > 0) {
+        log.warn(`[Recovery] Released ${released.changes} ready match(es) left on a server`);
+      }
+    }
+
     // Find all matches that are loaded or live
     const activeMatches = await db.queryAsync<DbMatchRow>(
       `SELECT * FROM matches 
