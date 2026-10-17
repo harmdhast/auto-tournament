@@ -386,7 +386,9 @@
       "button": "Aggiungi",
       "machine": "Macchina",
       "readyUp": "Server Ready Up"
-    }
+    },
+    "loadError": "Impossibile caricare i server",
+    "retry": "Riprova"
   },
   "serverModal": {
     "titleEdit": "Modifica server",
@@ -1658,7 +1660,9 @@
       "loadFailed": "Impossibile caricare il catalogo",
       "wear": "Usura",
       "cancel": "Annulla",
-      "equip": "Equipaggia"
+      "equip": "Equipaggia",
+      "floatRange": "da 0 a 1",
+      "patternRange": "Numero intero, da 0 a 1000"
     },
     "takeOffSide": "Take {{name}} off {{side}}",
     "takeOffOn": "Take off {{side}}",

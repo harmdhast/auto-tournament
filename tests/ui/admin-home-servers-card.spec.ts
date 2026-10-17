@@ -63,4 +63,5 @@ test('spare and busy servers are not counted as in a match', async ({ page, requ
   await expect(count('spare')).toHaveText('1');
   await expect(count('free')).toHaveText('1');
   await expect(count('offline')).toHaveText('1');
+  await expect(card.getByText('Offline', { exact: true })).toBeVisible();
 });

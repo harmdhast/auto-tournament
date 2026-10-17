@@ -39,7 +39,7 @@
       "online": "running",
       "inMatch": "In a match",
       "free": "Free",
-      "offline": "Idle",
+      "offline": "Offline",
       "none": "No servers connected yet.",
       "busy": "Busy",
       "spare": "Spare",
@@ -386,7 +386,9 @@
       "button": "Add",
       "machine": "Machine",
       "readyUp": "Ready Up server"
-    }
+    },
+    "loadError": "Could not load the servers",
+    "retry": "Retry"
   },
   "serverModal": {
     "titleEdit": "Edit Server",
@@ -1658,7 +1660,9 @@
       "loadFailed": "Could not load the catalogue",
       "wear": "Wear",
       "cancel": "Cancel",
-      "equip": "Equip"
+      "equip": "Equip",
+      "floatRange": "0 to 1",
+      "patternRange": "Whole number, 0 to 1000"
     },
     "takeOffSide": "Take {{name}} off {{side}}",
     "takeOffOn": "Take off {{side}}",

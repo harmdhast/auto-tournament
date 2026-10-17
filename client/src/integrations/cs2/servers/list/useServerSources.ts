@@ -8,14 +8,17 @@ const POLL_MS = 10_000;
 export function useServerSources(): {
   fleetServers: FleetServer[];
   loaded: boolean;
+  failed: boolean;
   reload: () => Promise<void>;
 } {
   const [fleetServers, setFleetServers] = useState<FleetServer[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const reload = useCallback(async () => {
     const f = await api.get<FleetServersResponse>('/api/fleet/servers').catch(() => null);
     if (f) setFleetServers(f.servers ?? []);
+    setFailed(!f);
     setLoaded(true);
   }, []);
 
@@ -28,5 +31,5 @@ export function useServerSources(): {
     };
   }, [reload]);
 
-  return { fleetServers, loaded, reload };
+  return { fleetServers, loaded, failed, reload };
 }

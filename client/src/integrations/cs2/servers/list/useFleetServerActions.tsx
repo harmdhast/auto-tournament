@@ -534,6 +534,7 @@ export function useFleetServerActions(reload: () => Promise<void>): {
             ? t('fleetPanel.confirm.removeMessage', { name: pending.server.name })
             : t('fleetPanel.confirm.revokeMessage', { name: pending?.server.name ?? '' })
         }
+        confirmLabel={pending?.action === 'remove' ? undefined : t('fleetPanel.revoke')}
         confirmColor="error"
         loading={busy}
         onConfirm={() => void confirmPending()}

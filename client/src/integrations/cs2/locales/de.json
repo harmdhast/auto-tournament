@@ -386,7 +386,9 @@
       "button": "Hinzufügen",
       "machine": "Maschine",
       "readyUp": "Ready-Up-Server"
-    }
+    },
+    "loadError": "Die Server konnten nicht geladen werden",
+    "retry": "Erneut versuchen"
   },
   "serverModal": {
     "titleEdit": "Server bearbeiten",
@@ -1658,7 +1660,9 @@
       "loadFailed": "Katalog konnte nicht geladen werden",
       "wear": "Abnutzung",
       "cancel": "Abbrechen",
-      "equip": "Ausrüsten"
+      "equip": "Ausrüsten",
+      "floatRange": "0 bis 1",
+      "patternRange": "Ganze Zahl, 0 bis 1000"
     },
     "takeOffSide": "Take {{name}} off {{side}}",
     "takeOffOn": "Take off {{side}}",

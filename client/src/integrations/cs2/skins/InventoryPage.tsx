@@ -374,8 +374,8 @@ export function InventoryPage() {
                                 position: 'absolute',
                                 top: 4,
                                 right: 4,
-                                width: 24,
-                                height: 24,
+                                width: 32,
+                                height: 32,
                                 bgcolor: withAlpha(color.paper2, 0.85),
                                 border: `1px solid ${color.rule}`,
                                 '&:hover': { bgcolor: color.paper3 },
@@ -670,7 +670,13 @@ export function SidePicker({
     >
       <Box
         data-testid={testId}
-        sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2, width: 'min(360px, 85vw)' }}
+        sx={{
+          p: 3,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          width: 'min(360px, calc(100vw - 72px))',
+        }}
       >
         <Typography
           id="side-picker-title"

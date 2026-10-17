@@ -179,6 +179,7 @@ export const theme = createTheme({
           padding: '0.5rem 1.1rem',
           transition: `background-color ${duration.fast}ms ${ease.out}, border-color ${duration.fast}ms ${ease.out}, box-shadow ${duration.base}ms ${ease.out}, transform ${duration.fast}ms ${ease.out}`,
           '&:active': { transform: 'translateY(1px)' },
+          '&.Mui-focusVisible': { outline: `2px solid ${color.focus}`, outlineOffset: 3 },
         },
         containedPrimary: {
           '&:hover': { backgroundColor: color.accent2 },
@@ -209,7 +210,10 @@ export const theme = createTheme({
     MuiIconButton: {
       defaultProps: { disableFocusRipple: true },
       styleOverrides: {
-        root: { '&:hover': { backgroundColor: color.paper3 } },
+        root: {
+          '&:hover': { backgroundColor: color.paper3 },
+          '&.Mui-focusVisible': { outline: `2px solid ${color.focus}`, outlineOffset: 3 },
+        },
       },
     },
     MuiFab: {

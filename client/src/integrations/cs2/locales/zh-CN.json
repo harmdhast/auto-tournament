@@ -386,7 +386,9 @@
       "button": "添加",
       "machine": "机器",
       "readyUp": "Ready Up 服务器"
-    }
+    },
+    "loadError": "无法加载服务器",
+    "retry": "重试"
   },
   "serverModal": {
     "titleEdit": "编辑服务器",
@@ -1658,7 +1660,9 @@
       "loadFailed": "无法加载图鉴",
       "wear": "磨损",
       "cancel": "取消",
-      "equip": "装备"
+      "equip": "装备",
+      "floatRange": "0 到 1",
+      "patternRange": "整数，0 到 1000"
     },
     "takeOffSide": "Take {{name}} off {{side}}",
     "takeOffOn": "Take off {{side}}",

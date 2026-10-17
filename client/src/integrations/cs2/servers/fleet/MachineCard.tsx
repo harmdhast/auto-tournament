@@ -257,23 +257,38 @@ export function MachineCard({
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
         <Box
-          sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flex: '1 1 16rem', minWidth: 0 }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            columnGap: 1.25,
+            rowGap: 0.25,
+            flexWrap: 'wrap',
+            flex: '1 1 16rem',
+            minWidth: 0,
+          }}
         >
           <ButtonBase
             onClick={onOpenMachine}
             data-testid={`machine-open-${host.id}`}
+            title={host.name}
             sx={{
               fontFamily: fontDisplay,
               fontSize: textSize.lg,
               fontWeight: 600,
-              whiteSpace: 'nowrap',
+              minWidth: 0,
+              maxWidth: '100%',
               borderRadius: radii.sm,
               px: 0.5,
               '&:hover': { color: color.accent },
               '&.Mui-focusVisible': { outline: `2px solid ${color.focus}` },
             }}
           >
-            {host.name}
+            <Box
+              component="span"
+              sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            >
+              {host.name}
+            </Box>
           </ButtonBase>
           <Box
             component="span"
@@ -283,7 +298,7 @@ export function MachineCard({
               gap: 0.75,
               fontSize: '0.75rem',
               color: tone === color.muted ? color.ink2 : tone,
-              whiteSpace: 'nowrap',
+              minWidth: 0,
             }}
           >
             <Box
@@ -291,6 +306,7 @@ export function MachineCard({
               sx={{
                 width: 8,
                 height: 8,
+                flex: 'none',
                 borderRadius: radii.pill,
                 bgcolor: tone,
                 boxShadow: online ? `0 0 0 3px ${withAlpha(tone, 0.2)}` : 'none',

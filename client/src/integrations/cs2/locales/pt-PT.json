@@ -386,7 +386,9 @@
       "button": "Adicionar",
       "machine": "Máquina",
       "readyUp": "Servidor Ready Up"
-    }
+    },
+    "loadError": "Não foi possível carregar os servidores",
+    "retry": "Tentar novamente"
   },
   "serverModal": {
     "titleEdit": "Editar servidor",
@@ -1658,7 +1660,9 @@
       "loadFailed": "Não foi possível carregar o catálogo",
       "wear": "Desgaste",
       "cancel": "Cancelar",
-      "equip": "Equipar"
+      "equip": "Equipar",
+      "floatRange": "0 a 1",
+      "patternRange": "Número inteiro, 0 a 1000"
     },
     "takeOffSide": "Take {{name}} off {{side}}",
     "takeOffOn": "Take off {{side}}",

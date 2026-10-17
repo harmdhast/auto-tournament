@@ -388,7 +388,9 @@
       "button": "Dodaj",
       "machine": "Maszyna",
       "readyUp": "Serwer Ready Up"
-    }
+    },
+    "loadError": "Nie udało się wczytać serwerów",
+    "retry": "Spróbuj ponownie"
   },
   "serverModal": {
     "titleEdit": "Edytuj serwer",
@@ -1664,7 +1666,9 @@
       "loadFailed": "Nie udało się wczytać katalogu",
       "wear": "Zużycie",
       "cancel": "Anuluj",
-      "equip": "Załóż"
+      "equip": "Załóż",
+      "floatRange": "od 0 do 1",
+      "patternRange": "Liczba całkowita, od 0 do 1000"
     },
     "takeOffSide": "Take {{name}} off {{side}}",
     "takeOffOn": "Take off {{side}}",
