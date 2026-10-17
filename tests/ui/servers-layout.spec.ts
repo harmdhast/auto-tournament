@@ -74,20 +74,29 @@ test.describe('Servers page loading', () => {
 
   test('a failed load shows an error with Retry, not the first-run guide', async ({ page }) => {
     await stubFleet(page, []);
-    let fail = true;
+    // The machines also reload on the socket's connect: they fail until Retry is clicked.
     await page.route(
       (url) => url.pathname === '/api/fleet/hosts',
-      (route) =>
-        fail
-          ? route.fulfill({ status: 500, json: { success: false, error: 'boom' } })
-          : route.fulfill({ json: { success: true, count: 1, hosts: [machineHost('m1', [])] } })
+      async (route) =>
+        (await page
+          .evaluate(() => (window as unknown as { retried?: boolean }).retried)
+          .catch(() => false))
+          ? route.fulfill({ json: { success: true, count: 1, hosts: [machineHost('m1', [])] } })
+          : route.fulfill({ status: 500, json: { success: false, error: 'boom' } })
     );
     await page.goto('/manage/servers');
     const alert = page.getByTestId('servers-load-error');
     await expect(alert).toBeVisible();
     await expect(page.getByTestId('machines-empty')).toHaveCount(0);
-    fail = false;
-    await alert.getByRole('button', { name: 'Retry' }).click();
+    const retry = alert.getByRole('button', { name: 'Retry' });
+    await retry.evaluate((el) =>
+      el.addEventListener(
+        'click',
+        () => ((window as unknown as { retried?: boolean }).retried = true),
+        true
+      )
+    );
+    await retry.click();
     await expect(page.getByTestId('machine-m1')).toBeVisible();
     await expect(alert).toHaveCount(0);
   });
