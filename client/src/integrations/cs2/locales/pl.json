@@ -124,6 +124,7 @@
     },
     "errors": {
       "loadMaps": "Nie udało się wczytać map",
+      "retryLoadMaps": "Spróbuj ponownie",
       "defaultPoolCannotDelete": "Nie można usunąć domyślnej puli map.",
       "setDefaultPool": "Nie udało się ustawić domyślnej puli map",
       "togglePool": "Nie udało się zmienić statusu puli map",
@@ -257,7 +258,11 @@
     "vetoCompleted": "Veto zakończone!",
     "vetoCompletedSubtitle": "Wybór map jest zakończony. Mecz wkrótce się rozpocznie.",
     "selectedMaps": "Wybrane mapy",
-    "clickMapToConfirm": "Kliknij jedną z podświetlonych map poniżej, aby potwierdzić swój wybór.",
+    "clickMapToConfirm": "Wybierz mapę poniżej, a następnie potwierdź wybór.",
+    "confirmBan": "Potwierdź bana: {{map}}",
+    "confirmPick": "Potwierdź pick: {{map}}",
+    "selectedBan": "Wybrano {{map}}. Potwierdź bana.",
+    "selectedPick": "Wybrano {{map}}. Potwierdź pick.",
     "waitingToBan": "Oczekiwanie na {{team}} w celu zbanowania mapy",
     "waitingToPick": "Oczekiwanie na {{team}} w celu wyboru mapy",
     "waitingToChooseSide": "Oczekiwanie na {{team}} w celu wyboru strony",
@@ -284,6 +289,7 @@
     },
     "mapBadge": "MAPA {{n}}",
     "mapCardAria": {
+      "select": "Wybierz {{map}}",
       "ban": "Zbanuj {{map}}",
       "pick": "Wybierz {{map}}",
       "banned": "{{map}} (zbanowana)",

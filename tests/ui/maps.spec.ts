@@ -1,6 +1,12 @@
+import fs from 'fs';
+import path from 'path';
 import { test, expect } from '@playwright/test';
 import { setupTestContext } from '../helpers/setup';
 import { getAuthHeader } from '../helpers/auth';
+
+const readFileFailed: string = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '../../client/src/integrations/cs2/locales/en.json'), 'utf8')
+).mapModal.errors.readFileFailed;
 
 /**
  * Maps UI tests
@@ -217,6 +223,53 @@ test.describe.serial('Tournament Map Pool Selection', () => {
       await mapPoolSelect.click();
       const options = page.getByTestId('tournament-map-pool-option');
       expect(await options.count()).toBeGreaterThan(0);
+    }
+  );
+
+  test(
+    'a map card opens its actions from the keyboard',
+    { tag: ['@ui', '@maps', '@a11y'] },
+    async ({ page }) => {
+      await page.goto('/manage/maps');
+      const card = page.getByTestId('maps-list').getByRole('button').first();
+      await expect(card).toBeVisible();
+      await card.focus();
+      await page.keyboard.press('Enter');
+      await expect(page.getByTestId('map-actions-modal')).toBeVisible();
+    }
+  );
+
+  test(
+    'a failed load shows an error with Retry instead of the empty state',
+    { tag: ['@ui', '@maps'] },
+    async ({ page }) => {
+      const failing = (route: import('@playwright/test').Route) =>
+        route.fulfill({ status: 500, contentType: 'application/json', body: '{"success":false}' });
+      await page.route('**/api/maps', failing);
+      await page.goto('/manage/maps');
+      const alert = page.getByTestId('maps-load-error');
+      await expect(alert).toBeVisible();
+      await expect(page.getByTestId('maps-empty-state')).toHaveCount(0);
+      await page.unroute('**/api/maps', failing);
+      await alert.getByRole('button').click();
+      await expect(page.getByTestId('maps-list')).toBeVisible();
+    }
+  );
+
+  test(
+    'a file that is not an image is refused when chosen',
+    { tag: ['@ui', '@maps', '@validation'] },
+    async ({ page }) => {
+      await page.goto('/manage/maps');
+      await page.getByTestId('add-map-button').click();
+      const modal = page.getByTestId('map-modal');
+      await expect(modal).toBeVisible();
+      await modal.locator('#map-image-upload').setInputFiles({
+        name: 'notimg.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('this is not an image'),
+      });
+      await expect(modal.getByRole('alert')).toContainText(readFileFailed);
     }
   );
 });

@@ -124,6 +124,7 @@
     },
     "errors": {
       "loadMaps": "Failed to load maps",
+      "retryLoadMaps": "Retry",
       "defaultPoolCannotDelete": "Default map pool cannot be deleted.",
       "setDefaultPool": "Failed to set default map pool",
       "togglePool": "Failed to toggle map pool status",
@@ -257,7 +258,11 @@
     "vetoCompleted": "Veto Completed!",
     "vetoCompletedSubtitle": "Map selection is complete. Match will start shortly.",
     "selectedMaps": "Selected Maps",
-    "clickMapToConfirm": "Click one of the highlighted maps below to confirm your choice.",
+    "clickMapToConfirm": "Select a map below, then confirm your choice.",
+    "confirmBan": "Confirm ban: {{map}}",
+    "confirmPick": "Confirm pick: {{map}}",
+    "selectedBan": "{{map}} selected. Confirm ban.",
+    "selectedPick": "{{map}} selected. Confirm pick.",
     "waitingToBan": "Waiting for {{team}} to ban a map",
     "waitingToPick": "Waiting for {{team}} to pick a map",
     "waitingToChooseSide": "Waiting for {{team}} to choose a side",
@@ -285,6 +290,7 @@
     "mapBadge": "MAP {{n}}",
     "decider": "Decider",
     "mapCardAria": {
+      "select": "Select {{map}}",
       "ban": "Ban {{map}}",
       "pick": "Pick {{map}}",
       "banned": "{{map}} (banned)",

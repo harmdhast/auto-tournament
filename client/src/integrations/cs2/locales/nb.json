@@ -124,6 +124,7 @@
     },
     "errors": {
       "loadMaps": "Klarte ikke å laste kart",
+      "retryLoadMaps": "Prøv igjen",
       "defaultPoolCannotDelete": "Standard kartpool kan ikke slettes.",
       "setDefaultPool": "Klarte ikke å sette standard kartpool",
       "togglePool": "Klarte ikke å endre status på kartpool",
@@ -257,7 +258,11 @@
     "vetoCompleted": "Veto fullført!",
     "vetoCompletedSubtitle": "Kartvalget er fullført. Kampen starter snart.",
     "selectedMaps": "Valgte kart",
-    "clickMapToConfirm": "Klikk på ett av de uthevede kartene nedenfor for å bekrefte valget ditt.",
+    "clickMapToConfirm": "Velg et kart nedenfor, og bekreft deretter valget ditt.",
+    "confirmBan": "Bekreft ban: {{map}}",
+    "confirmPick": "Bekreft pick: {{map}}",
+    "selectedBan": "{{map}} valgt. Bekreft ban.",
+    "selectedPick": "{{map}} valgt. Bekreft pick.",
     "waitingToBan": "Venter på at {{team}} fjerner et kart",
     "waitingToPick": "Venter på at {{team}} velger et kart",
     "waitingToChooseSide": "Venter på at {{team}} velger side",
@@ -284,6 +289,7 @@
     },
     "mapBadge": "KART {{n}}",
     "mapCardAria": {
+      "select": "Velg {{map}}",
       "ban": "Fjern {{map}}",
       "pick": "Velg {{map}}",
       "banned": "{{map}} (fjernet)",

@@ -124,6 +124,7 @@
     },
     "errors": {
       "loadMaps": "加载地图失败",
+      "retryLoadMaps": "重试",
       "defaultPoolCannotDelete": "默认地图池无法删除。",
       "setDefaultPool": "设置默认地图池失败",
       "togglePool": "切换地图池状态失败",
@@ -257,7 +258,11 @@
     "vetoCompleted": "禁选完成！",
     "vetoCompletedSubtitle": "地图选择已完成。比赛即将开始。",
     "selectedMaps": "已选地图",
-    "clickMapToConfirm": "点击下方高亮地图以确认你的选择。",
+    "clickMapToConfirm": "在下方选择一张地图，然后确认你的选择。",
+    "confirmBan": "确认禁用：{{map}}",
+    "confirmPick": "确认选择：{{map}}",
+    "selectedBan": "已选择 {{map}}。请确认禁用。",
+    "selectedPick": "已选择 {{map}}。请确认选择。",
     "waitingToBan": "等待 {{team}} 禁用地图",
     "waitingToPick": "等待 {{team}} 选择地图",
     "waitingToChooseSide": "等待 {{team}} 选择阵营",
@@ -284,6 +289,7 @@
     },
     "mapBadge": "地图 {{n}}",
     "mapCardAria": {
+      "select": "选择 {{map}}",
       "ban": "禁用 {{map}}",
       "pick": "选择 {{map}}",
       "banned": "{{map}}（已禁用）",

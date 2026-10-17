@@ -124,6 +124,7 @@
     },
     "errors": {
       "loadMaps": "Impossible de charger les cartes",
+      "retryLoadMaps": "Réessayer",
       "defaultPoolCannotDelete": "Le pool de cartes par défaut ne peut pas être supprimé.",
       "setDefaultPool": "Impossible de définir le pool de cartes par défaut",
       "togglePool": "Impossible de changer le statut du pool de cartes",
@@ -257,7 +258,11 @@
     "vetoCompleted": "Veto terminé !",
     "vetoCompletedSubtitle": "La sélection de cartes est terminée. Le match va démarrer prochainement.",
     "selectedMaps": "Cartes sélectionnées",
-    "clickMapToConfirm": "Cliquez sur l'une des cartes surlignées ci-dessous pour confirmer votre choix.",
+    "clickMapToConfirm": "Sélectionnez une carte ci-dessous, puis confirmez votre choix.",
+    "confirmBan": "Confirmer le ban : {{map}}",
+    "confirmPick": "Confirmer le pick : {{map}}",
+    "selectedBan": "{{map}} sélectionnée. Confirmez le ban.",
+    "selectedPick": "{{map}} sélectionnée. Confirmez le pick.",
     "waitingToBan": "En attente que {{team}} bannisse une carte",
     "waitingToPick": "En attente que {{team}} choisisse une carte",
     "waitingToChooseSide": "En attente que {{team}} choisisse un côté",
@@ -284,6 +289,7 @@
     },
     "mapBadge": "CARTE {{n}}",
     "mapCardAria": {
+      "select": "Sélectionner {{map}}",
       "ban": "Bannir {{map}}",
       "pick": "Choisir {{map}}",
       "banned": "{{map}} (bannie)",

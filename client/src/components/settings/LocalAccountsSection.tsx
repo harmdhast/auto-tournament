@@ -11,6 +11,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 import { api, apiErrorMessage } from '../../utils/api';
@@ -269,15 +270,25 @@ export function LocalAccountsSection() {
               }
               label={t('settingsPage.signIn.accounts.makeAdmin')}
             />
-            <Button
-              variant="contained"
-              size="small"
-              disabled={busy || !username.trim() || !password}
-              onClick={() => void create()}
-              data-testid="local-account-create"
+            <Tooltip
+              title={
+                !username.trim() || !password
+                  ? t('settingsPage.signIn.accounts.createNeedsInput')
+                  : ''
+              }
             >
-              {t('settingsPage.signIn.accounts.create')}
-            </Button>
+              <span>
+                <Button
+                  variant="contained"
+                  size="small"
+                  disabled={busy || !username.trim() || !password}
+                  onClick={() => void create()}
+                  data-testid="local-account-create"
+                >
+                  {t('settingsPage.signIn.accounts.create')}
+                </Button>
+              </span>
+            </Tooltip>
           </Stack>
         </Stack>
       </Stack>

@@ -9,6 +9,7 @@ import { setupTournament } from '../helpers/tournamentSetup';
 import { findMatchByTeams } from '../helpers/matches';
 import { actingSteamIdFor } from '../helpers/veto';
 import { openOwnMatchRoom } from '../helpers/matchRoom';
+import { updateTeam } from '../helpers/teams';
 
 /**
  * The match room (`/match/:slug`) is the only place a match is played from:
@@ -77,6 +78,7 @@ test.describe.serial('Match room', () => {
   test('someone not in the match sees the room and the veto, read-only', TAGS, async ({ page }) => {
     await page.goto(`/match/${encodeURIComponent(slug)}`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('match-page')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('main[data-testid="match-page"]')).toHaveCount(1);
     await expect(page.getByTestId('match-room-player')).toHaveCount(0);
     // The MatchRoom board: steps, the server state and both rosters...
     await expect(page.getByTestId('match-spectator-room')).toBeVisible({ timeout: 15000 });
@@ -102,5 +104,33 @@ test.describe.serial('Match room', () => {
       timeout: 20000,
     });
     await expect(page.getByTestId('veto-interface')).toHaveCount(0);
+  });
+
+  test('the veto step strip reads on a phone', TAGS, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await impersonatePlayer(page.request, player)).toBe(true);
+    await openOwnMatchRoom(page);
+    await expect(page.getByTestId('veto-interface')).toBeVisible({ timeout: 20000 });
+    const first = page.getByTestId('veto-step-strip').locator('li').first();
+    expect((await first.boundingBox())!.width).toBeGreaterThanOrEqual(80);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390
+    );
+  });
+
+  test('long team names stack above the score on a phone', TAGS, async ({ page, request }) => {
+    await signInViaRequest(request);
+    const long = 'A'.repeat(40);
+    expect(await updateTeam(request, team1Id, { name: `${long} Alpha` })).toBeTruthy();
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await impersonatePlayer(page.request, player)).toBe(true);
+    await openOwnMatchRoom(page);
+    await expect(page.getByTestId('veto-interface')).toBeVisible({ timeout: 20000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390
+    );
+    const name = page.getByText(long).first();
+    await expect(name).toBeVisible();
+    expect((await name.boundingBox())!.height).toBeLessThan(200);
   });
 });

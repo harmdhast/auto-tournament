@@ -139,4 +139,36 @@ test.describe.serial('matchmaking: Play page', () => {
     await expect(page.getByTestId('mm-queue-bar')).toHaveCount(0);
     await expect(page.getByTestId('mm-find')).toBeEnabled();
   });
+
+  test('the queue bar keeps its stop button on screen on a phone', TAGS, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await signInAsPlayer(page, steamId(), 'Phone Stopper', { games: ['cs2'] })).toBe(true);
+    await page.goto('/play');
+    await page.getByTestId('mm-find').click();
+    await expect(page.getByTestId('mm-queue-bar')).toBeVisible();
+    const box = await page.getByTestId('mm-queue-cancel').boundingBox();
+    expect(box).toBeTruthy();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    await page.getByTestId('mm-queue-cancel').click();
+    await expect(page.getByTestId('mm-queue-bar')).toHaveCount(0);
+  });
+
+  test(
+    'a failing matchmaking API shows an error with Retry, not "not open"',
+    TAGS,
+    async ({ page }) => {
+      expect(await signInAsPlayer(page, steamId(), 'Outage Player', { games: ['cs2'] })).toBe(true);
+      const failing = (route: import('@playwright/test').Route) =>
+        route.fulfill({ status: 500, contentType: 'application/json', body: '{"success":false}' });
+      await page.route('**/api/matchmaking/me', failing);
+      await page.goto('/play');
+      const alert = page.getByTestId('load-error');
+      await expect(alert).toBeVisible();
+      await expect(page.getByTestId('mm-unavailable')).toHaveCount(0);
+      await page.unroute('**/api/matchmaking/me', failing);
+      await alert.getByRole('button').click();
+      await expect(page.getByTestId('mm-find')).toBeVisible();
+    }
+  );
 });
