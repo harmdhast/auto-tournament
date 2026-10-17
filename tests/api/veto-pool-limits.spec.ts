@@ -10,7 +10,15 @@ import type { Team } from '../helpers/teams';
  * @tag veto
  */
 
-const ALL_MAPS = ['de_mirage', 'de_inferno', 'de_ancient', 'de_anubis', 'de_dust2', 'de_vertigo', 'de_nuke'];
+const ALL_MAPS = [
+  'de_mirage',
+  'de_inferno',
+  'de_ancient',
+  'de_anubis',
+  'de_dust2',
+  'de_vertigo',
+  'de_nuke',
+];
 
 test.describe.serial('Veto map pool limits', () => {
   let teamIds: string[];
@@ -39,7 +47,14 @@ test.describe.serial('Veto map pool limits', () => {
   ) {
     return request.post('/api/tournament', {
       headers: getAuthHeader(),
-      data: { name: `Pool Limits ${format} ${Date.now()}`, type: 'single_elimination', format, maps, teamIds, settings },
+      data: {
+        name: `Pool Limits ${format} ${Date.now()}`,
+        type: 'single_elimination',
+        format,
+        maps,
+        teamIds,
+        settings,
+      },
     });
   }
 
@@ -70,46 +85,58 @@ test.describe.serial('Veto map pool limits', () => {
     expect(res.status()).toBeLessThan(300);
   });
 
-  test('an update that shrinks a bo3 pool to 2 is rejected', { tag: ['@api', '@veto'] }, async ({ request }) => {
-    expect((await create(request, 'bo3', ALL_MAPS.slice(0, 5))).ok()).toBeTruthy();
-    const res = await update(request, { maps: ALL_MAPS.slice(0, 2) });
-    expect(res.status()).toBe(400);
-    expect((await res.json()).error).toBe('A bo3 map veto needs between 3 and 7 maps, got 2');
-    expect((await update(request, { maps: ALL_MAPS.slice(0, 4) })).ok()).toBeTruthy();
-  });
+  test(
+    'an update that shrinks a bo3 pool to 2 is rejected',
+    { tag: ['@api', '@veto'] },
+    async ({ request }) => {
+      expect((await create(request, 'bo3', ALL_MAPS.slice(0, 5))).ok()).toBeTruthy();
+      const res = await update(request, { maps: ALL_MAPS.slice(0, 2) });
+      expect(res.status()).toBe(400);
+      expect((await res.json()).error).toBe('A bo3 map veto needs between 3 and 7 maps, got 2');
+      expect((await update(request, { maps: ALL_MAPS.slice(0, 4) })).ok()).toBeTruthy();
+    }
+  );
 
-  test('an update that changes only the format checks the stored pool', { tag: ['@api', '@veto'] }, async ({ request }) => {
-    expect((await create(request, 'bo1', ALL_MAPS.slice(0, 4))).ok()).toBeTruthy();
-    const res = await update(request, { format: 'bo5' });
-    expect(res.status()).toBe(400);
-    expect((await res.json()).error).toBe('A bo5 map veto needs between 5 and 7 maps, got 4');
-  });
+  test(
+    'an update that changes only the format checks the stored pool',
+    { tag: ['@api', '@veto'] },
+    async ({ request }) => {
+      expect((await create(request, 'bo1', ALL_MAPS.slice(0, 4))).ok()).toBeTruthy();
+      const res = await update(request, { format: 'bo5' });
+      expect(res.status()).toBe(400);
+      expect((await res.json()).error).toBe('A bo5 map veto needs between 5 and 7 maps, got 4');
+    }
+  );
 
-  test('a custom order is checked against the stored pool when the update sends no maps', { tag: ['@api', '@veto'] }, async ({ request }) => {
-    expect((await create(request, 'bo1', ALL_MAPS.slice(0, 4))).ok()).toBeTruthy();
-    const sevenMapOrder = {
-      bo1: [
-        { step: 1, team: 'team1', action: 'ban' },
-        { step: 2, team: 'team1', action: 'ban' },
-        { step: 3, team: 'team2', action: 'ban' },
-        { step: 4, team: 'team2', action: 'ban' },
-        { step: 5, team: 'team2', action: 'ban' },
-        { step: 6, team: 'team1', action: 'ban' },
-        { step: 7, team: 'team2', action: 'side_pick' },
-      ],
-    };
-    const bad = await update(request, { settings: { customVetoOrder: sevenMapOrder } });
-    expect(bad.status()).toBe(400);
+  test(
+    'a custom order is checked against the stored pool when the update sends no maps',
+    { tag: ['@api', '@veto'] },
+    async ({ request }) => {
+      expect((await create(request, 'bo1', ALL_MAPS.slice(0, 4))).ok()).toBeTruthy();
+      const sevenMapOrder = {
+        bo1: [
+          { step: 1, team: 'team1', action: 'ban' },
+          { step: 2, team: 'team1', action: 'ban' },
+          { step: 3, team: 'team2', action: 'ban' },
+          { step: 4, team: 'team2', action: 'ban' },
+          { step: 5, team: 'team2', action: 'ban' },
+          { step: 6, team: 'team1', action: 'ban' },
+          { step: 7, team: 'team2', action: 'side_pick' },
+        ],
+      };
+      const bad = await update(request, { settings: { customVetoOrder: sevenMapOrder } });
+      expect(bad.status()).toBe(400);
 
-    const fourMapOrder = {
-      bo1: [
-        { step: 1, team: 'team1', action: 'ban' },
-        { step: 2, team: 'team2', action: 'ban' },
-        { step: 3, team: 'team1', action: 'ban' },
-        { step: 4, team: 'team2', action: 'side_pick' },
-      ],
-    };
-    const good = await update(request, { settings: { customVetoOrder: fourMapOrder } });
-    expect(good.ok()).toBeTruthy();
-  });
+      const fourMapOrder = {
+        bo1: [
+          { step: 1, team: 'team1', action: 'ban' },
+          { step: 2, team: 'team2', action: 'ban' },
+          { step: 3, team: 'team1', action: 'ban' },
+          { step: 4, team: 'team2', action: 'side_pick' },
+        ],
+      };
+      const good = await update(request, { settings: { customVetoOrder: fourMapOrder } });
+      expect(good.ok()).toBeTruthy();
+    }
+  );
 });

@@ -20,7 +20,11 @@ type Ack = { ok: boolean; live?: boolean; lines?: string[]; error?: string };
 
 function connect(baseURL: string, cookie: string): Promise<Socket> {
   return new Promise((resolve, reject) => {
-    const socket = io(baseURL, { transports: ['polling'], extraHeaders: cookie ? { cookie } : {}, forceNew: true });
+    const socket = io(baseURL, {
+      transports: ['polling'],
+      extraHeaders: cookie ? { cookie } : {},
+      forceNew: true,
+    });
     socket.once('connect', () => resolve(socket));
     socket.once('connect_error', reject);
   });
@@ -29,7 +33,8 @@ function connect(baseURL: string, cookie: string): Promise<Socket> {
 const subscribe = (socket: Socket, fleetServerId: string) =>
   new Promise<Ack>((resolve) => socket.emit('fleet:logs:subscribe', { fleetServerId }, resolve));
 
-const heard = <T>(socket: Socket, event: string) => new Promise<T>((resolve) => socket.once(event, resolve));
+const heard = <T>(socket: Socket, event: string) =>
+  new Promise<T>((resolve) => socket.once(event, resolve));
 
 const sendLines = (fake: FakeReadyUp, lines: string[], backlog = false) =>
   fake.client.send(envelope('logs.lines', { lines, backlog, dropped: 0 }));
@@ -76,9 +81,19 @@ test.describe.serial('Fleet live logs', () => {
     const admin = await adminSocket(request, baseURL!);
     await subscribe(admin, fake.serverId);
     await fake.next('logs.start');
-    const got = heard<{ fleetServerId: string; lines: string[]; backlog: boolean; dropped: number }>(admin, 'fleet:logs');
+    const got = heard<{
+      fleetServerId: string;
+      lines: string[];
+      backlog: boolean;
+      dropped: number;
+    }>(admin, 'fleet:logs');
     sendLines(fake, ['a', 'b'], true);
-    expect(await got).toEqual({ fleetServerId: fake.serverId, lines: ['a', 'b'], backlog: true, dropped: 0 });
+    expect(await got).toEqual({
+      fleetServerId: fake.serverId,
+      lines: ['a', 'b'],
+      backlog: true,
+      dropped: 0,
+    });
   });
 
   test('second subscriber gets the buffer in its ack', async ({ request, baseURL }) => {
@@ -93,7 +108,11 @@ test.describe.serial('Fleet live logs', () => {
     const again = heard(first, 'fleet:logs');
     sendLines(fake, ['three']);
     await again;
-    expect(await subscribe(second, fake.serverId)).toEqual({ ok: true, live: true, lines: ['one', 'two', 'three'] });
+    expect(await subscribe(second, fake.serverId)).toEqual({
+      ok: true,
+      live: true,
+      lines: ['one', 'two', 'three'],
+    });
   });
 
   test('the last unsubscribe stops the stream', async ({ request, baseURL }) => {
@@ -139,7 +158,10 @@ test.describe.serial('Fleet live logs', () => {
     expect(await subscribe(stranger, fake.serverId)).toEqual({ ok: false, error: 'forbidden' });
   });
 
-  test('server without logs.v1 is unsupported, unknown and offline are told apart', async ({ request, baseURL }) => {
+  test('server without logs.v1 is unsupported, unknown and offline are told apart', async ({
+    request,
+    baseURL,
+  }) => {
     const plain = await online(request, ['match.v1']);
     const admin = await adminSocket(request, baseURL!);
     expect(await subscribe(admin, plain.serverId)).toEqual({ ok: false, error: 'unsupported' });
