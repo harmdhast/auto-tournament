@@ -207,7 +207,11 @@ if (sessionCookieDomain) {
 // connect-pg-simple to create it (which would require table.sql file).
 const sessionPool = new Pool({
   connectionString: sessionDbConnectionString,
-  max: Number(process.env.SESSION_DB_POOL_MAX) || 5,
+  max:
+    Number.isInteger(Number(process.env.SESSION_DB_POOL_MAX)) &&
+    Number(process.env.SESSION_DB_POOL_MAX) > 0
+      ? Number(process.env.SESSION_DB_POOL_MAX)
+      : 5,
 });
 sessionPool.on('error', (err) => log.error('Session store connection error', err));
 const newSessionStore = (opts: { pruneSessionInterval?: false } = {}) =>
