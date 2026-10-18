@@ -611,6 +611,8 @@ export function SwitchRow({
             // MUI sets role="switch" on its own input slot props; ours replace them, so set it again.
             role: 'switch',
             ...(helpId ? { 'aria-describedby': helpId } : {}),
+            // `inputProps` (aria-label, data-testid) would be dropped by the slot above: merge it in.
+            ...switchProps.inputProps,
             ...(switchProps.slotProps?.input as object | undefined),
           },
         }}

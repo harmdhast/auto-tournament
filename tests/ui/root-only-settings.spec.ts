@@ -25,5 +25,7 @@ test(
     await expect(
       page.getByTestId('local-accounts').getByRole('switch', { name: 'Admin' }).last()
     ).toBeDisabled();
+    // The switch keeps the test id passed through inputProps.
+    await expect(page.getByTestId('local-account-new-admin')).toBeDisabled();
   }
 );
