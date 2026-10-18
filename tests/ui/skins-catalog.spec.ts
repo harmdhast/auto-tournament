@@ -198,7 +198,7 @@ test.describe.serial('Skins catalogue picker', () => {
     { tag: ['@ui'] },
     async ({ page }) => {
       const weapons = (
-        await (await page.request.get('/api/skins/catalog?weapon=weapon_deagle')).json()
+        await (await page.request.get('/api/skins/catalog/search?weapon=weapon_deagle')).json()
       ).skins;
       const put = await page.request.put('/api/skins/me/picks', {
         data: {
@@ -234,8 +234,9 @@ test.describe.serial('Skins catalogue picker', () => {
   );
 
   test('a pick shows on the player profile', { tag: ['@ui'] }, async ({ page }) => {
-    const skins = (await (await page.request.get('/api/skins/catalog?weapon=weapon_deagle')).json())
-      .skins;
+    const skins = (
+      await (await page.request.get('/api/skins/catalog/search?weapon=weapon_deagle')).json()
+    ).skins;
     await page.request.put('/api/skins/me/picks', {
       data: { weapon: 'weapon_deagle', paintKit: skins[0].paintKit, float: 0.2, seed: 9, team: 0 },
     });

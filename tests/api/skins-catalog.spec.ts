@@ -44,7 +44,7 @@ test.describe.serial('Skins catalogue unlock', () => {
   const skinGone = async (id: number) =>
     (await player.get(`/api/skins/skin/${id}`)).status() === 404;
   const search = async (query: string) =>
-    ((await (await player.get(`/api/skins/catalog?${query}`)).json()).skins ?? []) as Item[];
+    ((await (await player.get(`/api/skins/catalog/search?${query}`)).json()).skins ?? []) as Item[];
 
   test.beforeAll(async ({ playwright, baseURL }) => {
     const admin = await playwright.request.newContext({ baseURL });
@@ -94,16 +94,16 @@ test.describe.serial('Skins catalogue unlock', () => {
       await setConfig(request, { enabled: false, catalogUnlocked: false });
       const res = await setConfig(request, { enabled: true, catalogUnlocked: true });
       expect((await res.json()).config).toMatchObject({ enabled: true, catalogUnlocked: true });
-      expect((await player.get('/api/skins/catalog')).status()).toBe(200);
+      expect((await player.get('/api/skins/catalog/search')).status()).toBe(200);
       await setConfig(request, { enabled: true, catalogUnlocked: false });
-      expect((await player.get('/api/skins/catalog')).status()).toBe(404);
+      expect((await player.get('/api/skins/catalog/search')).status()).toBe(404);
     }
   );
 
   test('catalogue is closed while the mode is off', { tag: ['@api'] }, async ({ request }) => {
     expect(deagle.length).toBeGreaterThan(1);
     await setConfig(request, { catalogUnlocked: false });
-    expect((await player.get('/api/skins/catalog')).status()).toBe(404);
+    expect((await player.get('/api/skins/catalog/search')).status()).toBe(404);
     expect((await player.get('/api/skins/catalog/weapons')).status()).toBe(404);
   });
 

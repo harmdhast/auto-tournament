@@ -54,7 +54,7 @@ export interface SkinChoice {
   }>;
 }
 
-/** A catalogue skin a player can pick while the catalogue is unlocked (api: GET /api/skins/catalog). */
+/** A catalogue skin a player can pick while the catalogue is unlocked (api: GET /api/skins/catalog/search). */
 export interface CatalogSkin {
   weapon: string;
   weaponName: string;

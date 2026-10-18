@@ -447,7 +447,7 @@ router.get('/catalog/weapons', async (req, res) => {
 
 /**
  * @openapi
- * /api/skins/catalog:
+ * /api/skins/catalog/search:
  *   get:
  *     tags: [Skins]
  *     summary: Search the catalogue to pick a skin (while it is unlocked)
@@ -461,7 +461,7 @@ router.get('/catalog/weapons', async (req, res) => {
  *       401: { description: Not signed in }
  *       404: { description: The catalogue is not unlocked }
  */
-router.get('/catalog', async (req, res) => {
+router.get('/catalog/search', async (req, res) => {
   try {
     if (!(await catalogPlayerOrStop(req, res))) return;
     const skins = searchCatalog(await pickableCatalog(), {

@@ -36,10 +36,6 @@ registered earlier, and Express matches in registration order. It is dead code,
 and the dangerous kind — it reads as though it were in force. Where a shadowed
 row claims different auth from the row above it, the row above is what answers.
 
-Currently shadowed:
-
-- `GET /api/skins/catalog`
-
 ## Endpoints
 
 ### Health and docs
@@ -96,7 +92,7 @@ Virtual CS2 skins: inventories, loadouts, showcases and the admin inventory mana
 | `POST` | `/api/skins/me/seen` | public |
 | `PUT` | `/api/skins/me/showcase` | public |
 | `GET` | `/api/skins/catalog/weapons` | public |
-| `GET` | `/api/skins/catalog` | ~~public~~ **shadowed** |
+| `GET` | `/api/skins/catalog/search` | public |
 | `PUT` | `/api/skins/me/picks` | public |
 | `GET` | `/api/skins/players/:steamId` | public |
 | `GET` | `/api/skins/skin/:id` | public |
