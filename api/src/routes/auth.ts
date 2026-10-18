@@ -1,3 +1,4 @@
+import { getOwnNameState } from '../services/playerName';
 import { randomBytes } from 'crypto';
 import { URLSearchParams } from 'url';
 import { Router, Request, Response, NextFunction } from 'express';
@@ -1549,6 +1550,17 @@ router.get('/me', async (req: Request, res: Response) => {
       }
     }
 
+    // Ask the player for their display name (players_choose_name on, never
+    // confirmed). Never while impersonating: /api/me/name answers for the real session.
+    let namePrompt = false;
+    if (hasPlayerRecord && !identity.isImpersonating) {
+      try {
+        namePrompt = (await getOwnNameState(steamId))?.showPrompt ?? false;
+      } catch {
+        // best-effort
+      }
+    }
+
     log.debug('/api/auth/me: returning authenticated Steam identity', { steamId, hasPlayerRecord });
 
     return res.json({
@@ -1557,6 +1569,7 @@ router.get('/me', async (req: Request, res: Response) => {
       uid,
       hasPlayerRecord,
       root,
+      namePrompt,
       impersonation: identity.isImpersonating
         ? {
             active: true,

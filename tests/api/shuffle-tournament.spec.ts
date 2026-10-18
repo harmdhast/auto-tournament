@@ -184,7 +184,7 @@ test.describe.serial('Shuffle Tournament API', () => {
   );
 
   test(
-    'should register a player into a running shuffle',
+    'a running shuffle takes a late player into the next draw; a finished one takes nobody',
     {
       tag: ['@api', '@shuffle', '@players'],
     },
@@ -196,7 +196,7 @@ test.describe.serial('Shuffle Tournament API', () => {
       });
       expect(setup).toBeTruthy();
 
-      // A running shuffle takes players: they are in the next round's draw
+      // A late player joins a running shuffle (they are drawn from the next round on).
       // Use a unique ID based on timestamp to avoid conflicts
       const uniquePlayerId = `76561198${Date.now().toString().slice(-8)}`;
       const newPlayer = await createPlayer(request, {
@@ -207,7 +207,7 @@ test.describe.serial('Shuffle Tournament API', () => {
 
       const registration = await registerPlayers(request, [newPlayer!.id]);
       expect(registration?.registered).toBe(1);
-      expect(registration?.errors).toHaveLength(0);
+      expect(registration?.errors).toEqual([]);
     }
   );
 

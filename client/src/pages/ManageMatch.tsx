@@ -10,8 +10,6 @@ import {
   Menu,
   MenuItem,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import { DotsThreeIcon } from '@phosphor-icons/react';
@@ -35,8 +33,12 @@ import { MatchStateBanner } from '../components/manage/match/MatchStateBanner';
 import { manageTournamentPath } from '../paths';
 import { MatchHoldPanel } from '../components/admin/MatchHoldPanel';
 import { FleetRosterEditor } from '../components/admin/FleetRosterEditor';
+import { LineupPanel } from '../components/match/LineupPanel';
 import { useIntegrationFor } from '../integrations/registry';
 import { fontDisplay, fontMono, radii, textSize, tokens } from '../theme/tokens';
+import { SegmentedControl } from '../components/common/SegmentedControl';
+import { fmtMoney } from '../utils/number';
+import { copyTextToClipboard } from '../utils/clipboard';
 
 const { color } = tokens;
 
@@ -132,6 +134,24 @@ interface ManageView {
     state: LiveState | null;
     mapRounds: Record<string, RoundSummary[]>;
     updatedAt: number;
+  } | null;
+  /** GOTV on the match's server: each address with this match's password. */
+  broadcast?: {
+    password: string;
+    delay: number;
+    seats: number;
+    insecureObservers: boolean;
+    addresses: Array<{ kind: 'lan' | 'public' | 'server'; address: string }>;
+    /** What the server's tv plugin reports; null without it. */
+    server: {
+      port: number | null;
+      delay: number | null;
+      clients: number | null;
+      maxClients: number | null;
+      passwordSet: boolean | null;
+      insecure: boolean | null;
+      at: number;
+    } | null;
   } | null;
   log: LogEntry[];
   /** Stored map results, for a match with no live record. */
@@ -291,8 +311,7 @@ const LEVEL_COLOR: Record<LogEntry['level'], string> = {
   info: tokens.color.ink2,
   admin: '#c9a7ff',
 };
-const money = (v: number | undefined) =>
-  typeof v === 'number' && v >= 0 ? `$${v.toLocaleString()}` : '—';
+const money = (v: number | undefined) => (typeof v === 'number' && v >= 0 ? fmtMoney(v) : '—');
 const WEAPON_NAMES: Record<string, string> = {
   smokegrenade: 'smoke',
   flashbang: 'flash',
@@ -1139,6 +1158,84 @@ export default function ManageMatch() {
         </Section>
       )}
 
+      {view.broadcast && (
+        <Section
+          title="Broadcast"
+          aside={
+            <Typography sx={{ fontFamily: fontMono, fontSize: textSize.sm, color: color.ink2 }}>
+              {view.broadcast.delay > 0 ? `${view.broadcast.delay} s delay` : 'No delay'}
+              {` · ${view.broadcast.seats} viewers`}
+              {view.broadcast.insecureObservers ? ' · insecure observers' : ''}
+            </Typography>
+          }
+          testId="manage-broadcast"
+        >
+          <Typography sx={{ color: color.ink2 }}>
+            GOTV password{' '}
+            <Box component="span" sx={{ fontFamily: fontMono, color: color.ink }}>
+              {view.broadcast.password}
+            </Box>
+          </Typography>
+          {view.broadcast.server && (
+            <Typography
+              sx={{ color: color.ink2, fontSize: textSize.sm }}
+              data-testid="manage-broadcast-server"
+            >
+              {[
+                'Server reports',
+                view.broadcast.server.clients !== null
+                  ? `${view.broadcast.server.clients}${view.broadcast.server.maxClients !== null ? `/${view.broadcast.server.maxClients}` : ''} watching`
+                  : null,
+                view.broadcast.server.delay !== null
+                  ? view.broadcast.server.delay > 0
+                    ? `${view.broadcast.server.delay} s delay`
+                    : 'no delay'
+                  : null,
+                view.broadcast.server.passwordSet === false
+                  ? 'no password set'
+                  : view.broadcast.server.passwordSet
+                    ? 'password set'
+                    : null,
+                view.broadcast.server.insecure ? 'insecure observers' : null,
+                view.broadcast.server.port !== null ? `port ${view.broadcast.server.port}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Typography>
+          )}
+          {view.broadcast.addresses.map((a) => {
+            const line = `password ${view.broadcast!.password}; connect ${a.address}`;
+            return (
+              <Box
+                key={a.address}
+                sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}
+              >
+                <Typography sx={{ color: color.muted, fontSize: textSize.sm, minWidth: 56 }}>
+                  {a.kind === 'lan' ? 'LAN' : a.kind === 'public' ? 'Public' : 'Server'}
+                </Typography>
+                <Typography
+                  sx={{ fontFamily: fontMono, fontSize: textSize.sm, overflowWrap: 'anywhere' }}
+                  data-testid={`manage-broadcast-${a.kind}`}
+                >
+                  {line}
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() =>
+                    void copyTextToClipboard(line).then((ok) =>
+                      ok ? showSuccess('Copied') : showError('Could not copy, select the text')
+                    )
+                  }
+                >
+                  Copy
+                </Button>
+              </Box>
+            );
+          })}
+        </Section>
+      )}
+
       {onReadyUp && state && (
         <Target
           dot={color.accent}
@@ -1215,6 +1312,24 @@ export default function ManageMatch() {
                 }
               >
                 Swap sides
+              </Button>
+              <Button
+                onClick={() =>
+                  setConfirm({
+                    target: 'match',
+                    title: 'Kick the bots?',
+                    effects: [
+                      'Every bot on CT and T leaves the server',
+                      'GOTV (SourceTV) stays: the demo keeps recording',
+                    ],
+                    action: 'Kick bots',
+                    cancel: 'Keep them',
+                    run: () => send('kick_bots', {}, 'Bots kicked'),
+                  })
+                }
+                data-testid="manage-kick-bots"
+              >
+                Kick bots
               </Button>
             </Group>
           )}
@@ -1430,6 +1545,10 @@ export default function ManageMatch() {
             onError={showError}
           />
         </Section>
+      )}
+
+      {['pending', 'ready', 'loaded', 'live'].includes(view.match.status) && (
+        <LineupPanel matchSlug={slug} admin />
       )}
 
       {onReadyUp && (
@@ -1701,31 +1820,34 @@ export default function ManageMatch() {
         title="Logs"
         testId="manage-logs"
         aside={
-          <ToggleButtonGroup
+          <SegmentedControl
             size="small"
-            exclusive
+            label="Source"
             value={source}
-            onChange={(_, v) => v && setSource(v)}
-            aria-label="Source"
-          >
-            <ToggleButton value="all">All</ToggleButton>
-            <ToggleButton value="server">Server</ToggleButton>
-            <ToggleButton value="platform">Platform</ToggleButton>
-            <ToggleButton value="admin">Admins</ToggleButton>
-          </ToggleButtonGroup>
+            onChange={setSource}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'server', label: 'Server' },
+              { value: 'platform', label: 'Platform' },
+              { value: 'admin', label: 'Admins' },
+            ]}
+          />
         }
       >
-        <ToggleButtonGroup
+        <SegmentedControl
+          multiple
+          look="chips"
           size="small"
+          label="Level"
           value={levels}
-          onChange={(_, v: string[]) => setLevels(v)}
-          aria-label="Level"
-        >
-          <ToggleButton value="error">Errors {counts.error}</ToggleButton>
-          <ToggleButton value="warn">Warnings {counts.warn}</ToggleButton>
-          <ToggleButton value="info">Info</ToggleButton>
-          <ToggleButton value="admin">Admin actions</ToggleButton>
-        </ToggleButtonGroup>
+          onChange={setLevels}
+          options={[
+            { value: 'error', label: `Errors ${counts.error}` },
+            { value: 'warn', label: `Warnings ${counts.warn}` },
+            { value: 'info', label: 'Info' },
+            { value: 'admin', label: 'Admin actions' },
+          ]}
+        />
         <Box sx={{ overflowX: 'auto' }}>
           <Box
             component="table"

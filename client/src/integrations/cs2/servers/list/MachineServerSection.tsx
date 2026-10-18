@@ -32,14 +32,14 @@ export function MachineServerSection({
   match: ServerMatch | null;
   onDelete: (host: FleetHost, server: string) => void;
 }) {
-  const { t, i18n } = useModuleTranslation('cs2');
+  const { t } = useModuleTranslation('cs2');
   const label = useStateLabel();
   const s = host.servers.find((x) => x.name === serverName) ?? null;
   const deleting = s ? fleet.isDeleting(host, s.name) : false;
   const state = s ? serverState(host, s, deleting) : 'offline';
   const canAct = host.online && !deleting;
   const last = s ? host.servers[host.servers.length - 1]?.name === s.name : false;
-  const since = s?.process.started_at ? formatWhen(s.process.started_at, i18n.language) : null;
+  const since = s?.process.started_at ? formatWhen(s.process.started_at) : null;
 
   return (
     <Box data-testid="server-panel-machine" sx={{ display: 'grid', gap: 2 }}>

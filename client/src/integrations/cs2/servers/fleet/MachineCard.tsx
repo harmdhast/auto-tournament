@@ -9,6 +9,8 @@ import {
   tokens,
   useModuleTranslation,
   withAlpha,
+  panelSx,
+  panelBorderSx,
 } from '../../../../module-sdk';
 import type { FleetHost, FleetHostCommand, FleetHostCommandType } from '../../cs2.types';
 import { activeCommand, latestProblem } from '../machineState';
@@ -198,7 +200,7 @@ export function MachineCard({
   const updatingPlugins = runningOf(host, 'host.update_plugins');
   const creating = host.commands.filter((c) => pending(c) && c.type === 'server.create');
   const creatingCount = creating.reduce((n, c) => n + Math.max(1, Number(c.payload.count) || 1), 0);
-  const when = (s: number | null | undefined) => formatWhen(s, i18n.language);
+  const when = (s: number | null | undefined) => formatWhen(s);
   const tone =
     host.status === 'revoked'
       ? color.ban
@@ -245,10 +247,9 @@ export function MachineCard({
       data-testid={`machine-${host.id}`}
       aria-label={host.name}
       sx={{
+        ...panelSx,
+        ...panelBorderSx,
         p: { xs: 1.5, md: 2 },
-        borderRadius: radii.lg,
-        bgcolor: color.paper2,
-        border: `1px solid ${color.rule}`,
         display: 'flex',
         flexDirection: 'column',
         gap: 1,

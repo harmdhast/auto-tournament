@@ -1,6 +1,6 @@
 import type { InputHTMLAttributes } from 'react';
-import { Box, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
-import { SegmentedControl, useModuleTranslation, radii } from '../../../module-sdk';
+import { Box, MenuItem, TextField, Typography } from '@mui/material';
+import { SegmentedControl, useModuleTranslation, radii, SwitchRow } from '../../../module-sdk';
 import type { TournamentRulesStepProps as Cs2MatchSettingsProps } from '../../types';
 import {
   cs2Patch,
@@ -17,6 +17,22 @@ import {
  * (`settings.cs2`), which this step reads from and writes to the wizard's
  * settings object.
  */
+/** Places with a prize: 1st–4th, and 0 for everyone else who played. */
+const PRIZE_PLACES = [1, 2, 3, 4, 0];
+/** The GOTV choices the site's Spectators settings offer too; '' is the site's own. */
+const DELAY_OPTIONS = [0, 30, 105, 120];
+const SEAT_OPTIONS = [8, 16, 32, 50, 100];
+
+const PRIZE_RARITIES = ['ancient', 'legendary', 'mythical', 'rare', 'uncommon', 'common'];
+/** A custom list starts from the best: 1st the rarest grade with skins, one lower each place. */
+const DEFAULT_PRIZES: NonNullable<Cs2TournamentSettings['rewards']> = [
+  { place: 1, mode: 'random', rarity: 'ancient' },
+  { place: 2, mode: 'random', rarity: 'legendary' },
+  { place: 3, mode: 'random', rarity: 'mythical' },
+  { place: 4, mode: 'random', rarity: 'rare' },
+  { place: 0, mode: 'random', rarity: 'uncommon' },
+];
+
 export function Cs2MatchSettings({
   settings,
   onChange,
@@ -32,6 +48,19 @@ export function Cs2MatchSettings({
     type === 'shuffle' ? 'shuffle-max-rounds-field' : 'tournament-max-rounds-field';
   const update = (patch: Partial<Cs2TournamentSettings>) =>
     onChange(cs2Patch({ ...value, ...patch }));
+  const broadcast = value.broadcast ?? {};
+  const updateBroadcast = (patch: Partial<NonNullable<Cs2TournamentSettings['broadcast']>>) => {
+    const next = { ...broadcast, ...patch };
+    for (const key of Object.keys(next) as Array<keyof typeof next>) {
+      if (next[key] === undefined) delete next[key];
+    }
+    update({ broadcast: next });
+  };
+  // A value set through the API that the list does not offer is listed too.
+  const withCurrent = (options: number[], current: number | undefined) =>
+    current === undefined || options.includes(current)
+      ? options
+      : [...options, current].sort((a, b) => a - b);
 
   const handleOvertimeOption = (option: OvertimeOption) => {
     if (option === 'enabled') {
@@ -72,40 +101,32 @@ export function Cs2MatchSettings({
       </Typography>
 
       <Box>
-        <FormControlLabel
+        <SwitchRow
           label={t('tournament.botFill.label')}
-          control={
-            <Switch
-              checked={value.fillTeamsWithBots === true}
-              disabled={disabled}
-              onChange={(_e, checked) => update({ fillTeamsWithBots: checked })}
-              slotProps={{
-                input: {
-                  'data-testid': 'tournament-bot-fill',
-                } as InputHTMLAttributes<HTMLInputElement>,
-              }}
-            />
-          }
+          checked={value.fillTeamsWithBots === true}
+          disabled={disabled}
+          onChange={(_e, checked) => update({ fillTeamsWithBots: checked })}
+          slotProps={{
+            input: {
+              'data-testid': 'tournament-bot-fill',
+            } as InputHTMLAttributes<HTMLInputElement>,
+          }}
         />
         <Typography variant="body2" color="text.secondary">
           {t('tournament.botFill.help')}
         </Typography>
       </Box>
       <Box>
-        <FormControlLabel
+        <SwitchRow
           label={t('tournament.esportsMode.label')}
-          control={
-            <Switch
-              checked={value.esportsMode === true}
-              disabled={disabled}
-              onChange={(_e, checked) => update({ esportsMode: checked })}
-              slotProps={{
-                input: {
-                  'data-testid': 'tournament-esports-mode',
-                } as InputHTMLAttributes<HTMLInputElement>,
-              }}
-            />
-          }
+          checked={value.esportsMode === true}
+          disabled={disabled}
+          onChange={(_e, checked) => update({ esportsMode: checked })}
+          slotProps={{
+            input: {
+              'data-testid': 'tournament-esports-mode',
+            } as InputHTMLAttributes<HTMLInputElement>,
+          }}
         />
         <Typography variant="body2" color="text.secondary">
           {t('tournament.esportsMode.help')}
@@ -180,17 +201,135 @@ export function Cs2MatchSettings({
           sx={{ maxWidth: 360 }}
         />
       )}
-      {type !== 'shuffle' && (
-        <FormControlLabel
-          control={
-            <Switch
-              checked={value.skinRewards !== false}
-              onChange={(event) => update({ skinRewards: event.target.checked })}
-              disabled={disabled}
-            />
-          }
-          label={t('skins.tournamentRewardsSwitch')}
+      <Box sx={{ display: 'grid', gap: 1.5 }} data-testid="tournament-broadcast">
+        <Typography component="span" variant="body2" fontWeight={600}>
+          {t('tournament.broadcast.title')}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <TextField
+            select
+            size="small"
+            label={t('tournament.broadcast.delay')}
+            value={broadcast.delay ?? ''}
+            disabled={disabled}
+            onChange={(e) =>
+              updateBroadcast({
+                delay: e.target.value === '' ? undefined : Number(e.target.value),
+              })
+            }
+            slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+            sx={{ minWidth: 200 }}
+            data-testid="tournament-broadcast-delay"
+          >
+            <MenuItem value="">{t('tournament.broadcast.siteDefault')}</MenuItem>
+            {withCurrent(DELAY_OPTIONS, broadcast.delay).map((o) => (
+              <MenuItem key={o} value={o}>
+                {DELAY_OPTIONS.includes(o)
+                  ? t('settings.gotv.gotvDelay.option', { context: String(o) })
+                  : `${o} s`}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label={t('tournament.broadcast.seats')}
+            value={broadcast.seats ?? ''}
+            disabled={disabled}
+            onChange={(e) =>
+              updateBroadcast({
+                seats: e.target.value === '' ? undefined : Number(e.target.value),
+              })
+            }
+            slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+            sx={{ minWidth: 200 }}
+            data-testid="tournament-broadcast-seats"
+          >
+            <MenuItem value="">{t('tournament.broadcast.siteDefault')}</MenuItem>
+            {withCurrent(SEAT_OPTIONS, broadcast.seats).map((o) => (
+              <MenuItem key={o} value={o}>
+                {t('settings.gotv.gotvSeats.option', { count: o })}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Box>
+        {(broadcast.seats ?? 0) > 30 && (
+          <Typography variant="body2" color="text.secondary">
+            {t('tournament.broadcast.manyViewersHint')}
+          </Typography>
+        )}
+        {broadcast.delay === 0 && (
+          <Typography variant="body2" color="warning.main">
+            {t('tournament.broadcast.noDelayWarning')}
+          </Typography>
+        )}
+        <SwitchRow
+          label={t('tournament.broadcast.insecureObservers')}
+          help={t('tournament.broadcast.insecureObserversHelp')}
+          checked={broadcast.insecureObservers === true}
+          disabled={disabled}
+          onChange={(_e, checked) => updateBroadcast({ insecureObservers: checked || undefined })}
+          slotProps={{
+            input: {
+              'data-testid': 'tournament-broadcast-insecure',
+            } as InputHTMLAttributes<HTMLInputElement>,
+          }}
         />
+      </Box>
+      <SwitchRow
+        label={t('skins.tournamentRewardsSwitch')}
+        checked={value.skinRewards !== false}
+        onChange={(event) => update({ skinRewards: event.target.checked })}
+        disabled={disabled}
+      />
+      {value.skinRewards !== false && (
+        <Box
+          sx={{ display: 'grid', gap: 1.5, maxWidth: 520 }}
+          data-testid="tournament-prizes-editor"
+        >
+          <SegmentedControl
+            label={t('skins.prizesEditor.label')}
+            value={value.rewards ? 'custom' : 'site'}
+            onChange={(v: string) => update({ rewards: v === 'custom' ? DEFAULT_PRIZES : null })}
+            options={[
+              { value: 'site', label: t('skins.prizesEditor.site') },
+              { value: 'custom', label: t('skins.prizesEditor.custom') },
+            ]}
+            disabled={disabled}
+          />
+          {value.rewards &&
+            PRIZE_PLACES.map((place) => {
+              const r = value.rewards?.find((x) => x.place === place);
+              const current = !r || r.mode === 'none' ? 'none' : (r.rarity ?? 'rare');
+              return (
+                <TextField
+                  key={place}
+                  select
+                  size="small"
+                  label={place === 0 ? t('skins.prizes.everyone') : t('skins.place', { n: place })}
+                  value={current}
+                  disabled={disabled}
+                  data-testid={`tournament-prize-place-${place}`}
+                  onChange={(e) => {
+                    const next = (value.rewards ?? []).filter((x) => x.place !== place);
+                    next.push(
+                      e.target.value === 'none'
+                        ? { place, mode: 'none' }
+                        : { place, mode: 'random', rarity: e.target.value }
+                    );
+                    update({ rewards: next.sort((a, b) => (a.place || 9) - (b.place || 9)) });
+                  }}
+                >
+                  {PRIZE_RARITIES.map((rarity) => (
+                    <MenuItem key={rarity} value={rarity}>
+                      {t('skins.prizes.pickOne', { rarity: t(`skins.rarity.${rarity}`) })}
+                    </MenuItem>
+                  ))}
+                  <MenuItem value="none">{t('skins.admin.noReward')}</MenuItem>
+                </TextField>
+              );
+            })}
+        </Box>
       )}
     </Box>
   );

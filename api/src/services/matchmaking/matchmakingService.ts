@@ -10,6 +10,7 @@
  * back to searching. Every change runs through one in-process lock, so the
  * loop and the API never interleave.
  */
+import { playedMapOf } from './playedMap';
 import { getGameRatings } from '../gameRatings';
 import { randomInt, randomUUID } from 'crypto';
 import { db } from '../../config/database';
@@ -34,6 +35,7 @@ import {
   ABANDON_WINDOW_SECONDS,
   abandonCooldownSeconds,
   isAbandon,
+  everyoneGone,
   ACCEPT_SECONDS,
   cooldownSeconds,
   findGroup,
@@ -44,6 +46,7 @@ import {
   parseModePools,
   OFFENCE_WINDOW_SECONDS,
   partyRating,
+  pickCaptain,
   parseReservedServers,
   parseSearchWindow,
   searchWindow,
@@ -54,6 +57,10 @@ import {
   BOT_FILL_MODES,
   findBotFillGroup,
   splitBotFill,
+  rematchOpen,
+  rematchOutcome,
+  REMATCH_ANSWER_SECONDS,
+  REMATCH_SECONDS,
 } from './rules';
 
 export class MatchmakingError extends Error {
@@ -90,14 +97,39 @@ interface LobbyRow {
   accept_deadline: number;
   cancel_reason: string | null;
   bot_fill?: boolean | null;
+  rematch_lobby_id?: string | null;
+  rematch_offer_at?: number | null;
+  rematch_offer_team?: number | null;
+  rematch_outcome?: string | null;
 }
 
 interface LobbyPlayerRow {
   player_id: string;
   party_id: string;
   team: number;
+  queued_at?: number | null;
   accepted_at: number | null;
   declined_at: number | null;
+  rematch_at?: number | null;
+  rematch_declined_at?: number | null;
+}
+
+/** A lobby's rematch as one of its players sees it (MatchmakingService.rematchView). */
+export interface RematchView {
+  /** Votes are still taken (until `deadline`, epoch seconds). */
+  open: boolean;
+  deadline: number | null;
+  /** The team whose player asked first; null until someone said yes. */
+  offerTeam: number | null;
+  /** The caller's team. */
+  team: number;
+  teams: Array<{ team: number; yes: number; no: number; total: number }>;
+  yes: number;
+  total: number;
+  you: 'yes' | 'no' | null;
+  declined: boolean;
+  /** The new match's room once both teams said yes. */
+  lobbyId: string | null;
 }
 
 /** The notice of an invite to a party (one per party per player). */
@@ -115,6 +147,8 @@ export interface MatchmakingMe {
     /** Players invited who have not answered yet. */
     invited: Array<{ id: string; name: string; avatarUrl: string | null }>;
   } | null;
+  /** Party members (or the caller alone) playing in a running tournament: nobody in it can search. */
+  inTournament: Array<{ id: string; name: string; tournament: string }>;
   /** Party members (or the caller alone) not set up for the game yet: the game on their profile, or its account. Searching waits for them. */
   notReady: Array<{ id: string; name: string; missing: 'game' | 'account' }>;
   /** Open invites to the caller from other parties, newest first. */
@@ -128,6 +162,8 @@ export interface MatchmakingMe {
   queue: { mode: string; queuedAt: number; status: string; botFill: boolean } | null;
   /** Players searching right now, per mode (the Play page's "in the queue"). */
   queueCounts: Record<string, number>;
+  /** Players in a matchmaking match that has not finished, per mode (the Play page's "in a match"). */
+  matchCounts: Record<string, number>;
   lobby: {
     id: string;
     status: string;
@@ -145,6 +181,11 @@ export interface MatchmakingMe {
   rating: { elo: number; games: number; wins: number } | null;
   /** The modes players can search on this site. */
   modes: string[];
+  /**
+   * A rematch someone asked for after the caller's last match (`room` = that match's room),
+   * while it is answered and 15 s after; null when there is none.
+   */
+  rematch: (RematchView & { room: string }) | null;
   /** Signed-in players with the site open. */
   online: number;
   /** Typical seconds from searching to a match found, per mode; null with too few recent games. */
@@ -165,8 +206,12 @@ export interface MatchmakingMe {
   };
 }
 
-/** Rounds per half Ready Up plays: wingman MR8, everything else MR12. */
-const MODE_MAX_ROUNDS: Record<MatchmakingMode, number> = { '5v5': 12, '2v2': 8, '1v1': 12 };
+/**
+ * mp_maxrounds per mode: CS2's competitive defaults, MR24 for 5v5 and MR16 for wingman (it was
+ * 12 and 8, which players at NTLAN found too short, 2026-10-16). 1v1 has no competitive default
+ * and stays at 12.
+ */
+const MODE_MAX_ROUNDS: Record<MatchmakingMode, number> = { '5v5': 24, '2v2': 16, '1v1': 12 };
 
 /**
  * Sides and objective per mode. 5v5 keeps the knife round. 1v1 and 2v2 draw
@@ -327,12 +372,19 @@ export class MatchmakingService {
   private async enter(playerId: string, party: PartyRow): Promise<PartyRow> {
     const current = await this.partyOf(playerId);
     if (current?.id === party.id) return party;
-    if (await this.entryOf(party.id)) {
+    const entry = await this.entryOf(party.id);
+    if (entry && (entry.status !== 'searching' || entry.lobby_id)) {
       throw new MatchmakingError(
         409,
         'party_searching',
-        'That party is searching; ask the leader to stop first'
+        'That party has found a match; join after it'
       );
+    }
+    // A party still searching stops when someone joins it: they invited the player while
+    // queued, so the search goes on with them once the leader starts it again.
+    if (entry) {
+      await db.runAsync('DELETE FROM mm_queue_entries WHERE party_id = ?', [party.id]);
+      this.touch(...(await this.members(party.id)));
     }
     // A party can grow to the biggest mode on the site; when it outgrows its
     // mode, it moves to the smallest one it fits.
@@ -492,6 +544,37 @@ export class MatchmakingService {
     });
   }
 
+  /**
+   * Who of `ids` plays in a running tournament (a starter or sub in its
+   * lineup, on a team in it, or a shuffle player who has not left). They
+   * cannot queue until it ends.
+   */
+  private async inTournament(ids: string[]): Promise<MatchmakingMe['inTournament']> {
+    if (ids.length === 0) return [];
+    const rows = await db.queryAsync<{ id: string; name: string; tournament: string }>(
+      `SELECT DISTINCT ON (p.id) p.id, p.name, t.name AS tournament
+         FROM players p
+         JOIN tournament t ON t.status = 'in_progress'
+        WHERE p.id = ANY(?::text[])
+          AND (
+            EXISTS (SELECT 1 FROM tournament_lineups l WHERE l.tournament_id = t.id AND l.player_id = p.id)
+            OR EXISTS (
+              SELECT 1 FROM team_members tm
+               WHERE tm.account_uid::text = p.uid::text
+                 AND (t.team_ids::jsonb @> to_jsonb(tm.team_id)
+                      OR EXISTS (SELECT 1 FROM tournament_registrations r WHERE r.tournament_id = t.id AND r.team_id = tm.team_id))
+            )
+            OR EXISTS (
+              SELECT 1 FROM shuffle_tournament_players sp
+               WHERE sp.tournament_id = t.id AND sp.player_id = p.id AND sp.left_at IS NULL
+            )
+          )
+        ORDER BY p.id, t.id`,
+      [ids]
+    );
+    return rows;
+  }
+
   private async notReady(ids: string[], game: string): Promise<MatchmakingMe['notReady']> {
     const missing = await missingForGame(ids, game);
     if (missing.size === 0) return [];
@@ -633,6 +716,17 @@ export class MatchmakingService {
           `A ${mode} party has at most ${TEAM_SIZE[mode]} players`
         );
       }
+      // Nobody playing in a running tournament searches: their tournament match comes first.
+      const busy = await this.inTournament(members);
+      if (busy.length > 0) {
+        throw new MatchmakingError(
+          409,
+          'in_tournament',
+          busy.length === 1 && busy[0].id === playerId
+            ? "You are in an active tournament, you can't queue for matchmaking right now"
+            : `In an active tournament, so the party can't queue right now: ${busy.map((b) => b.name).join(', ')}`
+        );
+      }
       // Everyone must be set up for the game: it on their profile, and its account linked.
       const game = await this.partyGame(party.id);
       let missing = await missingForGame(members, game);
@@ -714,6 +808,7 @@ export class MatchmakingService {
         [this.clock()]
       );
       for (const lobby of expired) await this.resolveTimeout(lobby);
+      await this.settleExpiredRematches();
 
       await this.watchPresence();
 
@@ -877,8 +972,8 @@ export class MatchmakingService {
 
   /**
    * Create the lobby's match: a standalone Bo1 on a random map from the
-   * game's matchmaking pool, teams as split, then ask the scheduler to give
-   * it a server.
+   * game's matchmaking pool (5v5: the map veto picks it), teams as split,
+   * then ask the scheduler to give it a server (5v5: once the veto is done).
    */
   private async startMatch(lobby: LobbyRow, players: LobbyPlayerRow[]): Promise<void> {
     if (!hasIntegration('cs2')) throw new Error('The CS2 module is not installed');
@@ -887,7 +982,10 @@ export class MatchmakingService {
       null;
     const pool = (await getIntegration('cs2').matchmakingMapPool?.(lobby.mode, poolId)) ?? [];
     if (pool.length === 0) throw new Error(`No CS2 maps for ${lobby.mode} matchmaking`);
-    const map = pool[randomInt(pool.length)].id;
+    // 5v5 vetoes its map (Bo1, the tournaments' veto: bans in turn, last map left, side pick);
+    // 2v2, 1v1 and a bot-filled game (nobody on the bots' side to ban) draw one.
+    const veto = lobby.mode === '5v5' && !lobby.bot_fill && pool.length > 1;
+    const map = veto ? null : pool[randomInt(pool.length)].id;
 
     const names = new Map(
       (
@@ -897,6 +995,19 @@ export class MatchmakingService {
         )
       ).map((r) => [r.id, r.name || r.id])
     );
+    const partyLeaders = new Map(
+      (
+        await db.queryAsync<{ id: string; leader_player_id: string }>(
+          `SELECT id, leader_player_id FROM mm_parties WHERE id IN (${players.map(() => '?').join(', ')})`,
+          players.map((p) => p.party_id)
+        )
+      ).map((r) => [r.id, r.leader_player_id])
+    );
+    const ratings = await this.ratingsFor(
+      players.map((p) => p.player_id),
+      lobby.mode
+    );
+    const mus = new Map([...ratings].map(([id, r]) => [id, r.mu]));
     const team = (n: number) => {
       const roster = players
         .filter((p) => p.team === n)
@@ -904,8 +1015,20 @@ export class MatchmakingService {
         .sort();
       // A bot-filled game can leave one side without a human.
       if (roster.length === 0) return { name: 'Bots', players: {} };
+      const captain = pickCaptain(
+        players
+          .filter((p) => p.team === n)
+          .map((p) => ({
+            playerId: p.player_id,
+            partyId: p.party_id,
+            queuedAt: p.queued_at ?? null,
+          })),
+        partyLeaders,
+        mus
+      );
       return {
-        name: `Team ${names.get(roster[0]) ?? n}`,
+        name: `Team ${names.get(captain!) ?? n}`,
+        captainSteamId: captain,
         players: Object.fromEntries(roster.map((id) => [id, names.get(id) ?? id])),
       };
     };
@@ -922,7 +1045,9 @@ export class MatchmakingService {
           team1: team(1),
           team2: team(2),
           num_maps: 1,
-          maplist: [map],
+          maplist: veto ? pool.map((m) => m.id) : [map!],
+          // The veto runs before the match gets a server (status 'pending' until it is done).
+          ...(veto ? { vetoDisabled: false } : {}),
           wingman: mode === '2v2',
           // The mode's own rules, never a tournament's: a 1v1 played the
           // running tournament's MR6 (2026-10-12).
@@ -937,16 +1062,20 @@ export class MatchmakingService {
     await db.runAsync("UPDATE matches SET source = 'matchmaking' WHERE slug = ?", [slug]);
     // The pool as it was, for the map roulette the players see: at most 30
     // maps, the chosen one always among them.
-    const chosen = pool.find((m) => m.id === map)!;
+    const chosen = pool.find((m) => m.id === map);
     const shown =
-      pool.length <= 30 ? pool : [...pool.filter((m) => m.id !== map).slice(0, 29), chosen];
+      pool.length <= 30 || !chosen
+        ? pool.slice(0, 30)
+        : [...pool.filter((m) => m.id !== map).slice(0, 29), chosen];
     await db.runAsync('UPDATE mm_lobbies SET match_slug = ?, map = ?, map_pool = ? WHERE id = ?', [
       slug,
       map,
       JSON.stringify(shown),
       lobby.id,
     ]);
-    log.info(`[MATCHMAKING] lobby ${lobby.id}: match ${slug} on ${map}`);
+    log.info(
+      `[MATCHMAKING] lobby ${lobby.id}: match ${slug} ${veto ? 'vetoes its map' : `on ${map}`}`
+    );
 
     // Allocation is the scheduler's (manual matches go the same way); it keeps
     // retrying while no server is free.
@@ -954,6 +1083,242 @@ export class MatchmakingService {
     setImmediate(() => {
       void scheduler.tryImmediateAllocation();
     });
+  }
+
+  // --- rematch ---------------------------------------------------------
+
+  /**
+   * A player's answer to "rematch?" after their matchmaking match ended. The answer counts for
+   * their whole party (one click for a 5-stack) and cannot be changed. The first yes (within
+   * REMATCH_SECONDS of the end) asks the other team, who get REMATCH_ANSWER_SECONDS to answer.
+   * Each team decides by majority (rules.teamRematchAnswer); both yes = the same teams get a new
+   * match straight away (5v5 vetoes its map, 2v2 and 1v1 draw one). Either no = declined.
+   */
+  voteRematch(
+    playerId: string,
+    lobbyId: string,
+    yes: boolean
+  ): Promise<{ status: 'voting' | 'declined' | 'ready'; lobbyId?: string }> {
+    return this.locked(async () => {
+      const { lobby, players } = await this.lobbyFor(playerId, lobbyId);
+      const row = lobby as LobbyRow & { match_slug: string | null };
+      if (row.rematch_lobby_id) return { status: 'ready', lobbyId: row.rematch_lobby_id };
+      if (row.rematch_outcome === 'declined') return { status: 'declined' };
+      const now = this.clock();
+      const offerAt = row.rematch_offer_at == null ? null : Number(row.rematch_offer_at);
+      if (offerAt !== null && now >= offerAt + REMATCH_ANSWER_SECONDS) {
+        // Time is up (the loop settles it within 2 s): the votes cast decide.
+        return this.settleRematch(lobbyId);
+      }
+      if (offerAt === null) {
+        const match = row.match_slug
+          ? await db.queryOneAsync<{ status: string; completed_at: number | null }>(
+              'SELECT status, completed_at FROM matches WHERE slug = ?',
+              [row.match_slug]
+            )
+          : undefined;
+        if (!rematchOpen(match ?? null, now)) {
+          throw new MatchmakingError(409, 'rematch_closed', 'A rematch is no longer possible');
+        }
+      }
+      // The caller's whole party answers with them; an answer is not changed.
+      const me = players.find((p) => p.player_id === playerId)!;
+      await db.runAsync(
+        `UPDATE mm_lobby_players SET ${yes ? 'rematch_at' : 'rematch_declined_at'} = ?
+          WHERE lobby_id = ? AND party_id = ? AND rematch_at IS NULL AND rematch_declined_at IS NULL`,
+        [now, lobbyId, me.party_id]
+      );
+      if (yes && offerAt === null) {
+        await db.runAsync(
+          'UPDATE mm_lobbies SET rematch_offer_at = ?, rematch_offer_team = ? WHERE id = ? AND rematch_offer_at IS NULL',
+          [now, me.team, lobbyId]
+        );
+      }
+      this.touch(...players.map((p) => p.player_id));
+      return this.settleRematch(lobbyId);
+    });
+  }
+
+  /**
+   * Decide a lobby's rematch from the votes so far: start the new match when both teams said
+   * yes, end it when either said no (or time ran out without both yes). Inside `locked`.
+   */
+  private async settleRematch(
+    lobbyId: string
+  ): Promise<{ status: 'voting' | 'declined' | 'ready'; lobbyId?: string }> {
+    const lobby = (await db.queryOneAsync<LobbyRow>('SELECT * FROM mm_lobbies WHERE id = ?', [
+      lobbyId,
+    ]))!;
+    if (lobby.rematch_lobby_id) return { status: 'ready', lobbyId: lobby.rematch_lobby_id };
+    if (lobby.rematch_outcome === 'declined') return { status: 'declined' };
+    const players = await db.queryAsync<LobbyPlayerRow>(
+      'SELECT * FROM mm_lobby_players WHERE lobby_id = ?',
+      [lobbyId]
+    );
+    const all = players.map((p) => p.player_id);
+    const now = this.clock();
+    const expired =
+      lobby.rematch_offer_at != null &&
+      now >= Number(lobby.rematch_offer_at) + REMATCH_ANSWER_SECONDS;
+    const outcome = rematchOutcome(
+      players.map((p) => ({
+        team: Number(p.team),
+        vote: p.rematch_at ? true : p.rematch_declined_at ? false : null,
+      })),
+      expired
+    );
+    const decline = async () => {
+      await db.runAsync("UPDATE mm_lobbies SET rematch_outcome = 'declined' WHERE id = ?", [
+        lobbyId,
+      ]);
+      this.touch(...all);
+      log.info(`[MATCHMAKING] lobby ${lobbyId}: rematch declined`);
+      return { status: 'declined' as const };
+    };
+    if (outcome === 'declined') return decline();
+    if (outcome === 'voting') return { status: 'voting' };
+
+    // Both teams said yes. Nobody may be in another game or lobby by now.
+    const busy = await db.queryOneAsync<{ n: number | string }>(
+      `SELECT COUNT(*) AS n FROM mm_lobby_players lp
+         JOIN mm_lobbies l ON l.id = lp.lobby_id
+         LEFT JOIN matches m ON m.slug = l.match_slug
+        WHERE lp.player_id IN (${all.map(() => '?').join(', ')}) AND l.id <> ?
+          AND (l.status = 'accepting'
+               OR (l.status = 'ready' AND (m.status IS NULL OR m.status NOT IN ('completed', 'cancelled'))))`,
+      [...all, lobbyId]
+    );
+    if (Number(busy?.n ?? 0) > 0) {
+      await decline();
+      throw new MatchmakingError(409, 'rematch_busy', 'Someone is already in another match');
+    }
+    // A party that started searching again stops: they are playing the rematch.
+    const parties = [...new Set(players.map((p) => p.party_id))];
+    await db.runAsync(
+      `DELETE FROM mm_queue_entries WHERE party_id IN (${parties.map(() => '?').join(', ')})`,
+      parties
+    );
+    const next = randomUUID();
+    await db.runAsync(
+      "INSERT INTO mm_lobbies (id, mode, status, accept_deadline, created_at, bot_fill) VALUES (?, ?, 'accepting', ?, ?, ?)",
+      [next, lobby.mode, now, now, lobby.bot_fill === true]
+    );
+    for (const p of players) {
+      await db.runAsync(
+        'INSERT INTO mm_lobby_players (lobby_id, player_id, party_id, team, accepted_at) VALUES (?, ?, ?, ?, ?)',
+        [next, p.player_id, p.party_id, p.team, now]
+      );
+    }
+    const nextLobby: LobbyRow = {
+      id: next,
+      mode: lobby.mode,
+      status: 'accepting',
+      accept_deadline: now,
+      cancel_reason: null,
+      bot_fill: lobby.bot_fill === true,
+    };
+    try {
+      await this.startMatch(
+        nextLobby,
+        players.map((p) => ({ ...p, accepted_at: now, declined_at: null }))
+      );
+    } catch (error) {
+      log.error(`[MATCHMAKING] rematch of ${lobbyId}: could not create the match`, error as Error);
+      await db.runAsync(
+        "UPDATE mm_lobbies SET status = 'cancelled', cancel_reason = 'match_failed' WHERE id = ?",
+        [next]
+      );
+      await decline();
+      throw new MatchmakingError(409, 'rematch_failed', 'The rematch could not be created');
+    }
+    await db.runAsync("UPDATE mm_lobbies SET status = 'ready' WHERE id = ?", [next]);
+    await db.runAsync('UPDATE mm_lobbies SET rematch_lobby_id = ? WHERE id = ?', [next, lobbyId]);
+    this.touch(...all);
+    log.info(`[MATCHMAKING] lobby ${lobbyId}: rematch agreed, lobby ${next}`);
+    return { status: 'ready', lobbyId: next };
+  }
+
+  /** Rematch offers whose answer time ran out: the votes cast decide. Inside `locked`. */
+  private async settleExpiredRematches(): Promise<void> {
+    const rows = await db.queryAsync<{ id: string }>(
+      `SELECT id FROM mm_lobbies WHERE rematch_offer_at IS NOT NULL AND rematch_offer_at <= ?
+          AND rematch_lobby_id IS NULL AND rematch_outcome IS NULL`,
+      [this.clock() - REMATCH_ANSWER_SECONDS]
+    );
+    for (const r of rows) {
+      try {
+        await this.settleRematch(r.id);
+      } catch (error) {
+        log.warn(`[MATCHMAKING] lobby ${r.id}: rematch not started: ${(error as Error).message}`);
+      }
+    }
+  }
+
+  /**
+   * The rematch as one player of the lobby sees it: open while votes are taken (until
+   * `deadline`: the other team's answer time once someone asked, else REMATCH_SECONDS after
+   * the end), who asked (`offerTeam`), each team's votes, the caller's answer, and the new room.
+   */
+  private rematchView(
+    lobby: LobbyRow,
+    players: LobbyPlayerRow[],
+    playerId: string,
+    match: { status: string; completed_at: number | null } | null
+  ): RematchView {
+    const now = this.clock();
+    const mine = players.find((p) => p.player_id === playerId);
+    const next = lobby.rematch_lobby_id ?? null;
+    const offerAt = lobby.rematch_offer_at == null ? null : Number(lobby.rematch_offer_at);
+    const deadline =
+      offerAt !== null
+        ? offerAt + REMATCH_ANSWER_SECONDS
+        : match?.completed_at
+          ? Number(match.completed_at) + REMATCH_SECONDS
+          : null;
+    const declined = lobby.rematch_outcome === 'declined';
+    const open =
+      !next &&
+      !declined &&
+      (offerAt !== null ? now < offerAt + REMATCH_ANSWER_SECONDS : rematchOpen(match, now));
+    return {
+      open,
+      deadline,
+      offerTeam: lobby.rematch_offer_team == null ? null : Number(lobby.rematch_offer_team),
+      team: Number(mine?.team ?? 0),
+      teams: [1, 2].map((team) => {
+        const on = players.filter((p) => Number(p.team) === team);
+        return {
+          team,
+          yes: on.filter((p) => p.rematch_at).length,
+          no: on.filter((p) => p.rematch_declined_at).length,
+          total: on.length,
+        };
+      }),
+      yes: players.filter((p) => p.rematch_at).length,
+      total: players.length,
+      you: mine?.rematch_declined_at ? 'no' : mine?.rematch_at ? 'yes' : null,
+      declined,
+      lobbyId: next,
+    };
+  }
+
+  /**
+   * The caller's open rematch offer (or one that ended less than 15 s ago), for the dialog
+   * every page shows: null when there is none.
+   */
+  private async rematchFor(playerId: string): Promise<MatchmakingMe['rematch']> {
+    const lobby = await db.queryOneAsync<LobbyRow & { match_slug: string | null }>(
+      `SELECT l.* FROM mm_lobbies l JOIN mm_lobby_players lp ON lp.lobby_id = l.id
+        WHERE lp.player_id = ? AND l.rematch_offer_at IS NOT NULL AND l.rematch_offer_at > ?
+        ORDER BY l.rematch_offer_at DESC LIMIT 1`,
+      [playerId, this.clock() - REMATCH_ANSWER_SECONDS - 15]
+    );
+    if (!lobby) return null;
+    const players = await db.queryAsync<LobbyPlayerRow>(
+      'SELECT * FROM mm_lobby_players WHERE lobby_id = ?',
+      [lobby.id]
+    );
+    return { room: lobby.id, ...this.rematchView(lobby, players, playerId, null) };
   }
 
   // --- abandons --------------------------------------------------------
@@ -1001,15 +1366,25 @@ export class MatchmakingService {
           )
         ).map((r) => r.player_id)
       );
-      for (const { player_id: id } of players) {
-        if (flagged.has(id)) continue;
-        const gone = isAbandon({
-          now,
-          serverReadyAt: Number(row.loaded_at ?? now),
-          watchingSince: watch.since,
-          lastSeen: watch.lastSeen.get(id) ?? null,
-        });
-        if (gone) {
+      const gone = players
+        .map((p) => p.player_id)
+        .filter(
+          (id) =>
+            !flagged.has(id) &&
+            isAbandon({
+              now,
+              serverReadyAt: Number(row.loaded_at ?? now),
+              watchingSince: watch.since,
+              lastSeen: watch.lastSeen.get(id) ?? null,
+            })
+        );
+      // A player leaves a match the others are still in; everyone gone at once is the server.
+      if (gone.length > 0 && everyoneGone(players.length, gone.length, flagged.size)) {
+        log.warn(
+          `[MATCHMAKING] all ${players.length} players of ${row.match_slug} are gone: no abandon penalties (server-side drop)`
+        );
+      } else {
+        for (const id of gone) {
           await this.penalizeAbandon(id, row.lobby_id);
           log.info(`[MATCHMAKING] ${id} abandoned ${row.match_slug}`);
         }
@@ -1265,7 +1640,9 @@ export class MatchmakingService {
         status: lobbyRow.status,
         acceptDeadline: Number(lobbyRow.accept_deadline),
         matchSlug: (lobbyRow as LobbyRow & { match_slug?: string | null }).match_slug ?? null,
-        map: (lobbyRow as LobbyRow & { map?: string | null }).map ?? null,
+        map:
+          (lobbyRow as LobbyRow & { map?: string | null }).map ??
+          (await playedMapOf((lobbyRow as LobbyRow & { match_slug?: string | null }).match_slug)),
         accepted: Number(counts?.accepted ?? 0),
         total: Number(counts?.total ?? 0),
         youAccepted: lobbyRow.accepted_at !== null,
@@ -1291,12 +1668,14 @@ export class MatchmakingService {
             ),
           }
         : null,
+      inTournament: await this.inTournament(party ? members : [playerId]),
       notReady: await this.notReady(
         party ? members : [playerId],
         party ? await this.partyGame(party.id) : 'cs2'
       ),
       invites: await this.invitesTo(playerId),
       queueCounts: await this.queueCounts(),
+      matchCounts: await this.matchCounts(),
       queue: entry
         ? {
             mode: entry.mode,
@@ -1309,6 +1688,7 @@ export class MatchmakingService {
       cooldownUntil: await this.cooldownUntil(playerId),
       rating: await this.ratingSummary(playerId, entry?.mode ?? party?.mode ?? '5v5'),
       modes: await this.enabledModes(),
+      rematch: await this.rematchFor(playerId),
       online: onlinePlayerCount(),
       waitSeconds: await this.waitEstimates(),
       modeRules: await this.modeRules(),
@@ -1385,6 +1765,16 @@ export class MatchmakingService {
     }));
   }
 
+  private async matchCounts(): Promise<Record<string, number>> {
+    const rows = await db.queryAsync<{ mode: string; n: number | string }>(
+      `SELECT l.mode, COUNT(lp.player_id) AS n FROM mm_lobbies l
+         JOIN mm_lobby_players lp ON lp.lobby_id = l.id
+         JOIN matches m ON m.slug = l.match_slug
+        WHERE m.status NOT IN ('completed', 'cancelled') GROUP BY l.mode`
+    );
+    return Object.fromEntries(rows.map((r) => [r.mode, Number(r.n)]));
+  }
+
   private async queueCounts(): Promise<Record<string, number>> {
     const rows = await db.queryAsync<{ mode: string; n: number | string }>(
       `SELECT e.mode, COUNT(m.player_id) AS n FROM mm_queue_entries e
@@ -1420,6 +1810,8 @@ export class MatchmakingService {
     matchStatus: string | null;
     /** The maps the roulette rolls over; `map` is one of them. */
     mapPool: Array<{ id: string; name: string; imageUrl: string | null }>;
+    /** The map comes from a veto (5v5), not the roulette; `map` is null until it is done. */
+    veto: boolean;
     teams: Array<{
       team: number;
       /** The side this team starts on, from the match config; null for a knife round or before the match exists. */
@@ -1437,6 +1829,8 @@ export class MatchmakingService {
     total: number;
     /** Minutes a loaded match waits in warmup before it starts anyway (0 = until everyone is in). */
     autostartMinutes: number;
+    /** "Rematch?" after the match ended. */
+    rematch: RematchView;
   }> {
     const { lobby, players } = await this.lobbyFor(playerId, lobbyId);
     const row = lobby as LobbyRow & {
@@ -1461,11 +1855,31 @@ export class MatchmakingService {
     const nameOf = new Map(names.map((n) => [n.id, n.name || n.id]));
     const avatarOf = new Map(names.map((n) => [n.id, n.avatar_url]));
     const match = row.match_slug
-      ? await db.queryOneAsync<{ status: string; config: string | null }>(
-          'SELECT status, config FROM matches WHERE slug = ?',
-          [row.match_slug]
-        )
+      ? await db.queryOneAsync<{
+          status: string;
+          config: string | null;
+          completed_at: number | null;
+          veto_state: string | null;
+        }>('SELECT status, config, completed_at, veto_state FROM matches WHERE slug = ?', [
+          row.match_slug,
+        ])
       : undefined;
+    // A vetoed match (5v5): the map is the veto's once it is done.
+    let veto = false;
+    let vetoedMap: string | null = null;
+    try {
+      const cfg = match?.config ? (JSON.parse(match.config) as { vetoDisabled?: boolean }) : {};
+      veto = cfg.vetoDisabled === false;
+      const state = match?.veto_state
+        ? (JSON.parse(match.veto_state) as {
+            status?: string;
+            pickedMaps?: Array<{ mapName?: string }>;
+          })
+        : null;
+      if (veto && state?.status === 'completed') vetoedMap = state.pickedMaps?.[0]?.mapName ?? null;
+    } catch {
+      veto = false;
+    }
     // Who is on the server (the game reports joins), and the sides from the match config.
     const connected = new Set(
       (row.match_slug
@@ -1494,10 +1908,11 @@ export class MatchmakingService {
       id: lobby.id,
       status: orphaned ? 'cancelled' : lobby.status,
       mode: lobby.mode,
-      map: row.map ?? null,
+      map: row.map ?? vetoedMap,
       matchSlug: orphaned ? null : (row.match_slug ?? null),
       matchStatus: match?.status ?? null,
       mapPool,
+      veto,
       teams: [1, 2].map((team) => ({
         team,
         startSide: sideOf(team),
@@ -1514,6 +1929,7 @@ export class MatchmakingService {
       inServer: players.filter((p) => connected.has(p.player_id)).length,
       total: players.length,
       autostartMinutes,
+      rematch: this.rematchView(lobby, players, playerId, match ?? null),
     };
   }
 
@@ -1646,7 +2062,7 @@ export class MatchmakingService {
         mode: l.mode,
         status: l.status,
         matchSlug: l.match_slug,
-        map: l.map,
+        map: l.map ?? (await playedMapOf(l.match_slug)),
         accepted: Number(c?.accepted ?? 0),
         total: Number(c?.total ?? 0),
         createdAt: Number(l.created_at),

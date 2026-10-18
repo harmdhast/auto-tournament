@@ -43,6 +43,7 @@ import {
 import type { Actor } from '../services/matchHolds';
 import { adminIsRoot, isRootRequest, ROOT_ONLY } from '../utils/rootAccess';
 import { PresetAccountError, presetAccounts } from '../services/gameAccounts';
+import { CURRENT_MATCH_ORDER, CURRENT_MATCH_TOURNAMENT_JOIN } from '../utils/currentMatchOrder';
 
 function actorOf(req: Request): Actor {
   const id = requestActorId(req) ?? 'admin';
@@ -101,12 +102,12 @@ router.param('playerId', async (req: Request, res: Response, next, playerId: str
  * /api/players/presence:
  *   get:
  *     tags: [Players]
- *     summary: What players are doing now (online, searching, playing)
+ *     summary: What players are doing now (online, away, searching, playing)
  *     description: For player names anywhere on the site. Up to 100 ids, comma-separated.
  *     parameters:
  *       - { in: query, name: ids, required: true, schema: { type: string } }
  *     responses:
- *       200: { description: "`presence`: { [playerId]: { online, activity } }" }
+ *       200: { description: "`presence`: { [playerId]: { online, status, activity } }; `status` is online, away or offline. Live changes: socket event `presence:update` { playerId, status } after `presence:subscribe`." }
  *       400: { description: No ids }
  */
 router.get('/presence', async (req: Request, res: Response) => {
@@ -506,9 +507,10 @@ export async function matchNowPath(steamId: string): Promise<string | null> {
        FROM matches m
        LEFT JOIN teams t1 ON m.team1_id = t1.id
        LEFT JOIN teams t2 ON m.team2_id = t2.id
+       ${CURRENT_MATCH_TOURNAMENT_JOIN}
       WHERE m.status IN ('pending', 'ready', 'loaded', 'live')
         AND ((t1.players LIKE ? ESCAPE '\\') OR (t2.players LIKE ? ESCAPE '\\') OR (m.config LIKE ('%"' || TRIM(BOTH '%' FROM ?) || '":%')))
-      ORDER BY CASE WHEN m.status IN ('loaded', 'live') THEN 0 ELSE 1 END, m.round ASC, m.match_number ASC
+      ORDER BY ${CURRENT_MATCH_ORDER}
       LIMIT 1`,
     [like, like, like, like]
   );
@@ -612,13 +614,14 @@ router.get('/me/match-status', async (req: Request, res: Response) => {
          FROM matches m
          LEFT JOIN teams t1 ON m.team1_id = t1.id
          LEFT JOIN teams t2 ON m.team2_id = t2.id
+         ${CURRENT_MATCH_TOURNAMENT_JOIN}
          WHERE m.status IN ('pending', 'ready')
            AND (
              (t1.players LIKE ? ESCAPE '\\')
              OR (t2.players LIKE ? ESCAPE '\\')
              OR (m.config LIKE ('%"' || TRIM(BOTH '%' FROM ?) || '":%'))
            )
-         ORDER BY m.round ASC, m.match_number ASC
+         ORDER BY ${CURRENT_MATCH_ORDER}
          LIMIT 1`,
         [likeParam, likeParam, likeParam]
       );
@@ -1025,13 +1028,14 @@ router.get('/:playerId/current-match', async (req: Request, res: Response) => {
         LEFT JOIN teams t1 ON m.team1_id = t1.id
         LEFT JOIN teams t2 ON m.team2_id = t2.id
         LEFT JOIN cs2_servers s ON m.server_id = s.id
+        ${CURRENT_MATCH_TOURNAMENT_JOIN}
         WHERE m.status IN ('pending', 'ready')
           AND (
             (t1.players LIKE ? ESCAPE '\\')
             OR (t2.players LIKE ? ESCAPE '\\')
             OR (m.config LIKE ('%"' || TRIM(BOTH '%' FROM ?) || '":%'))
           )
-        ORDER BY m.round ASC, m.match_number ASC
+        ORDER BY ${CURRENT_MATCH_ORDER}
         LIMIT 1`,
         [likeParam, likeParam, likeParam]
       );
@@ -2041,8 +2045,12 @@ router.post('/', async (req: Request, res: Response) => {
  *       For a site that registers its players before teams exist (the same API
  *       token as the teams API). Body: an array of players, or
  *       `{ "players": [...] }`. Each player: `steamId`, `name`, and
- *       optionally `discordId` (string) and `oidcSubject` (the `sub` of
- *       their login on the site's OpenID Connect server).
+ *       optionally `discordId` (string), `oidcSubject` (the `sub` of
+ *       their login on the site's OpenID Connect server) and `rating` (a
+ *       starting rating on this site's scale, 100–5000; new players start at
+ *       1500). Shuffle teams are balanced on it. A rating only applies while
+ *       the player has no rated matches here; after that their results rule
+ *       (`ratingsKept` lists them).
  *
  *       A player who already exists keeps their rating, stats and match
  *       history: only the display name is updated, and a Discord ID or
@@ -2333,6 +2341,7 @@ async function importPlayers(req: Request, res: Response) {
     return res.status(400).json({ success: false, error: 'Send an array of players' });
   }
   const players: CreatePlayerInput[] = [];
+  const seeds: Array<{ id: string; rating: number }> = [];
   for (const raw of list) {
     const p = (raw ?? {}) as Record<string, unknown>;
     const steamId = typeof p.steamId === 'string' ? p.steamId.trim() : '';
@@ -2341,6 +2350,16 @@ async function importPlayers(req: Request, res: Response) {
       return res
         .status(400)
         .json({ success: false, error: 'Each player needs a steamId (SteamID64) and a name' });
+    }
+    if (p.rating !== undefined) {
+      const rating = Number(p.rating);
+      if (!Number.isFinite(rating) || rating < 100 || rating > 5000) {
+        return res.status(400).json({
+          success: false,
+          error: 'rating must be a number from 100 to 5000 (this site starts players at 1500)',
+        });
+      }
+      seeds.push({ id: steamId, rating: Math.round(rating) });
     }
     players.push({
       id: steamId,
@@ -2351,7 +2370,9 @@ async function importPlayers(req: Request, res: Response) {
   }
   try {
     const result = await playerService.bulkImportPlayers(players);
+    const seeded = await playerService.seedRatings(seeds);
     return res.status(result.errors.length > 0 ? 207 : 200).json({
+      ...(seeds.length > 0 ? { ratingsSet: seeded.set, ratingsKept: seeded.kept } : {}),
       success: result.errors.length === 0,
       created: result.created,
       updated: result.updated,

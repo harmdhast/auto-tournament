@@ -283,9 +283,11 @@ export interface SettingsResponse extends ApiResponse {
     ratingsEnabled?: boolean;
     allowSelfRegister?: boolean;
     updateNotices?: boolean;
+    playersChooseName?: boolean;
     // Ready Up's ready / restore defaults
     atMinimumReadyRequired?: number;
     atAllowForceReady?: boolean;
+    atTeamReady?: boolean;
     atPauseAfterRestore?: boolean;
     atJoinPassword?: boolean;
     atAutostartAfterMinutes?: number;

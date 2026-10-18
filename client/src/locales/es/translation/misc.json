@@ -204,6 +204,20 @@
       "lastUsed": "Last used {{date}}",
       "addedOn": "Added {{date}}, not used yet",
       "needsHttps": "Passkeys need the site on https (or localhost). Ask whoever runs it to put it behind https."
+    },
+    "name": {
+      "title": "Nombre visible",
+      "description": "Se muestra en el sitio y en el juego. Puedes cambiarlo una vez al día.",
+      "lockedUntil": "Se muestra en el sitio y en el juego. Lo cambiaste hace poco; podrás cambiarlo de nuevo a partir del {{date}}.",
+      "label": "Nombre",
+      "lengthHint": "{{min}}–{{max}} caracteres",
+      "badChars": "Sin comillas, < o >, ni caracteres de control",
+      "promptTitle": "¿Cómo te llamas?",
+      "promptBody": "Se muestra en el juego y en el sitio.",
+      "notNow": "Ahora no",
+      "save": "Guardar",
+      "saved": "Nombre guardado. Los servidores lo usarán desde tu próxima partida.",
+      "saveFailed": "No se pudo guardar tu nombre"
     }
   },
   "home": {
@@ -679,7 +693,11 @@
       "botFillUnrated": "Los bots ocupan las plazas vacías · sin clasificar: sin rating, XP ni drops",
       "searchRatingPlain": "Finding a close match for your rating · {{count}} searching",
       "searchWidening": "Widening the search: ±{{elo}} · {{count}} searching",
-      "searchAnyRating": "Searching every rating now · {{count}} searching"
+      "searchAnyRating": "Searching every rating now · {{count}} searching",
+      "inTournament": "You are in an active tournament ({{tournament}}), you can't queue for matchmaking right now.",
+      "partyInTournament": "In an active tournament, so the party can't queue right now: {{names}}.",
+      "inMatch_one": "{{count}} en partida",
+      "inMatch_other": "{{count}} en partida"
     },
     "queue": {
       "searching": "Searching {{mode}}",
@@ -725,7 +743,8 @@
         "loaded": "The server is ready. Join it.",
         "live": "The match is live.",
         "completed": "The match is over.",
-        "other": "Match: {{status}}"
+        "other": "Match: {{status}}",
+        "pending": "Map veto: ban maps in turn until one is left. Anyone on your team can click; the first click counts."
       },
       "pickedBy": "{{mode}} · the map roulette picked",
       "vs": "vs",
@@ -750,7 +769,22 @@
       },
       "equip": "Equipar",
       "equipped": "Equipada",
-      "equipFailed": "No se pudo equipar"
+      "equipFailed": "No se pudo equipar",
+      "rematch": {
+        "title": "¿Revancha?",
+        "ask": "Mismos equipos, una nueva partida. Tu respuesta cuenta para todo tu grupo. Si la mayoría de tu equipo dice que sí, el otro equipo tiene 30 segundos para aceptar.",
+        "yes": "Sí, revancha",
+        "no": "No, gracias",
+        "button": "Revancha",
+        "offerTitle": "El otro equipo quiere la revancha",
+        "teamTitle": "Tu equipo quiere la revancha",
+        "offerBody": "Mismos equipos, una nueva partida. La mayoría de tu equipo tiene que decir que sí. Tu respuesta cuenta para todo tu grupo.",
+        "waitingOther": "Esperando al otro equipo… {{s}} s",
+        "waitingTeam": "Esperando a tu equipo… {{s}} s",
+        "accepted": "Revancha aceptada. Abriendo la nueva partida…",
+        "refused": "Revancha rechazada."
+      },
+      "pickedByVeto": "{{mode}} · picked in the veto"
     },
     "result": {
       "title": "Result",
@@ -802,7 +836,9 @@
         "friendly": "Friendly",
         "team_player": "Team player",
         "leader": "Leader",
-        "good_comms": "Good comms"
+        "good_comms": "Good comms",
+        "teacher": "Teacher",
+        "good_sport": "Good sport"
       },
       "history": "Matchmaking matches",
       "historyEmpty": "No matchmaking matches yet.",
@@ -892,7 +928,9 @@
       "remindGame": "{{name}}: añade el juego a tu perfil (Juegos a los que juegas) antes del check-in de {{tournament}}.",
       "serverDown": "The match server crashed. Bringing it back…",
       "serverBack": "The match is back: map {{map}}, round {{round}}. Reconnect.",
-      "vetoReset": "An admin restarted the veto"
+      "vetoReset": "An admin restarted the veto",
+      "adminClaimed": "{{name}} took the admin call",
+      "adminResolved": "{{name}} resolved the admin call"
     },
     "party": {
       "inviteCopied": "Enlace de invitación copiado",
@@ -981,7 +1019,8 @@
       "settingsWebhooks": "Settings: webhooks",
       "settingsLicense": "Settings: license",
       "settingsMatchmaking": "Settings: matchmaking",
-      "settingsAdvanced": "Settings: advanced"
+      "settingsAdvanced": "Settings: advanced",
+      "liveMatches": "Live matches"
     },
     "clips_one": "{{count}} clip",
     "clips_other": "{{count}} clips",

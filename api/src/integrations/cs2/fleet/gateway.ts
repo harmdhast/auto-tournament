@@ -59,6 +59,7 @@ import {
   type InboundContext,
 } from './inbound';
 import { fleetLimits, socketBytesPerMinute } from './limits';
+import { setTvState } from './tvState';
 
 export const FLEET_WS_PATH = '/api/fleet/ws';
 export const MAX_FRAME_BYTES = 1024 * 1024;
@@ -364,6 +365,7 @@ class FleetSession {
           this.sendError(msg, 'invalid_payload', check.errors.join('; '));
           return;
         }
+        setTvState(this.serverId as string, (msg.payload as unknown as StateSnapshotPayload).tv);
         await handleSnapshot(this.inboundContext(), msg.payload as unknown as StateSnapshotPayload);
         return;
       }
@@ -501,6 +503,8 @@ class FleetSession {
       boot_id: hello.boot_id,
       peer_addr: this.peerAddr,
     });
+    // GOTV state from the tv plugin (./tvState.ts).
+    setTvState(serverId, hello.tv);
     // A server back on the current CS2 build is no longer out of date (serverNotices.ts).
     void clearCs2UpdateIfCurrent(serverId, hello.versions).catch(() => undefined);
     if (this.closed) {

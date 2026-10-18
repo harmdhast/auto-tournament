@@ -1,9 +1,11 @@
+import { withoutConfigSecrets } from '../utils/matchConfigSecrets';
 import { discardTournamentRatings } from './ratingService';
 import { db } from '../config/database';
 import { log } from '../utils/logger';
 import { getBracketGenerator } from './bracketGenerators';
 import { validateTeamCount, calculateTotalRounds } from '../utils/tournamentHelpers';
 import { moduleTournamentFields, normalizeTournamentSettings } from '../utils/tournamentRow';
+import { matchTimeFields } from './matchTimes';
 import { moduleSettingsChangeBracket, withModuleSettings } from '../utils/moduleTournamentSettings';
 import {
   buildMatchConfigFor,
@@ -186,7 +188,11 @@ class TournamentService {
       return row ? { id: row.id, name: row.name, tag: row.tag || undefined } : null;
     };
 
-    if (type === 'single_elimination' || type === 'double_elimination') {
+    if (type === 'single_elimination' || type === 'double_elimination' || type === 'groups') {
+      // Groups: the playoffs' final (its slugs carry `po-`).
+      if (type === 'groups')
+        rows.splice(0, rows.length, ...rows.filter((r) => /(^|-)po-/.test(r.slug)));
+      if (rows.length === 0) return null;
       const grandFinal = rows.find((r) => isGrandFinalSlug(r.slug));
       let final: DbMatchRow | undefined = grandFinal;
       if (!final) {
@@ -240,6 +246,8 @@ class TournamentService {
     const teamSize = validTeamSize(
       input.teamSize ?? (settings as { teamSize?: unknown } | undefined)?.teamSize
     );
+    if (type === 'shuffle' && teamSize !== null && teamSize < 2)
+      throw new Error('Team size must be between 2 and 10 players');
     // A draft with no teams yet: no count check and no bracket until it has some.
     const emptyDraft = options.draft === true && (teamIds?.length ?? 0) === 0;
 
@@ -299,7 +307,8 @@ class TournamentService {
       status: 'setup',
       ...(options.game ? { game: options.game } : {}),
       team_ids: JSON.stringify(teamIds || []), // Shuffle tournaments have no fixed teams
-      ...(teamSize !== null && type !== 'shuffle' ? { team_size: teamSize } : {}),
+      // A shuffle too: it draws teams of this size (it stayed 5 for a wingman shuffle made here).
+      ...(teamSize !== null ? { team_size: teamSize } : {}),
       settings: JSON.stringify(tournamentSettings),
       created_at: now,
       updated_at: now,
@@ -385,7 +394,10 @@ class TournamentService {
     const teamSize = validTeamSize(
       input.teamSize ?? (input.settings as { teamSize?: unknown } | undefined)?.teamSize
     );
-    if (teamSize !== null && (type ?? existing.type) !== 'shuffle') updates.team_size = teamSize;
+    if (teamSize !== null && (type ?? existing.type) === 'shuffle' && teamSize < 2)
+      throw new Error('Team size must be between 2 and 10 players');
+    // A shuffle's team size is the size of the teams each round draws.
+    if (teamSize !== null) updates.team_size = teamSize;
     // settings.matchFormat mirrors `format`, so settings are rewritten when
     // either changes (or an edited format leaves the old value behind in
     // settings), and whenever the game module's object changes: the module
@@ -562,7 +574,7 @@ class TournamentService {
               team1Id: slot.team1Id,
               team2Id: slot.team2Id,
             },
-            tournament
+            slot.format ? { ...tournament, format: slot.format } : tournament
           )
         )
       );
@@ -590,6 +602,9 @@ class TournamentService {
           status,
           next_match_id: null, // Will be set in a second pass
           created_at: createdAt,
+          // A playoff slot's qualifier seeds (groups, then playoffs).
+          ...(matchData.team1Seed ? { team1_seed: matchData.team1Seed } : {}),
+          ...(matchData.team2Seed ? { team2_seed: matchData.team2Seed } : {}),
           ...(matchData.completedAt ? { completed_at: matchData.completedAt } : {}),
         });
 
@@ -626,8 +641,11 @@ class TournamentService {
         });
       }
 
-      // Link matches (set next_match_id based on bracket structure)
-      await this.linkMatches(matches, slugToDbId, tournament.type);
+      // Link matches (set next_match_id based on bracket structure). Groups:
+      // the playoff slots' wiring below gives each match its next one instead.
+      if (tournament.type !== 'groups') {
+        await this.linkMatches(matches, slugToDbId, tournament.type);
+      }
 
       // Apply declarative slot wiring (team*_from_match_id / outcome)
       // using the slugs produced by the generator. This makes runtime
@@ -652,6 +670,18 @@ class TournamentService {
 
         if (Object.keys(updates).length > 0) {
           await db.updateAsync('matches', updates as Record<string, unknown>, 'id = ?', [dbId]);
+        }
+        // Groups' playoffs: a winner's slot is the match's next one (placements read it).
+        if (tournament.type === 'groups') {
+          for (const [from, outcome] of [
+            [matchData.team1FromMatchSlug, matchData.team1FromOutcome],
+            [matchData.team2FromMatchSlug, matchData.team2FromOutcome],
+          ] as const) {
+            const fromId = from ? slugToDbId.get(from) : undefined;
+            if (fromId && outcome === 'winner') {
+              await db.updateAsync('matches', { next_match_id: dbId }, 'id = ?', [fromId]);
+            }
+          }
         }
       }
 
@@ -810,6 +840,13 @@ class TournamentService {
     if (!tournament) return null;
 
     const matches = await this.getMatches(tournamentId);
+    // Start times and when each veto opens (Manage › Schedule).
+    for (const match of matches) {
+      Object.assign(
+        match,
+        matchTimeFields({ round: match.round, starts_at: match.ownStartsAt }, tournament.settings)
+      );
+    }
     const totalRounds = calculateTotalRounds(tournament.teamIds.length, tournament.type);
 
     if (tournament.type === 'swiss') {
@@ -819,6 +856,23 @@ class TournamentService {
     if (tournament.type === 'round_robin') {
       const roundRobinStandings = await getRoundRobinStandingEntries(tournament.id);
       return { tournament, matches, totalRounds, roundRobinStandings };
+    }
+    if (tournament.type === 'groups') {
+      const { groupStandings } = await import('./groupsTournament');
+      const groups = (await groupStandings(tournament.id)).map((g) => ({
+        group: g.group,
+        done: g.done,
+        standings: g.standings.map((s) => ({
+          rank: s.rank,
+          teamId: s.teamId,
+          wins: s.wins,
+          losses: s.losses,
+          roundDiff: s.roundDiff,
+          roundsWon: s.roundsWon,
+        })),
+      }));
+      const rounds = Math.max(0, ...matches.map((m) => m.round ?? 0));
+      return { tournament, matches, totalRounds: rounds, groupStandings: groups };
     }
     return { tournament, matches, totalRounds };
   }
@@ -849,6 +903,7 @@ class TournamentService {
         bracket: row.bracket ?? null,
         currentMap: row.current_map ?? null,
         mapNumber: row.map_number ?? null,
+        ownStartsAt: (row as { starts_at?: number | null }).starts_at ?? null,
         vetoing:
           row.status === 'pending' &&
           Boolean(row.team1_id && row.team2_id) &&
@@ -857,7 +912,10 @@ class TournamentService {
 
       // Integration-owned config, forwarded as-is (client slots: PR 12).
       if (row.config) {
-        match.config = parseStoredMatchConfig(row.config) as BracketMatch['config'];
+        // The public bracket: no GOTV password with no delay (utils/matchConfigSecrets).
+        match.config = withoutConfigSecrets(
+          parseStoredMatchConfig(row.config)
+        ) as BracketMatch['config'];
       }
 
       // Attach team info if available

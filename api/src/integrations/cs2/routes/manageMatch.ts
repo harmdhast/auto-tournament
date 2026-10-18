@@ -22,6 +22,8 @@ import { locate } from '../fleet/failoverRecovery';
 import { HostCommandError, sendHostCommand } from '../fleet/hosts/service';
 import { serverChoices } from '../fleet/failover';
 import { getMapResults } from '../../../services/matchMapResultService';
+import { gotvHosts, gotvPassword, matchGotvSettings } from '../gotv';
+import { getTvState } from '../fleet/tvState';
 
 const router = Router();
 
@@ -107,7 +109,7 @@ export function logEntryOf(row: {
  *     parameters:
  *       - { in: path, name: slug, required: true, schema: { type: string } }
  *     responses:
- *       200: { description: "{ match, server, live, log }" }
+ *       200: { description: "{ match, server, broadcast, live, log }" }
  *       401: { description: Not an admin }
  *       404: { description: No such match }
  */
@@ -167,6 +169,57 @@ router.get('/matches/:slug/manage', requireAuth, async (req: Request, res: Respo
       };
     }
 
+    // GOTV, for casters and HUD tools: every address with this match's password.
+    let broadcast: {
+      password: string;
+      delay: number;
+      seats: number;
+      insecureObservers: boolean;
+      addresses: Array<{ kind: 'lan' | 'public' | 'server'; address: string }>;
+      /** What the server's tv plugin reports (fleet/tvState.ts); null without it. */
+      server: {
+        port: number | null;
+        delay: number | null;
+        clients: number | null;
+        maxClients: number | null;
+        passwordSet: boolean | null;
+        insecure: boolean | null;
+        at: number;
+      } | null;
+    } | null = null;
+    if (match.server_id) {
+      const [where, gotv, password] = await Promise.all([
+        gotvHosts(match.server_id, null).catch(() => null),
+        matchGotvSettings(slug),
+        gotvPassword(slug),
+      ]);
+      const fleetId = await fleetServerIdOf(match.server_id).catch(() => null);
+      const reported = fleetId ? getTvState(fleetId) : null;
+      if (where && where.options.length) {
+        broadcast = {
+          password,
+          delay: gotv.delay,
+          seats: gotv.seats,
+          insecureObservers: gotv.insecureObservers,
+          addresses: where.options.map((o) => ({
+            kind: o.kind,
+            address: `${o.host}:${where.port}`,
+          })),
+          server: reported
+            ? {
+                port: reported.tv.port,
+                delay: reported.tv.delay_seconds,
+                clients: reported.tv.clients,
+                maxClients: reported.tv.max_clients,
+                passwordSet: reported.tv.password_set,
+                insecure: reported.tv.secure_bypass,
+                at: reported.at,
+              }
+            : null,
+        };
+      }
+    }
+
     const rows = await db.queryAsync<{
       event_type: string;
       event_data: string;
@@ -189,6 +242,7 @@ router.get('/matches/:slug/manage', requireAuth, async (req: Request, res: Respo
         team2: { id: match.team2_id, name: match.t2 },
       },
       server,
+      broadcast,
       live: live
         ? { state: live.state, mapRounds: live.mapRounds, updatedAt: live.updatedAt }
         : null,
@@ -236,11 +290,21 @@ router.get('/matches/:slug/manage', requireAuth, async (req: Request, res: Respo
  * Body: { name, args? }. Sends one Ready Up command to the match's server and
  * logs it with the admin who sent it.
  */
+/**
+ * `kick_bots`: the fill bots off both teams, never SourceTV (a spectator). A plain `bot_kick`
+ * takes SourceTV too (NTLAN, 2026-10-16, a surplus bot removed by hand). Sent as a fixed exec
+ * line, so an admin needs no root for it.
+ */
+export const KICK_BOTS_LINE = 'bot_kick t; bot_kick ct';
+
 router.post('/matches/:slug/manage/command', requireAuth, async (req: Request, res: Response) => {
   const { slug } = req.params;
-  const name = String(req.body?.name ?? '') as CmdName;
-  const args =
-    req.body?.args && typeof req.body.args === 'object'
+  const asked = String(req.body?.name ?? '');
+  const kickBots = asked === 'kick_bots';
+  const name = (kickBots ? 'exec' : asked) as CmdName;
+  const args = kickBots
+    ? { command: KICK_BOTS_LINE }
+    : req.body?.args && typeof req.body.args === 'object'
       ? (req.body.args as Record<string, unknown>)
       : {};
   if (!MANAGE_MATCH_COMMANDS.has(name)) {
@@ -257,7 +321,7 @@ router.post('/matches/:slug/manage/command', requireAuth, async (req: Request, r
         .status(409)
         .json({ success: false, error: 'The match is not on a Ready Up server' });
     }
-    const who = issuedBy(req);
+    const who = kickBots ? { ...issuedBy(req), root: true } : issuedBy(req);
     const outcome = await runFleetCommand(match.server_id, name, args, who);
     await db
       .runAsync('INSERT INTO match_events (match_slug, event_type, event_data) VALUES (?, ?, ?)', [

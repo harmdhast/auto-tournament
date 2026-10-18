@@ -10,8 +10,6 @@ import {
   CircularProgress,
   IconButton,
   Typography,
-  FormControlLabel,
-  Switch,
 } from '@mui/material';
 import { TrashIcon, XIcon } from '@phosphor-icons/react';
 import { api } from '../../utils/api';
@@ -23,6 +21,7 @@ import { PlayerAvatar } from '../player/PlayerAvatar';
 import type { PlayerDetail } from '../../types/api.types';
 import { useTranslation } from 'react-i18next';
 import { isSteamId64, useGameAccounts } from '../../hooks/useGameAccounts';
+import { SwitchRow } from '../../components/common/ui';
 
 interface PlayerModalProps {
   open: boolean;
@@ -404,16 +403,11 @@ export default function PlayerModal({ open, player, onClose, onSave, onDelete }:
               }}
             />
 
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={isAdmin}
-                  onChange={(e) => setIsAdmin(e.target.checked)}
-                  disabled={adminLocked}
-                  color="primary"
-                />
-              }
+            <SwitchRow
               label={t('playerModal.isAdminLabel')}
+              checked={isAdmin}
+              onChange={(e) => setIsAdmin(e.target.checked)}
+              disabled={adminLocked}
             />
 
             {isEditing && (

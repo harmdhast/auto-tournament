@@ -861,6 +861,12 @@ export interface GameIntegration {
    */
   usesPreMatchPhase?(tournament: { settings?: unknown }): boolean;
   /**
+   * Whether the game fills a short team with bots in this tournament (CS2:
+   * `settings.cs2.fillTeamsWithBots`). A shuffle round then gives every
+   * player a team instead of sitting some out. Omitted means `false`.
+   */
+  fillsShortTeams?(tournament: { settings?: unknown }): boolean;
+  /**
    * A match got both participants and `isReadyToAllocate` returned `false`:
    * run the integration's pre-match phase. The integration readies and
    * allocates the match when the phase ends (CS2 simulation: the automated
@@ -1093,7 +1099,7 @@ export interface GameIntegration {
     tournamentName: string;
     /** The tournament's settings object (CS2 reads `skinRewards`). */
     settings: Record<string, unknown>;
-    placements: Array<{ place: 1 | 2 | 3; steamIds: string[] }>;
+    placements: Array<{ place: 1 | 2 | 3 | 4; steamIds: string[] }>;
   }): Promise<void>;
 
   /**
@@ -1175,7 +1181,28 @@ export interface GameIntegration {
    * walkover on the resource (CS2: Ready Up's absent-team forfeit). A match on
    * no resource needs nothing.
    */
-  onHoldChanged?(ctx: MatchContext): Promise<void>;
+  onHoldChanged?(ctx: MatchContext, change?: { earlyRelease?: boolean }): Promise<void>;
+
+  // --- lineups (services/matchLineups.ts) -----------------------------------
+
+  /**
+   * Players per side in a tournament's matches, when the game fixes it
+   * whatever the team size says (CS2 wingman: 2). Absent or null: the
+   * tournament's team size.
+   */
+  lineupSize?(tournament: IntegrationTournament, teamSize: number): number | null;
+  /**
+   * A running series is between maps: the last map is over and the next one
+   * is not live yet, so a team may change its lineup. Absent: never (a live
+   * match keeps its lineup).
+   */
+  betweenMaps?(ctx: MatchContext): Promise<boolean>;
+  /**
+   * A team's lineup for the match changed: bring the resource running it in
+   * line (CS2: `match.update` to the Ready Up server). Rejects when the
+   * resource did not take it; the lineup stays saved.
+   */
+  onLineupChanged?(ctx: MatchContext): Promise<void>;
 }
 
 /** A router mounted at a fixed prefix, plus its heading in the API reference. */

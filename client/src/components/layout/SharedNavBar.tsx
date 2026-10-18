@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Button, Link, Menu, MenuItem } from '@mui/material';
-import { CaretDownIcon, GameControllerIcon } from '@phosphor-icons/react';
+import { CaretDownIcon } from '@phosphor-icons/react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,12 +16,14 @@ import { AdminNoticeBell } from '../admin/AdminNoticeBell';
 import { useNeedsYouCount } from '../../hooks/useNeedsYouCount';
 import { AccountMenu } from './AccountMenu';
 import { SiteSearch } from '../search/SiteSearch';
+import { useModuleAccountMenuItems } from '../../hooks/useModuleAccountMenuItems';
 import { useInstalledIntegrations } from '../../integrations/registry';
 import { soundNotification } from '../../utils/soundNotification';
 import { NextMatchDialog } from '../match/NextMatchDialog';
 import { NavStartCountdown } from './NavStartCountdown';
 import { NavVetoCountdown } from './NavVetoCountdown';
 import { NavTournamentStatus } from './NavTournamentStatus';
+import { NavPill } from './NavPill';
 import { PlacementDialog } from '../tournament/PlacementDialog';
 import { NotificationPrompt } from '../social/NotificationPrompt';
 
@@ -193,7 +195,8 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({ adminArea = false })
         </Link>
       </span>,
       'success',
-      { persist: true, key: readyToastKey }
+      // Gone by itself after 10 s: the navbar's match button stays (2026-10-15 crew test).
+      { autoHideMs: 10_000, key: readyToastKey }
     );
     soundNotification.playNotification();
   }, [
@@ -231,6 +234,15 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({ adminArea = false })
   // The places a player goes: Play, Tournaments, and Community for the
   // leaderboards, the directories and the modules' pages (fewer words in the bar).
   // The logo is Home. Admins also get Manage.
+  // A module's links for the signed-in player (CS2: Loadout, while skins are on).
+  const playerModuleLinks: SiteLink[] = useModuleAccountMenuItems(playerSteamId ?? null).map(
+    (item) => ({
+      to: item.path,
+      label: t(item.labelKey, { ns: item.moduleId }),
+      testId: `nav-${item.key}`,
+      current: at(item.path),
+    })
+  );
   const mainLinks: SiteLink[] = [
     ...(matchmakingAvailable
       ? [{ to: paths.play, label: t('nav.play'), testId: 'nav-play', current: at(paths.play) }]
@@ -241,6 +253,7 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({ adminArea = false })
       testId: 'nav-tournaments',
       current: at(paths.tournamentList) || pathname.startsWith('/tournament/'),
     },
+    ...playerModuleLinks,
   ];
   const communityLinks: SiteLink[] = [
     {
@@ -440,18 +453,19 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({ adminArea = false })
         {playerSteamId && matchStatusLabel === 'veto_soon' && opensAt && matchSlug ? (
           <NavVetoCountdown opensAt={opensAt} to={matchPagePath(matchSlug)} vetoOff={vetoOff} />
         ) : ctaLabel ? (
-          <Button
-            component={RouterLink}
+          <NavPill
             to={paths.matchNow}
-            variant="contained"
-            color="primary"
-            size="small"
-            data-testid="nav-match-cta"
-            startIcon={<GameControllerIcon />}
-            sx={{ display: { xs: 'none', sm: 'inline-flex' }, px: 2, whiteSpace: 'nowrap' }}
-          >
-            {ctaLabel}
-          </Button>
+            testId="nav-match-cta"
+            text={ctaLabel}
+            dot={
+              matchStatusLabel === 'match_ready'
+                ? tokens.color.live
+                : matchStatusLabel === 'waiting_server'
+                  ? tokens.color.muted
+                  : tokens.color.accent
+            }
+            live={matchStatusLabel === 'match_ready'}
+          />
         ) : playerSteamId ? (
           <>
             <NavStartCountdown viewerId={playerSteamId} />

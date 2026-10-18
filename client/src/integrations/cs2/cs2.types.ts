@@ -180,6 +180,8 @@ export interface MatchServer {
   }> | null;
   /** Which of them suits this viewer: LAN when they are on the server's network. */
   recommended?: 'lan' | 'public' | null;
+  /** Ready Up: the viewer (a roster player) is on the server now; null when unknown. */
+  viewerConnected?: boolean | null;
 }
 
 /** `GET /api/game/cs2/matches/:slug/connect`: how the viewer joins one match. */
@@ -190,7 +192,13 @@ export interface MatchConnectResponse extends Cs2ApiResponse {
   liveStatus: string | null;
   currentMap: string | null;
   mapNumber: number | null;
-  /** Null for a viewer on neither team, and for a match with no server. */
+  /** The round being played, once there are live stats. */
+  roundNumber?: number | null;
+  /** No server yet: the match's place in line for one (1 = next). */
+  queuePosition?: number | null;
+  /** A finished match: the viewer's match that is loaded or live in the same tournament, if any. */
+  currentMatchSlug?: string | null;
+  /** Null for a viewer on neither team, for a match with no server, and for a finished match. */
   server: MatchServer | null;
 }
 
@@ -240,6 +248,8 @@ export interface VetoAction {
   timestamp: number;
   /** Taken by the platform because the team ran out of time. */
   timedOut?: boolean;
+  /** A matchmaking vote: the votes the choice had. */
+  votes?: number;
 }
 
 export interface VetoMapResult {
@@ -278,6 +288,10 @@ export interface VetoState {
   vetoOrder?: Omit<VetoStep, 'description'>[];
   /** The break between a team's matches: the veto opens then (ISO); no actions until. */
   opensAt?: string;
+  /** The match's start time when it is held for it (Manage › Schedule). */
+  startsAt?: string;
+  /** A matchmaking vote: the current step's votes, steam id → map or side. */
+  votes?: Record<string, string>;
 }
 
 export interface VetoStep {

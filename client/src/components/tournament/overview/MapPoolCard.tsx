@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { getMapDisplayName } from '../../../constants/maps';
 import { mapImageFallback, mapImageUrl, type MapImageSize } from '../../../constants/cs2Assets';
 import { tokens, fontDisplay, radii } from '../../../theme/tokens';
+import { panelSx, panelBorderSx, dialogPaperSx } from '../../../components/common/ui';
 
 const { color } = tokens;
 
@@ -89,13 +90,12 @@ export function MapPoolCard({ maps }: { maps: string[] }) {
         data-testid="overview-map-pool"
         aria-haspopup="dialog"
         sx={{
+          ...panelSx,
+          ...panelBorderSx,
           width: '100%',
           minHeight: 68,
           px: 2.5,
           py: 1.75,
-          borderRadius: radii.lg,
-          bgcolor: color.paper2,
-          border: `1px solid ${color.rule}`,
           display: 'flex',
           alignItems: 'center',
           gap: 2,
@@ -130,9 +130,7 @@ export function MapPoolCard({ maps }: { maps: string[] }) {
         maxWidth="md"
         fullWidth
         aria-labelledby="map-pool-title"
-        PaperProps={{
-          sx: { borderRadius: radii.lg, bgcolor: color.paper2, backgroundImage: 'none' },
-        }}
+        PaperProps={{ sx: dialogPaperSx }}
       >
         <Box sx={{ p: { xs: 2.5, md: 3.5 }, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           <Box
