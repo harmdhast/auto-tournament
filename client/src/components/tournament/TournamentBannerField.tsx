@@ -3,7 +3,8 @@ import { Box, Button, ButtonBase, Stack, Typography } from '@mui/material';
 import { ImageIcon } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../utils/api';
-import { getMapDisplayName, getMapImageUrl } from '../../constants/maps';
+import { getMapDisplayName } from '../../constants/maps';
+import { mapImageUrl } from '../../constants/cs2Assets';
 import { tokens, radii } from '../../theme/tokens';
 
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -37,7 +38,7 @@ export function TournamentBannerField({
     }
   };
   // What shows: the upload, else the picked map.
-  const shown = bannerUrl || (picked ? getMapImageUrl(picked) : null);
+  const shown = bannerUrl || (picked ? mapImageUrl(picked, 'full') : null);
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -162,7 +163,7 @@ export function TournamentBannerField({
                     borderRadius: radii.sm,
                     border: `2px solid ${on ? tokens.color.accent : 'transparent'}`,
                     bgcolor: tokens.color.paper3,
-                    backgroundImage: map ? `url("${getMapImageUrl(map)}")` : 'none',
+                    backgroundImage: map ? `url("${mapImageUrl(map, 'full')}")` : 'none',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     display: 'flex',
