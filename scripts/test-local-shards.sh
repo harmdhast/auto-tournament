@@ -10,7 +10,8 @@
 #   --dev    serve each stack with its own vite dev server instead of the prebuilt client
 #   --since  only the specs tests/ci-affected.mjs says the changes since <ref> (committed and not) reach
 #
-# The client is built once in development mode with CS2 compiled in and the dev tools on (VITE_ENABLE_DEV_PAGE), cached in logs/client-dist/<hash of client sources + yarn.lock>.
+# The client is built once as a production build with CS2 compiled in (AT_CS2_BUILTIN) and the dev page on (VITE_ENABLE_DEV_PAGE), cached in
+# logs/client-dist/<hash of client sources, public files, .env files, NODE_ENV/VITE_* env and yarn.lock>.
 # Pools are DB_POOL_MAX=6 and SESSION_DB_POOL_MAX=2 per API (env overrides); a stack needs those plus 3 spec connections, about 1.2 GB.
 # Needs Postgres reachable with DB_HOST/DB_PORT/DB_USER/DB_PASSWORD (default 127.0.0.1:5432 postgres/postgres).
 # Logs and results go to logs/local-shards-<base-port>/.
@@ -34,6 +35,9 @@ FIX=$((BASE + 99))
 WEIGHTS="$ROOT/logs/local-shard-weights.json"
 # Test pools: enough for the suite (db-pool-resilience, session specs) without the 20 + 5 production defaults.
 export DB_POOL_MAX=${DB_POOL_MAX:-6} SESSION_DB_POOL_MAX=${SESSION_DB_POOL_MAX:-2}
+for v in DB_POOL_MAX SESSION_DB_POOL_MAX; do
+  [[ "${!v}" =~ ^[1-9][0-9]*$ ]] || { echo "$v must be a positive integer, got '${!v}'"; exit 1; }
+done
 SPEC_CONNS=3
 PER_STACK_CONNS=$((DB_POOL_MAX + SESSION_DB_POOL_MAX + SPEC_CONNS))
 STACK_MB=${STACK_MB:-1200}
@@ -41,6 +45,10 @@ MAX_STACKS=6
 export DB_HOST=${DB_HOST:-127.0.0.1} DB_PORT=${DB_PORT:-5432} DB_USER=${DB_USER:-postgres} DB_PASSWORD=${DB_PASSWORD:-postgres}
 mkdir -p "$OUT"
 cd "$ROOT"
+# Snapshot of the weights for this run: concurrent runs in one worktree may rewrite the shared file while shards are being packed.
+RUN_WEIGHTS="$OUT/weights.json"
+rm -f "$RUN_WEIGHTS"
+[ -f "$WEIGHTS" ] && cp "$WEIGHTS" "$RUN_WEIGHTS"
 
 web_port() { echo $((BASE + 2 * $1)); }
 db_name() { echo "at_shards_${BASE}_$1"; }
@@ -87,8 +95,10 @@ free=$(pg 'const max = +(await c.query("SHOW max_connections")).rows[0].max_conn
     console.log(max - used);') || exit 1
 if [ -z "$N" ]; then
   mem_mb=$(($(awk '/MemAvailable/ {print $2}' /proc/meminfo) / 1024))
+  nspecs=$(node tests/ci-shard.mjs 1 1 | wc -w)
   N=$(( free / PER_STACK_CONNS < mem_mb / STACK_MB ? free / PER_STACK_CONNS : mem_mb / STACK_MB ))
   [ "$N" -gt "$MAX_STACKS" ] && N=$MAX_STACKS
+  [ "$N" -gt "$nspecs" ] && N=$nspecs
   [ "$N" -lt 1 ] && N=1
   echo "stacks: $N ($free free connections, $mem_mb MB available)"
 fi
@@ -96,15 +106,25 @@ fi
 
 DIST=
 if [ "$DEV" -eq 0 ]; then
-  # One production-mode client (CS2 compiled in, as on the dev server) shared by every stack, rebuilt only when its sources change.
-  sum=$( (git ls-files -co --exclude-standard -z -- client yarn.lock | xargs -0 -r sha256sum 2>/dev/null; echo "vite5 development cs2 devpage") | sha256sum | cut -c1-16)
+  # One production build (CS2 compiled in, dev page on) shared by every stack, rebuilt only when its sources or build env change.
+  sum=$( (git ls-files -co --exclude-standard -z -- client yarn.lock | xargs -0 -r sha256sum 2>/dev/null
+    find client/public -type f -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum
+    find client -maxdepth 1 -name '.env*' -type f -print0 | sort -z | xargs -0 -r sha256sum
+    env | grep -E '^(NODE_ENV|VITE_)' | sort
+    echo "vite5 production cs2 devpage") | sha256sum | cut -c1-16)
   DIST="$ROOT/logs/client-dist/$sum"
-  if [ ! -f "$DIST/index.html" ]; then
+  if [ -f "$DIST/index.html" ]; then
+    touch "$DIST"
+  else
     echo "building client ($sum)"
-    rm -rf "$DIST.tmp"
-    (cd client && AT_CS2_BUILTIN=1 VITE_ENABLE_DEV_PAGE=true npx vite build --mode development --outDir "$DIST.tmp" --emptyOutDir >"$OUT/client-build.log" 2>&1) \
-      || { echo "client build failed, see $OUT/client-build.log"; tail -5 "$OUT/client-build.log"; exit 1; }
-    mv "$DIST.tmp" "$DIST"
+    mkdir -p "$ROOT/logs/client-dist"
+    tmp="$DIST.tmp.$$"
+    rm -rf "$tmp"
+    (cd client && AT_CS2_BUILTIN=1 VITE_ENABLE_DEV_PAGE=true npx vite build --outDir "$tmp" --emptyOutDir >"$OUT/client-build.log" 2>&1) \
+      || { rm -rf "$tmp"; echo "client build failed, see $OUT/client-build.log"; tail -5 "$OUT/client-build.log"; exit 1; }
+    # Only a complete build is ever moved into place; a concurrent run that got there first wins.
+    mv -T "$tmp" "$DIST" 2>/dev/null || rm -rf "$tmp"
+    [ -f "$DIST/index.html" ] || { echo "client build missing from $DIST"; exit 1; }
     find "$ROOT/logs/client-dist" -mindepth 1 -maxdepth 1 -not -name "$sum" -mtime +2 -exec rm -rf {} +
   fi
 fi
@@ -168,14 +188,21 @@ start=$(date +%s)
 pids=()
 for i in $(seq 1 "$N"); do
   rm -f "$OUT/shard-$i.txt"
-  files=$(CI_SHARD_WEIGHTS="$WEIGHTS" node tests/ci-shard.mjs "$i" "$N")
-  [ -z "$files" ] && continue
+  files=$(CI_SHARD_WEIGHTS="$RUN_WEIGHTS" node tests/ci-shard.mjs "$i" "$N" 2>"$OUT/shard-pick-$i.log")
+  rc=$?
+  if [ $rc -eq 3 ]; then continue; fi
+  if [ $rc -ne 0 ] || [ -z "$files" ]; then
+    echo "shard $i: spec selection failed ($rc)"; cat "$OUT/shard-pick-$i.log"
+    for p in "${pids[@]}"; do kill "$p" 2>/dev/null; done
+    exit 1
+  fi
   # shellcheck disable=SC2086
   PLAYWRIGHT_JSON_OUTPUT_NAME="$OUT/timing-$i.json" SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL="http://localhost:$(web_port "$i")" BASE_URL="http://localhost:$(web_port "$i")" DB_NAME=$(db_name "$i") \
     node_modules/.bin/playwright test -c tests/playwright.config.ts --reporter=list,json \
     --output "$OUT/results-$i" $files >"$OUT/shard-$i.txt" 2>&1 &
   pids+=($!)
 done
+[ ${#pids[@]} -gt 0 ] || { echo "no shard started"; exit 1; }
 status=0
 for p in "${pids[@]}"; do wait "$p" || status=1; done
 
