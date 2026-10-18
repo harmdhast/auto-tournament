@@ -26,6 +26,8 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const DEFAULT_WEIGHT = 5;
+// Exit status of a shard that has no spec files (not a failure).
+const NO_FILES_EXIT = 3;
 const testsDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(testsDir);
 
@@ -49,7 +51,14 @@ function partition(total) {
   // know keep their committed weight, scaled to the local timings so both stay comparable.
   let defaultWeight = DEFAULT_WEIGHT;
   if (process.env.CI_SHARD_WEIGHTS && existsSync(process.env.CI_SHARD_WEIGHTS)) {
-    const local = JSON.parse(readFileSync(process.env.CI_SHARD_WEIGHTS, 'utf8'));
+    let local = {};
+    try {
+      local = JSON.parse(readFileSync(process.env.CI_SHARD_WEIGHTS, 'utf8'));
+    } catch (e) {
+      console.error(
+        `ci-shard: ignoring unparseable CI_SHARD_WEIGHTS ${process.env.CI_SHARD_WEIGHTS}: ${e.message}`
+      );
+    }
     let measured = 0;
     let committed = 0;
     for (const [file, w] of Object.entries(local)) {
@@ -90,8 +99,8 @@ if (args[0] === '--count') {
   // How many shards the selected specs need: ~SECONDS_PER_SHARD of tests each, 1 to max.
   const SECONDS_PER_SHARD = 40;
   const max = Number(args[1]);
-  const total = partition(1)[0].weight;
-  console.log(Math.max(1, Math.min(max, Math.ceil(total / SECONDS_PER_SHARD))));
+  const { weight, files } = partition(1)[0];
+  console.log(Math.max(1, Math.min(max, files.length, Math.ceil(weight / SECONDS_PER_SHARD))));
 } else if (args[0] === '--summary') {
   const total = Number(args[1]);
   partition(total).forEach((s, i) => {
@@ -108,7 +117,7 @@ if (args[0] === '--count') {
   const { files } = partition(total)[shard - 1];
   if (files.length === 0) {
     console.error(`shard ${shard}/${total} has no spec files`);
-    process.exit(1);
+    process.exit(NO_FILES_EXIT);
   }
   console.log(files.join(' '));
 }
