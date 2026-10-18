@@ -350,6 +350,7 @@ export default [
       'public/**',
       'api/dist/**',
       'api/public/**',
+      'api/swagger-ui/**', // Generated
       'client/dist/**',
       'playwright-report/**',
       'logs/**',
