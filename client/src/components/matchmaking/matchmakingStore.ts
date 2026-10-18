@@ -25,6 +25,8 @@ export interface MatchmakingMe {
     /** Players invited who have not answered yet (older APIs: missing). */
     invited?: Array<{ id: string; name: string; avatarUrl: string | null }>;
   } | null;
+  /** Party members (or the viewer) playing in a running tournament: nobody in it can search (older APIs: missing). */
+  inTournament?: Array<{ id: string; name: string; tournament: string }>;
   /** Party members (or the viewer) not set up for the game yet; searching waits for them (older APIs: missing). */
   notReady?: Array<{ id: string; name: string; missing: 'game' | 'account' }>;
   /** Open invites to the viewer from other parties, newest first (older APIs: missing). */
@@ -38,6 +40,8 @@ export interface MatchmakingMe {
   queue: { mode: string; queuedAt: number; status: string; botFill?: boolean } | null;
   /** Players searching right now, per mode. */
   queueCounts?: Record<string, number>;
+  /** Players in a matchmaking match still being played, per mode. */
+  matchCounts?: Record<string, number>;
   /** Signed-in players with the site open (older APIs: missing). */
   online?: number;
   /** Typical seconds to a match found, per mode; null with too little history. */
@@ -68,6 +72,26 @@ export interface MatchmakingMe {
   rating: { elo: number; games: number; wins: number } | null;
   /** The modes players can search on this site (5v5; 1v1 when an admin turned it on). */
   modes?: string[];
+  /** A rematch someone asked for after the player's last match (`room`); null when none (older APIs: missing). */
+  rematch?: (RematchView & { room: string }) | null;
+}
+
+/** A finished match's rematch as one of its players sees it. */
+export interface RematchView {
+  /** Votes are still taken, until `deadline` (epoch seconds). */
+  open: boolean;
+  deadline: number | null;
+  /** The team whose player asked first; null until someone said yes. */
+  offerTeam: number | null;
+  /** The viewer's team. */
+  team: number;
+  teams: Array<{ team: number; yes: number; no: number; total: number }>;
+  yes: number;
+  total: number;
+  you: 'yes' | 'no' | null;
+  declined: boolean;
+  /** The new match's room once both teams said yes. */
+  lobbyId: string | null;
 }
 
 interface State {
@@ -111,7 +135,7 @@ function emit(next: State) {
 function nextDelay(): number {
   if (!state.available) return 60_000;
   const me = state.me;
-  return me?.queue || me?.lobby?.status === 'accepting' ? 5_000 : 30_000;
+  return me?.queue || me?.lobby?.status === 'accepting' || me?.rematch?.open ? 5_000 : 30_000;
 }
 
 /** Fetch now; reschedule the next poll. */

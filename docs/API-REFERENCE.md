@@ -11,7 +11,7 @@
 
 # API reference
 
-Every endpoint this API serves — 736 of them, 424 behind auth —
+Every endpoint this API serves — 764 of them, 436 behind auth —
 read directly from the routers rather than written down, so it cannot drift.
 
 For *how* to authenticate a bot or script, and a task-oriented tour of the
@@ -49,6 +49,30 @@ Served by the app itself rather than a router.
 | `GET` | `/health` | public |
 | `GET` | `/api/health/fleet` | public |
 
+### Integrations: highlights
+
+Notable moments from the demos (knife and Zeus kills, aces, 1vN clutches, no-scopes, grenade kills, last-second defuses) for integrators, oldest change first with a cursor; stable ids, revoked rows. Integrator token (API_TOKENS_INTEGRATOR), read-only or admin token, or admin session.
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `GET` | `/api/integrations/highlights` | integrator token or admin |
+
+### Integrations: player stats
+
+Each player's numbers summed over tournaments, matches or an import's event, for an event website's stat trophies; null for a number not measured, never 0. Integrator token (API_TOKENS_INTEGRATOR), read-only or admin token, or admin session.
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `GET` | `/api/integrations/player-stats` | integrator token or admin |
+
+### Highlights backfill
+
+Find the notable moments of maps analyzed before, from the stored kill feeds and replays (no demo is read again).
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `POST` | `/api/game/cs2/moments/backfill` | admin |
+
 ### Skins
 
 Virtual CS2 skins: inventories, loadouts, showcases and the admin inventory manager (platform only).
@@ -56,6 +80,7 @@ Virtual CS2 skins: inventories, loadouts, showcases and the admin inventory mana
 | Method | Path | Auth |
 | --- | --- | --- |
 | `GET` | `/api/skins/status` | public |
+| `GET` | `/api/skins/catalog` | public |
 | `GET` | `/api/skins/odds` | public |
 | `GET` | `/api/skins/tryout` | public |
 | `GET` | `/api/skins/me` | public |
@@ -67,11 +92,13 @@ Virtual CS2 skins: inventories, loadouts, showcases and the admin inventory mana
 | `POST` | `/api/skins/me/seen` | public |
 | `PUT` | `/api/skins/me/showcase` | public |
 | `GET` | `/api/skins/catalog/weapons` | public |
-| `GET` | `/api/skins/catalog` | public |
+| `GET` | `/api/skins/catalog/search` | public |
 | `PUT` | `/api/skins/me/picks` | public |
 | `GET` | `/api/skins/players/:steamId` | public |
 | `GET` | `/api/skins/skin/:id` | public |
 | `GET` | `/api/skins/tournaments/:id/rewards` | public |
+| `GET` | `/api/skins/tournaments/:id/mvp-candidates` | admin |
+| `POST` | `/api/skins/tournaments/:id/mvp` | admin |
 | `GET` | `/api/skins/admin/config` | admin |
 | `PUT` | `/api/skins/admin/config` | admin |
 | `GET` | `/api/skins/admin/catalog` | admin |
@@ -83,6 +110,7 @@ Virtual CS2 skins: inventories, loadouts, showcases and the admin inventory mana
 | `POST` | `/api/skins/admin/players/:steamId/skins` | admin |
 | `POST` | `/api/skins/admin/drops` | admin |
 | `DELETE` | `/api/skins/admin/skins/:id` | admin |
+| `DELETE` | `/api/skins/admin/players/:steamId/inventory` | admin |
 
 ### Update hold
 
@@ -174,6 +202,7 @@ The recorded match event log: Ready Up events and server console lines.
 | --- | --- | --- |
 | `GET` | `/api/events/connections/:matchSlug` | public |
 | `GET` | `/api/events/live/:matchSlug` | public |
+| `GET` | `/api/events/watch/:matchSlug` | public |
 | `GET` | `/api/events/server/:serverId` | admin |
 | `GET` | `/api/events/:matchSlug` | admin |
 
@@ -382,6 +411,14 @@ A team's CS2 results per map, and the maps it bans and picks most in the veto.
 | --- | --- | --- |
 | `GET` | `/api/game/cs2/teams/:teamId/profile` | public |
 
+### Party maps
+
+A matchmaking party's CS2 results per map (its members' results added up), and the Active Duty maps.
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `GET` | `/api/game/cs2/party-maps` | public |
+
 ### Manage a match
 
 The admin match page: a match's live state, server and event log, and the Ready Up commands it sends (logged with who sent them).
@@ -393,6 +430,14 @@ The admin match page: a match's live state, server and event log, and the Ready 
 | `GET` | `/api/game/cs2/matches/:slug/manage/servers` | admin |
 | `POST` | `/api/game/cs2/matches/:slug/manage/allocate` | admin |
 | `POST` | `/api/game/cs2/matches/:slug/manage/restart-server` | admin |
+
+### Live matches
+
+Every match on a server now, for the admins: teams, players connected and ready, map, round, scores, pause, the open admin call and the server.
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `GET` | `/api/game/cs2/live-overview` | admin |
 
 ### Round backups
 
@@ -530,6 +575,8 @@ E2E helpers that stand in for a CS2 server. Disabled in production unless ENABLE
 | `GET` | `/api/test/fleet/events/:serverId` | admin |
 | `POST` | `/api/test/fleet/failover/scan` | admin |
 | `GET` | `/api/test/fleet/commands/:id` | admin |
+| `POST` | `/api/test/stats-fixture` | admin |
+| `POST` | `/api/test/stats-fixture/cleanup` | admin |
 
 ### Manual reporting — captains
 
@@ -587,6 +634,8 @@ Create, load, restart and cancel matches; read match state.
 | `POST` | `/api/matches` | admin |
 | `POST` | `/api/matches/:slug/load` | admin |
 | `POST` | `/api/matches/:slug/restart` | admin |
+| `PUT` | `/api/matches/:slug/start-time` | admin |
+| `PUT` | `/api/matches/:slug/on-stage` | admin |
 | `GET` | `/api/matches/:slug/hold` | public |
 | `POST` | `/api/matches/:slug/hold` | admin |
 | `DELETE` | `/api/matches/:slug/hold` | admin |
@@ -616,6 +665,7 @@ The tournament itself — setup, bracket, rounds, standings.
 | --- | --- | --- |
 | `GET` | `/api/tournament/current-id` | public |
 | `POST` | `/api/tournament/archive` | admin |
+| `GET` | `/api/tournament/:id/teams` | public |
 | `GET` | `/api/tournament/:id/leaderboard` | public |
 | `GET` | `/api/tournament/allocation-status` | public |
 | `GET` | `/api/tournament/game` | public |
@@ -694,6 +744,15 @@ Teams signing themselves up with a lineup, and check-in on the day.
 | `PUT` | `/api/tournament-signup/:id/lineup` | public |
 | `DELETE` | `/api/tournament-signup/:id/registration/:teamId` | public |
 | `POST` | `/api/tournament-signup/:id/check-in` | public |
+
+### Match lineups
+
+Who plays a match for a team bigger than the team size: its captain or an admin picks.
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `GET` | `/api/match-lineups/:slug` | public |
+| `PUT` | `/api/match-lineups/:slug/:side` | public |
 
 ### Logs
 
@@ -784,6 +843,7 @@ Every team (public), and the signed-in player's own teams: list them, make one (
 
 | Method | Path | Auth |
 | --- | --- | --- |
+| `GET` | `/api/team-directory/colors` | public |
 | `GET` | `/api/team-directory` | public |
 | `GET` | `/api/team-directory/mine` | public |
 | `POST` | `/api/team-directory/mine` | public |
@@ -792,10 +852,13 @@ Every team (public), and the signed-in player's own teams: list them, make one (
 | `GET` | `/api/team-directory/invite/:code` | public |
 | `POST` | `/api/team-directory/invite/:code` | public |
 | `GET` | `/api/team-directory/:teamId/logo` | public |
+| `GET` | `/api/team-directory/:teamId/banner` | public |
 | `GET` | `/api/team-directory/:teamId/manage` | public |
 | `PATCH` | `/api/team-directory/:teamId` | public |
 | `PUT` | `/api/team-directory/:teamId/logo` | public |
 | `DELETE` | `/api/team-directory/:teamId/logo` | public |
+| `PUT` | `/api/team-directory/:teamId/banner` | public |
+| `DELETE` | `/api/team-directory/:teamId/banner` | public |
 | `POST` | `/api/team-directory/:teamId/invite` | public |
 | `POST` | `/api/team-directory/:teamId/requests/:uid/accept` | public |
 | `POST` | `/api/team-directory/:teamId/requests/:uid/decline` | public |
@@ -998,6 +1061,16 @@ Players report another player to the admins; admins list, dismiss, or ban from a
 | `POST` | `/api/player-reports/:id/dismiss` | admin |
 | `POST` | `/api/player-reports/:id/ban` | admin |
 
+### Commends
+
+Players commend others from a match they played (Friendly, Leader, Teacher, Good sport): up to 3 per match, for 24 hours. Public counts per player; never who gave them.
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `GET` | `/api/commends/match/:slug` | public |
+| `PUT` | `/api/commends/match/:slug/:playerId` | public |
+| `GET` | `/api/commends/player/:playerId` | public |
+
 ### My email
 
 Your own email address (confirmed by a link) and whether you get tournament emails.
@@ -1037,6 +1110,8 @@ The signed-in player's own data, e.g. the games they play.
 | `GET` | `/api/me/games` | public |
 | `PUT` | `/api/me/games` | public |
 | `POST` | `/api/me/games/prompt/dismiss` | public |
+| `GET` | `/api/me/name` | public |
+| `PUT` | `/api/me/name` | public |
 | `GET` | `/api/me/connections` | public |
 | `POST` | `/api/me/connections/:provider/remove` | public |
 | `POST` | `/api/me/connections/steam/merge` | public |
@@ -1151,6 +1226,7 @@ Parties, the queue, matches and the matchmaking leaderboard (docs/design/matchma
 | `DELETE` | `/api/matchmaking/queue` | public |
 | `POST` | `/api/matchmaking/lobbies/:id/accept` | public |
 | `POST` | `/api/matchmaking/lobbies/:id/decline` | public |
+| `POST` | `/api/matchmaking/lobbies/:id/rematch` | public |
 | `GET` | `/api/matchmaking/lobbies/:id` | public |
 | `GET` | `/api/matchmaking/matches/:slug/result` | public |
 | `PUT` | `/api/matchmaking/matches/:slug/commends/:playerId` | public |
@@ -1174,6 +1250,7 @@ E2E helpers. Off unless ENABLE_TEST_ENDPOINTS is set.
 | `POST` | `/api/test/reset-database` | admin |
 | `POST` | `/api/test/db-hold` | admin |
 | `POST` | `/api/test/match-state` | admin |
+| `POST` | `/api/test/shuffle-no-shows` | admin |
 | `POST` | `/api/test/series-result` | admin |
 | `POST` | `/api/test/passkey-verifier` | admin |
 | `POST` | `/api/test/login-admin` | public |

@@ -51,7 +51,9 @@
       "matchReady": "is ready. Open the match room to connect.",
       "vetoTurn": "it's your team's turn in the veto.",
       "startsSoon": "starts in {{minutes}} minutes. Get ready to join your first match.",
-      "startsSoonUpdate": "starts in {{minutes}} minutes. Start your game now so any update is done before your first match."
+      "startsSoonUpdate": "starts in {{minutes}} minutes. Start your game now so any update is done before your first match.",
+      "matchSoon": "your veto opens in {{minutes}} minutes and goes on without you. Be at your PC.",
+      "noShow": "you never joined your match, so you're out of the next rounds. Open the tournament and say you're back to play on."
     },
     "toast": {
       "join": "Join party",
@@ -258,6 +260,7 @@
   "presence": {
     "online": "Online",
     "offline": "Offline",
+    "away": "Abwesend",
     "searching": "Searching for a {{mode}} game",
     "playingMatchmaking": "In a matchmaking match: {{label}}",
     "playingTournament": "In a tournament match: {{label}}",

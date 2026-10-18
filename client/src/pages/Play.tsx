@@ -7,15 +7,12 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import {
-  Avatar,
   Box,
   Button,
   ButtonBase,
   CircularProgress,
   Container,
-  FormControlLabel,
   LinearProgress,
-  Switch,
   Typography,
 } from '@mui/material';
 import { PlayCircleIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
@@ -23,7 +20,7 @@ import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { matchPagePath } from '../paths';
 import { TopNavBar } from '../components/layout/TopNavBar';
-import { Panel } from '../components/common/ui';
+import { Panel, SwitchRow } from '../components/common/ui';
 import { LoadError } from '../components/shared/LoadError';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,6 +42,8 @@ import { getMapData } from '../constants/maps';
 import { mapImageUrl } from '../constants/cs2Assets';
 import { leaderboardsPath, paths, playLobbyPath } from '../paths';
 import { fontDisplay, fontMono, radii, textSize, tokens, withAlpha } from '../theme/tokens';
+import { PlayerAvatar } from '../components/player/PlayerAvatar';
+import { useInstalledIntegrations } from '../integrations/registry';
 
 const { color } = tokens;
 const MAX_PARTY = 5;
@@ -224,10 +223,12 @@ function YouColumn({ playerId, rating }: { playerId: string; rating: { elo: numb
 }
 
 function PersonChip({
+  id,
   name,
   avatarUrl,
   you,
 }: {
+  id?: string | null;
   name: string;
   avatarUrl: string | null;
   you?: boolean;
@@ -247,12 +248,7 @@ function PersonChip({
         minWidth: 0,
       }}
     >
-      <Avatar
-        src={avatarUrl ?? undefined}
-        sx={{ width: 30, height: 30, fontSize: textSize.xs, bgcolor: color.rule }}
-      >
-        {name.trim()[0]?.toUpperCase()}
-      </Avatar>
+      <PlayerAvatar id={id} name={name} avatarUrl={avatarUrl} size={30} />
       <Box
         component="span"
         sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
@@ -290,6 +286,11 @@ export default function Play() {
       setBusy(false);
     }
   };
+
+  // Each game's view of the party (CS2: its map strength).
+  const partyViews = useInstalledIntegrations()
+    .map((integration) => integration.partyView)
+    .filter((view): view is NonNullable<typeof view> => Boolean(view));
 
   // An invite link: join once, then drop the code from the address.
   const joined = useRef(false);
@@ -334,6 +335,9 @@ export default function Play() {
   const cooldown = me?.cooldownUntil ? secondsUntil(me.cooldownUntil, skew) : 0;
   const inviteLink = party ? `${window.location.origin}${paths.play}?join=${party.inviteCode}` : '';
   const counts = me?.queueCounts ?? {};
+  // Players in a matchmaking game right now, per mode and in all.
+  const inMatch = me?.matchCounts ?? {};
+  const totalInMatch = Object.values(inMatch).reduce((sum, n) => sum + n, 0);
   const totalQueued = Object.values(counts).reduce((a, b) => a + b, 0);
   const people =
     party?.people ?? party?.members.map((id) => ({ id, name: id, avatarUrl: null })) ?? [];
@@ -353,6 +357,8 @@ export default function Play() {
   const notReady = me?.notReady ?? [];
   // Your own missing game does not hold the search: searching adds it to your games.
   const blocking = notReady.filter((p) => !(p.id === playerSteamId && p.missing === 'game'));
+  // Anyone in the party playing in a running tournament: nobody searches until it ends.
+  const inTournament = me?.inTournament ?? [];
 
   const queueMode = me?.queue?.mode ?? mode;
   const waited =
@@ -408,6 +414,12 @@ export default function Play() {
                     ●{' '}
                   </Box>
                   {t('matchmaking.play.inQueue', { count: totalQueued })}
+                  {totalInMatch > 0 && (
+                    <Box component="span" sx={{ color: color.muted }} data-testid="mm-in-match">
+                      {' · '}
+                      {t('matchmaking.play.inMatch', { count: totalInMatch })}
+                    </Box>
+                  )}
                   {typeof me?.online === 'number' && (
                     <Box component="span" sx={{ color: color.muted }} data-testid="mm-online">
                       {' · '}
@@ -573,12 +585,12 @@ export default function Play() {
                         borderColor: color.accent,
                       }}
                     >
-                      <Avatar
-                        src={inv.from.avatarUrl ?? undefined}
-                        sx={{ width: 36, height: 36, bgcolor: color.rule }}
-                      >
-                        {inv.from.name.trim()[0]?.toUpperCase()}
-                      </Avatar>
+                      <PlayerAvatar
+                        id={inv.from.id}
+                        name={inv.from.name}
+                        avatarUrl={inv.from.avatarUrl}
+                        size={36}
+                      />
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography sx={{ fontSize: textSize.sm }}>
                           <Box component="b">{inv.from.name}</Box> {t('social.notice.partyInvite')}
@@ -626,6 +638,7 @@ export default function Play() {
                         people.map((p) => (
                           <PersonChip
                             key={p.id}
+                            id={p.id}
                             name={p.name}
                             avatarUrl={p.avatarUrl}
                             you={p.id === playerSteamId}
@@ -651,18 +664,13 @@ export default function Play() {
                             fontSize: textSize.sm,
                           }}
                         >
-                          <Avatar
-                            src={p.avatarUrl ?? undefined}
-                            sx={{
-                              width: 28,
-                              height: 28,
-                              fontSize: textSize.xs,
-                              bgcolor: color.rule,
-                              opacity: 0.6,
-                            }}
-                          >
-                            {p.name.trim()[0]?.toUpperCase()}
-                          </Avatar>
+                          <PlayerAvatar
+                            id={p.id}
+                            name={p.name}
+                            avatarUrl={p.avatarUrl}
+                            size={28}
+                            sx={{ opacity: 0.6 }}
+                          />
                           {t('social.invite.chip', { name: p.name })}
                           <ButtonBase
                             aria-label={t('social.invite.cancel', { name: p.name })}
@@ -841,6 +849,9 @@ export default function Play() {
                             <Typography sx={{ fontSize: textSize.sm, color: color.muted }}>
                               {[
                                 t('matchmaking.play.inQueue', { count: counts[m] ?? 0 }),
+                                inMatch[m]
+                                  ? t('matchmaking.play.inMatch', { count: inMatch[m] })
+                                  : null,
                                 typeof me?.waitSeconds?.[m] === 'number'
                                   ? t('matchmaking.play.aboutWait', {
                                       count: Math.max(1, Math.round(me.waitSeconds[m]! / 60)),
@@ -899,31 +910,30 @@ export default function Play() {
                       )}
                     </Panel>
                   )}
+                  {inTournament.length > 0 && (
+                    <Typography color="warning.main" data-testid="mm-in-tournament">
+                      {inTournament.length === 1 && inTournament[0].id === playerSteamId
+                        ? t('matchmaking.play.inTournament', {
+                            tournament: inTournament[0].tournament,
+                          })
+                        : t('matchmaking.play.partyInTournament', {
+                            names: inTournament.map((p) => p.name).join(', '),
+                          })}
+                    </Typography>
+                  )}
                   {cooldown > 0 && (
                     <Typography color="warning.main" data-testid="mm-cooldown">
                       {t('matchmaking.play.cooldown', { minutes: Math.ceil(cooldown / 60) })}
                     </Typography>
                   )}
                   {isLeader && (mode === '2v2' || mode === '5v5') && (
-                    <Box sx={{ mb: -1 }}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={botFill}
-                            onChange={(e) => setBotFill(e.target.checked)}
-                            inputProps={{ 'aria-describedby': 'mm-bot-fill-help' }}
-                            data-testid="mm-bot-fill"
-                          />
-                        }
-                        label={t('matchmaking.play.botFill')}
-                      />
-                      <Typography
-                        id="mm-bot-fill-help"
-                        sx={{ fontSize: textSize.sm, color: color.muted, ml: 6 }}
-                      >
-                        {t('matchmaking.play.botFillUnrated')}
-                      </Typography>
-                    </Box>
+                    <SwitchRow
+                      label={t('matchmaking.play.botFill')}
+                      help={t('matchmaking.play.botFillUnrated')}
+                      checked={botFill}
+                      onChange={(e) => setBotFill(e.target.checked)}
+                      data-testid="mm-bot-fill"
+                    />
                   )}
                   <Button
                     variant="contained"
@@ -932,6 +942,7 @@ export default function Play() {
                       !isLeader ||
                       cooldown > 0 ||
                       blocking.length > 0 ||
+                      inTournament.length > 0 ||
                       me?.lobby?.status === 'accepting'
                     }
                     onClick={() =>
@@ -975,6 +986,9 @@ export default function Play() {
             </Box>
             {playerSteamId && (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                {party &&
+                  party.members.length >= 2 &&
+                  partyViews.map((View, i) => <View key={i} members={party.members} />)}
                 <YouColumn playerId={playerSteamId} rating={me?.rating ?? null} />
                 <FriendsCard
                   members={party?.members ?? [playerSteamId]}

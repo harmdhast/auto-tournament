@@ -12,6 +12,9 @@ const getFullImageUrl = (mapName: string): string => `${MAP_IMAGE_BASE}/maps-128
 
 /** The map's full-size picture, for heroes and banners. */
 export const getMapImageUrl = (mapName: string): string => getFullImageUrl(mapName);
+/** A small card's image (480 px wide). */
+export const getMapThumbUrl = (mapName: string): string =>
+  `${MAP_IMAGE_BASE}/maps-480/${mapName}.webp`;
 
 /** The map's flat icon (`de_mirage_icon.svg`), for small marks and pills. */
 export const getMapIconUrl = (mapName: string): string =>

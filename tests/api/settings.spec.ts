@@ -1063,6 +1063,8 @@ const ADDED_SETTINGS: Array<{ key: string; field: string | null }> = [
   { key: 'webhooks_allow_private_targets', field: 'webhooksAllowPrivateTargets' },
   // The admin's "newer Auto Tournament" notice (routes/system.ts).
   { key: 'update_notices', field: 'updateNotices' },
+  // Players choose their own display name (/api/me/name).
+  { key: 'players_choose_name', field: 'playersChooseName' },
   // Experimental feature toggles: /api/experimental only.
   { key: 'experimental_matchmaking', field: null },
   // Ready Up match servers' join password (off by default; the roster whitelist keeps others out).
@@ -1070,6 +1072,8 @@ const ADDED_SETTINGS: Array<{ key: string; field: string | null }> = [
   // `.stop`, sent to Ready Up as match.assign rules.stop (fleet/assignConfig.ts).
   { key: 'at_stop_command_available', field: 'atStopCommandAvailable' },
   { key: 'at_stop_command_no_damage', field: 'atStopCommandNoDamage' },
+  // Tournament matches: one player's .ready readies the team (fleet/assignConfig.ts).
+  { key: 'at_team_ready', field: 'atTeamReady' },
   // Auto-start after N minutes in warmup (fleet/autoStart.ts).
   { key: 'at_autostart_after_minutes', field: 'atAutostartAfterMinutes' },
   // Seconds per veto step before the platform takes it (veto/timer.ts).
@@ -1077,6 +1081,14 @@ const ADDED_SETTINGS: Array<{ key: string; field: string | null }> = [
   // The first veto turn and the break between a team's matches (veto/timer.ts, veto/break.ts).
   { key: 'at_veto_first_turn_seconds', field: 'vetoFirstTurnSeconds' },
   { key: 'at_match_break_minutes', field: 'matchBreakMinutes' },
+  // Spectators in GOTV (CS2 gotv.ts): on, delay, seats, who may watch, live stats for spectators.
+  { key: 'gotv_spectators', field: 'gotvSpectators' },
+  { key: 'gotv_delay', field: 'gotvDelay' },
+  { key: 'gotv_seats', field: 'gotvSeats' },
+  { key: 'gotv_access', field: 'gotvAccess' },
+  { key: 'gotv_live_stats', field: 'gotvLiveStats' },
+  // The connect panel recommends LAN to everyone (CS2 fleet/connectChoice.ts).
+  { key: 'connect_prefer_lan', field: 'connectPreferLan' },
   // The highlight settings, core's (services/highlights/settings.ts).
   { key: 'highlights_watermark', field: 'highlightsWatermark' },
   // Clips per player per map (demos/highlights.ts).
@@ -1113,9 +1125,13 @@ test.describe('settings namespace', () => {
     const coreKeys = CORE_SETTINGS.map((definition) => definition.key);
     expect(coreKeys.filter((key) => cs2Keys.includes(key))).toEqual([]);
     for (const key of cs2Keys) {
-      // Server convars (at_), the simulation, and the highlight videos.
+      // Server convars (at_), the simulation, the highlight videos, GOTV spectating, joining.
       expect(
-        key.startsWith('at_') || key.startsWith('simulat') || key.startsWith('highlights_'),
+        key.startsWith('at_') ||
+          key.startsWith('simulat') ||
+          key.startsWith('highlights_') ||
+          key.startsWith('gotv_') ||
+          key.startsWith('connect_'),
         key
       ).toBe(true);
     }

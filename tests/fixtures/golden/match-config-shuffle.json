@@ -7,7 +7,10 @@
       "admins": ["<test-admin-steam-id>"],
       "cvars": {
         "mp_maxrounds": 16,
-        "sv_matchpause_auto_5v5": 1
+        "sv_matchpause_auto_5v5": 1,
+        "tv_delay": 105,
+        "tv_maxclients": 8,
+        "tv_password": "<tv_password>"
       },
       "id": "<match-db-id>",
       "maps": [
@@ -20,6 +23,10 @@
       "num_maps": 1,
       "password": "",
       "rules": {
+        "broadcast": {
+          "delay_seconds": 105,
+          "max_clients": 8
+        },
         "demo": {
           "record": true,
           "upload": false

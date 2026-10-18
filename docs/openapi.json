@@ -512,6 +512,10 @@
       "description": "Your match (both teams and the admins), your team and your party."
     },
     {
+      "name": "Commends",
+      "description": "Players commend others from a match they played (Friendly, Leader, Teacher, Good sport): up to 3 per match, for 24 hours. Public counts per player; never who gave them."
+    },
+    {
       "name": "Compatibility",
       "description": "Ready Up compatibility with the latest CS2 build: the runs its CI reports (token-guarded push), and public reads for the /compatibility page and a shields.io badge. 404 unless COMPAT_INGEST_TOKEN or COMPAT_FEED_URL is set."
     },
@@ -592,6 +596,18 @@
       "description": "Each player's best moments, picked from the demo analysis, and the clips the recorder makes of them."
     },
     {
+      "name": "Highlights backfill",
+      "description": "Find the notable moments of maps analyzed before, from the stored kill feeds and replays (no demo is read again)."
+    },
+    {
+      "name": "Integrations: highlights",
+      "description": "Notable moments from the demos (knife and Zeus kills, aces, 1vN clutches, no-scopes, grenade kills, last-second defuses) for integrators, oldest change first with a cursor; stable ids, revoked rows. Integrator token (API_TOKENS_INTEGRATOR), read-only or admin token, or admin session."
+    },
+    {
+      "name": "Integrations: player stats",
+      "description": "Each player's numbers summed over tournaments, matches or an import's event, for an event website's stat trophies; null for a number not measured, never 0. Integrator token (API_TOKENS_INTEGRATOR), read-only or admin token, or admin session."
+    },
+    {
       "name": "Integrations: teams",
       "description": "Teams API for integrators: idempotent upsert of teams by the integrator's own externalId (single and batch), and reads by externalId. Integrator token (API_TOKENS_INTEGRATOR), admin token or admin session. See docs/WEBHOOKS.md."
     },
@@ -606,6 +622,10 @@
     {
       "name": "License",
       "description": "The Auto Tournament license key: save, remove and read its status, checked offline; and the one-time acceptance of the license terms (non-commercial or commercial use) that the admin UI waits for. Admin only, except the public badge. Nothing else is ever blocked: a missing or problematic key is a notice for admins."
+    },
+    {
+      "name": "Live matches",
+      "description": "Every match on a server now, for the admins: teams, players connected and ready, map, round, scores, pause, the open admin call and the server."
     },
     {
       "name": "Local accounts",
@@ -660,6 +680,10 @@
       "description": "Import a match played elsewhere from its demos: teams, players and score come from the demos."
     },
     {
+      "name": "Match lineups",
+      "description": "Who plays a match for a team bigger than the team size: its captain or an admin picks."
+    },
+    {
       "name": "Match page",
       "description": "A finished match's scoreboard over its maps, and its highlight clips."
     },
@@ -686,6 +710,10 @@
     {
       "name": "My email",
       "description": "Your own email address (confirmed by a link) and whether you get tournament emails."
+    },
+    {
+      "name": "Party maps",
+      "description": "A matchmaking party's CS2 results per map (its members' results added up), and the Active Duty maps."
     },
     {
       "name": "Player profile",
@@ -2864,6 +2892,88 @@
         ]
       }
     },
+    "/api/commends/match/{slug}": {
+      "get": {
+        "tags": [
+          "Commends"
+        ],
+        "summary": "Commends in a match, for the signed-in player",
+        "description": "The match's players by team, whether the viewer can commend (they\nplayed, and it is within 24 hours of the end), when that closes, and\nwhat they gave. Never who else gave what.\n",
+        "responses": {
+          "200": {
+            "description": "`open`, `closesAt`, `max`, `given` and `sides`"
+          }
+        },
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/commends/match/{slug}/{playerId}": {
+      "put": {
+        "tags": [
+          "Commends"
+        ],
+        "summary": "Commend a player from the match, change it, or take it back",
+        "description": "`kind` is friendly, leader, teacher or good_sport; null takes it back.\nUp to 3 players per match, not yourself, for 24 hours after it ends.\n",
+        "responses": {
+          "200": {
+            "description": "The viewer's commends in the match, as GET returns them"
+          },
+          "409": {
+            "description": "Closed, or already 3 given"
+          }
+        },
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/commends/player/{playerId}": {
+      "get": {
+        "tags": [
+          "Commends"
+        ],
+        "summary": "A player's commends, counts only",
+        "responses": {
+          "200": {
+            "description": "`total`, `matches` and `kinds` (count per kind)"
+          }
+        },
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/compat/badge.json": {
       "get": {
         "tags": [
@@ -3617,6 +3727,30 @@
           },
           {
             "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/events/watch/{matchSlug}": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "GET /api/events/watch/:matchSlug",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "matchSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ]
       }
@@ -5608,6 +5742,31 @@
         }
       }
     },
+    "/api/game/cs2/live-overview": {
+      "get": {
+        "tags": [
+          "Live matches"
+        ],
+        "summary": "Every match on a server now, with its live state (admin only)",
+        "description": "The matches that are loaded or live (or ready with a server), in every tournament and\nmatchmaking, live ones first. Per match: teams with side, map score,\nseries score and players (connected, ready); the map, phase and round;\nthe ready count; a pause (type, by, since, which teams want to\nunpause); the open admin call with who claimed it; the server. Refresh\non the `match:update`, `admin:call`, `admin:call:claimed` and\n`admin:call:resolved` socket events.\n",
+        "responses": {
+          "200": {
+            "description": "{ matches: LiveOverviewMatch[] }"
+          },
+          "401": {
+            "description": "Not an admin"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
     "/api/game/cs2/matches/{slug}/connect": {
       "get": {
         "tags": [
@@ -5818,7 +5977,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{ match, server, live, log }"
+            "description": "{ match, server, broadcast, live, log }"
           },
           "401": {
             "description": "Not an admin"
@@ -6284,6 +6443,59 @@
         ]
       }
     },
+    "/api/game/cs2/moments/backfill": {
+      "post": {
+        "tags": [
+          {
+            "Integrations": "highlights"
+          }
+        ],
+        "summary": "Find the notable moments of maps analyzed before (admin)",
+        "description": "Reads the kill feeds and 2D replays already stored for each analyzed\nmap and stores its moments (GET /api/integrations/highlights). No demo\nis read again. Safe to run more than once: a moment keeps its id, and\none no longer found is revoked. `dryRun: true` stores nothing and\nreturns what it would find.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "match": {
+                    "type": "string",
+                    "description": "Only this match (slug)"
+                  },
+                  "tournament": {
+                    "type": "integer",
+                    "description": "Only this tournament's matches"
+                  },
+                  "imported": {
+                    "type": "boolean",
+                    "description": "Only imported matches"
+                  },
+                  "dryRun": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Maps read, moments found by kind, rows created, updated, revoked; the knife kills"
+          },
+          "400": {
+            "description": "A bad parameter"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
     "/api/game/cs2/movement/maps": {
       "get": {
         "tags": [
@@ -6304,6 +6516,20 @@
           "Movement records"
         ],
         "summary": "GET /api/game/cs2/movement/records",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/game/cs2/party-maps": {
+      "get": {
+        "tags": [
+          "Party maps"
+        ],
+        "summary": "GET /api/game/cs2/party-maps",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
         "responses": {
           "200": {
@@ -8858,6 +9084,395 @@
         ]
       }
     },
+    "/api/integrations/highlights": {
+      "get": {
+        "tags": [
+          {
+            "Integrations": "highlights"
+          }
+        ],
+        "summary": "Notable moments from the demos, oldest change first",
+        "description": "One row per moment the demo analysis found in a real round (no warmup,\nno knife round, never a kill on a teammate or a bot): `knife_kill`,\n`zeus_kill`, `ace`, `clutch_1vN` (`detail.against` = N ≥ 3),\n`noscope_kill`, `grenade_kill` (HE, molotov, incendiary) and\n`bomb_defuse_last_second` (`detail.secondsLeft` < 1). Imported\nmatches are included (`imported: true`).\n\n`id` is the same on every re-parse. A moment a re-parse no longer\nfinds, or one of a deleted match, comes back with `revoked: true`.\nEvery change moves the moment to the end of the list: poll with\n`since=<nextCursor>` and apply rows by `id`.\n\nIntegrator token (API_TOKENS_INTEGRATOR), read-only or admin token,\nor an admin session.\n",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "since",
+            "schema": {
+              "type": "string"
+            },
+            "description": "The `nextCursor` of the last page; from the start without it."
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 500
+            }
+          },
+          {
+            "in": "query",
+            "name": "tournament",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Only this tournament's matches (and played matches kept from it)."
+          },
+          {
+            "in": "query",
+            "name": "match",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Only this match (slug)."
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Only these kinds, comma-separated."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of moments, and the cursor for the next one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "highlights": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "example": "hl_3f9a0c1b2d4e5f6a7b8c9d0e"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "example": "knife_kill"
+                          },
+                          "matchSlug": {
+                            "type": "string",
+                            "example": "t4-swiss-r3m3"
+                          },
+                          "tournament": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "nullable": true,
+                                "description": "null for an imported match"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "mapNumber": {
+                            "type": "integer",
+                            "description": "1-based",
+                            "example": 1
+                          },
+                          "map": {
+                            "type": "string",
+                            "nullable": true,
+                            "example": "de_mirage"
+                          },
+                          "round": {
+                            "type": "integer",
+                            "example": 7
+                          },
+                          "tick": {
+                            "type": "integer",
+                            "example": 51234
+                          },
+                          "playedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true,
+                            "description": "Estimated from the map's end; null for an imported match"
+                          },
+                          "player": {
+                            "type": "object",
+                            "properties": {
+                              "steamId64": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            }
+                          },
+                          "victim": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "steamId64": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            }
+                          },
+                          "weapon": {
+                            "type": "string",
+                            "nullable": true,
+                            "example": "Knife"
+                          },
+                          "detail": {
+                            "type": "object",
+                            "additionalProperties": true
+                          },
+                          "clipUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "The recorded clip of the player's round",
+                            "when there is one": null
+                          },
+                          "replayUrl": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "The map's 2D replay at that round"
+                          },
+                          "imported": {
+                            "type": "boolean"
+                          },
+                          "revoked": {
+                            "type": "boolean"
+                          },
+                          "revokedReason": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string"
+                    },
+                    "hasMore": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A bad parameter"
+          },
+          "401": {
+            "description": "No or a wrong token"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/integrations/player-stats": {
+      "get": {
+        "tags": [
+          {
+            "Integrations": "player stats"
+          }
+        ],
+        "summary": "Each player's numbers summed over tournaments or matches",
+        "description": "One row per player, summed over every match the filters take (a match\nis in when any of `tournament`, `match` or `event` takes it; at least\none is required). Read the whole answer each time: a re-parsed demo or\na changed map result shows in the next read.\n\nOnly finished series count (an imported match once its last map is\nin), never a simulation or a bot-filled match, and of those only the\nmaps with a result. Warmup is never in the numbers; the kill feed's\nknife round is left out. `matchesPlayed` and `matchesWon` count series\n(a Bo3 is one), `adr` is damage per round, `kast` the percentage of\nrounds with a kill, an assist, a survival or a trade, `clutches` the\nrounds won as the last player alive against one or more,\n`multiKills5k` aces, `firstKills` the round's opening kills.\n\n**null means not measured, never 0.** A number is null for a player\nwhen one of their matches has no source for it: `mvps`, `score` and\n`flashAssists` come from the series result the game server sends, so\nthey are null for imported matches; `knifeKills` and `teamKills` come\nfrom the demo's kill feed, so they are null when a map's demo wasn't\nanalyzed; `kast`, `firstKills`, `clutches`, `multiKills5k` and the\nflashes are null for a match from a plugin (MatchZy Enhanced) server.\n\nIntegrator token (API_TOKENS_INTEGRATOR), read-only or admin token,\nor an admin session.\n",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tournament",
+            "schema": {
+              "type": "string",
+              "example": "4,5"
+            },
+            "description": "Tournament ids, comma-separated (and played matches kept from them). Summed over all of them."
+          },
+          {
+            "in": "query",
+            "name": "match",
+            "schema": {
+              "type": "string",
+              "example": "import-9080a5c286,import-ca96f894f8"
+            },
+            "description": "Match slugs, comma-separated."
+          },
+          {
+            "in": "query",
+            "name": "event",
+            "schema": {
+              "type": "string",
+              "example": "NTLAN 2026-03"
+            },
+            "description": "The event name of matches in no tournament (an import's event), any case."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every player's numbers, most kills first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "tournaments": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      },
+                      "description": "The tournament ids asked for"
+                    },
+                    "players": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "steamId": {
+                            "type": "string",
+                            "example": "76561198157519659"
+                          },
+                          "name": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "matchesPlayed": {
+                            "type": "integer"
+                          },
+                          "matchesWon": {
+                            "type": "integer"
+                          },
+                          "roundsPlayed": {
+                            "type": "integer"
+                          },
+                          "kills": {
+                            "type": "integer"
+                          },
+                          "deaths": {
+                            "type": "integer"
+                          },
+                          "assists": {
+                            "type": "integer"
+                          },
+                          "headshotKills": {
+                            "type": "integer"
+                          },
+                          "totalDamage": {
+                            "type": "integer"
+                          },
+                          "utilityDamage": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "flashAssists": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "mvps": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "score": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "adr": {
+                            "type": "number",
+                            "nullable": true,
+                            "example": 95
+                          },
+                          "kast": {
+                            "type": "number",
+                            "nullable": true,
+                            "example": 74
+                          },
+                          "teamKills": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "friendliesFlashed": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "enemiesFlashed": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "knifeKills": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "firstKills": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "clutches": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "multiKills5k": {
+                            "type": "integer",
+                            "nullable": true
+                          }
+                        }
+                      }
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true,
+                      "description": "The newest change to the numbers counted (a series finished, a map analyzed); null when nothing is counted."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A bad parameter",
+            "or none of tournament": null,
+            "match and event": null
+          },
+          "401": {
+            "description": "No or a wrong token"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
     "/api/integrations/teams": {
       "get": {
         "tags": [
@@ -9997,6 +10612,101 @@
         ]
       }
     },
+    "/api/match-lineups/{slug}": {
+      "get": {
+        "tags": [
+          "Match lineups"
+        ],
+        "summary": "Who plays the match for each team bigger than the team size",
+        "description": "Public. Only teams whose roster (or signed-up lineup) has more players\nthan the team size are listed, each with its pool, the `size` players\nwho play (`players`), where that came from (`set`, `previous` match,\n`roster` order) and whether the viewer may change it (`canEdit`).\n`open`: lineups can change now (before go-live, or between maps).\n",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The lineups"
+          },
+          "404": {
+            "description": "No such match"
+          }
+        }
+      }
+    },
+    "/api/match-lineups/{slug}/{side}": {
+      "put": {
+        "tags": [
+          "Match lineups"
+        ],
+        "summary": "Pick who plays the match for a team",
+        "description": "The team's owner or a captain (any member of a team with neither);\nan admin with `asAdmin: true` for either team. Before the match goes\nlive, or between maps. `players` are exactly `size` Steam IDs from the\npool. A match on a Ready Up server gets the new roster at once;\n`serverSync` says whether it took it (the lineup is saved either way).\n",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "side",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "team1",
+                "team2"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "players": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "asAdmin": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "400": {
+            "description": "Not `size` players from the pool"
+          },
+          "403": {
+            "description": "Not the team's captain",
+            "or not an admin": null
+          },
+          "409": {
+            "description": "Locked (live)",
+            "or the team has no lineup to pick": null
+          }
+        }
+      }
+    },
     "/api/matches": {
       "get": {
         "tags": [
@@ -10441,6 +11151,38 @@
         }
       }
     },
+    "/api/matches/{slug}/on-stage": {
+      "put": {
+        "tags": [
+          "Matches"
+        ],
+        "summary": "PUT /api/matches/:slug/on-stage",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
     "/api/matches/{slug}/reallocate": {
       "post": {
         "tags": [
@@ -10511,6 +11253,38 @@
           "Matches"
         ],
         "summary": "POST /api/matches/:slug/restart-countdown",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/matches/{slug}/start-time": {
+      "put": {
+        "tags": [
+          "Matches"
+        ],
+        "summary": "PUT /api/matches/:slug/start-time",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
         "responses": {
           "200": {
@@ -10776,8 +11550,7 @@
             "description": "The invite is gone"
           },
           "409": {
-            "description": "The party is searching or full",
-            "or you are answering a match": null
+            "description": "The party found a match or is full, or you are answering a match (a party still searching stops its search and takes you)"
           }
         }
       }
@@ -10918,6 +11691,36 @@
           },
           "409": {
             "description": "The match is no longer waiting for answers"
+          }
+        }
+      }
+    },
+    "/api/matchmaking/lobbies/{id}/rematch": {
+      "post": {
+        "tags": [
+          "Matchmaking"
+        ],
+        "summary": "Answer \"rematch?\" after the match ended",
+        "description": "Same-site JSON `{ accept: boolean }`; counts for the caller's whole party. The first yes\n(within 2 minutes of the match's end) asks the other team, who have 30 s to answer. Each\nteam decides by majority (a tie is a no; when time runs out the votes cast decide). Both\nteams yes: the same teams get a new match at once (`status: ready`, `lobbyId` of the new\nroom; 5v5 vetoes its map). Either team no: `declined`.\n",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`status`: voting, declined or ready (with `lobbyId`)"
+          },
+          "404": {
+            "description": "No such match for the caller"
+          },
+          "409": {
+            "description": "Too late for a rematch, or a player is in another match"
           }
         }
       }
@@ -11622,6 +12425,64 @@
           },
           "403": {
             "description": "Impersonating"
+          }
+        }
+      }
+    },
+    "/api/me/name": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "The signed-in player's display name, and whether they may change it",
+        "description": "`enabled` follows the `playersChooseName` setting. `showPrompt` asks the\nplayer to confirm their name (on, and never confirmed). `nextChangeAt`\nis when they may change it again (epoch seconds), or null.\n",
+        "responses": {
+          "200": {
+            "description": "`name`, `enabled`, `showPrompt`, `nextChangeAt`"
+          },
+          "401": {
+            "description": "Not signed in"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Set or confirm the signed-in player's display name",
+        "description": "Only while `playersChooseName` is on. 2-32 characters after trimming, no\ncontrol characters, quotes or < >. The same name confirms it; a new one\nworks once a day. A live game server gets it at the next match assign.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The new state",
+            "as GET": null
+          },
+          "400": {
+            "description": "Not a valid name"
+          },
+          "401": {
+            "description": "Not signed in"
+          },
+          "403": {
+            "description": "The setting is off",
+            "or impersonating": null
+          },
+          "429": {
+            "description": "Changed less than a day ago"
           }
         }
       }
@@ -12347,7 +13208,7 @@
           "Players"
         ],
         "summary": "Create or update players without teams (integrators)",
-        "description": "For a site that registers its players before teams exist (the same API\ntoken as the teams API). Body: an array of players, or\n`{ \"players\": [...] }`. Each player: `steamId`, `name`, and\noptionally `discordId` (string) and `oidcSubject` (the `sub` of\ntheir login on the site's OpenID Connect server).\n\nA player who already exists keeps their rating, stats and match\nhistory: only the display name is updated, and a Discord ID or\nOpenID Connect subject they don't have yet is added (one on file is\nnever overwritten). Someone who later signs in with OpenID Connect\nwith that subject lands on this player.\n",
+        "description": "For a site that registers its players before teams exist (the same API\ntoken as the teams API). Body: an array of players, or\n`{ \"players\": [...] }`. Each player: `steamId`, `name`, and\noptionally `discordId` (string), `oidcSubject` (the `sub` of\ntheir login on the site's OpenID Connect server) and `rating` (a\nstarting rating on this site's scale, 100–5000; new players start at\n1500). Shuffle teams are balanced on it. A rating only applies while\nthe player has no rated matches here; after that their results rule\n(`ratingsKept` lists them).\n\nA player who already exists keeps their rating, stats and match\nhistory: only the display name is updated, and a Discord ID or\nOpenID Connect subject they don't have yet is added (one on file is\nnever overwritten). Someone who later signs in with OpenID Connect\nwith that subject lands on this player.\n",
         "responses": {
           "200": {
             "description": "`created`, `updated`, `errors` and `warnings` (values not stored)"
@@ -12425,7 +13286,7 @@
         "tags": [
           "Players"
         ],
-        "summary": "What players are doing now (online, searching, playing)",
+        "summary": "What players are doing now (online, away, searching, playing)",
         "description": "For player names anywhere on the site. Up to 100 ids, comma-separated.",
         "parameters": [
           {
@@ -12439,7 +13300,7 @@
         ],
         "responses": {
           "200": {
-            "description": "`presence`: { [playerId]: { online, activity } }"
+            "description": "`presence`: { [playerId]: { online, status, activity } }; `status` is online, away or offline. Live changes: socket event `presence:update` { playerId, status } after `presence:subscribe`."
           },
           "400": {
             "description": "No ids"
@@ -15016,6 +15877,36 @@
             "apiToken": []
           }
         ]
+      },
+      "delete": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "DELETE /api/skins/admin/players/:steamId/inventory",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "steamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/skins/admin/players/{steamId}/skins": {
@@ -15110,6 +16001,20 @@
           "Skins"
         ],
         "summary": "GET /api/skins/catalog",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/skins/catalog/search": {
+      "get": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "GET /api/skins/catalog/search",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
         "responses": {
           "200": {
@@ -15350,6 +16255,70 @@
             "description": "Success"
           }
         }
+      }
+    },
+    "/api/skins/tournaments/{id}/mvp": {
+      "post": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "POST /api/skins/tournaments/:id/mvp",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/skins/tournaments/{id}/mvp-candidates": {
+      "get": {
+        "tags": [
+          "Skins"
+        ],
+        "summary": "GET /api/skins/tournaments/:id/mvp-candidates",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/skins/tournaments/{id}/rewards": {
@@ -16077,6 +17046,20 @@
         }
       }
     },
+    "/api/team-directory/colors": {
+      "get": {
+        "tags": [
+          "Team directory"
+        ],
+        "summary": "GET /api/team-directory/colors",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/team-directory/invite/{code}": {
       "get": {
         "tags": [
@@ -16199,6 +17182,74 @@
           "Team directory"
         ],
         "summary": "DELETE /api/team-directory/:teamId",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/team-directory/{teamId}/banner": {
+      "get": {
+        "tags": [
+          "Team directory"
+        ],
+        "summary": "GET /api/team-directory/:teamId/banner",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Team directory"
+        ],
+        "summary": "PUT /api/team-directory/:teamId/banner",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Team directory"
+        ],
+        "summary": "DELETE /api/team-directory/:teamId/banner",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
         "responses": {
           "200": {
@@ -19171,6 +20222,95 @@
         }
       }
     },
+    "/api/test/shuffle-no-shows": {
+      "post": {
+        "tags": [
+          "Test"
+        ],
+        "summary": "Run a shuffle match's no-show check (tests only)",
+        "description": "The check a shuffle match runs when it goes live (dropShuffleNoShows), with `seen` as the players who were on the server. Answers with the players marked out. Only available in non-production environments.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "seen": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The players marked out"
+          },
+          "404": {
+            "description": "No such match"
+          }
+        }
+      }
+    },
+    "/api/test/stats-fixture": {
+      "post": {
+        "tags": [
+          "Test helpers (CS2)"
+        ],
+        "summary": "POST /api/test/stats-fixture",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
+    "/api/test/stats-fixture/cleanup": {
+      "post": {
+        "tags": [
+          "Test helpers (CS2)"
+        ],
+        "summary": "POST /api/test/stats-fixture/cleanup",
+        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
+      }
+    },
     "/api/test/steam-link/callback": {
       "post": {
         "tags": [
@@ -21331,6 +22471,33 @@
             }
           }
         ]
+      }
+    },
+    "/api/tournament/{id}/teams": {
+      "get": {
+        "tags": [
+          "Tournament"
+        ],
+        "summary": "The tournament's teams with their rosters, logos and banners (public)",
+        "description": "No session. What the tournament page's Teams tab draws: each team in\nseed order with its logo and banner URLs and its players (name and\nSteam picture).\n",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The teams"
+          },
+          "404": {
+            "description": "Tournament not found"
+          }
+        }
       }
     },
     "/api/tournaments": {

@@ -82,11 +82,54 @@ export interface RecorderRow {
 const text = (v: unknown, max: number): string | null =>
   typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
 
-/** A claim: note the recorder and what it runs on. */
+/** New recorders get their numbered labels one at a time (two joining at once took the same). */
+let labelling: Promise<unknown> = Promise.resolve();
+
+/**
+ * The label a new recorder gets from its key: `<key name>-<n>`, the next number after the
+ * highest one in use, so one key pasted on a farm names it renderfarm-1, -2, ... in the order
+ * they join. Rename them in the list afterwards.
+ */
+async function nextKeyLabel(keyName: string): Promise<string> {
+  const base = keyName.trim().slice(0, 70);
+  const rows = await db.queryAsync<{ label: string | null }>(
+    'SELECT label FROM cs2_recorders WHERE label LIKE ?',
+    [`${base.replace(/[\\%_]/g, (c) => `\\${c}`)}-%`]
+  );
+  let max = 0;
+  for (const r of rows) {
+    const m = r.label?.slice(base.length).match(/^-(\d+)$/);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return `${base}-${max + 1}`;
+}
+
+/**
+ * A claim: note the recorder and what it runs on. A recorder seen for the first time with a
+ * recorder key gets a numbered label from the key's name (`keyName`).
+ */
 export async function seenRecorder(
   name: string,
-  info: { version?: unknown; gpu?: unknown; platform?: unknown }
+  info: { version?: unknown; gpu?: unknown; platform?: unknown },
+  keyName?: string | null
 ): Promise<RecorderRow> {
+  // Keys made before the dialog asked for a name are called key-<date>: no numbering for those.
+  if (keyName && !/^key-\d{4}-/.test(keyName)) {
+    const job = labelling.then(async () => {
+      const known = await db.queryOneAsync('SELECT 1 AS x FROM cs2_recorders WHERE name = ?', [
+        name.slice(0, 120),
+      ]);
+      if (known) return;
+      await db.runAsync(
+        'INSERT INTO cs2_recorders (name, label, last_seen) VALUES (?, ?, ?) ON CONFLICT (name) DO NOTHING',
+        [name.slice(0, 120), await nextKeyLabel(keyName), now()]
+      );
+    });
+    labelling = job.catch(() => undefined);
+    await job.catch((error: unknown) => {
+      log.warn(`[RECORDER] naming ${name} after its key failed: ${(error as Error).message}`);
+    });
+  }
   const version = Number.isInteger(Number(info.version)) ? Number(info.version) : null;
   const row = await db.queryOneAsync<RecorderRow>(
     `INSERT INTO cs2_recorders (name, version, gpu, platform, last_seen) VALUES (?, ?, ?, ?, ?)
@@ -470,6 +513,37 @@ export async function recorderFault(recorder: string, ids: number[], error: stri
         WHERE id IN (${ids.map(() => '?').join(', ')}) AND status = 'recording'`,
       [error.slice(0, 500), ...ids]
     );
+  }
+  // A demo that never ticks on two different recorders does not play in this CS2 build (the
+  // March LAN demos, 2026-10-15: every recorder tried each map three to five times). Its map's
+  // waiting moments fail for good instead of going round the recorders again.
+  if (/first tick/i.test(error) && ids.length > 0) {
+    const maps = await db.queryAsync<{ match_slug: string; map_number: number }>(
+      `SELECT DISTINCT match_slug, map_number FROM cs2_highlights WHERE id IN (${ids
+        .map(() => '?')
+        .join(', ')})`,
+      ids
+    );
+    for (const m of maps) {
+      const before = await db.queryAsync<{ recorder: string }>(
+        `SELECT DISTINCT recorder FROM cs2_recorder_runs
+          WHERE match_slug = ? AND map_number = ? AND error ILIKE '%first tick%'`,
+        [m.match_slug, m.map_number]
+      );
+      const recorders = new Set([...before.map((r) => r.recorder), recorder]);
+      if (recorders.size < 2) continue;
+      const gone = await db.runAsync(
+        `UPDATE cs2_highlights SET status = 'failed',
+                error = 'This demo does not play in the current CS2 build (it never reached its first tick on two recorders)'
+          WHERE match_slug = ? AND map_number = ? AND status IN ('pending', 'recording')`,
+        [m.match_slug, m.map_number]
+      );
+      if (gone.changes > 0) {
+        log.warn(
+          `[RECORDERS] ${m.match_slug} map ${m.map_number + 1}: the demo does not play in this CS2 build; ${gone.changes} moment(s) failed`
+        );
+      }
+    }
   }
   await queueMatchReelFor(ids);
   // An imported demo that never ticks is usually from an older CS2 build the

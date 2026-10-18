@@ -8,6 +8,7 @@
 import Ajv2020, { type ErrorObject, type ValidateFunction } from 'ajv/dist/2020';
 import defs from './defs.json';
 import matchDefs from './match.defs.json';
+import tvDefs from './tv.defs.json';
 import envelope from './envelope.json';
 import hello from './messages/hello.json';
 import welcome from './messages/welcome.json';
@@ -30,6 +31,7 @@ import statePatch from './messages/state.patch.json';
 import serverAvailability from './messages/server.availability.json';
 import serverCs2UpdateRequired from './messages/server.cs2_update_required.json';
 import serverSelftest from './messages/server.selftest.json';
+import serverTv from './messages/server.tv.json';
 import serverDrain from './messages/server.drain.json';
 import serverUndrain from './messages/server.undrain.json';
 import adminsSet from './messages/admins.set.json';
@@ -59,6 +61,7 @@ import eventMatchRestored from './messages/event.match_restored.json';
 import eventForfeit from './messages/event.forfeit.json';
 import eventGg from './messages/event.gg.json';
 import eventAdminCalled from './messages/event.admin_called.json';
+import eventChat from './messages/event.chat.json';
 import eventError from './messages/event.error.json';
 import demoBegin from './messages/demo.begin.json';
 import demoChunk from './messages/demo.chunk.json';
@@ -99,6 +102,8 @@ export const FLEET_MESSAGE_SCHEMAS: Record<FleetMessageType, Record<string, unkn
   // Server-level notices and drain (FLEET.md §8.1, §14.3): proposed by Ready Up.
   'server.cs2_update_required': serverCs2UpdateRequired,
   'server.selftest': serverSelftest,
+  // GOTV state from Ready Up's tv plugin (../tvState.ts).
+  'server.tv': serverTv,
   'server.drain': serverDrain,
   'server.undrain': serverUndrain,
   'admins.set': adminsSet,
@@ -128,6 +133,8 @@ export const FLEET_MESSAGE_SCHEMAS: Record<FleetMessageType, Record<string, unkn
   'event.forfeit': eventForfeit,
   'event.gg': eventGg,
   'event.admin_called': eventAdminCalled,
+  // In-game chat to the match's web chat: proposed by the platform (admin chat bridge).
+  'event.chat': eventChat,
   'event.error': eventError,
   // Demo streaming (FLEET.md §12.2): proposed by Ready Up, received by ../../demoStream.ts.
   'demo.begin': demoBegin,
@@ -143,6 +150,7 @@ export const FLEET_MESSAGE_SCHEMAS: Record<FleetMessageType, Record<string, unkn
 export const FLEET_SCHEMAS = {
   defs,
   matchDefs,
+  tvDefs,
   envelope,
   messages: FLEET_MESSAGE_SCHEMAS,
   http: { enrollRequest, enrollResponse },
@@ -178,6 +186,7 @@ function validators() {
   });
   ajv.addSchema(defs);
   ajv.addSchema(matchDefs);
+  ajv.addSchema(tvDefs);
   const messages = new Map<string, ValidateFunction>();
   for (const [type, schema] of Object.entries(FLEET_MESSAGE_SCHEMAS)) {
     messages.set(type, ajv.compile(schema));

@@ -6,8 +6,14 @@
 import { vetoMapPickers } from './veto/vetoMapPickers';
 import { Cs2RulesSummary } from './rules/Cs2RulesSummary';
 import { TournamentPrizes } from './skins/TournamentPrizes';
+import { PrizesManage } from './skins/PrizesManage';
+import { PlacementPrizeLine } from './skins/PrizeCards';
+import { PinnedSkinPicks, PrizePickRow } from './skins/PrizePick';
+import { WatchMatchCard } from './watch/WatchMatchCard';
+import { TournamentRewardsSection } from './skins/TournamentRewards';
 import { Cs2ProfileStats } from './profile/Cs2ProfileStats';
 import { useCs2PlayerHighlights } from './profile/useCs2PlayerHighlights';
+import { PartyMaps } from './profile/PartyMaps';
 import { Cs2TeamProfileStats } from './profile/Cs2TeamProfileStats';
 import {
   HardDrivesIcon,
@@ -137,6 +143,8 @@ export const cs2ClientIntegration: ClientGameIntegration = {
   },
   // The team page: map strength, and the maps the team bans and picks.
   teamProfileView: Cs2TeamProfileStats,
+  // The Play page's party: its members' map strength, Active Duty marked.
+  partyView: PartyMaps,
 
   // The team page roster: whether the roster has a Steam account for each
   // member, which a CS2 player needs to join the server.
@@ -145,6 +153,11 @@ export const cs2ClientIntegration: ClientGameIntegration = {
   // A team's jobs and size, for the team pages (strings: teamPositions.*).
   tournamentRulesView: Cs2RulesSummary,
   tournamentPrizesView: TournamentPrizes,
+  tournamentPrizesManage: PrizesManage,
+  placementPrizeLine: PlacementPrizeLine,
+  pinnedNotices: { category: 'skins', Component: PinnedSkinPicks },
+  prizePickRow: PrizePickRow,
+  spectatorWatch: WatchMatchCard,
   teamPositions: ['rifler', 'awper', 'igl', 'entry', 'support', 'lurker'],
   teamSize: 5,
 
@@ -239,6 +252,7 @@ export const cs2ClientIntegration: ClientGameIntegration = {
   // Its recorders, overlays and how to add a recorder, on core's Highlights page.
   highlightsAdmin: { labelKey: 'highlightsAdmin.cs2Tab', Component: Cs2HighlightsAdmin },
   tournamentResultsSection: TournamentResultsSections,
+  tournamentResultsFooter: TournamentRewardsSection,
 
   // At URLs the platform keeps. The Steam connect page these used to include
   // is core's now: Steam is the platform's sign-in, not this game's.

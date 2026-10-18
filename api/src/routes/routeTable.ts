@@ -30,6 +30,7 @@ import chatRoutes from './chat';
 import tournamentSignupRoutes from './tournamentSignup';
 import logsRoutes from './logs';
 import teamMatchRoutes from './teamMatch';
+import matchLineupRoutes from './matchLineups';
 import teamStatsRoutes from './teamStats';
 import teamDirectoryRoutes from './teamDirectory';
 import searchRoutes from './search';
@@ -47,6 +48,7 @@ import authRoutes from './auth';
 import { setupRouter, localAuthRouter, localAccountsRouter } from './localAdmin';
 import { emailSettingsRouter, meEmailRouter, emailLinksRouter } from './email';
 import reportRoutes from './reports';
+import commendRoutes from './commends';
 import gamesRoutes from './games';
 import gamePackRoutes from './gamePacks';
 import moduleRoutes from './modules';
@@ -118,6 +120,13 @@ const coreRoutes: MountedRouter[] = [
     router: tournamentSignupRoutes,
     title: 'Tournament sign-up',
     description: 'Teams signing themselves up with a lineup, and check-in on the day.',
+  },
+  {
+    prefix: '/api/match-lineups',
+    router: matchLineupRoutes,
+    title: 'Match lineups',
+    description:
+      'Who plays a match for a team bigger than the team size: its captain or an admin picks.',
   },
   {
     prefix: '/api/logs',
@@ -260,6 +269,13 @@ const coreRoutes: MountedRouter[] = [
     title: 'Player reports',
     description:
       'Players report another player to the admins; admins list, dismiss, or ban from a report.',
+  },
+  {
+    prefix: '/api/commends',
+    router: commendRoutes,
+    title: 'Commends',
+    description:
+      'Players commend others from a match they played (Friendly, Leader, Teacher, Good sport): up to 3 per match, for 24 hours. Public counts per player; never who gave them.',
   },
   {
     prefix: '/api/me/email',

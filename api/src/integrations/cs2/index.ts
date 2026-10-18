@@ -281,6 +281,9 @@ export const cs2Integration: GameIntegration = {
   },
 
   /** The map veto runs unless the tournament turned it off (`settings.cs2.veto: false`). */
+  fillsShortTeams(tournament) {
+    return storedCs2Settings(tournament.settings)?.fillTeamsWithBots === true;
+  },
   usesPreMatchPhase(tournament) {
     return vetoOn(tournament.settings);
   },
@@ -312,7 +315,10 @@ export const cs2Integration: GameIntegration = {
     }
     // The break between a team's matches: the veto waits for it (veto/break.ts).
     const { holdForMatchBreak } = await import('./veto/break');
-    const opensAt = await holdForMatchBreak(ctx.slug);
+    // The break, or a hold already on it (its start time, an admin's): the veto opens when it ends.
+    const { holdOf } = await import('../../services/matchHolds');
+    const opensAt =
+      (await holdForMatchBreak(ctx.slug)) ?? (await holdOf(ctx.slug))?.heldUntil ?? null;
     const { announceVetoOpen } = await import('./veto/announce');
     if (opensAt) {
       log.info(
@@ -697,9 +703,11 @@ export const cs2Integration: GameIntegration = {
         settings = {};
       }
       const own = storedCs2Settings(settings) as
-        { esportsMode?: boolean; skinRewards?: boolean } | undefined;
+        { esportsMode?: boolean; skinRewards?: boolean; matchDrops?: boolean } | undefined;
       if (own?.esportsMode === true || own?.skinRewards === false || settings.skinRewards === false)
         return;
+      // The tournament's Prizes: "Every match played can drop a skin" off.
+      if (own?.matchDrops === false) return;
     }
     await skinService.rollMatchDrops(matchSlug, winners, others, map, { source, teamSize });
   },
@@ -742,15 +750,44 @@ export const cs2Integration: GameIntegration = {
     ]) {
       await db.runAsync(`DELETE FROM ${table} WHERE match_slug IN (${list})`, slugs);
     }
+    // Their notable moments stay, revoked: an integrator takes back what it gave for them.
+    const { revokeMomentsOfSlugs } = await import('./demos/momentStore');
+    await revokeMomentsOfSlugs(slugs);
   },
 
   /** The top three of a finished tournament get its skin rewards, unless the tournament turned them off. */
   async onTournamentPlacements({ tournamentId, tournamentName, settings, placements }) {
     const { skinService } = await import('./skins/skinService');
     // `settings.cs2.skinRewards`; tournaments from before it moved here kept it at the top level.
-    const own = settings.cs2 as { skinRewards?: unknown } | undefined;
+    const own = settings.cs2 as { skinRewards?: unknown; rewards?: unknown } | undefined;
     const rewards = typeof own?.skinRewards === 'boolean' ? own.skinRewards : settings.skinRewards;
-    await skinService.awardTournament(tournamentId, tournamentName, placements, rewards === false);
+    const { parseRewards } = await import('./skins/skinService');
+    await skinService.awardTournament(
+      tournamentId,
+      tournamentName,
+      placements,
+      rewards === false,
+      parseRewards(own?.rewards)
+    );
+    // The MVP prize, when it is chosen by commends or rating; the organizer's
+    // pick waits for them (Prizes in Manage).
+    const mvp = (own as { mvp?: { enabled?: boolean; by?: string; rarity?: string; pick?: 'one' } })
+      ?.mvp;
+    if (rewards !== false && mvp?.enabled && (mvp.by === 'commends' || mvp.by === 'rating')) {
+      try {
+        const { mvpCandidates, pickMvp } = await import('./skins/mvp');
+        const winner = pickMvp(await mvpCandidates(tournamentId), mvp.by);
+        if (winner) {
+          await skinService.awardMvp(tournamentId, tournamentName, winner.steamId, {
+            rarity: mvp.rarity ?? 'legendary',
+            pick: mvp.pick,
+          });
+        }
+      } catch (error) {
+        const { log } = await import('../../utils/logger');
+        log.warn('[Skins] MVP prize failed', { tournamentId, error: (error as Error).message });
+      }
+    }
   },
 
   /**
@@ -814,10 +851,33 @@ export const cs2Integration: GameIntegration = {
    * gets its config again, with the absent-team forfeit off while held and
    * back (counting afresh) once it goes ahead.
    */
-  async onHoldChanged(ctx) {
+  async onHoldChanged(ctx, change) {
+    // An admin let the hold go before it ran out: the veto's first turn gets a grace.
+    if (change?.earlyRelease) (await import('./veto/timer')).markEarlyRelease(ctx.slug);
     // A break (or hold) over before the veto started: the veto is open now; say so.
     const { vetoOpenedAfterHold } = await import('./veto/break');
     await vetoOpenedAfterHold(ctx.slug);
+    const { getAssignment, syncMatch } = await import('./fleet/driver');
+    const assignment = await getAssignment(ctx.slug);
+    if (!assignment || assignment.endedAt !== null) return;
+    const outcome = await syncMatch(ctx.slug);
+    if (!outcome.ok) throw new Error(outcome.error);
+  },
+
+  // Lineups (services/matchLineups.ts): wingman is two a side whatever the team size.
+  lineupSize(tournament) {
+    return storedCs2Settings(tournament.settings)?.mapMode === 'wingman' ? 2 : null;
+  },
+
+  /** Ready Up's phase: the map before is over (or none went live yet) and the next is not live. */
+  async betweenMaps(ctx) {
+    const { liveStateStore } = await import('./fleet/state');
+    const phase = (await liveStateStore.getLiveState(ctx.slug))?.state?.phase;
+    return phase === 'map_end' || phase === 'warmup' || phase === 'loading';
+  },
+
+  /** A match on a Ready Up server gets the new roster at once (`match.update`). */
+  async onLineupChanged(ctx) {
     const { getAssignment, syncMatch } = await import('./fleet/driver');
     const assignment = await getAssignment(ctx.slug);
     if (!assignment || assignment.endedAt !== null) return;

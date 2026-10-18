@@ -1,3 +1,4 @@
+import { gotvCvars } from './gotv';
 import { storedCs2Settings } from './tournamentSettings';
 import { db } from '../../config/database';
 import type { DbTeamRow, DbMatchRow } from '../../types/database.types';
@@ -66,6 +67,16 @@ export interface GenerateMatchConfigOptions {
    * (config built before the insert).
    */
   round?: number;
+}
+
+/** A match an admin put on stage gets every GOTV seat (gotv.ts). */
+async function onStage(slug: string): Promise<boolean> {
+  const row = await db
+    .queryOneAsync<{ on_stage: number | null }>('SELECT on_stage FROM matches WHERE slug = ?', [
+      slug,
+    ])
+    .catch(() => null);
+  return Number(row?.on_stage ?? 0) === 1;
 }
 
 export const generateMatchConfig = async (
@@ -152,8 +163,24 @@ export const generateMatchConfig = async (
   const team2Roster = team2
     ? await tournamentSignupService.lineupRoster(tournament.id, team2.id, team2.players)
     : null;
-  const team1Players = team1Roster ? convertPlayersToPluginFormat(team1Roster) : {};
-  const team2Players = team2Roster ? convertPlayersToPluginFormat(team2Roster) : {};
+  // A team bigger than the team size plays the lineup picked for this match
+  // (services/matchLineups). The bench is not on the server at all, not even
+  // as spectators: they watch through the delayed GOTV like everyone else
+  // (no ghosting).
+  const { lineupFor } = await import('../../services/matchLineups');
+  const playing = async (teamId: string, players: Record<string, string>) => {
+    const lineup = slug ? await lineupFor(slug, tournament.id, teamId, 'cs2') : null;
+    if (!lineup) return players;
+    const out: Record<string, string> = {};
+    for (const [id, name] of Object.entries(players)) {
+      if (lineup.has(id)) out[id] = name;
+    }
+    return out;
+  };
+  const team1Players =
+    team1 && team1Roster ? await playing(team1.id, convertPlayersToPluginFormat(team1Roster)) : {};
+  const team2Players =
+    team2 && team2Roster ? await playing(team2.id, convertPlayersToPluginFormat(team2Roster)) : {};
   const team1Count = Object.keys(team1Players).length;
   const team2Count = Object.keys(team2Players).length;
 
@@ -294,6 +321,14 @@ export const generateMatchConfig = async (
     ...atEnhancedCvars,
     // Simulated matches: short SourceTV delay so the demo stops and uploads quickly.
     ...simulationTvCvars(simulation),
+    // GOTV: the delay, the seats, this match's password, insecure observers (gotv.ts).
+    ...(slug
+      ? await gotvCvars(slug, {
+          simulation,
+          onStage: await onStage(slug),
+          broadcast: storedCs2Settings(tournament.settings)?.broadcast,
+        })
+      : {}),
   };
 
   const config: MatchConfig = {
@@ -490,6 +525,14 @@ async function generateShuffleMatchConfig(
     ...atEnhancedCvars,
     // Simulated matches: short SourceTV delay so the demo stops and uploads quickly.
     ...simulationTvCvars(simulation),
+    // GOTV: the delay, the seats, this match's password, insecure observers (gotv.ts).
+    ...(slug
+      ? await gotvCvars(slug, {
+          simulation,
+          onStage: await onStage(slug),
+          broadcast: storedCs2Settings(tournament.settings)?.broadcast,
+        })
+      : {}),
   };
 
   // For shuffle we want players_per_team to reflect the configured teamSize

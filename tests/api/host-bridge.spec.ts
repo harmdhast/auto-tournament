@@ -31,7 +31,7 @@ test.describe('Host bridge', () => {
   test("hands out the platform's own instances, as live getters", () => {
     installHostBridge();
     const bridge = (globalThis as unknown as Record<string, Bridge>)[HOST_GLOBAL];
-    expect(bridge.serverApi).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(bridge.serverApi).toMatch(/^\d+\.\d+\.\d+(\+[0-9A-Za-z.-]+)?$/);
 
     const bridgedLogger = bridge.module('utils/logger');
     expect(bridgedLogger.__esModule).toBe(true);

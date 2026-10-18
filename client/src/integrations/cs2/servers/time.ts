@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
+import { fmtDateTime } from '../../../module-sdk';
 
 /** A moment as the viewer's locale writes date and time; a dash for none. */
-export function formatWhen(unixSeconds: number | null | undefined, locale: string): string {
+export function formatWhen(unixSeconds: number | null | undefined, locale?: string): string {
   if (!unixSeconds) return '—';
-  return new Date(unixSeconds * 1000).toLocaleString(locale);
+  return fmtDateTime(unixSeconds, locale);
 }
 
 /** As `formatWhen`, but only the time for a moment today. */

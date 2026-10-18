@@ -43,6 +43,14 @@ class Cs2Settings {
     return normalized === '1' || normalized === 'true' || normalized === 'yes';
   }
 
+  /** Tournament matches: one player's `.ready` readies their whole team. On by default. */
+  async isAtTeamReadyEnabled(): Promise<boolean> {
+    const value = await this.getSetting('at_team_ready');
+    if (!value) return true;
+    const normalized = value.toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes';
+  }
+
   async isAtPauseAfterRestoreEnabled(): Promise<boolean> {
     const value = await this.getSetting('at_pause_after_restore');
     if (!value) return true; // MatchZy Enhanced default
@@ -226,6 +234,7 @@ export async function readCs2InstanceSettings(): Promise<Record<string, unknown>
     // MatchZy Enhanced core defaults
     atMinimumReadyRequired: atCore.minimumReadyRequired,
     atAllowForceReady: atCore.allowForceReady,
+    atTeamReady: await cs2Settings.isAtTeamReadyEnabled(),
     atPauseAfterRestore: atCore.pauseAfterRestore,
     atJoinPassword: await cs2Settings.isAtJoinPasswordEnabled(),
     atStopCommandAvailable: atCore.stopCommandAvailable,
@@ -249,6 +258,10 @@ export async function readCs2InstanceSettings(): Promise<Record<string, unknown>
     atFfwEnabled: atEnhanced.at_ffw_enabled,
     atFfwTime: atEnhanced.at_ffw_time,
     atDemoRecordingEnabled: atEnhanced.at_demo_recording_enabled,
+    // Spectators in GOTV (gotv.ts).
+    ...(await (await import('./gotv')).gotvSettingsResponse()),
+    // The connect panel recommends LAN to everyone (fleet/connectChoice.ts): 1 on, 0 off.
+    connectPreferLan: (await settingsService.getSetting('connect_prefer_lan')) === '1' ? 1 : 0,
     // The highlight settings are core's (services/highlights/settings.ts).
   };
 }

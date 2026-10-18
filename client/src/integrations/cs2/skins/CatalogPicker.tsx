@@ -77,7 +77,7 @@ export function CatalogPicker({
     if (slot) query.set('slot', slot);
     if (category !== 'all') query.set('category', category);
     api
-      .get<{ skins: CatalogSkin[] }>(`/api/skins/catalog?${query}`)
+      .get<{ skins: CatalogSkin[] }>(`/api/skins/catalog/search?${query}`)
       .then((r) => !cancelled && setLoaded({ key, skins: r.skins ?? [] }))
       .catch((error: unknown) => {
         if (cancelled) return;

@@ -165,5 +165,12 @@
  *
  * 0.2.26 (additive): `tournamentPrizesView` with `TournamentPrizesViewProps`
  * ("What you can win" on the tournament overview).
+ * 0.2.27 (additive): `tournamentPrizesManage` with `TournamentPrizesManageProps`
+ *   (Manage's Prizes tab), `placementPrizeLine` (a line under What's next) and
+ *   `spectatorWatch` (Watch match for spectators) and `tournamentResultsFooter`.
+ * 0.2.28 (additive): `pinnedNotices` (rows pinned to the top of the bell) with
+ *   `setPinnedNotices`, and `prizePickRow` (pick a prize where it was earned).
+ * 0.2.29 (additive): `partyView` with `PartyViewProps` (the game's view of a
+ *   matchmaking party on the Play page).
  */
-export const CLIENT_API_VERSION = '0.2.26';
+export const CLIENT_API_VERSION = '0.2.29';

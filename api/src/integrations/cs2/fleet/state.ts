@@ -65,7 +65,8 @@ export interface LiveMatchRecord {
 }
 
 export type PatchOutcome =
-  | { kind: 'applied'; record: LiveMatchRecord }
+  /** `revOnly`: the patch changed nothing but `live_rev`; the rev advanced in memory, nothing was stored or announced. */
+  | { kind: 'applied'; record: LiveMatchRecord; revOnly?: boolean }
   | { kind: 'duplicate'; record: LiveMatchRecord }
   /** Held until a snapshot; `requestSnapshot` = the caller should send `state.request` now. */
   | { kind: 'gap'; expected: number; got: number; requestSnapshot: boolean }
@@ -112,6 +113,20 @@ interface HeldPatch {
   type: string;
 }
 
+/** True when a merge patch changes nothing but `live_rev`. */
+export function isRevOnly(patch: MatchStatePatch): boolean {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return false;
+  return Object.keys(patch).every((k) => k === 'live_rev');
+}
+
+function withRev(record: LiveMatchRecord, rev: number): LiveMatchRecord {
+  return {
+    ...record,
+    liveRev: rev,
+    state: record.state ? { ...record.state, live_rev: rev } : record.state,
+  };
+}
+
 function emptyRecord(matchSlug: string): LiveMatchRecord {
   return {
     matchSlug,
@@ -132,6 +147,14 @@ export class LiveStateStore {
   private readonly locks = new Map<string, Promise<unknown>>();
   private readonly held = new Map<string, HeldPatch[]>();
   private readonly requestedAt = new Map<string, number>();
+  /**
+   * Revs advanced by rev-only patches (`event.chat` and the like), not yet
+   * stored. Overlaid on every load and persisted by the next real write. Lost
+   * on a restart: the stored rev is then behind the server's, the next patch
+   * reads as a gap and the platform asks for a `state.snapshot` (no data is
+   * lost, the snapshot is the server's full state).
+   */
+  private readonly pendingRev = new Map<string, { epoch: number; rev: number }>();
 
   constructor(private readonly persistence: LiveStatePersistence) {
     this.emitter.setMaxListeners(50);
@@ -141,7 +164,7 @@ export class LiveStateStore {
 
   /** The stored record of a match, or null when the fleet never reported it. */
   getLiveState(matchSlug: string): Promise<LiveMatchRecord | null> {
-    return this.persistence.load(matchSlug);
+    return this.loadRecord(matchSlug);
   }
 
   /** Matches whose current epoch is held by this server. */
@@ -167,6 +190,7 @@ export class LiveStateStore {
       const record = await this.persistence.allocateEpoch(matchSlug, serverId, configRev);
       this.held.delete(matchSlug);
       this.requestedAt.delete(matchSlug);
+      this.pendingRev.delete(matchSlug);
       this.emit(record, 'assign');
       return record;
     });
@@ -187,7 +211,7 @@ export class LiveStateStore {
   /** The server acked a `match.update` (`cmd.result ok`, `rev` = config_rev). */
   setConfigRev(matchSlug: string, configRev: number): Promise<LiveMatchRecord | null> {
     return this.locked(matchSlug, async () => {
-      const record = await this.persistence.load(matchSlug);
+      const record = await this.loadRecord(matchSlug);
       if (!record) return null;
       const next = { ...record, configRev, updatedAt: nowS() };
       await this.persistence.save(next);
@@ -204,7 +228,7 @@ export class LiveStateStore {
     if (!state) return Promise.resolve({ kind: 'idle' as const });
     const slug = state.match_id;
     return this.locked(slug, async () => {
-      const record = (await this.persistence.load(slug)) ?? emptyRecord(slug);
+      const record = (await this.loadRecord(slug)) ?? emptyRecord(slug);
       if (state.epoch < record.epoch) {
         log.warn(
           `[FLEET] ${serverId}: ignoring a ${payload.reason} snapshot of ${slug} for epoch ${state.epoch} (current ${record.epoch})`
@@ -280,6 +304,7 @@ export class LiveStateStore {
       }
 
       await this.persistence.save(next);
+      this.pendingRev.delete(slug);
       this.emit(next, 'snapshot', 'state.snapshot');
       return { kind: 'replaced' as const, record: next, drift, released };
     });
@@ -296,7 +321,7 @@ export class LiveStateStore {
   ): Promise<PatchOutcome> {
     return this.locked(input.matchSlug, async () => {
       const slug = input.matchSlug;
-      const record = await this.persistence.load(slug);
+      const record = await this.loadRecord(slug);
       // Only the server holding the match at its epoch moves it; no epoch is its epoch.
       const epoch = input.epoch ?? (record?.serverId === serverId ? record.epoch : 0);
       if (!record || epoch !== record.epoch || record.serverId !== serverId) {
@@ -333,6 +358,13 @@ export class LiveStateStore {
           requestSnapshot,
         };
       }
+      if (isRevOnly(input.patch)) {
+        // Nothing but the counter moved (every in-game chat line): keep the rev
+        // in memory, skip the write and the change announcement.
+        this.pendingRev.set(slug, { epoch: record.epoch, rev: input.rev });
+        const advanced = withRev(record, input.rev);
+        return { kind: 'applied' as const, record: advanced, revOnly: true };
+      }
       const next: LiveMatchRecord = {
         ...record,
         serverId,
@@ -341,6 +373,7 @@ export class LiveStateStore {
         updatedAt: nowS(),
       };
       await this.persistence.save(next);
+      this.pendingRev.delete(slug);
       this.emit(next, 'patch', input.type);
       return { kind: 'applied' as const, record: next };
     });
@@ -358,7 +391,7 @@ export class LiveStateStore {
     round: RoundSummary
   ): Promise<RoundSummary[] | null> {
     return this.locked(matchSlug, async () => {
-      const record = await this.persistence.load(matchSlug);
+      const record = await this.loadRecord(matchSlug);
       if (!record || (epoch !== undefined && epoch < record.epoch)) return null;
       const key = String(mapNumber);
       const rounds = (record.mapRounds[key] ?? []).filter(
@@ -385,7 +418,7 @@ export class LiveStateStore {
     fromRound: number
   ): Promise<number> {
     return this.locked(matchSlug, async () => {
-      const record = await this.persistence.load(matchSlug);
+      const record = await this.loadRecord(matchSlug);
       if (!record || (epoch !== undefined && epoch < record.epoch)) return 0;
       const key = String(mapNumber);
       const before = record.mapRounds[key] ?? [];
@@ -408,6 +441,18 @@ export class LiveStateStore {
   }
 
   // --- internals ---------------------------------------------------------------
+
+  /** The stored record with the not-yet-stored rev of rev-only patches on top. */
+  private async loadRecord(matchSlug: string): Promise<LiveMatchRecord | null> {
+    const record = await this.persistence.load(matchSlug);
+    const pending = this.pendingRev.get(matchSlug);
+    if (!record || !pending) return record;
+    if (pending.epoch !== record.epoch || pending.rev <= record.liveRev) {
+      this.pendingRev.delete(matchSlug);
+      return record;
+    }
+    return withRev(record, pending.rev);
+  }
 
   private emit(record: LiveMatchRecord, cause: LiveStateChangeCause, type?: string): void {
     const change: LiveStateChange = {

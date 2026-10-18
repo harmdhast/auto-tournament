@@ -28,6 +28,7 @@ import {
   tokens,
   useModuleTranslation,
   withAlpha,
+  fmtNum,
 } from '../../../../module-sdk';
 import type { FleetHost, FleetHostCommand } from '../../cs2.types';
 import { readyUpVersion, useCommandLabel, useProblemText } from './MachineCard';
@@ -37,7 +38,7 @@ import { formatWhen } from '../time';
 
 const { color } = tokens;
 
-const gb = (mb: number) => (mb / 1024).toFixed(1);
+const gb = (mb: number) => fmtNum(mb / 1024, 1);
 
 /** 10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x, fc00::/7, fe80::/10, ::1. */
 function isPrivateAddress(host: string): boolean {
@@ -206,10 +207,10 @@ export function MachineSheet({
   onNewCode: (host: FleetHost) => void;
   onRemove: (host: FleetHost) => void;
 }) {
-  const { t, i18n } = useModuleTranslation('cs2');
+  const { t } = useModuleTranslation('cs2');
   const commandLabel = useCommandLabel();
   const problemText = useProblemText();
-  const when = (s: number | null | undefined) => formatWhen(s, i18n.language);
+  const when = (s: number | null | undefined) => formatWhen(s);
   const inv = host?.inventory ?? null;
   const online = !!host && host.status === 'enrolled' && host.online;
   const disk = inv?.resources.disk[0];
@@ -428,7 +429,7 @@ export function MachineSheet({
               <SectionTitle>{t('machinesPanel.machine', { defaultValue: 'Machine' })}</SectionTitle>
               <Bar
                 label={t('machinesPanel.cpu', { defaultValue: 'CPU load' })}
-                value={`${inv.resources.load1.toFixed(2)} / ${inv.resources.cpus}`}
+                value={`${fmtNum(inv.resources.load1, 2)} / ${inv.resources.cpus}`}
                 pct={(inv.resources.load1 / Math.max(1, inv.resources.cpus)) * 100}
               />
               <Bar
@@ -446,7 +447,7 @@ export function MachineSheet({
                     defaultValue: 'Disk {{mount}}',
                     mount: disk.mount,
                   })}
-                  value={`${(disk.total_gb - disk.free_gb).toFixed(0)} / ${disk.total_gb.toFixed(0)} GB`}
+                  value={`${fmtNum(disk.total_gb - disk.free_gb, 0)} / ${fmtNum(disk.total_gb, 0)} GB`}
                   pct={((disk.total_gb - disk.free_gb) / Math.max(1, disk.total_gb)) * 100}
                 />
               )}

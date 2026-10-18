@@ -22,6 +22,7 @@ import Tournaments from './pages/Tournaments';
 import { ScopedTournamentRedirect, TournamentScope } from './components/manage/TournamentScope';
 import Bracket from './pages/Bracket';
 import ManageMatch from './pages/ManageMatch';
+import LiveMatches from './pages/LiveMatches';
 import Matches from './pages/Matches';
 import Disputes from './pages/Disputes';
 import PlayedMatches from './pages/PlayedMatches';
@@ -58,13 +59,17 @@ import Friends from './pages/Friends';
 import Notifications from './pages/Notifications';
 import TeamsDirectory from './pages/TeamsDirectory';
 import TeamManage from './pages/TeamManage';
+import TournamentPrizes from './pages/TournamentPrizes';
+import TournamentSchedule from './pages/TournamentSchedule';
 import TeamJoin from './pages/TeamJoin';
 import Compatibility from './pages/Compatibility';
 import Play from './pages/Play';
 import PlayLobby from './pages/PlayLobby';
 import { MatchmakingOverlay } from './components/matchmaking/MatchmakingOverlay';
+import { useMatchRoomPath } from './components/matchmaking/matchRoomPath';
 import { ChatDock } from './components/chat/ChatDock';
 import { PartyInviteToast } from './components/social/PartyInviteToast';
+import { PresenceReporter } from './components/social/PresenceReporter';
 import AccountConnections from './pages/AccountConnections';
 import ConnectSteam from './pages/ConnectSteam';
 import Templates from './pages/Templates';
@@ -83,6 +88,7 @@ import NotFound from './pages/NotFound';
 import MatchNow from './pages/MatchNow';
 import { theme } from './theme';
 import { GamesOnboardingRedirect } from './components/games/GamesOnboardingRedirect';
+import { DisplayNamePrompt } from './components/account/DisplayName';
 import WelcomeGames from './pages/WelcomeGames';
 import LicenseConsent from './pages/LicenseConsent';
 import { LicenseConsentGate } from './components/license/LicenseConsentGate';
@@ -445,10 +451,12 @@ function AppRoutes() {
         path={paths.match}
         element={
           <ProtectedRoute adminOnly={false}>
-            <Box minHeight="100vh" bgcolor="transparent">
-              <TopNavBar />
-              <MatchPage />
-            </Box>
+            <MatchRoute>
+              <Box minHeight="100vh" bgcolor="transparent">
+                <TopNavBar />
+                <MatchPage />
+              </Box>
+            </MatchRoute>
           </ProtectedRoute>
         }
       />
@@ -593,6 +601,7 @@ function AppRoutes() {
 
       <Route path={paths.root} element={<RootRoute />}>
         <Route path={adminRoute(paths.manage)} element={<Manage />} />
+        <Route path={adminRoute(paths.liveMatches)} element={<LiveMatches />} />
         <Route path={adminRoute(paths.teams)} element={<Teams />} />
         <Route path={adminRoute(paths.players)} element={<Players />} />
         <Route path={adminRoute(paths.reports)} element={<Reports />} />
@@ -606,6 +615,8 @@ function AppRoutes() {
           <Route path="bracket" element={<Bracket />} />
           <Route path="disputes" element={<Disputes />} />
           <Route path="setup" element={<Tournament />} />
+          <Route path="prizes" element={<TournamentPrizes />} />
+          <Route path="schedule" element={<TournamentSchedule />} />
         </Route>
         {/* Their old addresses: the tournament Manage last had open. */}
         <Route
@@ -706,6 +717,18 @@ function MatchSlugRedirect() {
   return <Navigate to={matchPagePath(slug)} replace />;
 }
 
+/**
+ * `/match/:slug`. The player's own matchmaking match (`mm-…`) is played from
+ * its room, `/play/<lobbyId>`: a link to the match lands there, as a full
+ * reload already did (MatchmakingOverlay).
+ */
+function MatchRoute({ children }: { children: React.ReactNode }) {
+  const { slug = '' } = useParams();
+  const room = useMatchRoomPath(slug);
+  if (room !== matchPagePath(slug)) return <Navigate to={room} replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -728,6 +751,9 @@ export default function App() {
                   account, from whatever page the player lands on. The API
                   decides whether it is due. */}
               <GamesOnboardingRedirect />
+              {/* "What's your name?" while players choose their names and
+                  this one has not confirmed theirs. The API decides. */}
+              <DisplayNamePrompt />
               {/* Renders at once. Code modules load alongside (main.tsx
                   starts them); a module's routes and slots show a pending
                   state until it arrives, and re-render when it does. */}
@@ -748,6 +774,8 @@ export default function App() {
               <ChatDock />
               {/* A party invite arriving: a card under the top bar on every page. */}
               <PartyInviteToast />
+              {/* Online or away: this tab says when it goes idle. */}
+              <PresenceReporter />
             </PageHeaderProvider>
           </SnackbarProvider>
         </AuthProvider>

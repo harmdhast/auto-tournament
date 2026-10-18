@@ -107,15 +107,22 @@ interface CoreSettings {
   ratingsEnabled: boolean;
   allowSelfRegister: boolean;
   updateNotices: boolean;
+  playersChooseName: boolean;
 }
 
-const CORE_KEYS = ['ratingsEnabled', 'allowSelfRegister', 'updateNotices'] as const;
+const CORE_KEYS = [
+  'ratingsEnabled',
+  'allowSelfRegister',
+  'updateNotices',
+  'playersChooseName',
+] as const;
 
 function coreSettingsFrom(settings: SettingsResponse['settings'] | undefined): CoreSettings {
   return {
     ratingsEnabled: settings?.ratingsEnabled ?? true,
     allowSelfRegister: settings?.allowSelfRegister ?? false,
     updateNotices: settings?.updateNotices ?? true,
+    playersChooseName: settings?.playersChooseName ?? false,
   };
 }
 
@@ -270,6 +277,24 @@ export default function Settings() {
               input: {
                 'aria-label': t('settingsPage.players.registration.toggleLabel'),
                 'data-testid': 'settings-self-register',
+              } as React.InputHTMLAttributes<HTMLInputElement>,
+            }}
+          />
+        }
+      />
+      <SettingsRow
+        title={t('settingsPage.players.chooseName.toggleLabel')}
+        sub={t('settingsPage.players.chooseName.short')}
+        control={
+          <Switch
+            checked={values.playersChooseName}
+            onChange={(event) =>
+              setValues((prev) => ({ ...prev, playersChooseName: event.target.checked }))
+            }
+            slotProps={{
+              input: {
+                'aria-label': t('settingsPage.players.chooseName.toggleLabel'),
+                'data-testid': 'settings-players-choose-name',
               } as React.InputHTMLAttributes<HTMLInputElement>,
             }}
           />

@@ -68,7 +68,9 @@ const histories: Record<string, () => string[]> = {
     allIds().filter((id) => id <= '043-recorder-host-identity' || FORK_IDS.includes(id)),
   'a database that ran custom between the upstream syncs': () =>
     allIds().filter((id) => id <= '054-skin-stattrak' || FORK_IDS.includes(id)),
-  'a database that ran custom after the second upstream sync': allIds,
+  'a database that ran custom between the second and third upstream syncs': () =>
+    allIds().slice(0, allIds().indexOf('059-integration-highlights')),
+  'a database that ran custom after the third upstream sync': allIds,
 };
 
 for (const [name, build] of Object.entries(histories)) {

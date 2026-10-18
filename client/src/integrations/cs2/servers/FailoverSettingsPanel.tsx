@@ -6,23 +6,14 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Chip,
-  FormControlLabel,
-  MenuItem,
-  Stack,
-  Switch,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import {
   api,
   apiErrorMessage,
   Panel,
   useModuleTranslation,
   useSnackbar,
+  SwitchRow,
 } from '../../../module-sdk';
 import { ServerSection } from './ServerSection';
 import { useTopic } from '../../../module-sdk';
@@ -109,16 +100,12 @@ export default function FailoverSettingsPanel() {
             </Alert>
           )}
           <Box>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={data.settings.auto}
-                  onChange={(e) => void save({ auto: e.target.checked })}
-                  disabled={busy}
-                  data-testid="failover-auto-switch"
-                />
-              }
+            <SwitchRow
               label={t('failoverSettings.auto', { defaultValue: 'Automatic failover' })}
+              checked={data.settings.auto}
+              onChange={(e) => void save({ auto: e.target.checked })}
+              disabled={busy}
+              data-testid="failover-auto-switch"
             />
             <Typography variant="body2" color="text.secondary">
               {t('failoverSettings.autoHelp', {
@@ -129,18 +116,14 @@ export default function FailoverSettingsPanel() {
           </Box>
 
           <Box>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={data.settings.csm}
-                  onChange={(e) => void save({ csm: e.target.checked })}
-                  disabled={busy || !data.settings.auto}
-                  data-testid="failover-csm-switch"
-                />
-              }
+            <SwitchRow
               label={t('failoverSettings.csm', {
                 defaultValue: 'Restart and create servers through csm',
               })}
+              checked={data.settings.csm}
+              onChange={(e) => void save({ csm: e.target.checked })}
+              disabled={busy || !data.settings.auto}
+              data-testid="failover-csm-switch"
             />
             <Typography variant="body2" color="text.secondary">
               {t('failoverSettings.csmHelp', {

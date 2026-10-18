@@ -60,6 +60,14 @@ const INLINE_AUTH: Array<[RegExp, string]> = [
   [/^POST \/api\/email\/(verify|unsubscribe)$/, 'signed token in the body'],
   [/^POST \/api\/setup\//, 'one-time setup code in the body, while no admin exists'],
   [/^\S+ \/api\/auth\//, 'sign-in, sign-out and account-link flows (credentials in the request)'],
+  [
+    /^PUT \/api\/match-lineups\/:slug\/:side$/,
+    "an admin, or the team's owner or a captain, in the handler",
+  ],
+  [
+    /^PUT \/api\/commends\/match\/:slug\/:playerId$/,
+    'a signed-in player of the match, same-site, in the handler',
+  ],
 ];
 
 interface Layer {

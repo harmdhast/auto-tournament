@@ -5,7 +5,13 @@ import type { LiveStatus } from './match.types';
  */
 
 export type TournamentType =
-  'single_elimination' | 'double_elimination' | 'round_robin' | 'swiss' | 'shuffle';
+  | 'single_elimination'
+  | 'double_elimination'
+  | 'round_robin'
+  | 'swiss'
+  | 'shuffle'
+  /** Groups play a round robin each, then the best play elimination (services/groupsTournament.ts). */
+  | 'groups';
 
 export type TournamentStatus = 'setup' | 'ready' | 'in_progress' | 'completed' | 'cancelled';
 
@@ -196,6 +202,11 @@ export interface BracketMatch {
   id: number;
   slug: string;
   round: number;
+  /** Its start time and when its veto opens (unix s; services/matchTimes.ts), when it has one. */
+  startsAt?: number | null;
+  vetoOpensAt?: number | null;
+  /** This match's own time (Manage › Schedule), apart from its round's. */
+  ownStartsAt?: number | null;
   matchNumber: number;
   team1?: {
     id: string;
@@ -327,6 +338,8 @@ export interface BracketResponse {
   /** Swiss tournaments only: server standings, best first. */
   swissStandings?: SwissStandingEntry[];
   roundRobinStandings?: RoundRobinStandingEntry[];
+  /** Groups, then playoffs: each group's table (services/groupsTournament.ts). */
+  groupStandings?: Array<{ group: string; done: boolean; standings: RoundRobinStandingEntry[] }>;
 }
 
 export interface TournamentTemplate {

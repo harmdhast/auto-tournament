@@ -2,8 +2,16 @@ import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Box, Button, Dialog, IconButton, Typography } from '@mui/material';
 import { ArrowDownIcon, ArrowUpIcon, PencilSimpleIcon } from '@phosphor-icons/react';
-import { InspectSkinDialog } from './SkinParts';
-import { api, useModuleTranslation, tokens, fontDisplay, radii } from '../../../module-sdk';
+import { InspectSkinDialog, skinCardUrl } from './SkinParts';
+import {
+  api,
+  useModuleTranslation,
+  tokens,
+  fontDisplay,
+  radii,
+  panelSx,
+  dialogPaperSx,
+} from '../../../module-sdk';
 import { useSkinsEnabled, useMySkins, type OwnedSkin, type ShowcaseItem } from './useSkins';
 import type { PlayerProfileSectionProps } from '../../types';
 import { rarityColor } from './rarity';
@@ -237,9 +245,8 @@ export function ProfileLoadout({
         </Box>
         <Box
           sx={{
-            borderRadius: radii.lg,
+            ...panelSx,
             border: `1px dashed ${color.rule}`,
-            bgcolor: color.paper2,
             p: 3,
           }}
         >
@@ -367,7 +374,7 @@ export function ProfileLoadout({
         maxWidth="sm"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: radii.lg, bgcolor: color.paper2, backgroundImage: 'none' },
+          sx: dialogPaperSx,
         }}
       >
         <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -399,7 +406,7 @@ export function ProfileLoadout({
               >
                 <Box
                   component="img"
-                  src={skin.imageSmallUrl ?? skin.imageUrl}
+                  src={skin.imageSmallUrl ?? skinCardUrl(skin.imageUrl)}
                   alt=""
                   sx={{ width: 64, height: 40, objectFit: 'contain' }}
                 />
