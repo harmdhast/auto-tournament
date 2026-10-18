@@ -6,7 +6,8 @@
  * PUT /:slug/:side  the team's owner or a captain (any member without one), or an admin
  */
 
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
+import { isSameSiteRequest } from '../utils/accountConnections';
 import { log } from '../utils/logger';
 import { resolveViewerAccount } from '../utils/viewerIdentity';
 import { checkAdminAccess } from '../middleware/auth';
@@ -19,11 +20,22 @@ import {
 
 const router = Router();
 
-async function viewerOf(req: Request, asAdmin: boolean): Promise<LineupViewer> {
+/** CSRF: a lineup write comes from this site, as JSON. */
+function sameSiteJson(req: Request, res: Response, next: NextFunction): void {
+  if (!isSameSiteRequest(req)) {
+    res.status(403).json({ success: false, error: 'Request refused' });
+    return;
+  }
+  if (!req.is('application/json')) {
+    res.status(415).json({ success: false, error: 'Send this request as JSON' });
+    return;
+  }
+  next();
+}
+
+async function viewerOf(req: Request): Promise<LineupViewer> {
   const account = await resolveViewerAccount(req);
-  const admin = asAdmin
-    ? (await checkAdminAccess(req)).ok
-    : account.isAdmin && !account.isImpersonating;
+  const admin = (await checkAdminAccess(req)).ok && !account.isImpersonating;
   return { uid: account.uid, steamId: account.playerId, admin };
 }
 
@@ -61,7 +73,7 @@ function fail(res: Response, error: unknown, what: string) {
  */
 router.get('/:slug', async (req: Request, res: Response) => {
   try {
-    const lineups = await getMatchLineups(req.params.slug, await viewerOf(req, false));
+    const lineups = await getMatchLineups(req.params.slug, await viewerOf(req));
     return res.json({ success: true, ...lineups });
   } catch (error) {
     return fail(res, error, 'read the lineups');
@@ -105,14 +117,14 @@ router.get('/:slug', async (req: Request, res: Response) => {
  *       403: { description: Not the team's captain, or not an admin }
  *       409: { description: Locked (live), or the team has no lineup to pick }
  */
-router.put('/:slug/:side', async (req: Request, res: Response) => {
+router.put('/:slug/:side', sameSiteJson, async (req: Request, res: Response) => {
   try {
     const side = req.params.side;
     if (side !== 'team1' && side !== 'team2') {
       return res.status(400).json({ success: false, error: 'side must be team1 or team2' });
     }
     const asAdmin = req.body?.asAdmin === true;
-    const viewer = await viewerOf(req, asAdmin);
+    const viewer = await viewerOf(req);
     if (asAdmin && !viewer.admin) {
       return res.status(403).json({ success: false, error: 'Only an admin can do that.' });
     }

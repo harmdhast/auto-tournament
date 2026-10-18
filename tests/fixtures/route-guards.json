@@ -734,7 +734,7 @@
   "PUT /api/map-pools/:id/enable": "requireAuth",
   "PUT /api/map-pools/:id/set-default": "requireAuth",
   "PUT /api/maps/:id": "requireAuth",
-  "PUT /api/match-lineups/:slug/:side": "public",
+  "PUT /api/match-lineups/:slug/:side": "sameSiteJson",
   "PUT /api/matches/:slug/on-stage": "requireAuth",
   "PUT /api/matches/:slug/start-time": "requireAuth",
   "PUT /api/matchmaking/admin/settings": "requireAuth + sameSiteJson",

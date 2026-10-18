@@ -181,6 +181,19 @@ test.describe('Match lineups', () => {
       });
       expect(bPicked.ok(), await bPicked.text()).toBe(true);
 
+      // The admin session next to a read-only API token is not an admin: the admin check decides.
+      const readonly = { Authorization: 'Bearer ci-readonly-token-0123456789abcdef' };
+      const notAdmin = await request.put(`/api/match-lineups/${slug}/${a.side}`, {
+        headers: readonly,
+        data: { players: [ownerId, mates[1]] },
+      });
+      expect(notAdmin.status()).toBe(403);
+      const notAdminAsked = await request.put(`/api/match-lineups/${slug}/${a.side}`, {
+        headers: readonly,
+        data: { players: [ownerId, mates[1]], asAdmin: true },
+      });
+      expect(notAdminAsked.status()).toBe(403);
+
       // An admin sets team A's lineup over the captain's.
       const forced = await request.put(`/api/match-lineups/${slug}/${a.side}`, {
         headers,
@@ -194,6 +207,32 @@ test.describe('Match lineups', () => {
       expect(final.expected_players_team2).toBe(2);
 
       for (const ctx of [owner, outsider, mate, bMember]) await ctx.dispose();
+    }
+  );
+
+  test(
+    'a lineup write must come from this site, as JSON',
+    { tag: ['@api', '@tournament'] },
+    async ({ request }) => {
+      expect(await signInViaRequest(request)).toBe(true);
+      const url = '/api/match-lineups/no-such-match/team1';
+      const data = { players: [] };
+
+      const crossSite = await request.put(url, {
+        data,
+        headers: { 'Sec-Fetch-Site': 'cross-site' },
+      });
+      expect(crossSite.status()).toBe(403);
+      const foreignOrigin = await request.put(url, {
+        data,
+        headers: { Origin: 'https://elsewhere.example' },
+      });
+      expect(foreignOrigin.status()).toBe(403);
+      const notJson = await request.put(url, {
+        data: 'players=1',
+        headers: { 'Content-Type': 'text/plain' },
+      });
+      expect(notJson.status()).toBe(415);
     }
   );
 });
