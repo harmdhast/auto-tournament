@@ -1130,6 +1130,10 @@ test.describe.serial('matchmaking queue (phase 1)', () => {
     const after = (await me(a.ctx)).lobby;
     expect(after?.id).toBe(lobby.id);
     expect(after?.status).toBe('accepting');
+    // Leave nobody queued for the 1v1 specs after this one.
+    expect((await b.ctx.post(`/api/matchmaking/lobbies/${lobby.id}/decline`, { data: {} })).ok()).toBe(true);
+    await a.ctx.delete('/api/matchmaking/queue', { data: {} });
+    expect((await me(a.ctx)).lobby).toBeNull();
   });
 
   /**
