@@ -58,7 +58,10 @@ class DatabaseManager {
 
     this.postgresPool = new Pool({
       connectionString: connString,
-      max: 20,
+      max:
+        Number.isInteger(Number(process.env.DB_POOL_MAX)) && Number(process.env.DB_POOL_MAX) > 0
+          ? Number(process.env.DB_POOL_MAX)
+          : 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
     });
