@@ -27,7 +27,7 @@ Dropped or re-ported by the beta.177 sync:
 - `tournamentArt.ts` (#997) and the new map pictures on match cards and the podium use the bundled map pictures (feat/cs2-local-images).
 - The fork's catalogue search (feat/skins-catalog-rebuild) moved from `GET /api/skins/catalog` to `GET /api/skins/catalog/search`: upstream's public drop catalogue (#997) now answers `GET /api/skins/catalog` and was registered first, so the picker got the drop list.
 - Locales: both sides' keys; the fork's pruned cs2 keys stay pruned in `nb` (upstream had retranslated them); `skins.catalog.search` is upstream's "Search skins" in `en` and `nb`, the fork's translations elsewhere.
-- Versions: client API 0.2.29 (upstream), server API 0.1.5 (upstream 0.1.4 plus the fork's host bridge `utils/rootAccess`, `utils/accountConnections`).
+- Versions: client API 0.2.29 (upstream), server API 0.1.4+custom.1 (upstream 0.1.4 plus build metadata for the fork's host bridge `utils/rootAccess`, `utils/accountConnections`; build metadata keeps `^0.1.0` ranges satisfied).
 
 Dropped or re-ported by the beta.132 sync:
 
