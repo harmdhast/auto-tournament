@@ -133,4 +133,30 @@ test.describe.serial('Match room', () => {
     await expect(name).toBeVisible();
     expect((await name.boundingBox())!.height).toBeLessThan(200);
   });
+
+  test(
+    'long player names stay inside the spectator roster on a phone',
+    TAGS,
+    async ({ page, request }) => {
+      await signInViaRequest(request);
+      const long = 'B'.repeat(60);
+      expect(
+        await updateTeam(request, team1Id, {
+          players: [{ steamId: player, name: long }],
+        })
+      ).toBeTruthy();
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(`/match/${encodeURIComponent(slug)}`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('match-spectator-team1')).toBeVisible({ timeout: 20000 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        390
+      );
+      const box = await page
+        .getByTestId('match-spectator-team1')
+        .locator('li')
+        .first()
+        .boundingBox();
+      expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    }
+  );
 });
