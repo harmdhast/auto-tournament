@@ -67,6 +67,19 @@ test.describe.serial('Skins catalogue picker', () => {
     }
   );
 
+  test('a skip link jumps past the loadout slots', { tag: ['@ui'] }, async ({ page }) => {
+    await page.goto('/inventory');
+    await expect(page.getByTestId('inventory-view')).toBeVisible({ timeout: 30000 });
+    const skip = page.getByTestId('inventory-skip');
+    await skip.focus();
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('heading', { name: 'Skins', exact: true })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(page.getByTestId('inventory-view').getByRole('button').first()).toBeFocused();
+  });
+
   test(
     'a player picks a catalogue skin for CT with a float and seed',
     { tag: ['@ui'] },

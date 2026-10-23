@@ -1870,7 +1870,9 @@
       "price": "Markedspris {{price}}",
       "more_one": "Vis flere ({{count}} igjen)",
       "more_other": "Vis flere ({{count}} igjen)"
-    }
+    },
+    "skipToSkins": "Hopp til skins",
+    "listTitle": "Skins"
   },
   "matchRules": {
     "title": "Kampregler",
