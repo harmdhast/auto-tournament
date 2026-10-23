@@ -7,7 +7,6 @@ import reactCompiler from 'eslint-plugin-react-compiler';
 import integrationBoundaries from './eslint-rules/integration-boundaries.mjs';
 import moduleSdkBoundary from './eslint-rules/module-sdk-boundary.mjs';
 import { MAX_LINES_TODO } from './eslint-rules/max-lines-todo.mjs';
-import { FORK_LINT_TODO } from './eslint-rules/fork-todo.mjs';
 import {
   ELSE_RETURN,
   NESTED_TERNARY,
@@ -442,9 +441,6 @@ export default [
     ['@typescript-eslint/prefer-nullish-coalescing', NULLISH_COALESCING],
     ['@typescript-eslint/prefer-optional-chain', OPTIONAL_CHAIN],
   ].map(([rule, ignores]) => ({ files: ['api/src/**/*.ts'], ignores, rules: { [rule]: 'error' } })),
-
-  // Fork files from before the rules above (eslint-rules/fork-todo.mjs).
-  ...Object.entries(FORK_LINT_TODO).map(([rule, files]) => ({ files, rules: { [rule]: 'off' } })),
 
   // Ignore patterns
   {
