@@ -106,7 +106,11 @@ export function NotifyChannelsSetting() {
           <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <Box component="th" scope="col" sx={{ textAlign: 'left', p: { xs: 0.75, sm: 1.5 } }}>
+                <Box
+                  component="th"
+                  scope="col"
+                  sx={{ textAlign: 'left', p: { xs: 0.75, sm: 1.5 } }}
+                >
                   <Box component="span" sx={{ position: 'absolute', left: -9999 }}>
                     {t('notifyChannels.event')}
                   </Box>
@@ -155,7 +159,11 @@ export function NotifyChannelsSetting() {
                     </Typography>
                   </Box>
                   {CHANNELS.map((channel) => (
-                    <Box key={channel} component="td" sx={{ p: { xs: 0.75, sm: 1.5 }, textAlign: 'center' }}>
+                    <Box
+                      key={channel}
+                      component="td"
+                      sx={{ p: { xs: 0.75, sm: 1.5 }, textAlign: 'center' }}
+                    >
                       {/* A chat line never goes out by email (notifyChannels.deliver). */}
                       {event === 'direct_message' && channel === 'email' ? null : (
                         <Switch
