@@ -63,12 +63,18 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           pb: 1,
         }}
       >
-        <Box component={WarningIcon} size={28} sx={{ color:
+        <Box
+          component={WarningIcon}
+          size={28}
+          sx={{
+            color:
               confirmColor === 'error'
                 ? 'error.main'
                 : confirmColor === 'success'
-                ? 'success.main'
-                : 'warning.main' }} />
+                  ? 'success.main'
+                  : 'warning.main',
+          }}
+        />
         <Typography component="span" variant="h6" fontWeight={600}>
           {title}
         </Typography>
