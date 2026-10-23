@@ -108,6 +108,12 @@ test.describe.serial('Teams UI', () => {
       await expect(modal).toBeVisible();
 
       await page.getByTestId('team-delete-button').click();
+      await expect(page.getByTestId('confirm-dialog')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('confirm-dialog')).toHaveCount(0);
+      await expect(modal).toBeVisible();
+
+      await page.getByTestId('team-delete-button').click();
       await page.getByTestId('confirm-dialog-confirm-button').click();
 
       await expect(updatedCard).toHaveCount(0);
