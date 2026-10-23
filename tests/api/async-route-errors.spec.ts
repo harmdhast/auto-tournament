@@ -39,6 +39,10 @@ test.beforeAll(async () => {
   router.get('/status', async () => {
     throw Object.assign(new Error('teapot'), { status: 418 });
   });
+  router.get('/no-reason', () => Promise.reject(undefined));
+  router.get('/string-error', (_req, _res, next) => {
+    next('not an Error');
+  });
   router.use(
     '/mw',
     async () => {
@@ -98,6 +102,16 @@ test.describe('async route errors', TAGS, () => {
 
   test('an error with its own status keeps it', async () => {
     expect((await get('/r/status')).status).toBe(418);
+  });
+
+  test('a rejection without a reason answers 500, not 404', async () => {
+    expect((await get('/r/no-reason')).status).toBe(500);
+  });
+
+  test('a non-Error passed to next answers 500', async () => {
+    const res = await get('/r/string-error');
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'Internal server error' });
   });
 
   test('a normal async route works', async () => {

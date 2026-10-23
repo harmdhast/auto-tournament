@@ -32,7 +32,7 @@ function patchLayer(): void {
               `${req.method} ${req.path}: handler rejected after the response was sent`,
               err
             );
-          else next(err);
+          else next(err ?? new Error('Route handler rejected without a reason'));
         });
       }
     } catch (err) {
@@ -44,12 +44,13 @@ patchLayer();
 
 /** Last error middleware: errors with no HTTP status of their own answer 500 JSON. */
 export function jsonErrorHandler(
-  err: Error,
+  err: Error | string | number | null,
   req: Request,
   res: Response,
   next: NextFunction
 ): void {
-  const hasStatus = 'status' in err || 'statusCode' in err;
+  const hasStatus =
+    typeof err === 'object' && err !== null && ('status' in err || 'statusCode' in err);
   if (res.headersSent || hasStatus) return next(err);
   log.error(`${req.method} ${req.path}`, err);
   res.status(500).json({ error: 'Internal server error' });
