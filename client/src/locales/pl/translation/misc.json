@@ -1088,7 +1088,7 @@
     },
     "perPlayer": {
       "label": "Clips per player per map",
-      "helper": "1 to 6. Each takes the recorder about five minutes, so fewer clips are ready sooner."
+      "helper": "1 to 20. Each takes the recorder about five minutes, so fewer clips are ready sooner."
     },
     "resolution": {
       "label": "Resolution"
