@@ -135,7 +135,7 @@ test.describe.serial('Settings UI', () => {
       const warning = page.getByText('can make servers behave unexpectedly');
       await expect(warning.first()).toBeVisible({ timeout: 30000 });
       await expect(warning).toHaveCount(1);
-      const noDamage = page.getByRole('checkbox', { name: /after opposing-team damage/ });
+      const noDamage = page.getByRole('switch', { name: /after opposing-team damage/ });
       await expect(noDamage).toBeDisabled();
       await expect(noDamage).toHaveAccessibleDescription('Needs the .stop command turned on.');
     }
