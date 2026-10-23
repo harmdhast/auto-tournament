@@ -81,7 +81,7 @@ test.describe('Tournament sign-up', () => {
       // A player plays for one team per tournament: a second team with one of
       // these players in its lineup is refused (GitHub #125).
       const other = await playwright.request.newContext({ baseURL });
-      const otherId = steamId();
+      const otherId = uniqueSteamId();
       expect(await signInAsPlayerViaRequest(other, otherId, `Other ${otherId.slice(-4)}`)).toBe(
         true
       );
@@ -90,7 +90,7 @@ test.describe('Tournament sign-up', () => {
       });
       expect(second.status(), await second.text()).toBe(201);
       const team2 = (await second.json()).team as { id: string };
-      const others = [steamId(), steamId(), steamId()];
+      const others = [uniqueSteamId(), uniqueSteamId(), uniqueSteamId()];
       const roster2 = await request.put(`/api/teams/${team2.id}`, {
         headers: getAuthHeader(),
         data: {
