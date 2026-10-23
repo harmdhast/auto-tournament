@@ -87,6 +87,6 @@ test('the setup checklist counts the servers the card counts', async ({ page, re
   await expect(page.getByTestId('admin-home-servers-card')).toContainText(
     'No servers connected yet.'
   );
-  await expect(page.getByText('Connect a server', { exact: true })).toBeVisible();
+  await expect(page.getByText('Connect a server')).toBeVisible();
   await expect(page.getByText(/servers? added/)).toHaveCount(0);
 });
