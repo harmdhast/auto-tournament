@@ -181,10 +181,15 @@ router.delete('/api-tokens/:id', async (req: Request, res: Response) => {
 });
 
 router.get('/', async (_req: Request, res: Response) => {
-  return res.json({
-    success: true,
-    settings: await mapSettingsResponse(),
-  });
+  try {
+    return res.json({
+      success: true,
+      settings: await mapSettingsResponse(),
+    });
+  } catch (error) {
+    log.error('Reading the settings failed', error as Error);
+    return res.status(500).json({ success: false, error: 'Could not read the settings' });
+  }
 });
 
 /**
