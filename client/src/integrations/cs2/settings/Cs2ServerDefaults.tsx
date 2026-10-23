@@ -883,10 +883,9 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
             />
             <Typography
               variant="caption"
-              color="error.main"
+              color="text.secondary"
               display="block"
               mt={1}
-              fontWeight={500}
             >
               {t('settings.developer.simulateNote')}
             </Typography>
@@ -897,9 +896,10 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
               <Typography variant="body2" color="text.secondary" mb={1}>
                 {t('settings.developer.timescaleDescription')}
               </Typography>
-              <Box px={1} pt={3}>
+              <Box px={2} pt={3}>
                 <Slider
                   disabled={!vals.simulateMatches}
+                  sx={{ '&.Mui-disabled': { opacity: 0.45 } }}
                   value={vals.simulationTimescale}
                   onChange={(_e, value) => {
                     const v = Array.isArray(value) ? value[0] : value;
