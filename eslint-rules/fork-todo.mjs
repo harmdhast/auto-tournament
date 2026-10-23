@@ -20,9 +20,7 @@ export const FORK_LINT_TODO = {
     'api/src/utils/testEndpoints.ts',
   ],
   '@typescript-eslint/prefer-optional-chain': ['api/src/integrations/cs2/routes/testHelpers.ts'],
-  'max-lines': ['api/src/integrations/cs2/fleet/routes.ts'],
   'no-restricted-syntax': [
-    'api/src/integrations/cs2/fleet/routes.ts',
     'api/src/integrations/cs2/routes/testHelpers.ts',
     'api/src/integrations/cs2/skins/catalogSearch.ts',
     'api/src/integrations/cs2/skins/skinService.ts',
