@@ -175,16 +175,31 @@ router.post('/api-tokens', async (req: Request, res: Response) => {
  *       404: { description: No such active token }
  */
 router.delete('/api-tokens/:id', async (req: Request, res: Response) => {
-  const ok = await apiTokenService.revoke(Number(req.params.id), requestActorId(req));
-  if (!ok) return res.status(404).json({ success: false, error: 'No such token' });
-  return res.json({ success: true });
+  const id = Number(req.params.id);
+  // A whole number that fits the integer column; anything else names no token.
+  if (!Number.isInteger(id) || id < 1 || id > 2147483647) {
+    return res.status(404).json({ success: false, error: 'No such token' });
+  }
+  try {
+    const ok = await apiTokenService.revoke(id, requestActorId(req));
+    if (!ok) return res.status(404).json({ success: false, error: 'No such token' });
+    return res.json({ success: true });
+  } catch (error) {
+    log.error('Revoking an API token failed', error as Error);
+    return res.status(500).json({ success: false, error: 'Could not revoke the token' });
+  }
 });
 
 router.get('/', async (_req: Request, res: Response) => {
-  return res.json({
-    success: true,
-    settings: await mapSettingsResponse(),
-  });
+  try {
+    return res.json({
+      success: true,
+      settings: await mapSettingsResponse(),
+    });
+  } catch (error) {
+    log.error('Reading the settings failed', error as Error);
+    return res.status(500).json({ success: false, error: 'Could not read the settings' });
+  }
 });
 
 /**
