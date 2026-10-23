@@ -9,9 +9,6 @@ export const FORK_LINT_TODO = {
   ],
   '@typescript-eslint/no-non-null-assertion': [
     'api/src/utils/bodyLimits.ts',
-    'client/src/integrations/cs2/servers/list/ReadyUpServerSection.tsx',
-    'client/src/integrations/cs2/servers/list/ServerList.tsx',
-    'client/src/integrations/cs2/servers/list/ServerPanel.tsx',
   ],
   '@typescript-eslint/no-unnecessary-condition': [
     'api/src/integrations/cs2/fleet/link.ts',
@@ -35,20 +32,9 @@ export const FORK_LINT_TODO = {
   ],
   'max-lines': [
     'api/src/integrations/cs2/fleet/routes.ts',
-    'client/src/integrations/cs2/servers/fleet/MachineSheet.tsx',
-    'client/src/integrations/cs2/servers/list/ServerList.tsx',
-    'client/src/integrations/cs2/servers/list/useFleetServerActions.tsx',
   ],
   'no-nested-ternary': [
     'api/src/integrations/cs2/fleet/reset.ts',
-    'client/src/constants/cs2Assets.ts',
-    'client/src/integrations/cs2/maps/cs2Assets.ts',
-    'client/src/integrations/cs2/pages/Servers.tsx',
-    'client/src/integrations/cs2/servers/fleet/readyup/FleetConsole.tsx',
-    'client/src/integrations/cs2/servers/list/MachineServerSection.tsx',
-    'client/src/integrations/cs2/servers/list/ReadyUpServerSection.tsx',
-    'client/src/integrations/cs2/servers/list/ServerList.tsx',
-    'client/src/integrations/cs2/skins/CatalogPicker.tsx',
   ],
   'no-restricted-syntax': [
     'api/src/integrations/cs2/fleet/busyReason.ts',
@@ -74,9 +60,5 @@ export const FORK_LINT_TODO = {
     'api/src/utils/sessionCookies.ts',
     'api/src/utils/testEndpoints.ts',
     'api/src/utils/typedConfirm.ts',
-    'client/src/constants/cs2Assets.ts',
-    'client/src/integrations/cs2/servers/FleetKeysPanel.tsx',
-    'client/src/integrations/cs2/servers/ServerGrid.tsx',
-    'client/src/integrations/cs2/veto/VetoInterface.tsx',
   ],
 };
