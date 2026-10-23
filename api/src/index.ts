@@ -1,5 +1,6 @@
 // IMPORTANT: Load environment variables FIRST, before any other imports
 // This ensures all modules can access env vars during initialization
+import { jsonErrorHandler } from './utils/asyncRoutes';
 import { startModuleUpdateNotices } from './services/platform/moduleUpdates';
 import { socialService } from './services/socialService';
 import { startTournamentNotices } from './services/tournamentNotices';
@@ -547,6 +548,8 @@ app.use((_req: Request, res: Response) => {
     message: 'The requested endpoint does not exist',
   });
 });
+
+app.use(jsonErrorHandler);
 
 // Start server
 // Initialize Socket.io
