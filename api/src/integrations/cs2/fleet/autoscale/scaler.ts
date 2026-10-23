@@ -696,6 +696,8 @@ export interface AutoscaleStatus {
   reserve: number;
   demand: Demand;
   note: string | null;
+  /** How often a pass runs (0: no timer, passes only on request). */
+  intervalMs: number;
   /** Enrolled csm machines. */
   machines: number;
   planned: ScalerAction[];
@@ -736,6 +738,7 @@ export async function autoscaleStatus(activityLimit = 20): Promise<AutoscaleStat
     reserve: plan.reserve,
     demand: input.demand,
     note: settings.enabled ? plan.note : null,
+    intervalMs: autoscaleIntervalMs(),
     machines: input.hosts.length,
     planned: plan.actions,
     servers: input.servers

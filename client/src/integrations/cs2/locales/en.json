@@ -593,7 +593,8 @@
         "joinPassword": "Join password on match servers (off: the roster whitelist alone keeps others out)",
         "stopCommandAvailable": "Enable .stop (round restore) command",
         "stopCommandNoDamage": "Disable .stop after opposing-team damage occurs",
-        "connectPreferLan": "Players are on the servers' LAN: Connect uses the LAN address for everyone"
+        "connectPreferLan": "Players are on the servers' LAN: Connect uses the LAN address for everyone",
+        "stopCommandNoDamageHelp": "Needs the .stop command turned on."
       },
       "autostart": {
         "label": "Start matches after (minutes in warmup)",
@@ -1236,7 +1237,7 @@
     "leadTime": "Start ahead by",
     "cooldown": "Stop after idle for",
     "maxPerHost": "Most servers per machine",
-    "status": "{{warm}} warm, {{desired}} needed: {{running}} running, {{waiting}} waiting, {{soon}} about to be ready, {{reserve}} spare",
+    "status": "Servers: {{desired}} needed, {{warm}} ready",
     "activity": "Recent activity",
     "noActivity": "Nothing started or stopped yet.",
     "state": {
@@ -1255,7 +1256,9 @@
       "create": "create",
       "link": "link",
       "note": "note"
-    }
+    },
+    "statusDetail": "Matches: {{running}} running, {{waiting}} waiting, {{soon}} starting soon. Spare servers: {{reserve}}.",
+    "timerOff": "The periodic check is off (FLEET_AUTOSCALE_INTERVAL_MS is 0). Nothing starts or stops until a check is run."
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers",
@@ -1868,7 +1871,9 @@
       "price": "Market price {{price}}",
       "more_one": "Show more ({{count}} left)",
       "more_other": "Show more ({{count}} left)"
-    }
+    },
+    "skipToSkins": "Skip to skins",
+    "listTitle": "Skins"
   },
   "matchRules": {
     "title": "Match rules",

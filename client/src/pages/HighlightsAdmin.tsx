@@ -22,7 +22,7 @@ import { PageHead, SwitchRow } from '../components/common/ui';
 import { HighlightMusicSetting } from '../components/highlights/HighlightMusicSetting';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useInstalledIntegrations } from '../integrations/registry';
-import { api } from '../utils/api';
+import { api, apiErrorMessage } from '../utils/api';
 import { pageTitle } from '../utils/pageTitle';
 
 const HIGHLIGHT_HEIGHTS = [720, 1080, 1440, 2160] as const;
@@ -107,7 +107,7 @@ interface HighlightValues {
 
 function HighlightSettings() {
   const { t } = useTranslation();
-  const { showSuccess, showError } = useSnackbar();
+  const { showSuccess, showError, closeSnackbar } = useSnackbar();
   const [vals, setVals] = useState<HighlightValues | null>(null);
   // Custom picked while the values still match a preset: show the fields anyway.
   const [custom, setCustom] = useState(false);
@@ -134,7 +134,7 @@ function HighlightSettings() {
           ) as Record<ReelField, number>,
         });
       })
-      .catch((err: Error) => showError(err.message));
+      .catch((err: Error) => showError(apiErrorMessage(err, err.message)));
   }, [showError]);
 
   const save = async (
@@ -146,11 +146,12 @@ function HighlightSettings() {
       for (const [field] of REEL_LIMITS) if (field in patch) reels[field] = patch[field] ?? null;
       return { ...v, ...patch, reels };
     });
+    closeSnackbar();
     try {
       await api.put('/api/settings', patch);
       showSuccess(t('highlightsPage.saved'));
     } catch (err) {
-      showError(err instanceof Error ? err.message : t('highlightsPage.saveFailed'));
+      showError(apiErrorMessage(err, t('highlightsPage.saveFailed')));
     }
   };
 
@@ -163,6 +164,10 @@ function HighlightSettings() {
           p.highlightsFps === vals.highlightsFps &&
           p.highlightsBitrate === vals.highlightsBitrate
       );
+  const perPlayerValid =
+    vals.highlightsPerPlayer !== null &&
+    vals.highlightsPerPlayer >= 1 &&
+    vals.highlightsPerPlayer <= 20;
   return (
     <Box
       data-testid="highlights-settings"
@@ -253,14 +258,20 @@ function HighlightSettings() {
         value={vals.highlightsPerPlayer ?? ''}
         onChange={(e) => {
           const v = e.target.value === '' ? null : parseInt(e.target.value, 10);
+          closeSnackbar();
           setVals((cur) =>
             cur ? { ...cur, highlightsPerPlayer: Number.isNaN(v as number) ? null : v } : cur
           );
         }}
         onBlur={() =>
-          vals.highlightsPerPlayer && void save({ highlightsPerPlayer: vals.highlightsPerPlayer })
+          perPlayerValid && void save({ highlightsPerPlayer: vals.highlightsPerPlayer as number })
         }
-        helperText={t('highlightsPage.perPlayer.helper')}
+        error={!perPlayerValid}
+        helperText={
+          perPlayerValid
+            ? t('highlightsPage.perPlayer.helper')
+            : t('highlightsPage.reels.range', { min: 1, max: 20 })
+        }
         inputProps={{ min: 1, max: 20, 'data-testid': 'highlights-per-player' }}
         size="small"
         sx={{ maxWidth: 320 }}

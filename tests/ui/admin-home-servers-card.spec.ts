@@ -65,3 +65,28 @@ test('spare and busy servers are not counted as in a match', async ({ page, requ
   await expect(count('offline')).toHaveText('1');
   await expect(card.getByText('Offline', { exact: true })).toBeVisible();
 });
+
+test('the setup checklist counts the servers the card counts', async ({ page, request }) => {
+  await setupTestContext(page, request);
+  await page.route(
+    (url) => url.pathname === '/api/tournament/server-availability',
+    (route) =>
+      route.fulfill({
+        json: {
+          success: true,
+          availableServerCount: 0,
+          gracePeriodSeconds: 0,
+          nextAllocationInSeconds: null,
+          requiredServerCount: 0,
+          simulationEnabled: false,
+          servers: [],
+        },
+      })
+  );
+  await page.goto('/manage');
+  await expect(page.getByTestId('admin-home-servers-card')).toContainText(
+    'No servers connected yet.'
+  );
+  await expect(page.getByText('Connect a server')).toBeVisible();
+  await expect(page.getByText(/servers? added/)).toHaveCount(0);
+});

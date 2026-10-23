@@ -593,7 +593,8 @@
         "joinPassword": "Passord for å koble til kampservere (av: bare spillerne på laget slipper inn uansett)",
         "stopCommandAvailable": "Aktiver .stop (round restore)-kommandoen",
         "stopCommandNoDamage": "Deaktiver .stop etter skade på motstanderlaget",
-        "connectPreferLan": "Spillerne er på serverens LAN: Koble til bruker LAN-adressen for alle"
+        "connectPreferLan": "Spillerne er på serverens LAN: Koble til bruker LAN-adressen for alle",
+        "stopCommandNoDamageHelp": "Krever at .stop-kommandoen er på."
       },
       "autostart": {
         "label": "Start kamper etter (minutter i oppvarming)",
@@ -1236,7 +1237,7 @@
     "leadTime": "Start i forkant med",
     "cooldown": "Stopp etter inaktivitet i",
     "maxPerHost": "Maks. servere per maskin",
-    "status": "{{warm}} klare, {{desired}} trengs: {{running}} kjører, {{waiting}} venter, {{soon}} snart klare, {{reserve}} i reserve",
+    "status": "Servere: {{desired}} trengs, {{warm}} klare",
     "activity": "Nylig aktivitet",
     "noActivity": "Ingenting er startet eller stoppet ennå.",
     "state": {
@@ -1255,7 +1256,9 @@
       "create": "opprett",
       "link": "koble",
       "note": "merknad"
-    }
+    },
+    "statusDetail": "Kamper: {{running}} pågår, {{waiting}} venter, {{soon}} starter snart. Reserveservere: {{reserve}}.",
+    "timerOff": "Den jevnlige kontrollen er av (FLEET_AUTOSCALE_INTERVAL_MS er 0). Ingenting starter eller stopper før en kontroll kjøres."
   },
   "fleetPush": {
     "summary": "Administratorer, innstillinger og programtillegg sendt til Ready Up-servere",
@@ -1868,7 +1871,9 @@
       "price": "Markedspris {{price}}",
       "more_one": "Vis flere ({{count}} igjen)",
       "more_other": "Vis flere ({{count}} igjen)"
-    }
+    },
+    "skipToSkins": "Hopp til skins",
+    "listTitle": "Skins"
   },
   "matchRules": {
     "title": "Kampregler",

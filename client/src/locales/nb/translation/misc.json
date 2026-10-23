@@ -1086,7 +1086,7 @@
     },
     "perPlayer": {
       "label": "Klipp per spiller per kart",
-      "helper": "1 til 6. Flere klipp gjør at highlightene fra en kamp tar lengre tid å lage."
+      "helper": "1 til 20. Flere klipp gjør at highlightene fra en kamp tar lengre tid å lage."
     },
     "preset": {
       "label": "Videokvalitet",
