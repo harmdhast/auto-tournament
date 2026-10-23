@@ -51,8 +51,7 @@ export const getMapData = (mapName: string): CS2MapData | undefined => {
  * A map's picture by name, for any map csm has one of (Train, Overpass, Cache
  * and the rest beyond CS2_MAPS), as a CSS background.
  */
-export const mapBackground = (mapName: string): string =>
-  `url("${mapImageUrl(mapName, 'full')}")`;
+export const mapBackground = (mapName: string): string => `url("${mapImageUrl(mapName, 'full')}")`;
 
 /**
  * Title-cased fallback for maps that aren't in CS2_MAPS (workshop maps, maps
