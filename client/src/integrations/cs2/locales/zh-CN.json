@@ -592,7 +592,8 @@
         "joinPassword": "Join password on match servers (off: the roster whitelist alone keeps others out)",
         "stopCommandAvailable": "启用 .stop（回合恢复）命令",
         "stopCommandNoDamage": "当发生对方队伤害后禁用 .stop",
-        "connectPreferLan": "玩家在服务器的局域网内：所有人都通过局域网地址连接"
+        "connectPreferLan": "玩家在服务器的局域网内：所有人都通过局域网地址连接",
+        "stopCommandNoDamageHelp": "需要先启用 .stop 命令。"
       },
       "autostart": {
         "label": "Start matches after (minutes in warmup)",
