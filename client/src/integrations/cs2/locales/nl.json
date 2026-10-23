@@ -1236,7 +1236,7 @@
     "leadTime": "Vooraf starten met",
     "cooldown": "Stoppen na inactiviteit van",
     "maxPerHost": "Maximaal aantal servers per machine",
-    "status": "{{warm}} klaar, {{desired}} nodig: {{running}} actief, {{waiting}} wachtend, {{soon}} bijna klaar, {{reserve}} reserve",
+    "status": "Servers: {{desired}} nodig, {{warm}} klaar",
     "activity": "Recente activiteit",
     "noActivity": "Nog niets gestart of gestopt.",
     "state": {
@@ -1255,7 +1255,9 @@
       "create": "aanmaken",
       "link": "koppelen",
       "note": "opmerking"
-    }
+    },
+    "statusDetail": "Wedstrijden: {{running}} bezig, {{waiting}} wachtend, {{soon}} binnenkort. Reserveservers: {{reserve}}.",
+    "timerOff": "De periodieke controle staat uit (FLEET_AUTOSCALE_INTERVAL_MS is 0). Er start of stopt niets totdat een controle wordt uitgevoerd."
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers",

@@ -1236,7 +1236,7 @@
     "leadTime": "提前启动时间",
     "cooldown": "空闲多久后停止",
     "maxPerHost": "每台机器的最大服务器数",
-    "status": "就绪 {{warm}} 台，需要 {{desired}} 台：运行中 {{running}} 台，等待中 {{waiting}} 台，即将就绪 {{soon}} 台，备用 {{reserve}} 台",
+    "status": "服务器：需要 {{desired}} 台，就绪 {{warm}} 台",
     "activity": "最近活动",
     "noActivity": "尚未启动或停止任何内容。",
     "state": {
@@ -1255,7 +1255,9 @@
       "create": "创建",
       "link": "关联",
       "note": "备注"
-    }
+    },
+    "statusDetail": "比赛：进行中 {{running}} 场，等待中 {{waiting}} 场，即将开始 {{soon}} 场。备用服务器：{{reserve}} 台。",
+    "timerOff": "定期检查已关闭（FLEET_AUTOSCALE_INTERVAL_MS 为 0）。在运行检查之前，不会启动或停止任何服务器。"
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers",

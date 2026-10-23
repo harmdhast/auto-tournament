@@ -1236,7 +1236,7 @@
     "leadTime": "Avvia in anticipo di",
     "cooldown": "Arresta dopo inattività di",
     "maxPerHost": "Massimo di server per macchina",
-    "status": "{{warm}} pronti, {{desired}} necessari: {{running}} in esecuzione, {{waiting}} in attesa, {{soon}} quasi pronti, {{reserve}} di riserva",
+    "status": "Server: {{desired}} necessari, {{warm}} pronti",
     "activity": "Attività recente",
     "noActivity": "Ancora nulla avviato o arrestato.",
     "state": {
@@ -1255,7 +1255,9 @@
       "create": "creare",
       "link": "collegare",
       "note": "nota"
-    }
+    },
+    "statusDetail": "Partite: {{running}} in corso, {{waiting}} in attesa, {{soon}} a breve. Server di riserva: {{reserve}}.",
+    "timerOff": "Il controllo periodico è disattivato (FLEET_AUTOSCALE_INTERVAL_MS è 0). Nulla si avvia o si ferma finché non viene eseguito un controllo."
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers",
