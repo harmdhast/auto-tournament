@@ -85,7 +85,7 @@ export function FleetConsole({ server }: { server: FleetServer }) {
           m: 0,
           mb: 1,
           p: 1,
-          height: 240,
+          height: lines.length === 0 && status !== 'live' ? 'auto' : 240,
           overflow: 'auto',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-all',
