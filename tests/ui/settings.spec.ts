@@ -126,4 +126,18 @@ test.describe.serial('Settings UI', () => {
       await expect(delay).toHaveValue('30');
     }
   );
+
+  test(
+    'match rules warn once about expert settings and explain a disabled switch',
+    { tag: ['@ui', '@settings'] },
+    async ({ page }) => {
+      await page.goto('/manage/match-rules');
+      const warning = page.getByText('can make servers behave unexpectedly');
+      await expect(warning.first()).toBeVisible({ timeout: 30000 });
+      await expect(warning).toHaveCount(1);
+      const noDamage = page.getByRole('checkbox', { name: /after opposing-team damage/ });
+      await expect(noDamage).toBeDisabled();
+      await expect(noDamage).toHaveAccessibleDescription('Needs the .stop command turned on.');
+    }
+  );
 });
