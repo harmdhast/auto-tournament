@@ -16,7 +16,12 @@ import type {
   ResourceAvailability,
   ResourceQueueSummary,
 } from '../../types';
-import { asServerAvailability, type ServersResponse } from '../cs2.types';
+import {
+  asServerAvailability,
+  SERVER_AVAILABILITY_ENDPOINT,
+  type ServerAvailability,
+} from '../cs2.types';
+import { countFleet } from '../servers/availabilityClass';
 
 /** Matches waiting for a server, and how many servers there are. */
 export function summarizeServerAvailability(availability: ResourceAvailability): ResourceQueueSummary {
@@ -104,12 +109,11 @@ export function serverNeedsYouItems({ availability, matches, t }: ManageNeedsYou
   return items;
 }
 
-/** The admin home's "Add a server" row, from this module's own server list. */
+/** The admin home's "Add a server" row, counting the servers the Servers card counts. */
 export async function serversSetupItems(): Promise<AdminHomeSetupItem[]> {
   let count = 0;
   try {
-    const response = await api.get<ServersResponse>('/api/servers');
-    count = (response.servers ?? []).length;
+    count = countFleet(await api.get<ServerAvailability>(SERVER_AVAILABILITY_ENDPOINT)).total;
   } catch {
     count = 0;
   }
