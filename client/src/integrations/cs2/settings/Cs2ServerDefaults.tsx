@@ -18,7 +18,6 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-  Alert,
   Box,
   Button,
   Dialog,
@@ -527,8 +526,6 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
         </AccordionDetails>
       </Accordion>
 
-      <Alert severity="warning">{t('settings.atCore.expert.description')}</Alert>
-
       <Accordion defaultExpanded sx={ACCORDION_SX}>
         <AccordionSummary expandIcon={<CaretDownIcon size={24} />} sx={ACCORDION_SUMMARY_SX}>
           <Box>
@@ -644,6 +641,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
                       onChange={(e) => update('atStopCommandNoDamage', e.target.checked)}
                       size="small"
                       disabled={!vals.atStopCommandAvailable}
+                      help={t('settings.atCore.adminTools.stopCommandNoDamageHelp')}
                     />
                   </Stack>
                 </Box>
@@ -872,11 +870,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
               {t('settings.developer.description')}
             </Typography>
             <SwitchRow
-              label={
-                <Typography component="span" color="error.main" fontWeight={600}>
-                  {t('settings.developer.simulateToggleLabel')}
-                </Typography>
-              }
+              label={t('settings.developer.simulateToggleLabel')}
               checked={vals.simulateMatches}
               onChange={(event) => update('simulateMatches', event.target.checked)}
               color="error"
@@ -903,8 +897,9 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
               <Typography variant="body2" color="text.secondary" mb={1}>
                 {t('settings.developer.timescaleDescription')}
               </Typography>
-              <Box px={1}>
+              <Box px={1} pt={3}>
                 <Slider
+                  disabled={!vals.simulateMatches}
                   value={vals.simulationTimescale}
                   onChange={(_e, value) => {
                     const v = Array.isArray(value) ? value[0] : value;

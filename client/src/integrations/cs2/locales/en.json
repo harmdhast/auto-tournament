@@ -593,7 +593,8 @@
         "joinPassword": "Join password on match servers (off: the roster whitelist alone keeps others out)",
         "stopCommandAvailable": "Enable .stop (round restore) command",
         "stopCommandNoDamage": "Disable .stop after opposing-team damage occurs",
-        "connectPreferLan": "Players are on the servers' LAN: Connect uses the LAN address for everyone"
+        "connectPreferLan": "Players are on the servers' LAN: Connect uses the LAN address for everyone",
+        "stopCommandNoDamageHelp": "Needs the .stop command turned on."
       },
       "autostart": {
         "label": "Start matches after (minutes in warmup)",
