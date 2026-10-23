@@ -147,7 +147,7 @@ export function planHostUpdates(input: PlannerInput): UpdatePlan {
   const target = input.readyUpTarget;
   const behind = target
     ? input.servers.filter(
-        (s) => s.readyUp && parseVersion(s.readyUp) && (s.missingSkins || (compareVersions(s.readyUp, target) ?? 0) < 0)
+        (s) => s.readyUp && parseVersion(s.readyUp) && (s.missingSkins === true || (compareVersions(s.readyUp, target) ?? 0) < 0)
       )
     : [];
   if (!target) {

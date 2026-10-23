@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 
 export function isRconEnabled(): boolean {
-  const flag = (process.env.ENABLE_TEST_ENDPOINTS || '').toLowerCase();
+  const flag = (process.env.ENABLE_TEST_ENDPOINTS ?? '').toLowerCase();
   return flag === '1' || flag === 'true' || flag === 'yes';
 }
 

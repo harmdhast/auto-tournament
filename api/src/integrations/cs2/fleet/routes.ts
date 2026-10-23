@@ -29,17 +29,10 @@
  */
 
 import type { Untrusted } from '../../../utils/untrusted';
-import { Router, type NextFunction, type Request, type Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { requireAuth, requestActorId } from '../../../middleware/auth';
 import { log } from '../../../utils/logger';
-import { publicOrigin, publicWsOrigin } from '../../../utils/publicOrigin';
-import {
-  validateEnrollRequest,
-  FLEET_CLOSE,
-  type EnrollRequest,
-  type EnrollResponse,
-} from './protocol/v1';
-import { FLEET_WS_PATH } from './gateway';
+import { FLEET_CLOSE } from './protocol/v1';
 import * as registry from './registry';
 import { getLatestReadyUpRelease } from '../services/pluginVersionService';
 import { readyUpUpdateStatus } from '../services/readyUpVersion';
@@ -48,15 +41,11 @@ import {
   checkAddressOverride,
   cs2ServerIdOf,
   renameLinkedRow,
-  detectedAddress,
-  machineAddressOf,
-  machineAddresses,
   linkFleetServer,
-  listLinkAddresses,
   setLinkAddress,
   unlinkFleetServer,
 } from './link';
-import { formatConnectAddress, unmapV4, type ConnectSource } from './address';
+import { formatConnectAddress } from './address';
 import { auditedFleetCommand, getAssignment, runFleetCommandOn, syncMatch } from './driver';
 import { listCommands } from './reliable';
 import { liveStateStore } from './state';
@@ -66,124 +55,18 @@ import { isSteam64 } from './push/admins';
 import { hasControlChars } from './push/settings';
 import { execLineError, fleetResponseBody, issuedBy } from '../routes/fleetCommands';
 import { isRootRequest } from '../../../utils/rootAccess';
-import { effectiveBusyReason } from './busyReason';
-import type { BusyReason } from './protocol/v1/types';
-import { heldFleetSpares } from './failover';
-import { matchDisabledServerIds } from './push/pluginSets';
-import { enrollHostHandler } from './hosts/routes';
 import { fleetChangedOnWrite } from './adminTopics';
+import { fleetEnrollRouter, resetEnrollRateLimit } from './enrollRoutes';
+import {
+  busyReasonResolver,
+  handler,
+  optionalPositiveInt,
+  trimmedString,
+  withLinks,
+  withLiveState,
+} from './routeHelpers';
 
-// ---------------------------------------------------------------------------
-// Enrollment (public)
-// ---------------------------------------------------------------------------
-
-/** 10 attempts per minute per IP (FLEET.md §15). In memory: one API process. */
-const ENROLL_WINDOW_MS = 60_000;
-const ENROLL_MAX = 10;
-const enrollHits = new Map<string, { count: number; resetAt: number }>();
-
-function enrollRateLimit(req: Request, res: Response, next: NextFunction): void {
-  const now = Date.now();
-  const key = req.ip || req.socket.remoteAddress || 'unknown';
-  let entry = enrollHits.get(key);
-  if (!entry || entry.resetAt <= now) {
-    entry = { count: 0, resetAt: now + ENROLL_WINDOW_MS };
-    enrollHits.set(key, entry);
-  }
-  entry.count += 1;
-  if (enrollHits.size > 10_000) {
-    for (const [k, v] of enrollHits) if (v.resetAt <= now) enrollHits.delete(k);
-  }
-  if (entry.count > ENROLL_MAX) {
-    res.setHeader('Retry-After', String(Math.max(1, Math.ceil((entry.resetAt - now) / 1000))));
-    res.status(429).json({
-      success: false,
-      code: 'rate_limited',
-      error: 'Too many enrollment attempts, slow down',
-    });
-    return;
-  }
-  next();
-}
-
-/** Test hook: forget the enrollment rate-limit counts. */
-export function resetEnrollRateLimit(): void {
-  enrollHits.clear();
-}
-
-/**
- * Where the server should connect: FRONTEND_BASE_URL when set, else the host
- * it enrolled through, with wss when that was https (including behind a TLS
- * proxy that sends X-Forwarded-Proto): utils/publicOrigin.ts.
- */
-function wsUrl(req: Request): string {
-  return `${publicWsOrigin(req)}${FLEET_WS_PATH}`;
-}
-
-export const fleetEnrollRouter = Router();
-
-/** GET /api/fleet/install-csm.sh: the one-line machine link's script (hosts/routes.ts installCsmScript). */
-fleetEnrollRouter.get('/install-csm.sh', async (req: Request, res: Response) => {
-  const { installCsmScript } = await import('./hosts/routes');
-  res.setHeader('Content-Type', 'text/x-shellscript; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store');
-  return res.send(installCsmScript(publicOrigin(req)));
-});
-
-/**
- * POST /api/fleet/enroll
- * Body: protocol/v1/http/enroll.request.json. 201: enroll.response.json.
- * 400 invalid body, 401 invalid code/key, 403 revoked/expired/locked key or
- * revoked server, 409 key limit reached, 429 rate limited.
- */
-fleetEnrollRouter.post('/enroll', enrollRateLimit, async (req: Request, res: Response) => {
-  // csm enrolls a machine through the same URL with `kind: "host"` (FLEET.md §18.1).
-  if (req.body?.kind === 'host') return enrollHostHandler(req, res);
-  const check = validateEnrollRequest(req.body);
-  if (!check.ok) {
-    return res.status(400).json({
-      success: false,
-      code: 'invalid_request',
-      error: 'Invalid enrollment request',
-      details: check.errors,
-    });
-  }
-  const body = req.body as EnrollRequest;
-  try {
-    const outcome = await registry.enrollServer(body);
-    if (!outcome.ok) {
-      log.warn(
-        `[FLEET] enrollment refused (${outcome.code}) for install ${body.install_id} from ${req.ip}`
-      );
-      return res
-        .status(outcome.status)
-        .json({ success: false, code: outcome.code, error: outcome.error });
-    }
-    // Where it enrolled from: the connect address until its first hello (./address.ts).
-    await registry.setPeerAddr(outcome.server.id, req.ip ? unmapV4(req.ip) : null);
-    // A re-enrolled server's old tokens were revoked; drop a session still using one.
-    if (outcome.reenrolled)
-      fleetBus().disconnect(outcome.server.id, FLEET_CLOSE.REVOKED, 're-enrolled');
-    log.info(
-      `[FLEET] ${outcome.reenrolled ? 're-enrolled' : 'enrolled'} ${outcome.server.id} (${outcome.server.name}) via ${
-        body.code !== undefined ? 'code' : 'fleet key'
-      }`
-    );
-    const response: EnrollResponse = {
-      success: true,
-      server_id: outcome.server.id,
-      tenant_id: 'default',
-      name: outcome.server.name,
-      token: outcome.token,
-      ws_url: wsUrl(req),
-      reenrolled: outcome.reenrolled,
-    };
-    return res.status(201).json(response);
-  } catch (error) {
-    log.error(`[FLEET] enrollment failed: ${(error as Error).message}`);
-    return res.status(500).json({ success: false, code: 'internal', error: 'Enrollment failed' });
-  }
-});
+export { fleetEnrollRouter, resetEnrollRateLimit };
 
 // ---------------------------------------------------------------------------
 // Admin
@@ -193,97 +76,6 @@ export const fleetAdminRouter = Router();
 // Changes here reach the Servers page at once (the `fleet` topic).
 fleetAdminRouter.use(fleetChangedOnWrite);
 fleetAdminRouter.use(requireAuth);
-
-/** An admin handler whose failure is a JSON 500 rather than a hung request. */
-function handler(what: string, fn: (req: Request, res: Response) => Promise<void | Response>) {
-  return (req: Request, res: Response) => {
-    fn(req, res).catch((error) => {
-      log.error(`[FLEET] ${what} failed: ${(error as Error).message}`);
-      if (!res.headersSent) res.status(500).json({ success: false, error: `Failed to ${what}` });
-    });
-  };
-}
-
-function withLiveState(servers: registry.FleetServerView[]): registry.FleetServerView[] {
-  // The socket map is the truth for "online" in this process; the column can
-  // lag a crash by one restart.
-  const bus = fleetBus();
-  return servers.map((s) => ({ ...s, online: bus.isConnected(s.id) }));
-}
-
-interface ConnectView {
-  host: string;
-  port: number;
-  /** `host:port` as players type it after `connect`. */
-  address: string;
-  /** override: an admin set it; public_addr / machine / peer: detected (./address.ts); null: nothing yet. */
-  source: ConnectSource | null;
-}
-
-/**
- * `linkedServerId`: the cs2_servers row it plays matches as (null = not in
- * the match pool). `connect`: where players connect: the linked row's address,
- * or for an unlinked server the one a link would store now.
- */
-async function withLinks<
-  T extends {
-    id: string;
-    installId?: string | null;
-    host: { public_addr?: string; game_port: number } | null;
-    peerAddr: string | null;
-  },
->(
-  servers: T[]
-): Promise<Array<T & { linkedServerId: string | null; connect: ConnectView | null }>> {
-  const links = await listLinkAddresses();
-  const machines = await machineAddresses();
-  return servers.map((s) => {
-    const link = links.get(s.id);
-    const detected = detectedAddress(
-      { host: s.host ? JSON.stringify(s.host) : null, peer_addr: s.peerAddr },
-      machineAddressOf(machines, { id: s.id, install_id: s.installId ?? null })
-    );
-    let connect: ConnectView | null = null;
-    if (link && link.host && link.host !== '0.0.0.0') {
-      connect = {
-        host: link.host,
-        port: link.port,
-        address: formatConnectAddress(link.host, link.port),
-        source: link.override
-          ? 'override'
-          : detected && detected.host === link.host && detected.port === link.port
-            ? detected.source
-            : null,
-      };
-    } else if (!link && detected) {
-      connect = { ...detected, address: formatConnectAddress(detected.host, detected.port) };
-    }
-    return { ...s, linkedServerId: link?.cs2ServerId ?? null, connect };
-  });
-}
-
-function trimmedString(value: Untrusted, max: number): string | null | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== 'string') return null;
-  const t = value.trim();
-  return t.length === 0 || t.length > max ? null : t;
-}
-
-function optionalPositiveInt(value: Untrusted): number | null | undefined {
-  if (value === undefined || value === null || value === '') return undefined;
-  const n = Number(value);
-  return Number.isInteger(n) && n > 0 ? n : null;
-}
-
-/** The reason to show for a server: match off and failover spares come from the platform. */
-async function busyReasonResolver(): Promise<
-  (id: string, stored: BusyReason | null) => BusyReason | null
-> {
-  const [matchOff, spares] = await Promise.all([matchDisabledServerIds(), heldFleetSpares()]);
-  const spareIds = new Set(spares.map((c) => c.fleetServerId));
-  return (id, stored) =>
-    effectiveBusyReason(stored, { matchDisabled: matchOff.has(id), reserved: spareIds.has(id) });
-}
 
 fleetAdminRouter.get('/servers', async (_req: Request, res: Response) => {
   try {
@@ -446,7 +238,7 @@ fleetAdminRouter.post('/servers/:id/reset', async (req: Request, res: Response) 
 
 /** Kick a player (cmd kick, no match needed). Any admin. */
 fleetAdminRouter.post('/servers/:id/kick', async (req: Request, res: Response) => {
-  const { steamid64, message } = (req.body ?? {}) as { steamid64?: unknown; message?: unknown };
+  const { steamid64, message } = (req.body ?? {}) as { steamid64?: Untrusted; message?: Untrusted };
   if (!isSteam64(steamid64))
     return res.status(400).json({ ok: false, error: 'steamid64 must be a SteamID64' });
   if (
@@ -489,7 +281,7 @@ fleetAdminRouter.post('/servers/:id/exec', async (req: Request, res: Response) =
       error: 'Raw console commands on Ready Up servers are for root admins only',
     });
   }
-  const { command } = (req.body ?? {}) as { command?: unknown };
+  const { command } = (req.body ?? {}) as { command?: Untrusted };
   const line = typeof command === 'string' ? command.trim() : '';
   const lineError = execLineError(line);
   if (lineError) return res.status(400).json({ success: false, error: lineError });

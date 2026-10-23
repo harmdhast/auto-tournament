@@ -1,10 +1,11 @@
 import type { IncomingMessage } from 'http';
 import { isIP } from 'net';
+import type { Untrusted } from './untrusted';
 
 /** The session cookie lives as long as the signed player cookie. */
 export const SESSION_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
-type HostSource = Pick<IncomingMessage, 'headers'> & { hostname?: unknown };
+type HostSource = Partial<Pick<IncomingMessage, 'headers'>> & { hostname?: Untrusted };
 
 /**
  * The lowercase host a request came on, without port or IPv6 brackets. Works on

@@ -49,6 +49,7 @@ import {
 import { autoUpdateStatus, startAutoUpdates, stopAutoUpdates } from './autoUpdate';
 import { syncLinkedAddress } from '../link';
 import { getLicenseHandoff } from '../../services/updateHoldService';
+import type { Untrusted } from '../../../../utils/untrusted';
 
 /** The plugin set a server.create was stored with (meta.plugins), if any. */
 function pluginSetOfMeta(meta: registry.HostCommandMeta | null): PluginSet | null {
@@ -330,7 +331,7 @@ setQueuedVetter(async (hostId, env) => {
   if (!HOST_DISRUPTIVE_TYPES.has(env.type as HostCommandType)) return env;
   const record = await registry.getHostCommand(env.id);
   if (!record || record.status !== 'pending') return env;
-  const payload = env.payload as Record<string, unknown>;
+  const payload = env.payload as Record<string, Untrusted>;
   const deadline = Number(record.meta?.deadlineMs);
   let why: { code: string; message: string } | null = null;
   if (Number.isFinite(deadline) && deadline <= Date.now()) {
@@ -349,7 +350,8 @@ setQueuedVetter(async (hostId, env) => {
       };
   }
   if (!why) return env;
-  const rewritten = { ...env, payload: { ...payload, expires_at: 1 } } as HostOutboxMessage;
+  const expiredEnv = { ...env, payload: { ...payload, expires_at: 1 } };
+  const rewritten = expiredEnv as HostOutboxMessage;
   await registry.rewriteHostOutbox(hostId, env.seq as number, rewritten);
   await registry.failHostCommand(record.id, why.code, why.message);
   log.warn(`[FLEET-HOST] ${hostId}: queued ${env.type} dropped at delivery (${why.code})`);

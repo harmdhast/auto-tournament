@@ -1,8 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
+import type { Untrusted } from './untrusted';
 
 /** True when ENABLE_TEST_ENDPOINTS is explicitly on. */
 export function testEndpointsFlag(): boolean {
-  const enabled = (process.env.ENABLE_TEST_ENDPOINTS || '').toLowerCase();
+  const enabled = (process.env.ENABLE_TEST_ENDPOINTS ?? '').toLowerCase();
   return enabled === '1' || enabled === 'true' || enabled === 'yes';
 }
 
@@ -24,7 +25,8 @@ export function isLoopbackAddress(address: string | undefined): boolean {
  * from loopback, so there ENABLE_TEST_ENDPOINTS is the only gate.
  */
 export function requireLoopback(req: Request, res: Response, next: NextFunction): void {
-  if (!isLoopbackAddress(req.socket?.remoteAddress)) {
+  const peer: { socket?: Request['socket'] } = req;
+  if (!isLoopbackAddress(peer.socket?.remoteAddress)) {
     res.status(403).json({ success: false, error: 'Test helper is loopback only' });
     return;
   }
@@ -45,7 +47,7 @@ export function warnIfTestEndpointsInProduction(warn: (message: string) => void)
  * answers 404, `production` answers 403 with `body`.
  */
 export function requireTestEndpoints(
-  gate: { tier: 'flag' } | { tier: 'production'; body: Record<string, unknown> }
+  gate: { tier: 'flag' } | { tier: 'production'; body: Record<string, Untrusted> }
 ) {
   return function requireTestEndpoints(_req: Request, res: Response, next: NextFunction): void {
     if (gate.tier === 'flag') {

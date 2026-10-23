@@ -12,6 +12,7 @@ import { registerInboundHandler } from './inbound';
 import { fleetBus, onFleetServerClosed, onFleetServerReady } from './service';
 import type { Socket } from 'socket.io';
 import type { LogsLinesPayload } from './protocol/v1';
+import type { Untrusted } from '../../../utils/untrusted';
 
 export const LOGS_CAPABILITY = 'logs.v1';
 export const LOG_BUFFER_LINES = 200;
@@ -37,7 +38,7 @@ export const logRoom = (fleetServerId: string): string => `fleet-logs:${fleetSer
 function sendStreamControl(
   fleetServerId: string,
   type: 'logs.start' | 'logs.stop',
-  sent: Promise<unknown>
+  sent: Promise<Untrusted>
 ): void {
   void sent.catch((error) =>
     log.warn(`[FLEET] ${fleetServerId}: ${type} failed: ${(error as Error).message}`)
@@ -87,7 +88,7 @@ export async function subscribeLogs(
 
 function release(socketId: string, fleetServerId: string): void {
   const entry = watched.get(fleetServerId);
-  if (!entry || !entry.sockets.delete(socketId)) return;
+  if (!entry?.sockets.delete(socketId)) return;
   if (entry.sockets.size > 0) return;
   watched.delete(fleetServerId);
   if (fleetBus().isConnected(fleetServerId)) stopStream(fleetServerId);
@@ -109,10 +110,10 @@ export function dropSocket(socketId: string): void {
 }
 
 function attachSocket(socket: Socket): void {
-  socket.on('fleet:logs:subscribe', (body?: unknown, ack?: unknown) => {
+  socket.on('fleet:logs:subscribe', (body?: Untrusted, ack?: Untrusted) => {
     const reply =
       typeof ack === 'function' ? (ack as (ack: SubscribeAck) => void) : () => undefined;
-    const fleetServerId = (body as { fleetServerId?: unknown } | undefined)?.fleetServerId;
+    const fleetServerId = (body as { fleetServerId?: Untrusted } | undefined)?.fleetServerId;
     void (async () => {
       try {
         if (!(await socketHasAdminAccess(socket))) return reply({ ok: false, error: 'forbidden' });
@@ -124,8 +125,8 @@ function attachSocket(socket: Socket): void {
       }
     })();
   });
-  socket.on('fleet:logs:unsubscribe', (body?: unknown) => {
-    const fleetServerId = (body as { fleetServerId?: unknown } | undefined)?.fleetServerId;
+  socket.on('fleet:logs:unsubscribe', (body?: Untrusted) => {
+    const fleetServerId = (body as { fleetServerId?: Untrusted } | undefined)?.fleetServerId;
     if (typeof fleetServerId === 'string') unsubscribeLogs(socket.id, fleetServerId);
   });
   socket.on('disconnect', () => dropSocket(socket.id));
@@ -150,8 +151,7 @@ export function startLogRelay(): void {
   stopFns.push(
     registerInboundHandler('logs.lines', {
       priority: 'low',
-      handle: async (ctx, env) =>
-        applyLines(ctx.serverId, env.payload as unknown as LogsLinesPayload),
+      handle: async (ctx, env) => applyLines(ctx.serverId, env.payload),
     })
   );
   stopFns.push(onSocketConnection(attachSocket));
