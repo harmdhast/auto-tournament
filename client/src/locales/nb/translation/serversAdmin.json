@@ -194,5 +194,9 @@
     "claimedBy": "{{name}} har tatt den",
     "claimedByYou": "Du har tatt den",
     "anAdmin": "en admin"
+  },
+  "fleetRoster": {
+    "team": "Lag",
+    "roleLabel": "Rolle"
   }
 }

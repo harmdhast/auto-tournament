@@ -310,7 +310,11 @@ export function ServerListRow({
         )}
         {busy && fleetServer && (
           <Box component="span" data-testid={`server-row-reset-${row.key}`}>
-            <ResetServerButton server={fleetServer} onDone={props.onChanged} />
+            <ResetServerButton
+              server={fleetServer}
+              matchSlug={match?.slug}
+              onDone={props.onChanged}
+            />
           </Box>
         )}
         <RowMenu name={name} items={items} testId={`server-row-menu-${row.key}`} />

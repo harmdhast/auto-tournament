@@ -500,6 +500,17 @@ test.describe('Server list', () => {
     await expect(row).toContainText('Team A vs Team B · de_inferno 7 – 5');
   });
 
+  test('reset names the match the platform knows when the detail has no slug', async ({ page }) => {
+    await stubAll(page, { a: { availabilityDetail: null } });
+    await stubMatches(page, {
+      'cs2-a': { slug: 'm-live', liveStatus: 'live', mapNumber: 0, maps: ['de_inferno'] },
+    });
+    await page.goto('/manage/servers');
+    await expect(page.getByTestId(MACHINE_ROW)).toContainText('Team A vs Team B');
+    await page.getByTestId('fleet-reset-a').click();
+    await expect(page.getByRole('dialog')).toContainText('m-live');
+  });
+
   test('a warmup row shows the map without a score', async ({ page }) => {
     await stubAll(page, { a: { availability: 'busy', availabilityReason: null } });
     await stubMatches(page, {

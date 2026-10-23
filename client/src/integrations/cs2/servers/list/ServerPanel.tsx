@@ -59,7 +59,11 @@ export function ServerPanel({
       <>
         {fleetId && (
           <Section title={readyUpTitle}>
-            <ReadyUpServerSection fleetId={fleetId} onChanged={onChanged} />
+            <ReadyUpServerSection
+              fleetId={fleetId}
+              matchSlug={matches[fleetId]?.slug}
+              onChanged={onChanged}
+            />
           </Section>
         )}
         <Section title={t('serversList.section.machine', { defaultValue: 'Machine' })}>
@@ -75,7 +79,15 @@ export function ServerPanel({
     );
   } else if (row?.kind === 'readyup') {
     title = row.fleet.name;
-    body = <ReadyUpServerSection fleetId={row.fleet.id} onChanged={onChanged} />;
+    body = (
+      <ReadyUpServerSection
+        fleetId={row.fleet.id}
+        matchSlug={
+          (matches[row.fleet.linkedServerId ?? row.fleet.id] ?? matches[row.fleet.id])?.slug
+        }
+        onChanged={onChanged}
+      />
+    );
   } else if (lostFleetId) {
     body = <ReadyUpServerSection fleetId={lostFleetId} onChanged={onChanged} />;
   }

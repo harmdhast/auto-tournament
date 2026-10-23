@@ -104,6 +104,7 @@ export default function Servers() {
     });
   const ready = loaded && sources.loaded;
   const loadFailed = fleet.failed || sources.failed;
+  const showLoadError = loadFailed && hosts.length === 0 && groups.length === 0;
   const retryLoad = () => {
     void fleet.load();
     void sources.reload();
@@ -300,16 +301,18 @@ export default function Servers() {
       <PageHead
         title={t('serversPage.title')}
         subtitle={
-          <span data-testid="servers-limit">
-            {t('serversPage.machineCount', { count: hosts.length })}
-            {' · '}
-            {t('serversPage.fleet.total', { count: total })}
-            {limit &&
-              (() => {
-                const line = serverLimitText(limit, total);
-                return ` · ${t(line.key, line.values)}`;
-              })()}
-          </span>
+          showLoadError ? undefined : (
+            <span data-testid="servers-limit">
+              {t('serversPage.machineCount', { count: hosts.length })}
+              {' · '}
+              {t('serversPage.fleet.total', { count: total })}
+              {limit &&
+                (() => {
+                  const line = serverLimitText(limit, total);
+                  return ` · ${t(line.key, line.values)}`;
+                })()}
+            </span>
+          )
         }
         actions={
           <Button
@@ -350,7 +353,7 @@ export default function Servers() {
 
       {tab === 'servers' && (
         <>
-          {loadFailed && hosts.length === 0 && groups.length === 0 && (
+          {showLoadError && (
             <Alert
               severity="error"
               data-testid="servers-load-error"
@@ -363,7 +366,7 @@ export default function Servers() {
               {t('serversPage.loadError')}
             </Alert>
           )}
-          {!(loadFailed && hosts.length === 0 && groups.length === 0) && !ready && (
+          {!showLoadError && !ready && (
             <Box
               data-testid="servers-loading"
               aria-busy
@@ -373,14 +376,14 @@ export default function Servers() {
               <Skeleton variant="rounded" height={96} />
             </Box>
           )}
-          {!(loadFailed && hosts.length === 0 && groups.length === 0) && ready && firstSetup && (
+          {!showLoadError && ready && firstSetup && (
             <FirstMachine
               link={linkInline ? link : null}
               busy={busy}
               onCreate={(name) => void addMachine(name, true)}
             />
           )}
-          {!(loadFailed && hosts.length === 0 && groups.length === 0) && ready && !firstSetup && (
+          {!showLoadError && ready && !firstSetup && (
             <Box
               data-testid="machines-panel"
               sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
