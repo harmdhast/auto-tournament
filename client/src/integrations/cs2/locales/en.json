@@ -1236,7 +1236,7 @@
     "leadTime": "Start ahead by",
     "cooldown": "Stop after idle for",
     "maxPerHost": "Most servers per machine",
-    "status": "{{warm}} warm, {{desired}} needed: {{running}} running, {{waiting}} waiting, {{soon}} about to be ready, {{reserve}} spare",
+    "status": "Servers: {{desired}} needed, {{warm}} ready",
     "activity": "Recent activity",
     "noActivity": "Nothing started or stopped yet.",
     "state": {
@@ -1255,7 +1255,9 @@
       "create": "create",
       "link": "link",
       "note": "note"
-    }
+    },
+    "statusDetail": "Matches: {{running}} running, {{waiting}} waiting, {{soon}} starting soon. Spare servers: {{reserve}}.",
+    "timerOff": "The periodic check is off (FLEET_AUTOSCALE_INTERVAL_MS is 0). Nothing starts or stops until a check is run."
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers",

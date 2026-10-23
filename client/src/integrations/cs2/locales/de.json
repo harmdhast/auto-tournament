@@ -1236,7 +1236,7 @@
     "leadTime": "Vorlaufzeit beim Start",
     "cooldown": "Nach Leerlauf stoppen",
     "maxPerHost": "Maximale Server pro Maschine",
-    "status": "{{warm}} bereit, {{desired}} benötigt: {{running}} laufen, {{waiting}} warten, {{soon}} gleich bereit, {{reserve}} in Reserve",
+    "status": "Server: {{desired}} benötigt, {{warm}} bereit",
     "activity": "Letzte Aktivität",
     "noActivity": "Noch nichts gestartet oder gestoppt.",
     "state": {
@@ -1255,7 +1255,9 @@
       "create": "erstellen",
       "link": "verknüpfen",
       "note": "Hinweis"
-    }
+    },
+    "statusDetail": "Matches: {{running}} laufen, {{waiting}} warten, {{soon}} starten bald. Reserveserver: {{reserve}}.",
+    "timerOff": "Die regelmäßige Prüfung ist aus (FLEET_AUTOSCALE_INTERVAL_MS ist 0). Nichts startet oder stoppt, bis eine Prüfung ausgeführt wird."
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers",

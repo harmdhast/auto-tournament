@@ -1242,7 +1242,7 @@
     "leadTime": "Uruchom z wyprzedzeniem",
     "cooldown": "Zatrzymaj po bezczynności",
     "maxPerHost": "Maks. serwerów na maszynę",
-    "status": "{{warm}} gotowych, {{desired}} potrzebnych: {{running}} działa, {{waiting}} czeka, {{soon}} wkrótce gotowych, {{reserve}} zapasowych",
+    "status": "Serwery: {{desired}} potrzebnych, {{warm}} gotowych",
     "activity": "Ostatnia aktywność",
     "noActivity": "Nic jeszcze nie zostało uruchomione ani zatrzymane.",
     "state": {
@@ -1261,7 +1261,9 @@
       "create": "utwórz",
       "link": "połącz",
       "note": "uwaga"
-    }
+    },
+    "statusDetail": "Mecze: {{running}} trwa, {{waiting}} czeka, {{soon}} wkrótce. Serwery rezerwowe: {{reserve}}.",
+    "timerOff": "Okresowe sprawdzanie jest wyłączone (FLEET_AUTOSCALE_INTERVAL_MS wynosi 0). Nic nie startuje ani nie zatrzymuje się, dopóki nie zostanie uruchomione sprawdzenie."
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers",

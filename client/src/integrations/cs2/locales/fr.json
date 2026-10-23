@@ -1236,7 +1236,7 @@
     "leadTime": "Démarrer à l'avance de",
     "cooldown": "Arrêter après une inactivité de",
     "maxPerHost": "Maximum de serveurs par machine",
-    "status": "{{warm}} prêts, {{desired}} nécessaires : {{running}} en cours, {{waiting}} en attente, {{soon}} bientôt prêts, {{reserve}} de secours",
+    "status": "Serveurs : {{desired}} nécessaires, {{warm}} prêts",
     "activity": "Activité récente",
     "noActivity": "Rien n'a encore été démarré ni arrêté.",
     "state": {
@@ -1255,7 +1255,9 @@
       "create": "créer",
       "link": "lier",
       "note": "note"
-    }
+    },
+    "statusDetail": "Matchs : {{running}} en cours, {{waiting}} en attente, {{soon}} bientôt. Serveurs de réserve : {{reserve}}.",
+    "timerOff": "La vérification périodique est désactivée (FLEET_AUTOSCALE_INTERVAL_MS vaut 0). Rien ne démarre ni ne s'arrête tant qu'une vérification n'est pas lancée."
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers",
