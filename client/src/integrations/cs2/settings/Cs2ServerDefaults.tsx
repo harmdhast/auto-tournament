@@ -504,7 +504,12 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
                         update(key, v);
                         void save({ [key]: v });
                       }}
-                      slotProps={{ htmlInput: { 'data-testid': `setting-${key}` } }}
+                      slotProps={{
+                        htmlInput: { 'data-testid': `setting-${key}` },
+                        select: {
+                          SelectDisplayProps: { 'aria-label': t(`settings.gotv.${key}.label`) },
+                        },
+                      }}
                     >
                       {options.map((o) => (
                         <MenuItem key={o} value={o}>
@@ -899,6 +904,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
               <Box px={2} pt={3}>
                 <Slider
                   disabled={!vals.simulateMatches}
+                  aria-label={t('settings.developer.timescaleTitle')}
                   sx={{ '&.Mui-disabled': { opacity: 0.45 } }}
                   value={vals.simulationTimescale}
                   onChange={(_e, value) => {
