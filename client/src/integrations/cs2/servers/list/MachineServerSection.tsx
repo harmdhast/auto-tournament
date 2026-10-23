@@ -41,6 +41,13 @@ export function MachineServerSection({
   const last = s ? host.servers[host.servers.length - 1]?.name === s.name : false;
   const since = s?.process.started_at ? formatWhen(s.process.started_at) : null;
 
+  const linkLabel = (): string => {
+    if (!s?.fleetServer) return t('serversBoard.linkNone', { defaultValue: 'Not enrolled yet' });
+    return s.fleetServer.online
+      ? t('serversBoard.linkOnline', { defaultValue: 'Connected' })
+      : t('serversBoard.linkOffline', { defaultValue: 'Not connected' });
+  };
+
   return (
     <Box data-testid="server-panel-machine" sx={{ display: 'grid', gap: 2 }}>
       {s && (
@@ -101,14 +108,7 @@ export function MachineServerSection({
                       .join(' · ')
                   : t('machinesPanel.noReadyUp', { defaultValue: 'No Ready Up' }),
               ],
-              [
-                t('serversBoard.facts.link', { defaultValue: 'Platform link' }),
-                s.fleetServer
-                  ? s.fleetServer.online
-                    ? t('serversBoard.linkOnline', { defaultValue: 'Connected' })
-                    : t('serversBoard.linkOffline', { defaultValue: 'Not connected' })
-                  : t('serversBoard.linkNone', { defaultValue: 'Not enrolled yet' }),
-              ],
+              [t('serversBoard.facts.link', { defaultValue: 'Platform link' }), linkLabel()],
               !!since && [t('serversBoard.facts.since', { defaultValue: 'Running since' }), since],
               s.process.restarts_24h > 0 && [
                 t('serversBoard.facts.restarts', { defaultValue: 'Restarts (24 h)' }),

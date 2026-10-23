@@ -103,13 +103,15 @@ export function CatalogPicker({
         inputProps={{ 'aria-label': t('skins.catalog.search') }}
         sx={{ maxWidth: 420, '& .MuiOutlinedInput-root': { borderRadius: radii.pill } }}
       />
-      {skins === null ? (
+      {skins === null && (
         <Box sx={{ display: 'grid', placeItems: 'center', py: 6 }}>
           <CircularProgress aria-label={t('skins.catalog.search')} />
         </Box>
-      ) : skins.length === 0 ? (
+      )}
+      {skins?.length === 0 && (
         <Typography sx={{ color: color.ink2 }}>{t('skins.catalog.empty')}</Typography>
-      ) : (
+      )}
+      {skins !== null && skins.length > 0 && (
         <Box
           sx={{
             display: 'grid',
