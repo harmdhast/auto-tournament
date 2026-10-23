@@ -1868,7 +1868,9 @@
       "price": "Market price {{price}}",
       "more_one": "Show more ({{count}} left)",
       "more_other": "Show more ({{count}} left)"
-    }
+    },
+    "skipToSkins": "Saltar para as skins",
+    "listTitle": "Skins"
   },
   "matchRules": {
     "title": "Regras de partida",

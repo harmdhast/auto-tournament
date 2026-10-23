@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import { skinPaths } from './paths';
 import {
@@ -9,6 +9,7 @@ import {
   Container,
   Dialog,
   IconButton,
+  Link,
   MenuItem,
   Select,
   ToggleButton,
@@ -60,6 +61,18 @@ function category(skin: OwnedSkin): Filter {
   return skinCategory(skin);
 }
 
+const visuallyHidden = {
+  border: 0,
+  clip: 'rect(0 0 0 0)',
+  height: '1px',
+  margin: '-1px',
+  overflow: 'hidden',
+  padding: 0,
+  position: 'absolute',
+  whiteSpace: 'nowrap',
+  width: '1px',
+} as const;
+
 /**
  * The inventory (board 1): the equipped loadout as a row of slots, every skin
  * as a picture card, one click to equip (saved at once). On someone else's
@@ -80,6 +93,7 @@ export function InventoryPage() {
   const [theirs, setTheirs] = useState<{ inventory: OwnedSkin[]; picks: OwnedSkin[] } | null>(null);
   // Own page with the catalogue unlocked: earned skins, or every catalogue skin (one slot when chosen).
   const [view, setView] = useState<'owned' | 'catalog'>('owned');
+  const skinsRef = useRef<HTMLHeadingElement>(null);
   const [slotFilter, setSlotFilter] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<'rarity' | 'newest'>('rarity');
@@ -243,6 +257,27 @@ export function InventoryPage() {
               >
                 {t('skins.equippedTitle')}
               </Typography>
+              <Link
+                href="#inventory-skins"
+                data-testid="inventory-skip"
+                onClick={(e) => {
+                  e.preventDefault();
+                  skinsRef.current?.focus();
+                  skinsRef.current?.scrollIntoView({ block: 'start' });
+                }}
+                sx={{
+                  position: 'absolute',
+                  left: -9999,
+                  '&:focus': {
+                    position: 'static',
+                    alignSelf: 'flex-start',
+                    color: color.accent,
+                    fontSize: '0.875rem',
+                  },
+                }}
+              >
+                {t('skins.skipToSkins')}
+              </Link>
               {([3, 2] as const).map((team) => {
                 const on = equippedFor(loadout, team);
                 // This side's slots: knife, gloves, the weapons it buys that have a skin, and
@@ -374,6 +409,16 @@ export function InventoryPage() {
                 );
               })}
             </Box>
+
+            <Typography
+              component="h2"
+              id="inventory-skins"
+              ref={skinsRef}
+              tabIndex={-1}
+              sx={{ ...visuallyHidden, scrollMarginTop: 16 }}
+            >
+              {t('skins.listTitle')}
+            </Typography>
 
             {catalogUnlocked && (
               <ToggleButtonGroup
