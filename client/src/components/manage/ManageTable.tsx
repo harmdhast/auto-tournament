@@ -86,6 +86,7 @@ export function ManageTable({
   rows,
   empty,
   label,
+  sx,
   ...rest
 }: Omit<BoxProps, 'rows'> & {
   columns: ManageColumn[];
@@ -104,7 +105,7 @@ export function ManageTable({
   label?: string;
 }) {
   return (
-    <Box sx={{ overflowX: 'auto', minWidth: 0 }} {...rest}>
+    <Box sx={[{ overflowX: 'auto', minWidth: 0, position: 'relative' }, ...(Array.isArray(sx) ? sx : [sx])]} {...rest}>
       <Box
         component="table"
         aria-label={label}
