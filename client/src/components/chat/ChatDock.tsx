@@ -1134,7 +1134,7 @@ export function ChatDock() {
         right: phone ? 16 : 32,
         // Above matchmaking's queue bar while searching.
         bottom: (phone ? 16 : 32) + (me?.queue ? 56 : 0),
-        zIndex: th.zIndex.snackbar - 2,
+        zIndex: th.zIndex.drawer - 1,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-end',
