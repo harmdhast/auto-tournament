@@ -24,7 +24,9 @@ import {
 import { countFleet } from '../servers/availabilityClass';
 
 /** Matches waiting for a server, and how many servers there are. */
-export function summarizeServerAvailability(availability: ResourceAvailability): ResourceQueueSummary {
+export function summarizeServerAvailability(
+  availability: ResourceAvailability
+): ResourceQueueSummary {
   const answer = asServerAvailability(availability);
   return {
     waitingMatches: answer?.requiredServerCount ?? 0,
@@ -48,7 +50,11 @@ function timeAgoLabel(t: ManageNeedsYouInput['t'], unixSeconds: number | null | 
  * only for a match that is ready or loaded (or no longer listed), as
  * AdminMatchControls gates it.
  */
-export function serverNeedsYouItems({ availability, matches, t }: ManageNeedsYouInput): ManageNeedsYouItem[] {
+export function serverNeedsYouItems({
+  availability,
+  matches,
+  t,
+}: ManageNeedsYouInput): ManageNeedsYouItem[] {
   const servers = asServerAvailability(availability)?.servers ?? [];
   const bySlug = new Map(matches.map((match) => [match.slug, match]));
   const items: ManageNeedsYouItem[] = [];
