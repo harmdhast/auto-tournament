@@ -15,6 +15,17 @@ test.describe('Highlights page', () => {
     await expect(page.getByTestId('highlights-resolution')).toBeVisible();
     await expect(page.getByTestId('highlights-bitrate')).toBeVisible();
 
+    // Clips per player outside 1 to 20 is flagged in the field and not sent.
+    const perPlayer = page.getByTestId('highlights-per-player');
+    await perPlayer.fill('99');
+    await perPlayer.blur();
+    await expect(perPlayer).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByText('1 to 20', { exact: true })).toBeVisible();
+    await expect(page.getByText('highlights_per_player must be')).toHaveCount(0);
+    await perPlayer.fill('6');
+    await perPlayer.blur();
+    await expect(perPlayer).not.toHaveAttribute('aria-invalid', 'true');
+
     const cs2 = page.getByTestId('highlights-tab-cs2');
     await expect(cs2).toBeVisible({ timeout: 30000 });
     await cs2.click();
