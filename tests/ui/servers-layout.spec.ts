@@ -88,6 +88,7 @@ test.describe('Servers page loading', () => {
     const alert = page.getByTestId('servers-load-error');
     await expect(alert).toBeVisible();
     await expect(page.getByTestId('machines-empty')).toHaveCount(0);
+    await expect(page.getByTestId('servers-limit')).toHaveCount(0);
     const retry = alert.getByRole('button', { name: 'Retry' });
     await retry.evaluate((el) =>
       el.addEventListener(
@@ -99,6 +100,7 @@ test.describe('Servers page loading', () => {
     await retry.click();
     await expect(page.getByTestId('machine-m1')).toBeVisible();
     await expect(alert).toHaveCount(0);
+    await expect(page.getByTestId('servers-limit')).toBeVisible();
   });
 
   test('the first load shows a loading state, then the guide for an empty fleet', async ({
