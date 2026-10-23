@@ -26,6 +26,8 @@
 import { db } from '../../../../config/database';
 import { log } from '../../../../utils/logger';
 import type { HelloPayload } from '../protocol/v1';
+import type { HostCommandMeta } from '../hosts/registry';
+import type { Untrusted } from '../../../../utils/untrusted';
 import type { Validated } from './controls';
 import { capabilitiesOf } from '../registry';
 import { nowS } from '../util';
@@ -98,7 +100,7 @@ export interface PluginsState {
 
 const isCatalog = (n: string): n is CatalogPlugin =>
   (PLUGIN_CATALOG as readonly string[]).includes(n);
-const isPreset = (n: unknown): n is PluginPresetName =>
+const isPreset = (n: Untrusted): n is PluginPresetName =>
   typeof n === 'string' && Object.prototype.hasOwnProperty.call(PLUGIN_PRESETS, n);
 
 function inCatalogOrder(names: Iterable<string>): CatalogPlugin[] {
@@ -115,10 +117,10 @@ export function presetSet(preset: PluginPresetName): PluginSet {
  * `{preset}` (a preset's plugins) or `{preset: 'custom', plugins}` from the
  * API. Required plugins are added; unknown names are an error.
  */
-export function validatePluginSet(input: unknown): Validated<PluginSet> {
+export function validatePluginSet(input: Untrusted): Validated<PluginSet> {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     return { ok: false, error: 'plugins must be {preset, plugins?}' };
-  const raw = input as { preset?: unknown; plugins?: unknown };
+  const raw: { preset?: Untrusted; plugins?: Untrusted } = input;
   const preset = raw.preset ?? 'custom';
   if (isPreset(preset)) return { ok: true, value: presetSet(preset) };
   if (preset !== 'custom')
@@ -186,12 +188,9 @@ export function pluginsStateDiffers(stored: StoredPlugins, state: PluginsState):
   return stored.disable.some((n) => !state.disabled.includes(n));
 }
 
-/** hello.plugins_state when it is well formed, else null (older Ready Up has none). */
+/** hello.plugins_state (checked by the hello schema), else null (older Ready Up has none). */
 export function pluginsStateOf(hello: Pick<HelloPayload, 'plugins_state'>): PluginsState | null {
-  const s = hello.plugins_state;
-  if (!s || !Array.isArray(s.installed) || !Array.isArray(s.disabled)) return null;
-  const names = (a: unknown[]) => a.filter((n): n is string => typeof n === 'string');
-  return { installed: names(s.installed), disabled: names(s.disabled) };
+  return hello.plugins_state ?? null;
 }
 
 /** Whether a fleet server announced `fleet.cmds.v1` in its last hello. */
@@ -355,9 +354,9 @@ export async function createdPluginSet(
     [serverId]
   );
   if (!row) return { created: false, set: null };
-  let meta: { plugins?: unknown } | null = null;
+  let meta: HostCommandMeta | null = null;
   try {
-    meta = row.meta ? (JSON.parse(row.meta) as { plugins?: unknown }) : null;
+    meta = row.meta ? (JSON.parse(row.meta) as HostCommandMeta) : null;
   } catch {
     meta = null;
   }

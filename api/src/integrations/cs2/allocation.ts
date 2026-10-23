@@ -24,11 +24,11 @@ import type { ServerResponse } from '../../types/server.types';
 import { matchBracketOf } from '../../core/allocationQueue';
 import type { ResourcePoolStatus } from '../types';
 import { serverService } from './services/serverService';
-import { ServerStatus } from './services/serverStatusService';
+import type { ServerStatus } from './services/serverStatusService';
 import { serverAllocationTracker } from './services/serverAllocationTracker';
 import { serverTurnoverTracker } from './utils/serverTurnover';
 import { driverFor } from './driver';
-import { execOnFleetServer, fleetServerIsIdle } from './fleet/driver';
+import { execOnFleetServer, fleetServerIsIdle, serverIsSilent } from './fleet/driver';
 import { reserveCount } from './fleet/failoverSettings';
 import { pickReserved } from './fleet/failoverPlan';
 import type { BusyReason } from './fleet/protocol/v1/types';
@@ -99,9 +99,8 @@ export type ServerActionResult =
       ok: true;
       message: string;
       serverId?: string;
-      details?: Record<string, unknown>;
     }
-  | { ok: false; error: string; conflict?: boolean; details?: Record<string, unknown> };
+  | { ok: false; error: string; conflict?: boolean };
 
 export class Cs2ServerPool {
   // How long callers that schedule a delayed allocation pass (shuffle round
@@ -468,6 +467,12 @@ export class Cs2ServerPool {
     for (const server of servers) {
       if (this.allocatingServers.has(server.id) || serverAllocationTracker.isBusy(server.id))
         continue;
+      if (serverIsSilent(server.id)) {
+        log.debug(
+          `Fleet server ${server.id} (${server.name}) skipped: it did not answer a match.assign`
+        );
+        continue;
+      }
       if (dbBusyServers.has(server.id)) {
         log.debug(
           `Fleet server ${server.id} (${server.name}) not available: database shows loaded/live match`

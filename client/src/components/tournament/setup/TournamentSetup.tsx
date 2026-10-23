@@ -4,8 +4,8 @@ import { createPortal } from 'react-dom';
 import { Alert, Box, Button, Menu, MenuItem, TextField, Typography } from '@mui/material';
 import { ArrowLeftIcon, ArrowRightIcon, FileTextIcon } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
-import { api } from '../../../utils/api';
 import { estimateMatchCount, type GrandFinalMode } from '../../../utils/tournamentMatchCount';
+import { estimateDurationMinutes } from '../../../utils/tournamentDuration';
 import { requiresVeto } from '../../../utils/tournamentVerification';
 import { validateTeamCountForType } from '../../../utils/tournamentValidation';
 import type { Team } from '../../../types';
@@ -13,45 +13,36 @@ import type { EloCalculationTemplate } from '../../../types/elo.types';
 import type { TournamentSettings, TournamentTemplate } from '../../../types/tournament.types';
 import TeamModal from '../../modals/TeamModal';
 import { TeamImportModal } from '../../modals/TeamImportModal';
-import { TeamSelectionStep } from '../TeamSelectionStep';
-import { ShufflePlayerRegistration } from '../ShufflePlayerRegistration';
-import { ShuffleTournamentStats } from '../ShuffleTournamentStats';
-import {
-  ShuffleTournamentConfigStep,
-  type ShuffleTournamentSettings,
-} from '../ShuffleTournamentConfigStep';
+import { type ShuffleTournamentSettings } from '../ShuffleTournamentConfigStep';
 import { EventPageSettingsCard, type EventPageFields } from '../EventPageSettingsCard';
-import {
-  SignupSettings,
-  signupOf,
-  signupSettingsPatch,
-  useSavedSignup,
-  type SignupFields,
-} from './SignupSettings';
-import { TournamentTeamsList } from './TournamentTeamsList';
-import { useSnackbar } from '../../../contexts/SnackbarContext';
+import { type SignupFields } from './SignupSettings';
 import { useTournamentFormData } from '../useTournamentFormData';
+import { useSetupSignup, useSetupTemplates, useSiteRules } from './useSetupData';
+import { FormatStep } from './FormatStep';
+import { TeamsStep } from './TeamsStep';
 import { SetupColumn } from './SetupColumn';
 import { SetupSummary, type ChecklistItem, type SummaryRow } from './SetupSummary';
-import { FormatCards } from './FormatCards';
-import { SegmentedControl } from './SegmentedControl';
-import { TeamCountStepper } from './TeamCountStepper';
 import { getIntegration } from '../../../integrations/registry';
 import { BELOW_NAV_STICKY_TOP } from '../../../constants/navBar';
 import { useModuleState } from '../../../module-loader/useModuleState';
 import type { TournamentSetupContext } from '../../../integrations/types';
-import { gameSettingsError, gameSettingsRoundCount, gameSettingsSummary } from './gameSettings';
+import {
+  gameSettingsError,
+  gameSettingsMinutesPerMap,
+  gameSettingsRoundCount,
+  gameSettingsSummary,
+} from './gameSettings';
 import { EloTemplateSelect } from './EloTemplateSelect';
 import { ReviewStep, type ReviewTournament } from './ReviewStep';
 import { GamePicker } from './GamePicker';
 import { DEFAULT_SETUP_GAME, gameMark, useSetupGames, type SetupGame } from './games';
 import { MEDIUM } from './layout';
 import { useShellColumn } from '../../../contexts/ShellColumnContext';
-import { setupStepsFor, stepError, teamCountChoices, type SetupStepId } from './setupSteps';
-import { GroupsFields, type GroupsForm } from './GroupsFields';
+import { setupStepsFor, stepError, type SetupStepId } from './setupSteps';
+import { type GroupsForm } from './GroupsFields';
 import { ScheduleStep, type MatchTimesForm } from './ScheduleStep';
-import { SwitchRow } from '../../../components/common/ui';
 import { FormField } from '../../common/ui';
+import type { Untrusted } from '../../../utils/untrusted';
 
 export interface SetupFormValues {
   name: string;
@@ -67,7 +58,7 @@ export interface SetupFormValues {
    * core never reads them; the module's steps and setup model
    * (`tournamentSetup`) are the only things that know the shape (item 8b).
    */
-  gameSettings: Record<string, unknown>;
+  gameSettings: Record<string, Untrusted>;
   type: string;
   format: string;
   selectedTeams: string[];
@@ -89,7 +80,7 @@ export interface SetupFormValues {
 export interface SetupFormHandlers {
   onNameChange: (name: string) => void;
   onGameChange: (game: string) => void;
-  onGameSettingsChange: (patch: Record<string, unknown>) => void;
+  onGameSettingsChange: (patch: Record<string, Untrusted>) => void;
   onTypeChange: (type: string) => void;
   onFormatChange: (format: string) => void;
   onTeamsChange: (teamIds: string[]) => void;
@@ -141,7 +132,7 @@ interface TournamentSetupProps {
   onRegenerate: () => void;
   onBulkCreateShuffleMatches: () => void;
   onPlayersUpdated: () => void;
-  onSaveEventPage: (patch: Record<string, unknown>) => Promise<unknown>;
+  onSaveEventPage: (patch: Record<string, Untrusted>) => Promise<Untrusted>;
 }
 
 /**
@@ -170,32 +161,8 @@ export function TournamentSetup(props: TournamentSetupProps) {
   const steps = setupStepsFor(game);
   const reviewStepIndex = steps.length - 1;
   const stepId = steps[props.activeStep] ?? 'game';
-  // The site's match rules the Schedule and Extras steps mention (CS2: the
-  // break between matches, spectators in GOTV).
-  const [siteRules, setSiteRules] = useState<{
-    matchBreakMinutes?: number;
-    gotvSpectators?: number;
-    gotvDelay?: number;
-  } | null>(null);
-  useEffect(() => {
-    let live = true;
-    api
-      .get<{ settings?: Record<string, unknown> } & Record<string, unknown>>('/api/settings')
-      .then((res) => {
-        const s = (res.settings ?? res) as Record<string, unknown>;
-        if (!live) return;
-        setSiteRules({
-          matchBreakMinutes:
-            typeof s.matchBreakMinutes === 'number' ? s.matchBreakMinutes : undefined,
-          gotvSpectators: typeof s.gotvSpectators === 'number' ? s.gotvSpectators : undefined,
-          gotvDelay: typeof s.gotvDelay === 'number' ? s.gotvDelay : undefined,
-        });
-      })
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, []);
+  // The site's match rules the Schedule and Extras steps mention.
+  const siteRules = useSiteRules();
   // A saved tournament can name a game the playable list does not — one found
   // through game search, which manual reporting runs too. It is named by its
   // catalogue id and gets a text mark, never another game's icon.
@@ -244,83 +211,16 @@ export function TournamentSetup(props: TournamentSetupProps) {
   // A saved tournament's sign-up settings save on their own; its teams are
   // added and removed one at a time, so a team signing up meanwhile is never
   // dropped by a save that still held the old list.
-  const { showError: toastError, showSuccess: toastSuccess } = useSnackbar();
-  const savedSignup = useSavedSignup(signupOf(tournament?.settings, tournament?.teamSize));
-  const signup = tournament ? savedSignup.value : form.signup;
-  const [savingSignup, setSavingSignup] = useState(false);
-  // Shuffle: players join on their own (the tournament page's Join) while sign-up is open.
-  const [shuffleSignupOpen, setShuffleSignupOpen] = useState(
-    tournament?.settings?.registrationOpen === true
-  );
-  const setShuffleSignup = async (open: boolean) => {
-    if (!tournament) {
-      handlers.onSignupChange({ ...form.signup, registrationOpen: open });
-      return;
-    }
-    setShuffleSignupOpen(open);
-    try {
-      await api.put('/api/tournament', { settings: { registrationOpen: open } });
-      toastSuccess(t('tournament.setup.signup.saved'));
-      await props.onRefreshTeams();
-    } catch (error) {
-      setShuffleSignupOpen(!open);
-      toastError((error as Error).message);
-    }
-  };
-  const saveSignup = async () => {
-    setSavingSignup(true);
-    try {
-      await api.put('/api/tournament', {
-        settings: signupSettingsPatch(savedSignup.value),
-        teamSize: savedSignup.value.teamSize,
-      });
-      toastSuccess(t('tournament.setup.signup.saved'));
-      await props.onRefreshTeams();
-    } catch (error) {
-      toastError((error as Error).message);
-    } finally {
-      setSavingSignup(false);
-    }
-  };
-  const [changingTeams, setChangingTeams] = useState(false);
-  const changeTeams = async (next: string[]) => {
-    if (!tournament) {
-      handlers.onTeamsChange(next);
-      return;
-    }
-    const current = form.selectedTeams;
-    const added = next.filter((id) => !current.includes(id));
-    const removed = current.filter((id) => !next.includes(id));
-    setChangingTeams(true);
-    try {
-      for (const teamId of added)
-        await api.post(`/api/tournaments/${tournament.id}/teams`, { teamId });
-      for (const teamId of removed)
-        await api.delete(`/api/tournaments/${tournament.id}/teams/${encodeURIComponent(teamId)}`);
-    } catch (error) {
-      toastError((error as Error).message);
-    } finally {
-      setChangingTeams(false);
-      await props.onRefreshTeams();
-    }
-  };
+  const signupState = useSetupSignup({
+    tournament,
+    form,
+    handlers,
+    onRefreshTeams: props.onRefreshTeams,
+  });
+  const { signup } = signupState;
 
   // ---- Templates ("Start from a template") ---------------------------------
-  const [templates, setTemplates] = useState<TournamentTemplate[]>([]);
-  const [templateMenu, setTemplateMenu] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    if (tournament) return;
-    let cancelled = false;
-    api
-      .get<{ success: boolean; templates: TournamentTemplate[] }>('/api/templates')
-      .then((response) => {
-        if (!cancelled && response.success) setTemplates(response.templates);
-      })
-      .catch((error) => console.error('Error loading templates:', error));
-    return () => {
-      cancelled = true;
-    };
-  }, [tournament]);
+  const { templates, templateMenu, setTemplateMenu } = useSetupTemplates(tournament);
 
   // ---- Validation and navigation ------------------------------------------
   const validationInput = {
@@ -389,6 +289,23 @@ export function TournamentSetup(props: TournamentSetupProps) {
     teamSize: form.shuffleSettings.teamSize,
   });
   const seriesLabel = form.format.replace(/^bo/, 'Bo');
+  const minutesPerMap = gameSettingsMinutesPerMap(form.gameSettings, settingsCtx);
+  const duration =
+    estimate.matches !== null && minutesPerMap !== null
+      ? estimateDurationMinutes({
+          matches: estimate.matches,
+          // Double elimination: the losers' bracket about doubles the rounds, plus the grand final.
+          rounds:
+            estimate.rounds ??
+            (form.type === 'double_elimination'
+              ? 2 * Math.ceil(Math.log2(teamCountForMath)) + 1
+              : null),
+          servers: needsServers ? serverCount : 0,
+          format: isShuffle ? 'bo1' : form.format,
+          minutesPerMap,
+          breakMinutes: siteRules?.matchBreakMinutes ?? 5,
+        })
+      : null;
 
   const summaryRows: SummaryRow[] = [
     {
@@ -436,6 +353,18 @@ export function TournamentSetup(props: TournamentSetupProps) {
             : t('tournament.setup.summary.notSet'),
       pending: estimate.matches === null,
     },
+    ...(duration !== null
+      ? [
+          {
+            key: 'duration',
+            label: t('tournament.setup.summary.duration'),
+            value: t('tournament.setup.summary.durationValue', {
+              hours: Math.floor(duration / 60),
+              minutes: duration % 60,
+            }),
+          },
+        ]
+      : []),
     isShuffle
       ? tournament
         ? {
@@ -599,241 +528,55 @@ export function TournamentSetup(props: TournamentSetupProps) {
           </>
         );
 
-      case 'format': {
-        const choices = teamCountChoices(form.type);
-        const rule =
-          choices.length > 0 && choices[choices.length - 1] - choices[0] + 1 !== choices.length;
+      case 'format':
         return (
-          <>
-            <FormField label={t('tournament.setup.format.label')}>
-              <FormatCards value={form.type} onChange={handlers.onTypeChange} disabled={locked} />
-            </FormField>
-
-            {isShuffle ? (
-              <>
-                <Alert severity="info">{t('tournament.formatStep.shuffleInfo')}</Alert>
-                <FormField label={t('tournament.setup.format.shuffleTitle')}>
-                  <ShuffleTournamentConfigStep
-                    settings={form.shuffleSettings}
-                    canEdit={canEdit}
-                    saving={saving}
-                    onSettingsChange={handlers.onShuffleSettingsChange}
-                  />
-                </FormField>
-              </>
-            ) : (
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-                  gap: 3,
-                }}
-              >
-                {coreOwnsSeriesLength && (
-                  <FormField
-                    label={
-                      form.type === 'groups'
-                        ? t('tournament.setup.groups.groupMatches')
-                        : t('tournament.setup.format.seriesLength')
-                    }
-                  >
-                    <SegmentedControl
-                      label={
-                        form.type === 'groups'
-                          ? t('tournament.setup.groups.groupMatches')
-                          : t('tournament.setup.format.seriesLength')
-                      }
-                      value={form.format}
-                      onChange={handlers.onFormatChange}
-                      disabled={locked}
-                      testId="tournament-format-selector"
-                      options={['bo1', 'bo3', 'bo5'].map((value) => ({
-                        value,
-                        label: value.replace(/^bo/, 'Bo'),
-                        testId: `tournament-format-option-${value}`,
-                      }))}
-                    />
-                  </FormField>
-                )}
-                {form.type === 'double_elimination' && (
-                  <FormField
-                    label={t('tournament.setup.format.grandFinal')}
-                    help={t(`tournament.setup.format.grandFinalHelp.${form.grandFinalMode}`)}
-                  >
-                    <SegmentedControl<GrandFinalMode>
-                      label={t('tournament.setup.format.grandFinal')}
-                      value={form.grandFinalMode}
-                      onChange={handlers.onGrandFinalModeChange}
-                      disabled={locked}
-                      testId="tournament-grand-final-selector"
-                      // Bracket reset is not implemented yet (it plays as one grand
-                      // final), so it is only shown for a tournament that has it.
-                      options={(form.grandFinalMode === 'double'
-                        ? (['simple', 'double', 'none'] as const)
-                        : (['simple', 'none'] as const)
-                      ).map((value) => ({
-                        value,
-                        label: t(`tournament.setup.format.grandFinalOptions.${value}`),
-                        testId: `tournament-grand-final-option-${value}`,
-                      }))}
-                    />
-                  </FormField>
-                )}
-                {form.type === 'groups' && (
-                  <GroupsFields
-                    value={form.groups}
-                    onChange={handlers.onGroupsChange}
-                    teamCount={
-                      form.selectedTeams.length >= 2 ? form.selectedTeams.length : form.plannedTeams
-                    }
-                    teams={form.selectedTeams
-                      .map((id) => props.teams.find((team) => team.id === id))
-                      .filter((team): team is Team => Boolean(team))}
-                    disabled={locked}
-                  />
-                )}
-                <FormField
-                  label={t('tournament.setup.format.teams')}
-                  labelId="tournament-team-count-label"
-                  help={
-                    rule
-                      ? t('tournament.setup.format.teamsHelpPowerOfTwo', {
-                          counts: choices.join(', '),
-                        })
-                      : t('tournament.setup.format.teamsHelpRange', {
-                          min: choices[0],
-                          max: choices[choices.length - 1],
-                        })
-                  }
-                >
-                  <TeamCountStepper
-                    value={form.plannedTeams}
-                    choices={choices}
-                    onChange={handlers.onPlannedTeamsChange}
-                    disabled={locked}
-                    labelledBy="tournament-team-count-label"
-                  />
-                </FormField>
-              </Box>
-            )}
-
-            {GameSettingsStep && (
-              <GameSettingsStep
-                {...settingsStepProps}
-                gameName={pickedGame.name}
-                onFormatChange={handlers.onFormatChange}
-              />
-            )}
-          </>
+          <FormatStep
+            form={form}
+            handlers={handlers}
+            locked={locked}
+            canEdit={canEdit}
+            saving={saving}
+            teams={props.teams}
+            askSeriesLength={coreOwnsSeriesLength}
+            gameSettings={
+              GameSettingsStep ? (
+                <GameSettingsStep
+                  {...settingsStepProps}
+                  gameName={pickedGame.name}
+                  onFormatChange={handlers.onFormatChange}
+                />
+              ) : null
+            }
+          />
         );
-      }
 
       case 'teams':
-        if (isShuffle) {
-          const selfSignup = (
-            <SwitchRow
-              label={
-                <Box>
-                  <Typography>{t('tournament.setup.teams.shuffleSelfSignup')}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('tournament.setup.teams.shuffleSelfSignupHelp')}
-                  </Typography>
-                </Box>
-              }
-              checked={tournament ? shuffleSignupOpen : form.signup.registrationOpen}
-              onChange={(e) => void setShuffleSignup(e.target.checked)}
-              disabled={locked}
-              inputProps={{ 'data-testid': 'shuffle-signup-open' } as Record<string, string>}
-            />
-          );
-          if (!tournament) {
-            return (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {selfSignup}
-                <Alert severity="info" data-testid="shuffle-signup-after-create">
-                  {t('tournament.setup.teams.shuffleBeforeCreate')}
-                </Alert>
-              </Box>
-            );
-          }
-          return (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {selfSignup}
-              <Box
-                sx={{
-                  display: 'grid',
-                  gap: 2,
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-                }}
-              >
-                <ShufflePlayerRegistration
-                  tournamentId={tournament.id}
-                  teamSize={tournament.teamSize || 5}
-                  onPlayersUpdated={props.onPlayersUpdated}
-                />
-                <ShuffleTournamentStats
-                  playerCount={props.registeredPlayerCount || 0}
-                  teamSize={tournament.teamSize || 5}
-                />
-              </Box>
-            </Box>
-          );
-        }
         return (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <SignupSettings
-              value={signup}
-              onChange={tournament ? savedSignup.setValue : handlers.onSignupChange}
-              disabled={locked}
-              {...(tournament
-                ? {
-                    onSave: () => void saveSignup(),
-                    dirty: savedSignup.dirty,
-                    saving: savingSignup,
-                  }
-                : {})}
-            />
-            {tournament && (
-              <TournamentTeamsList
-                tournamentId={tournament.id}
-                teamSize={tournament.teamSize ?? signup.teamSize}
-                teamKey={form.selectedTeams.join(',')}
-                canEdit={canEdit}
-                live={tournament.settings?.registrationOpen === true}
-                onRemoved={props.onRefreshTeams}
-              />
-            )}
-            <Typography variant="subtitle2">
-              {signup.registrationOpen
-                ? t('tournament.setup.signup.addYourself')
-                : t('tournament.setup.signup.pickTeams')}
-            </Typography>
-            <TeamSelectionStep
-              teams={props.teams}
-              selectedTeams={form.selectedTeams}
-              type={form.type}
-              serverCount={serverCount}
-              requiredServers={Math.ceil(selectedCount / 2)}
-              // A game with no servers has nothing to run short of, so the
-              // "not enough servers" warning and its two buttons never show.
-              hasEnoughServers={!needsServers || serverCount >= Math.ceil(selectedCount / 2)}
-              loadingServers={needsServers && loadingServers}
-              canEdit={canEdit}
-              saving={saving || changingTeams}
-              onTeamsChange={(next) => void changeTeams(next)}
-              onCreateTeam={() => setTeamModalOpen(true)}
-              onImportTeams={() => setTeamImportModalOpen(true)}
-              onAddServer={AddResourceDialog ? () => setServerModalOpen(true) : undefined}
-              onBatchAddServers={
-                BatchResourceDialog ? () => setBatchServerModalOpen(true) : undefined
-              }
-            />
-          </Box>
+          <TeamsStep
+            tournament={tournament}
+            form={form}
+            handlers={handlers}
+            locked={locked}
+            canEdit={canEdit}
+            saving={saving}
+            teams={props.teams}
+            registeredPlayerCount={props.registeredPlayerCount}
+            onPlayersUpdated={props.onPlayersUpdated}
+            onRefreshTeams={props.onRefreshTeams}
+            signupState={signupState}
+            servers={{ needed: needsServers, count: serverCount, loading: loadingServers }}
+            onCreateTeam={() => setTeamModalOpen(true)}
+            onImportTeams={() => setTeamImportModalOpen(true)}
+            onAddServer={AddResourceDialog ? () => setServerModalOpen(true) : undefined}
+            onBatchAddServers={
+              BatchResourceDialog ? () => setBatchServerModalOpen(true) : undefined
+            }
+          />
         );
 
       case 'maps': {
         const customVeto = (
-          tournament?.settings?.customVetoOrder as Record<string, unknown> | undefined
+          tournament?.settings?.customVetoOrder as Record<string, Untrusted> | undefined
         )?.[form.format];
         return (
           <>

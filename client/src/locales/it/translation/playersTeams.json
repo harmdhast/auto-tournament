@@ -93,7 +93,11 @@
     "deletedChip": "Deleted",
     "deletedBody": "This account was deleted. Their matches are still in the history.",
     "bannedChip": "Banned",
-    "bannedBody": "This player is banned."
+    "bannedBody": "This player is banned.",
+    "shownTeam": {
+      "label": "Team shown on your profile",
+      "failed": "Could not save the team"
+    }
   },
   "teamPage": {
     "tournamentFinished": "Torneo terminato",
@@ -547,7 +551,10 @@
     "bestMap": "Best: {{map}}",
     "new": "New",
     "lookingFor_one": "Looking for {{count}}",
-    "lookingFor_other": "Looking for {{count}}"
+    "lookingFor_other": "Looking for {{count}}",
+    "anotherTitle": "Make another team",
+    "anotherBody_one": "You can own {{max}} teams. One more fits.",
+    "anotherBody_other": "You can own {{max}} teams. {{count}} more fit."
   },
   "teamManage": {
     "title": "Manage your team",
@@ -708,7 +715,9 @@
         "main-title": "Main title",
         "rock": "Rock",
         "metal": "Metal"
-      }
+      },
+      "buffering": "Loading the video",
+      "death": "Died"
     }
   },
   "leaderboard": {

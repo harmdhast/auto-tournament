@@ -556,12 +556,6 @@
     "saved": "Innstillinger lagret",
     "saveFailed": "Kunne ikke lagre innstillingene",
     "loadFailed": "Kunne ikke laste innstillingene",
-    "webhook": {
-      "title": "Plattform-URL",
-      "description": "Webhook-URL som CS2-serverne kan nå.",
-      "label": "Webhook-URL",
-      "helper": "Eksempel: https://ditt-domene.no"
-    },
     "mapSync": {
       "title": "Mapsynkronisering",
       "description": "Synk CS2-kart og Active Duty-poolen fra kartlisten i cs2-server-manager-repositoriet.",
@@ -1983,6 +1977,7 @@
     "matchReel": "Kamp-høydepunkter",
     "roundN": "Runde {{n}}",
     "reelBadge": "SAMMENDRAG",
+    "simulated": "Simulert spiller",
     "favourite": "Favoritt",
     "favouriteFailed": "Kunne ikke lagre favoritten",
     "pageTitle": "Høydepunktene til {{name}}",
@@ -2409,6 +2404,13 @@
       "insecureObservers": "Tillat usikre observatører (HUD-verktøy som LHM)",
       "insecureObserversHelp": "Lar observatør-HUD-er som leser GOTV, koble til. Gjelder fra kampen lastes.",
       "manyViewersHint": "Mange seere på kampserveren koster båndbredde og CPU; bruk et GOTV-relé for store publikum."
+    },
+    "connectVia": {
+      "label": "Adressen spillerne får",
+      "help": "Alt på ett nettverk eller alt over internett? Velg én, så får alle den. «Begge» anbefaler den som passer der spilleren er.",
+      "auto": "Begge (anbefalt for hver spiller)",
+      "lan": "Bare LAN",
+      "public": "Bare internett"
     }
   },
   "library": {

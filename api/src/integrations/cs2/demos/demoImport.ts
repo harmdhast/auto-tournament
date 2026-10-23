@@ -25,6 +25,7 @@ import { settingsService } from '../../../services/settingsService';
 import { addPlayedGame } from '../../../services/gameReadiness';
 import { DEMOS_DIR, ensureDemosDir, linkStoredDemo } from '../utils/demoFiles';
 import type { DemoAnalysisPayload, DemoJob } from './jobs';
+import type { Untrusted } from '../../../utils/untrusted';
 
 export const IMPORT_SOURCE = 'import';
 export const IMPORT_MAX_MAPS = 5;
@@ -117,9 +118,9 @@ export function mapFromDemoHeader(head: Buffer): string | null {
 
 /** Create the match an import fills in. `event`: where it was played (optional). */
 export async function createImport(input: {
-  event?: unknown;
-  maps?: unknown;
-  recordingGroupId?: unknown;
+  event?: Untrusted;
+  maps?: Untrusted;
+  recordingGroupId?: Untrusted;
 }): Promise<{ slug: string }> {
   const maps = Number(input.maps);
   if (!Number.isInteger(maps) || maps < 1 || maps > IMPORT_MAX_MAPS) {
@@ -434,6 +435,46 @@ export async function applyImportedMap(job: DemoJob, analysis: DemoAnalysisPaylo
       `[IMPORT] ${job.matchSlug} imported: ${config.team1.name} ${won1}-${won2} ${config.team2.name}`
     );
   }
+}
+
+/**
+ * An imported match's rows in `player_match_stats` (the core's match history:
+ * a profile's recent matches and its match count), one per player, summed over
+ * the maps analysed so far, won or lost by the series result. Written again as
+ * each map comes in; a no-op for any other match. Live matches get these rows
+ * from the series end instead.
+ */
+export async function writeImportedSeriesStats(matchSlug: string): Promise<void> {
+  if (!(await importConfig(matchSlug))) return;
+  await db.runAsync('DELETE FROM player_match_stats WHERE match_slug = ?', [matchSlug]);
+  await db.runAsync(
+    `INSERT INTO player_match_stats (player_id, match_slug, team, won_match, adr, total_damage, kills,
+       deaths, assists, headshots, utility_damage, kast, rounds_played)
+     SELECT s.player_id, s.match_slug, MIN(s.team),
+            COALESCE(MIN(s.team) = MIN(CASE WHEN m.winner_id = m.team1_id THEN 'team1'
+                                            WHEN m.winner_id = m.team2_id THEN 'team2' END), false),
+            SUM(s.damage)::REAL / NULLIF(SUM(s.rounds_played), 0), SUM(s.damage), SUM(s.kills),
+            SUM(s.deaths), SUM(s.assists), SUM(s.headshot_kills), SUM(s.utility_damage),
+            100.0 * SUM(s.kast_rounds) / NULLIF(SUM(s.rounds_played), 0), SUM(s.rounds_played)
+       FROM cs2_player_map_stats s
+       JOIN players p ON p.id = s.player_id
+       JOIN matches m ON m.slug = s.match_slug
+      WHERE s.match_slug = ?
+      GROUP BY s.player_id, s.match_slug`,
+    [matchSlug]
+  );
+}
+
+/** Imports analysed before `writeImportedSeriesStats` existed: their rows, once. */
+export async function backfillImportedSeriesStats(): Promise<number> {
+  const slugs = await db.queryAsync<{ slug: string }>(
+    `SELECT m.slug FROM matches m
+      WHERE m.source = ? AND EXISTS (SELECT 1 FROM cs2_player_map_stats s WHERE s.match_slug = m.slug)
+        AND NOT EXISTS (SELECT 1 FROM player_match_stats p WHERE p.match_slug = m.slug)`,
+    [IMPORT_SOURCE]
+  );
+  for (const { slug } of slugs) await writeImportedSeriesStats(slug);
+  return slugs.length;
 }
 
 /** An import's progress, for the import page: each map's demo and analysis. */

@@ -5,7 +5,8 @@
  * Phase 1: parties, the queue, accept / decline and cooldowns. Writes are
  * same-site JSON, by the signed-in player; no player ids in bodies.
  */
-import { Router, Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { requireAuth, requestActorId } from '../middleware/auth';
 import { resolveViewerIdentity } from '../utils/viewerIdentity';
 import { isSameSiteRequest } from '../utils/accountConnections';
@@ -28,6 +29,7 @@ import {
 } from '../services/matchmaking/rules';
 import { hasIntegration, getIntegration } from '../integrations/registry';
 import { progressionService, ProgressionError } from '../services/matchmaking/progressionService';
+import type { Untrusted } from '../utils/untrusted';
 
 const router = Router();
 
@@ -85,7 +87,7 @@ function sameSiteJson(req: Request, res: Response, next: NextFunction): void {
 const me = (req: Request) => (req as PlayerRequest).mmPlayerId!;
 
 /** Wrap a handler: MatchmakingError → its status, anything else → 500. */
-function handle(what: string, fn: (req: Request, res: Response) => Promise<unknown>) {
+function handle(what: string, fn: (req: Request, res: Response) => Promise<Response | void>) {
   return async (req: Request, res: Response) => {
     try {
       return await fn(req, res);
@@ -556,7 +558,7 @@ router.post(
   requirePlayer,
   sameSiteJson,
   handle('answer the rematch', async (req, res) => {
-    const accept = (req.body as { accept?: unknown } | undefined)?.accept === true;
+    const accept = (req.body as { accept?: Untrusted } | undefined)?.accept === true;
     const result = await matchmakingService.voteRematch(me(req), req.params.id, accept);
     return res.json({ success: true, ...result });
   })
@@ -839,7 +841,7 @@ router.put(
         poolsInput !== null &&
         typeof poolsInput === 'object' &&
         !Array.isArray(poolsInput) &&
-        Object.entries(poolsInput as Record<string, unknown>).every(
+        Object.entries(poolsInput as Record<string, Untrusted>).every(
           ([m, id]) =>
             MODES.includes(m as never) &&
             (id === null || (Number.isInteger(id) && (id as number) > 0))

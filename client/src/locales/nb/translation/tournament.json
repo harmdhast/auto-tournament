@@ -608,6 +608,8 @@
         "teamsPlanned": "{{count}} planlagt",
         "matches": "Kamper",
         "matchesAfterSignUp": "Etter påmelding",
+        "duration": "Varer omtrent",
+        "durationValue": "{{hours}} t {{minutes}} min",
         "signUp": "Påmelding",
         "signUpOrganizer": "Valgt av arrangør",
         "signUpAfterCreate": "Åpner når den er opprettet",
@@ -784,6 +786,12 @@
       "enterFullscreen": "Fullskjerm",
       "exitFullscreen": "Avslutt fullskjerm",
       "shuffleNoVisual": "Shuffle-turneringer har ingen visuelt turneringstre. Bruk listevisningen i stedet."
+    },
+    "times": {
+      "toggle": "Sett tider",
+      "startsAt": "Starter",
+      "clear": "Bruk rundens tid",
+      "save": "Lagre"
     },
     "shuffleEmpty": {
       "title": "Ingen turneringstre for shuffle-turneringer",
@@ -1205,11 +1213,12 @@
     "wonBody": "Laget ditt vant turneringen. Godt spilt!",
     "close": "Lukk",
     "seeBracket": "Se turneringstreet",
-    "outBodyPlay": "Dere har ingen flere kamper i turneringen. Takk for innsatsen! Lyst på en kamp til? Matchmaking finner en til deg på et par minutter.",
+    "outBodyPlay": "Dere har ingen flere kamper i turneringen. Takk for innsatsen!",
     "championsEyebrow": "Vinnere",
     "teamPlaced": "{{team}} endte på",
     "wonTitleShort": "Du vant {{tournament}}!",
-    "wonFinalBody": "{{team}} vant finalen {{score}}. Godt spilt!"
+    "wonFinalBody": "{{team}} vant finalen {{score}}. Godt spilt!",
+    "playHint": "Lyst på en kamp til? Matchmaking finner en til deg på et par minutter."
   },
   "advance": {
     "title": "Bra, dere er fortsatt med!",
@@ -1326,7 +1335,8 @@
     "eta": {
       "nextRoundAbout": "Neste runde ca. {{time}}",
       "nextRoundAt": "Neste runde kl. {{time}}",
-      "finalEnds": "Siste runde: ferdig ca. {{time}}"
+      "finalEnds": "Siste runde: ferdig ca. {{time}}",
+      "endsAbout": "ferdig ca. {{time}}"
     },
     "hero": {
       "playingTitle": "Du spiller nå",
@@ -1642,7 +1652,10 @@
     "breakAfterRound": "Etter runde",
     "breakMinutes": "Pause (min)",
     "breakRemove": "Fjern",
-    "breakAdd": "Legg til en lengre pause"
+    "breakAdd": "Legg til en lengre pause",
+    "fillStart": "Første runde kl.",
+    "fillEvery": "Minutter mellom rundene",
+    "fillApply": "Fyll inn rundene"
   },
   "groups": {
     "groupN": "Gruppe {{letter}}",

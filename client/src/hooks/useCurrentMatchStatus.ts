@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../utils/api';
-import { io, Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
+import { scopedSocket } from '../utils/sharedSocket';
 import { onSocketReconnect } from '../utils/socketResync';
 
 /** One side of the viewer's match: name, tag and logo. */
@@ -132,7 +133,7 @@ export function useCurrentMatchStatus(playerSteamId: string | null): MatchStatus
     }
 
     if (!socketRef.current) {
-      socketRef.current = io();
+      socketRef.current = scopedSocket();
     }
     const socket = socketRef.current;
 

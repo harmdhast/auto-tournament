@@ -207,6 +207,21 @@ test.describe.serial('Fleet gateway', () => {
     await again.next((m) => m.type === 'ack' && m.ack === 3, 3000);
     again.close();
 
+    // A resume whose first message is past what the platform has (its database
+    // is older than the server's acks, e.g. restored from a backup): the jump
+    // is taken once. A gap later in the same session still closes it.
+    const restored = await FleetTestClient.connect(server.token);
+    const w3 = await restored.handshake(server.server_id, server.installId, {
+      stream: { id: 'stream-rel', last_tx_seq: 7, last_rx_seq: 0 },
+    });
+    expect(w3.payload.resume).toEqual({ result: 'resumed', platform_last_rx_seq: 3 });
+    restored.send(envelope('auth.rotated', {}, { seq: 7 }));
+    await restored.next((m) => m.type === 'ack' && m.ack === 7, 3000);
+    restored.send(envelope('auth.rotated', {}, { seq: 9 }));
+    const gapLater = await restored.waitClosed();
+    expect(gapLater.code).toBe(4400);
+    expect(gapLater.reason).toContain('seq gap');
+
     // A different stream id: reset, and the next seq it sends is the new base.
     const reset = await FleetTestClient.connect(server.token);
     const w2 = await reset.handshake(server.server_id, server.installId, {
@@ -329,6 +344,36 @@ test.describe.serial('Fleet gateway', () => {
       stream: { id: 'rot-stream', last_tx_seq: 1, last_rx_seq: rotate.seq as number },
     });
     withOld.close();
+  });
+
+  test('a server whose fleet state was reset gets what is queued, renumbered from its seq', async ({
+    request,
+  }) => {
+    const server = await enrollNew(request);
+    // An aged token: the platform sends an auth.rotate (reliable) on connect.
+    await request.post('/api/test/fleet/age-token', {
+      data: { serverId: server.server_id, days: 91 },
+    });
+    const reliable = (m: Envelope) => typeof m.seq === 'number' && m.seq > 0;
+    const first = await FleetTestClient.connect(server.token);
+    await first.handshake(server.server_id, server.installId, {
+      stream: { id: 'lost-stream', last_tx_seq: 0, last_rx_seq: 0 },
+    });
+    const got = await first.next(reliable, 5000);
+    first.send(envelope('ping', { t: Date.now() }, { ack: got.seq }));
+    await new Promise((r) => setTimeout(r, 500));
+    first.close();
+    await first.waitClosed();
+
+    // Its spool was cleared: it has processed nothing of ours. What the
+    // platform sends next starts at 1, not after the old numbering.
+    const reset = await FleetTestClient.connect(server.token);
+    await reset.handshake(server.server_id, server.installId, {
+      stream: { id: 'lost-stream-2', last_tx_seq: 0, last_rx_seq: 0 },
+    });
+    const again = await reset.next(reliable, 5000);
+    expect(again.seq).toBe(1);
+    reset.close();
   });
 
   test('an unacked auth.rotate is replayed after a reconnect, with a fresh secret', async ({

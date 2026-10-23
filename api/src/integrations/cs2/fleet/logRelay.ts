@@ -37,19 +37,25 @@ export const logRoom = (fleetServerId: string): string => `fleet-logs:${fleetSer
 function sendStreamControl(
   fleetServerId: string,
   type: 'logs.start' | 'logs.stop',
-  payload: { backlog?: boolean }
+  sent: Promise<unknown>
 ): void {
-  void fleetBus()
-    .send(fleetServerId, { type, payload, reliable: false })
-    .catch((error) =>
-      log.warn(`[FLEET] ${fleetServerId}: ${type} failed: ${(error as Error).message}`)
-    );
+  void sent.catch((error) =>
+    log.warn(`[FLEET] ${fleetServerId}: ${type} failed: ${(error as Error).message}`)
+  );
 }
 
 const requestStream = (fleetServerId: string, backlog: boolean): void =>
-  sendStreamControl(fleetServerId, 'logs.start', { backlog });
+  sendStreamControl(
+    fleetServerId,
+    'logs.start',
+    fleetBus().send(fleetServerId, { type: 'logs.start', payload: { backlog }, reliable: false })
+  );
 const stopStream = (fleetServerId: string): void =>
-  sendStreamControl(fleetServerId, 'logs.stop', {});
+  sendStreamControl(
+    fleetServerId,
+    'logs.stop',
+    fleetBus().send(fleetServerId, { type: 'logs.stop', payload: {}, reliable: false })
+  );
 
 export async function subscribeLogs(
   socketId: string,

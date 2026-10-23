@@ -12,9 +12,10 @@ import { resetEnrollRateLimit } from '../fleet/routes';
 import { liveStateStore, type LiveMatchRecord } from '../fleet/state';
 import { processInbound } from '../fleet/inbound';
 import { assignConfigPreview } from '../fleet/driver';
-import type { Envelope } from '../fleet/protocol/v1';
+import type { Envelope, FleetMessage } from '../fleet/protocol/v1';
 import { FleetSendError, getCommand, sendReliable, type ReliableType } from '../fleet/reliable';
 import { scanForFailovers } from '../fleet/failover';
+import type { SqlValue } from '../../../config/database';
 
 const router = Router();
 
@@ -367,7 +368,8 @@ router.post(
           data: event.data ?? {},
         },
       } as unknown as Envelope;
-      await processInbound(ctx, env, null);
+      // A test's event carries only the fields it is about: not checked against the schema.
+      await processInbound(ctx, env as FleetMessage, null);
     }
     res.json({ success: true, applied: events.length });
   }
@@ -522,7 +524,7 @@ router.post(
       if (!cols.every((c) => /^[a-z0-9_]+$/.test(c))) throw new Error(`Bad column in ${table}`);
       await db.runAsync(
         `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
-        Object.values(row)
+        Object.values(row) as SqlValue[]
       );
     };
     try {

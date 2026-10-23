@@ -24,6 +24,7 @@ import { integrationForMatch } from '../integrations/registry';
 import { matchContextFor } from '../utils/matchIntegration';
 import { emitBracketUpdate, emitTournamentUpdate } from './socketService';
 import { guarded } from '../utils/guarded';
+import type { JsonObject } from '../utils/json';
 
 /** held_until for a hold with no end: released by an admin. */
 export const HOLD_FOREVER = 2147483647;
@@ -114,7 +115,7 @@ async function logEvent(
   slugs: string[],
   type: string,
   by: Actor | null,
-  data: Record<string, unknown>
+  data: JsonObject
 ): Promise<void> {
   for (const slug of slugs) {
     await db

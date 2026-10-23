@@ -1,12 +1,9 @@
-import React, { createContext, useContext, useCallback, useRef, ReactNode } from 'react';
-import {
-  SnackbarProvider as NotistackProvider,
-  enqueueSnackbar,
-  closeSnackbar,
-  VariantType,
-  SnackbarKey,
-} from 'notistack';
-import { Alert, GlobalStyles, IconButton, Slide, TransitionProps } from '@mui/material';
+import type { ReactNode } from 'react';
+import React, { createContext, useContext, useCallback, useRef } from 'react';
+import type { VariantType, SnackbarKey } from 'notistack';
+import { SnackbarProvider as NotistackProvider, enqueueSnackbar, closeSnackbar } from 'notistack';
+import type { TransitionProps } from '@mui/material';
+import { Alert, GlobalStyles, IconButton, Slide } from '@mui/material';
 import { XIcon } from '@phosphor-icons/react';
 import { tokens, withAlpha, radii, siteEdgeRight } from '../theme/tokens';
 
@@ -146,7 +143,7 @@ const InfoSnackbar = createSnackbarVariant('info', 'InfoSnackbar');
 
 // Custom Slide transition with smooth easing for snackbars
 const SlideTransition = React.forwardRef<
-  unknown,
+  HTMLElement,
   TransitionProps & { children: React.ReactElement }
 >((props, ref) => {
   return (

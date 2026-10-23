@@ -3,7 +3,8 @@
  * one game (ratings are per game, services/gameRatings), with what they
  * played. Public, like the player and team directories.
  */
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { db } from '../config/database';
 import { log } from '../utils/logger';
 import { getIntegration } from '../integrations/registry';
@@ -41,12 +42,17 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const games = (
       await db.queryAsync<{ game: string; players: number | string }>(
-        `SELECT game, COUNT(*) AS players FROM player_game_ratings WHERE match_count > 0
-          GROUP BY game ORDER BY COUNT(*) DESC, game`,
+        `SELECT g.game, COUNT(*) AS players
+           FROM player_game_ratings g JOIN players p ON p.id = g.player_id
+          WHERE g.match_count > 0 AND p.deleted_at IS NULL
+          GROUP BY g.game ORDER BY COUNT(*) DESC, g.game`,
         []
       )
     ).map((g) => ({ id: g.game, name: gameName(g.game), players: Number(g.players) }));
-    const asked = typeof req.query.game === 'string' && req.query.game.trim() ? ratingGame(req.query.game) : null;
+    const asked =
+      typeof req.query.game === 'string' && req.query.game.trim()
+        ? ratingGame(req.query.game)
+        : null;
     const game = asked ?? games[0]?.id ?? null;
     if (!game) return res.json({ success: true, games, game: null, players: [] });
 
@@ -66,7 +72,7 @@ router.get('/', async (req: Request, res: Response) => {
          JOIN players p ON p.id = g.player_id
          LEFT JOIN player_rating_history h
            ON h.player_id = g.player_id AND LOWER(TRIM(COALESCE(h.game, 'cs2'))) = g.game
-        WHERE g.game = ? AND g.match_count > 0
+        WHERE g.game = ? AND g.match_count > 0 AND p.deleted_at IS NULL
         GROUP BY p.id, p.name, p.avatar_url, g.current_elo, g.match_count
         ORDER BY g.current_elo DESC, g.match_count DESC, p.name
         LIMIT ?`,

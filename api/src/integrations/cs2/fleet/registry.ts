@@ -10,6 +10,7 @@
  * (`mintRotationSecret`).
  */
 
+import type { Untrusted } from '../../../utils/untrusted';
 import type { PoolClient } from 'pg';
 import { db } from '../../../config/database';
 import {
@@ -22,7 +23,15 @@ import {
   ulid,
   verifySecret,
 } from './credentials';
-import type { Availability, EnrollRequest, Envelope, HostInfo, Versions } from './protocol/v1';
+import type {
+  Availability,
+  EnrollRequest,
+  Envelope,
+  HostInfo,
+  PingPayload,
+  Versions,
+  SelftestSummary,
+} from './protocol/v1';
 import { parseBusy, parseBusyReason } from './busyReason';
 import type { BusyReason } from './protocol/v1/types';
 import { nowS, parseJson } from './util';
@@ -154,8 +163,8 @@ export interface FleetServerView {
   peerAddr: string | null;
   /** The plugins it reported in its last hello (null: not reported, older Ready Up). */
   pluginsState: { installed: string[]; disabled: string[] } | null;
-  health: Record<string, unknown> | null;
-  selftest: Record<string, unknown> | null;
+  health: PingPayload['health'] | null;
+  selftest: SelftestSummary | null;
   protocol: number | null;
   connectedAt: number | null;
   lastSeen: number | null;
@@ -229,8 +238,8 @@ function toView(
     host: parseJson<HostInfo>(s.host),
     peerAddr: s.peer_addr ?? null,
     pluginsState: parseJson<{ installed: string[]; disabled: string[] }>(s.plugins_state ?? null),
-    health: parseJson<Record<string, unknown>>(s.health),
-    selftest: parseJson<Record<string, unknown>>(s.selftest),
+    health: parseJson<PingPayload['health']>(s.health),
+    selftest: parseJson<SelftestSummary>(s.selftest),
     protocol: s.protocol,
     connectedAt: s.connected_at,
     lastSeen: s.last_seen,
@@ -686,7 +695,7 @@ export type TokenCheck =
   | { ok: false; reason: 'bad' | 'revoked' };
 
 /** Check a `rus_…` token for the WS upgrade (FLEET.md §4.2). */
-export async function verifyServerToken(value: unknown): Promise<TokenCheck> {
+export async function verifyServerToken(value: Untrusted): Promise<TokenCheck> {
   const parsed = parseServerToken(value);
   if (!parsed) return { ok: false, reason: 'bad' };
   const token = await db.queryOneAsync<FleetTokenRow>(
@@ -851,7 +860,7 @@ export async function markConnected(
     versions: Versions;
     capabilities: string[];
     host: HostInfo;
-    selftest?: unknown;
+    selftest?: SelftestSummary;
     /** hello.plugins_state; absent = not reported (stored as NULL). */
     plugins_state?: { installed: string[]; disabled: string[] };
     protocol: number;
@@ -915,7 +924,7 @@ export async function setPeerAddr(serverId: string, peerAddr: string | null): Pr
   ]);
 }
 
-export async function markSeen(serverId: string, health?: unknown): Promise<void> {
+export async function markSeen(serverId: string, health?: PingPayload['health']): Promise<void> {
   await db.runAsync(
     `UPDATE cs2_fleet_servers SET last_seen = ?, health = COALESCE(?, health) WHERE id = ?`,
     [nowS(), health === undefined ? null : JSON.stringify(health), serverId]
@@ -1005,35 +1014,77 @@ export async function appendOutbox(
 }
 
 /**
- * The server lost what it had of our stream (a reset spool reports a lower
- * `last_rx_seq` than it acked before): renumber the pending messages to follow
- * `base`, the highest seq it has, so its receiver takes them in order again.
+ * The ids of queued match.assign / match.unassign messages that a newer
+ * assignment of the same match replaced. Only each match's newest epoch still
+ * means anything: t10-r1m4 once had 150 assign/unassign pairs queued, and the
+ * server played them all back.
  */
-export async function rebaseOutbox(serverId: string, base: number): Promise<void> {
-  await tx(async (c) => {
-    const rows = await c.query<{ seq: number; message: string; expires_at: number | null }>(
-      `DELETE FROM cs2_fleet_outbox WHERE server_id = $1 RETURNING seq, message, expires_at`,
-      [serverId]
-    );
-    const pending = [...rows.rows].sort((a, b) => Number(a.seq) - Number(b.seq));
-    let seq = base;
-    for (const row of pending) {
+export function supersededAssignments(queue: readonly Envelope[]): Set<string> {
+  const matchOf = (e: Envelope) =>
+    e.type === 'match.assign' || e.type === 'match.unassign'
+      ? (e.payload as { match_id?: string }).match_id
+      : undefined;
+  const newest = new Map<string, number>();
+  for (const e of queue) {
+    const id = matchOf(e);
+    if (id) newest.set(id, Math.max(newest.get(id) ?? 0, e.epoch ?? 0));
+  }
+  return new Set(
+    queue
+      .filter((e) => {
+        const id = matchOf(e);
+        return id !== undefined && (e.epoch ?? 0) < (newest.get(id) ?? 0);
+      })
+      .map((e) => e.id)
+  );
+}
+
+/**
+ * The server has processed less than it once acknowledged: its fleet state
+ * was reset (the spool cleared, a reinstall). It drops seqs out of order, so
+ * what is queued after the old numbering would never be taken. Renumber the
+ * queue from `lastRx + 1` and carry on from there, without the assignments a
+ * newer one replaced. Returns how many queued messages were kept. Same as
+ * hosts/registry.ts rebaseHostTx.
+ */
+export async function rebaseTx(serverId: string, lastRx: number): Promise<number> {
+  return tx(async (c) => {
+    const rows = (
+      await c.query<{ message: string; expires_at: number | null }>(
+        'SELECT message, expires_at FROM cs2_fleet_outbox WHERE server_id = $1 ORDER BY seq ASC',
+        [serverId]
+      )
+    ).rows;
+    await c.query('DELETE FROM cs2_fleet_outbox WHERE server_id = $1', [serverId]);
+    const queued = rows.map((row) => ({ ...row, envelope: JSON.parse(row.message) as Envelope }));
+    const stale = supersededAssignments(queued.map(({ envelope }) => envelope));
+    if (stale.size) {
+      await c.query(
+        `UPDATE cs2_fleet_commands SET status = 'expired', answered_at = $2
+          WHERE message_id = ANY($1) AND status = 'pending'`,
+        [[...stale], Math.floor(Date.now() / 1000)]
+      );
+    }
+    let seq = lastRx;
+    for (const { envelope, expires_at } of queued) {
+      if (stale.has(envelope.id)) continue;
       seq += 1;
-      const envelope = { ...(JSON.parse(row.message) as Envelope), seq };
+      envelope.seq = seq;
       await c.query(
         `INSERT INTO cs2_fleet_outbox (server_id, seq, type, message, expires_at) VALUES ($1, $2, $3, $4, $5)`,
-        [serverId, seq, envelope.type, JSON.stringify(envelope), row.expires_at]
+        [serverId, seq, envelope.type, JSON.stringify(envelope), expires_at]
       );
-      await c.query(`UPDATE cs2_fleet_commands SET seq = $1 WHERE message_id = $2`, [
+      await c.query('UPDATE cs2_fleet_commands SET seq = $1 WHERE message_id = $2', [
         seq,
         envelope.id,
       ]);
     }
-    await c.query(`UPDATE cs2_fleet_servers SET tx_seq = $2, tx_acked = $3 WHERE id = $1`, [
+    await c.query('UPDATE cs2_fleet_servers SET tx_seq = $2, tx_acked = $3 WHERE id = $1', [
       serverId,
       seq,
-      base,
+      lastRx,
     ]);
+    return seq - lastRx;
   });
 }
 

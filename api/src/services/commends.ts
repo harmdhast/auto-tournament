@@ -16,6 +16,7 @@ import { describeMatch, describedPlayers } from '../utils/matchIntegration';
 import { teamPlayers } from './matchViewer';
 import { COMMEND_WINDOW_SECONDS } from './matchmaking/progression';
 import type { GameId } from '../integrations/types';
+import { isOneOf, type Untrusted } from '../utils/untrusted';
 
 export const COMMEND_KINDS = ['friendly', 'leader', 'teacher', 'good_sport'] as const;
 export type CommendKind = (typeof COMMEND_KINDS)[number];
@@ -152,9 +153,9 @@ export async function setCommend(
   slug: string,
   giverId: string,
   receiverId: string,
-  kind: unknown
+  kind: Untrusted
 ): Promise<CommendState> {
-  if (kind !== null && !COMMEND_KINDS.includes(kind as CommendKind)) {
+  if (kind !== null && !isOneOf(COMMEND_KINDS, kind)) {
     throw new CommendError('Unknown commend', 400, 'bad_kind');
   }
   if (giverId === receiverId) {

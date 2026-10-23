@@ -13,7 +13,8 @@
  * answered with one generic message. Sign-ins and code use are audit-logged
  * ([AUDIT]), never with a password or code.
  */
-import { Router, Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { log } from '../utils/logger';
 import { isSameSiteRequest } from '../utils/accountConnections';
 import { LoginThrottle } from '../utils/loginThrottle';
@@ -40,6 +41,7 @@ import { playerEmailService } from '../services/playerEmailService';
 import { emailService } from '../services/emailService';
 import { deletePlayer } from '../services/playerModeration';
 import { isRootRequest, ROOT_ONLY } from '../utils/rootAccess';
+import type { Untrusted } from '../utils/untrusted';
 
 export const setupRouter = Router();
 export const localAuthRouter = Router();
@@ -76,7 +78,7 @@ function tooMany(res: Response, waitMs: number): Response {
 
 /** Sign `playerId` in: the Passport session and the signed player cookie, like the provider callbacks. */
 function signIn(req: Request, res: Response, playerId: string, username: string): Promise<void> {
-  const anyReq = req as Request & { login?: (user: unknown, cb: (err: unknown) => void) => void };
+  const anyReq = req as Request & { login?: (user: object, cb: (err: Untrusted) => void) => void };
   return new Promise((resolve, reject) => {
     if (!anyReq.login) return reject(new Error('Passport is not initialised'));
     anyReq.login({ provider: 'local', steamId: playerId, displayName: username }, (err) => {
@@ -146,7 +148,7 @@ setupRouter.post('/check', guardWrite, async (req: Request, res: Response) => {
   const ip = clientIp(req);
   const wait = setupThrottle.retryAfterMs(ip, 'setup');
   if (wait > 0) return tooMany(res, wait);
-  if (!(await localAdminService.checkCode((req.body as { code?: unknown })?.code))) {
+  if (!(await localAdminService.checkCode((req.body as { code?: Untrusted })?.code))) {
     setupThrottle.recordFailure(ip, 'setup');
     log.warn('[AUDIT] Wrong setup code entered', { ip });
     return res.status(400).json({ success: false, error: BAD_CODE });
@@ -187,7 +189,7 @@ setupRouter.post('/check', guardWrite, async (req: Request, res: Response) => {
  */
 setupRouter.post('/complete', guardWrite, async (req: Request, res: Response) => {
   if (!(await setupOpen(res))) return;
-  const body = (req.body ?? {}) as { code?: unknown; username?: unknown; password?: unknown };
+  const body = (req.body ?? {}) as { code?: Untrusted; username?: Untrusted; password?: Untrusted };
   const username = normalizeUsername(body.username);
   if (!username)
     return res.status(400).json({ success: false, error: 'Invalid username', problem: 'username' });
@@ -278,7 +280,7 @@ localAuthRouter.post('/login', guardWrite, async (req: Request, res: Response) =
   if (!(await adminAccessSettings.isLocalAdminLoginEnabled())) {
     return res.status(403).json({ success: false, error: 'Local admin login is turned off' });
   }
-  const body = (req.body ?? {}) as { username?: unknown; password?: unknown; totp?: unknown };
+  const body = (req.body ?? {}) as { username?: Untrusted; password?: Untrusted; totp?: Untrusted };
   const username = normalizeUsername(body.username);
   const ip = clientIp(req);
   const target = `user:${
@@ -420,7 +422,9 @@ localAuthRouter.post(
     const target = `totp:${playerId}`;
     const wait = loginThrottle.retryAfterMs(ip, target);
     if (wait > 0) return tooMany(res, wait);
-    if (!(await localAdminService.confirmTotp(playerId, (req.body as { code?: unknown })?.code))) {
+    if (
+      !(await localAdminService.confirmTotp(playerId, (req.body as { code?: Untrusted })?.code))
+    ) {
       loginThrottle.recordFailure(ip, target);
       return res.status(400).json({
         success: false,
@@ -466,7 +470,7 @@ localAuthRouter.post('/totp/disable', guardWrite, async (req: Request, res: Resp
     return res.status(404).json({ success: false, error: 'This account has no password login' });
   if (!row.totp_secret_enc) return res.json({ success: true });
 
-  const body = (req.body ?? {}) as { password?: unknown; totp?: unknown };
+  const body = (req.body ?? {}) as { password?: Untrusted; totp?: Untrusted };
   const ip = clientIp(req);
   const target = `user:${row.username}`;
   const wait = loginThrottle.retryAfterMs(ip, target);
@@ -536,7 +540,7 @@ localAuthRouter.post('/reauth', guardWrite, async (req: Request, res: Response) 
   if (!row)
     return res.status(404).json({ success: false, error: 'This account has no admin login' });
 
-  const body = (req.body ?? {}) as { password?: unknown; totp?: unknown };
+  const body = (req.body ?? {}) as { password?: Untrusted; totp?: Untrusted };
   const ip = clientIp(req);
   const target = `user:${row.username}`;
   const wait = loginThrottle.retryAfterMs(ip, target);
@@ -717,7 +721,7 @@ localAuthRouter.post(
     if (!challenge || challenge.playerId !== own.playerId) {
       return res.status(400).json({ success: false, error: 'Start again: that took too long' });
     }
-    const body = (req.body ?? {}) as { response?: unknown; name?: unknown };
+    const body = (req.body ?? {}) as { response?: Untrusted; name?: Untrusted };
     try {
       const result = await passkeyVerifier().verifyRegistration({
         rp,
@@ -918,9 +922,9 @@ localAuthRouter.post('/password', guardWrite, async (req: Request, res: Response
     return res.status(404).json({ success: false, error: 'This account has no password login' });
 
   const body = (req.body ?? {}) as {
-    currentPassword?: unknown;
-    newPassword?: unknown;
-    totp?: unknown;
+    currentPassword?: Untrusted;
+    newPassword?: Untrusted;
+    totp?: Untrusted;
   };
   const ip = clientIp(req);
   const target = `user:${row.username}`;
@@ -1026,7 +1030,7 @@ localAuthRouter.post('/forgot', guardWrite, async (req: Request, res: Response) 
  *         description: The link is wrong, used or expired, or the password is not accepted
  */
 localAuthRouter.post('/reset', guardWrite, async (req: Request, res: Response) => {
-  const body = (req.body ?? {}) as { token?: unknown; password?: unknown };
+  const body = (req.body ?? {}) as { token?: Untrusted; password?: Untrusted };
   const problem = passwordProblem('', body.password);
   if (problem)
     return res.status(400).json({ success: false, error: 'Password not accepted', problem });
@@ -1106,10 +1110,10 @@ localAccountsRouter.get('/', async (_req: Request, res: Response) => {
  */
 localAccountsRouter.post('/', guardWrite, async (req: Request, res: Response) => {
   const body = (req.body ?? {}) as {
-    username?: unknown;
-    password?: unknown;
-    name?: unknown;
-    isAdmin?: unknown;
+    username?: Untrusted;
+    password?: Untrusted;
+    name?: Untrusted;
+    isAdmin?: Untrusted;
   };
   const username = normalizeUsername(body.username);
   if (!username) return res.status(400).json({ success: false, error: USERNAME_RULE });

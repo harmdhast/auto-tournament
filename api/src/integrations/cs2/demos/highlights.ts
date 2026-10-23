@@ -1,5 +1,7 @@
+import { isShown } from './shown';
 import { recordingWaiting, recordingFailureSql, renewRecordingLeases } from './recorderLeases';
 import { recordingTargetFilter } from './recorderFleet';
+import { standInsFor } from './standIns';
 /**
  * Highlights: each player's best moments of a map, picked from its analysis
  * (./jobs.ts), and the clip the recorder (worker/, `at-worker record`) makes
@@ -40,6 +42,8 @@ import { reelFailoverFilter } from './reelFailover';
 import { log } from '../../../utils/logger';
 import type { DemoAnalysisPayload } from './jobs';
 import { runRedressQueue } from './redressQueue';
+import type { Untrusted } from '../../../utils/untrusted';
+import type { MomentKill } from './moments';
 
 export const HIGHLIGHTS_DIR = path.join(DATA_DIR, 'highlights');
 
@@ -84,23 +88,8 @@ const KNIFE = /^Knife/i;
 /** A recording that went quiet this long is handed out again. */
 export const MAX_ATTEMPTS = 3;
 
-interface KillRow {
-  tick: number;
-  round: number;
-  attacker: string | null;
-  victim: string;
-  weapon?: string;
-  headshot?: boolean;
-  penetrated?: boolean;
-  throughSmoke?: boolean;
-  /** CS2's kill feed marks: no scope, the killer flashed, in the air. */
-  noScope?: boolean;
-  attackerBlind?: boolean;
-  inAir?: boolean;
-  attackerSide?: string | null;
-  victimSide?: string | null;
-  opening?: boolean;
-}
+/** A kill of the analysis (worker/stats.go `Kill`). */
+type KillRow = MomentKill;
 
 export interface Moment {
   playerId: string;
@@ -137,10 +126,10 @@ export function pickMoments(
   perPlayer = PER_PLAYER,
   funnyPerPlayer = FUNNY_PER_PLAYER
 ): Moment[] {
-  const kills = (analysis.kills as unknown as KillRow[])
+  const kills = analysis.kills
     .filter((k) => k.attacker && k.attackerSide && k.attackerSide !== k.victimSide)
     .sort((a, b) => a.tick - b.tick);
-  const all = (analysis.kills as unknown as KillRow[]).slice().sort((a, b) => a.tick - b.tick);
+  const all = analysis.kills.slice().sort((a, b) => a.tick - b.tick);
   // How far a clip of a round may run: into the time after the round ends
   // (the game keeps playing until the next round starts), so a round-ending
   // kill still gets its tail and slow-mo. Capping at the round's end tick
@@ -575,8 +564,8 @@ export function nextPlayer(rows: { id: number; playerId: string }[]): number[] {
 }
 
 /** The map a claim says the recorder has loaded, or null. */
-export function loadedMapOf(raw: unknown): { matchSlug: string; mapNumber: number } | null {
-  const l = raw as { matchSlug?: unknown; mapNumber?: unknown } | null | undefined;
+export function loadedMapOf(raw: Untrusted): { matchSlug: string; mapNumber: number } | null {
+  const l = raw as { matchSlug?: Untrusted; mapNumber?: Untrusted } | null | undefined;
   if (!l || typeof l.matchSlug !== 'string' || !l.matchSlug) return null;
   const mapNumber = Number(l.mapNumber);
   return Number.isInteger(mapNumber) && mapNumber >= 0
@@ -665,6 +654,7 @@ export async function claimMapJob(
     // dressed clips.
     keepClean: (await settingsService.getSetting('highlights_keep_clean'))?.trim() !== '0',
     players,
+    standIns: await standInsFor(best.match_slug),
   };
 }
 
@@ -678,6 +668,8 @@ export interface MapRecordJob {
   /** Upload each clip's clean twin and overlay recipe too. */
   keepClean: boolean;
   players: RecordJob[];
+  /** A simulated match: SteamID64 -> the roster name its bot plays under (standIns.ts). */
+  standIns?: Record<string, string> | null;
 }
 
 /** One player's job: their moments on the map and everything their clips show. */
@@ -803,6 +795,8 @@ export interface ClipMarkers {
   slowmo: [number, number] | null;
   /** The kills the crowd reacts to (seconds in, how impressive): the reel's crowd track. */
   reactions?: { t: number; score: number; aww?: boolean }[];
+  /** For each of `kills`, whether it was a headshot (absent: not known). */
+  headshots?: boolean[];
   /**
    * The clip itself starts this far into its clean twin (worker/standalone.go:
    * on its own it skips the caption card's opening). The times above are the
@@ -819,20 +813,22 @@ export function markersOnItsOwn(m: ClipMarkers | null): ClipMarkers | null {
   const reactions = (m.reactions ?? [])
     .filter((x) => x.t >= at)
     .map((x) => ({ ...x, t: r(x.t - at) }));
+  const kept = m.kills.map((k) => k >= at);
   return {
     duration: r(Math.max(0, m.duration - at)),
-    kills: m.kills.filter((k) => k >= at).map((k) => r(k - at)),
+    kills: m.kills.filter((_k, i) => kept[i]).map((k) => r(k - at)),
     slowmo: m.slowmo ? [r(Math.max(0, m.slowmo[0] - at)), r(Math.max(0, m.slowmo[1] - at))] : null,
     ...(reactions.length ? { reactions } : {}),
+    ...(m.headshots ? { headshots: m.headshots.filter((_h, i) => kept[i]) } : {}),
   };
 }
 
 /** The recorder's `X-AT-Markers` header, checked; null when absent or wrong. */
-export function parseMarkers(raw: unknown): ClipMarkers | null {
+export function parseMarkers(raw: Untrusted): ClipMarkers | null {
   if (typeof raw !== 'string' || raw.length > 4000) return null;
   try {
     const m = JSON.parse(raw) as Partial<ClipMarkers>;
-    const num = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n >= 0;
+    const num = (n: Untrusted) => typeof n === 'number' && Number.isFinite(n) && n >= 0;
     if (!num(m.duration) || !Array.isArray(m.kills) || !m.kills.every(num)) return null;
     const slowmo =
       Array.isArray(m.slowmo) && m.slowmo.length === 2 && m.slowmo.every(num)
@@ -846,11 +842,19 @@ export function parseMarkers(raw: unknown): ClipMarkers | null {
           .map((x) => ({ t: r(x.t), score: r(x.score), ...(x.aww === true ? { aww: true } : {}) }))
       : [];
     const start = num(m.start) && m.start! < m.duration! ? r(m.start!) : 0;
+    const kills = m.kills.slice(0, 30);
+    const headshots =
+      Array.isArray(m.headshots) &&
+      m.headshots.length === m.kills.length &&
+      m.headshots.every((h) => typeof h === 'boolean')
+        ? (m.headshots.slice(0, 30) as boolean[])
+        : null;
     return {
       duration: r(m.duration!),
-      kills: m.kills.slice(0, 30).map(r),
+      kills: kills.map(r),
       slowmo: slowmo ? [r(slowmo[0]), r(slowmo[1])] : null,
       ...(reactions.length ? { reactions } : {}),
+      ...(headshots ? { headshots } : {}),
       ...(start > 0 ? { start } : {}),
     };
   } catch {
@@ -859,7 +863,7 @@ export function parseMarkers(raw: unknown): ClipMarkers | null {
 }
 
 /** The recorder's `X-AT-Clips` header: the highlight ids a reel joins, in order. */
-export function parseClipIds(raw: unknown): number[] | null {
+export function parseClipIds(raw: Untrusted): number[] | null {
   if (typeof raw !== 'string' || !/^\d+(,\d+){0,63}$/.test(raw)) return null;
   return raw.split(',').map(Number);
 }
@@ -868,7 +872,7 @@ export function parseClipIds(raw: unknown): number[] | null {
  * The recorder's `X-AT-Starts` header: where each clip of `X-AT-Clips` starts
  * in the reel, in seconds (after its intro, across its joins).
  */
-export function parseClipStarts(raw: unknown, clips: number): number[] | null {
+export function parseClipStarts(raw: Untrusted, clips: number): number[] | null {
   if (typeof raw !== 'string' || !/^\d+(\.\d+)?(,\d+(\.\d+)?){0,63}$/.test(raw)) return null;
   const starts = raw.split(',').map(Number);
   if (
@@ -1642,7 +1646,7 @@ export async function matchReels(matchSlug: string) {
     status: r.status,
     clips: r.clips === null ? null : Number(r.clips),
     video:
-      r.status === 'done' && r.clip_path
+      isShown(r.status, r.clip_path) && r.clip_path
         ? `/api/game/cs2/highlights/${encodeURIComponent(r.clip_path)}`
         : null,
   }));

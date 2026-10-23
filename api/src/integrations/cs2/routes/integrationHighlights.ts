@@ -8,19 +8,10 @@
 import { Router, type Request, type Response } from 'express';
 import { requireAuth, requireIntegratorAuth } from '../../../middleware/auth';
 import { log } from '../../../utils/logger';
-import { settingsService } from '../../../services/settingsService';
+import { publicOrigin } from '../../../utils/publicOrigin';
 import { backfillMoments, LIST_MAX, listMoments } from '../demos/momentStore';
 import { MOMENT_KINDS } from '../demos/moments';
-
-/** The platform's address (Settings → webhook URL), for absolute links; null without it. */
-async function platformOrigin(): Promise<string | null> {
-  const base = await settingsService.getWebhookUrl().catch(() => null);
-  try {
-    return base ? new URL(base).origin : null;
-  } catch {
-    return null;
-  }
-}
+import type { Untrusted } from '../../../utils/untrusted';
 
 export const integrationHighlightsRouter = Router();
 
@@ -121,7 +112,7 @@ integrationHighlightsRouter.use(requireIntegratorAuth);
  */
 integrationHighlightsRouter.get('/', async (req: Request, res: Response) => {
   const q = req.query;
-  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+  const str = (v: Untrusted) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
   const since = str(q.since);
   if (since !== undefined && !/^\d{1,18}$/.test(since)) {
     return res
@@ -150,7 +141,7 @@ integrationHighlightsRouter.get('/', async (req: Request, res: Response) => {
   try {
     const page = await listMoments(
       { since, limit, tournament, match: str(q.match), kinds },
-      await platformOrigin()
+      publicOrigin(req)
     );
     return res.json({ success: true, ...page });
   } catch (error) {
@@ -188,7 +179,7 @@ export const momentAdminRouter = Router();
  *       400: { description: A bad parameter }
  */
 momentAdminRouter.post('/moments/backfill', requireAuth, async (req: Request, res: Response) => {
-  const body = (req.body ?? {}) as Record<string, unknown>;
+  const body = (req.body ?? {}) as Record<string, Untrusted>;
   const match = typeof body.match === 'string' && body.match.trim() ? body.match.trim() : undefined;
   const tournament = body.tournament === undefined ? undefined : Number(body.tournament);
   if (tournament !== undefined && !(Number.isInteger(tournament) && tournament > 0)) {

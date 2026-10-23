@@ -1,3 +1,5 @@
+import { RowCoverLink } from '../team/MatchRowLinks';
+import { manageMatchPath } from '../../paths';
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { Row, RowList, SectionHead } from '../common/ui';
@@ -5,6 +7,7 @@ import { tokens } from '../../theme/tokens';
 import { KindDot } from './NeedsYouQueue';
 import { useTranslation } from 'react-i18next';
 import type { RecentEvent } from '../../utils/manageSelectors';
+import type { Untrusted } from '../../utils/untrusted';
 
 interface RecentLogProps {
   events: RecentEvent[];
@@ -12,7 +15,7 @@ interface RecentLogProps {
 
 function relativeTime(
   unixSeconds: number,
-  t: (key: string, opts?: Record<string, unknown>) => string
+  t: (key: string, opts?: Record<string, Untrusted>) => string
 ): string {
   const seconds = Math.max(0, Math.floor(Date.now() / 1000) - unixSeconds);
   if (seconds < 60) return t('managePage.needsYou.secondsAgo', { count: seconds });
@@ -50,7 +53,12 @@ export const RecentLog: React.FC<RecentLogProps> = ({ events }) => {
       ) : (
         <RowList>
           {events.map((event) => (
-            <Row key={event.id} columns="auto minmax(0, 1fr)">
+            <Row
+              key={event.id}
+              columns="auto minmax(0, 1fr)"
+              sx={{ position: 'relative', '&:hover': { bgcolor: 'action.hover' } }}
+            >
+              <RowCoverLink to={manageMatchPath(event.slug)} label={event.title} />
               <KindDot color={tokens.color.muted} />
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body1" fontWeight={600}>

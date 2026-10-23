@@ -1,6 +1,7 @@
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { serverService } from '../services/serverService';
-import { CreateServerInput, UpdateServerInput } from '../../../types/server.types';
+import type { CreateServerInput, UpdateServerInput } from '../../../types/server.types';
 import { requireAuth } from '../../../middleware/auth';
 import { requireRconEnabled } from '../rconEnabled';
 import { scheduler } from '../../../core/scheduler';

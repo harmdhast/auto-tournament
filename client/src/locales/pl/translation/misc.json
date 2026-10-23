@@ -327,6 +327,39 @@
       "title": "Znajdź graczy i drużyny",
       "hint": "Zobacz, kto tu gra, i znajdź drużynę.",
       "cta": "Zobacz graczy"
+    },
+    "next": {
+      "label": {
+        "vetoTurn": "Your turn in the veto",
+        "ready": "Your match is ready",
+        "warmup": "Warmup",
+        "live": "Live",
+        "paused": "Match paused"
+      },
+      "opponent": "Opponent playing",
+      "startsAt": "Starts at",
+      "untilVeto": "Until the veto",
+      "untilMatch": "Until the match",
+      "veto": "Veto",
+      "yourTurn": "Your turn",
+      "ban": "Ban a map",
+      "pick": "Pick a map",
+      "side": "Pick a side",
+      "theirTurn": "Their turn",
+      "vetoOpen": "Veto open",
+      "waiting": "Waiting",
+      "forServer": "For a server",
+      "join": "Join",
+      "serverReady": "Server ready",
+      "ready": "Ready",
+      "mapRound": "{{map}} · R{{round}}",
+      "round": "Round {{round}}",
+      "halftime": "Half-time",
+      "nextMap": "Next map",
+      "goVeto": "Go to veto",
+      "paused": "Paused",
+      "about": "~{{minutes}} min",
+      "joinServer": "Join the server"
     }
   },
   "browsePage": {
@@ -523,6 +556,16 @@
     "signInNeed": {
       "body": "{{game}} players sign in with {{provider}}, and {{provider}} sign-in is turned off. They can't link the account the game needs.",
       "action": "Turn it on"
+    },
+    "addons": {
+      "title": "Add-ons",
+      "hint": "Features beside the games. Turning one on or off takes effect at once.",
+      "open": "Open",
+      "toggle": "{{name}} on or off",
+      "toggleFailed": "Could not change the add-on.",
+      "startFailed": "On, but it did not start: {{error}}",
+      "notFound": "There is no such add-on.",
+      "off": "This add-on is off. Turn it on under Modules to set it up."
     }
   },
   "catalog": {
@@ -889,6 +932,11 @@
     "tabMatch": "Match",
     "tabTeam": "Team",
     "tabParty": "Party",
+    "tabDm": "Wiadomość prywatna",
+    "dmWho": "Czytacie to tylko wy dwoje",
+    "placeholderDm": "Napisz do {{name}}",
+    "friends": "Znajomi",
+    "messageFriend": "Napisz do {{name}}",
     "matchWho": "Your team, {{title}} and the admins",
     "matchWhoAdmin": "Both teams and the admins",
     "teamWho": "Everyone on {{team}}",
@@ -1109,6 +1157,18 @@
       "tournamentReelMax": "Clips in a tournament reel",
       "tournamentReelPerPlayer": "Clips per player in a tournament reel",
       "range": "{{min}} to {{max}}"
+    },
+    "preset": {
+      "label": "Video quality",
+      "smooth": "Smooth (recommended): 720p, 240 fps",
+      "crisp": "Crisp: 1080p, 120 fps",
+      "lan": "LAN, maximum: 1440p, 240 fps, 60 Mbit/s",
+      "custom": "Custom"
+    },
+    "bitrate": {
+      "label": "Bitrate",
+      "auto": "Automatic (recommended)",
+      "option": "{{mbps}} Mbit/s"
     }
   },
   "update": {
@@ -1148,5 +1208,11 @@
   },
   "siteFooter": {
     "trademarks": "Counter-Strike, CS2 and Steam are trademarks of Valve Corporation. Other game names are trademarks of their owners. Auto Tournament is not affiliated with or endorsed by Valve or any game publisher."
+  },
+  "discordNotice": {
+    "link": "Link your Discord account so the bot can move you into your team's voice channel and find you in your team's channel.",
+    "linkAction": "Link Discord",
+    "join": "Join our Discord server. Your team's channels and match cards are there.",
+    "joinAction": "Join the server"
   }
 }

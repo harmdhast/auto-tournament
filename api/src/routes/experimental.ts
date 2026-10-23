@@ -2,7 +2,8 @@
  * Experimental features (services/experimentalFeatures): list them and turn
  * one on or off. Admin only; writes must be same-site JSON.
  */
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { isSameSiteRequest } from '../utils/accountConnections';
 import { log } from '../utils/logger';
@@ -12,6 +13,7 @@ import {
   setExperimentalFeature,
   type ExperimentalFeatureId,
 } from '../services/experimentalFeatures';
+import type { Untrusted } from '../utils/untrusted';
 
 const router = Router();
 
@@ -75,7 +77,7 @@ router.put('/:id', async (req: Request, res: Response) => {
   if (!feature) {
     return res.status(404).json({ success: false, error: 'Unknown experimental feature' });
   }
-  const enabled = (req.body as { enabled?: unknown } | undefined)?.enabled;
+  const enabled = (req.body as { enabled?: Untrusted } | undefined)?.enabled;
   if (typeof enabled !== 'boolean') {
     return res.status(400).json({ success: false, error: '`enabled` must be true or false' });
   }

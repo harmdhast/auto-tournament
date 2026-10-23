@@ -19,6 +19,7 @@ import { db } from '../config/database';
 import { emitTournamentUpdate } from './socketService';
 import { builtinGames } from './gameCatalogService';
 import { teamMembers } from './teamMembers';
+import type { Untrusted } from '../utils/untrusted';
 
 export const MAX_SUBS = 2;
 
@@ -93,8 +94,8 @@ function parse<T>(raw: string | null | undefined, fallback: T): T {
 }
 
 function windowOf(row: TournamentRow): SignupWindow {
-  const s = parse<Record<string, unknown>>(row.settings, {});
-  const iso = (v: unknown) => (typeof v === 'string' && v.trim() ? v : null);
+  const s = parse<Record<string, Untrusted>>(row.settings, {});
+  const iso = (v: Untrusted) => (typeof v === 'string' && v.trim() ? v : null);
   return {
     registrationOpen: s.registrationOpen === true,
     registrationClosesAt: iso(s.registrationClosesAt),
@@ -190,6 +191,27 @@ async function rejectBlocked(ids: string[]): Promise<void> {
       400,
       `${blocked.map((b) => b.name).join(', ')} cannot play: banned or deleted.`,
       'blocked'
+    );
+  }
+}
+
+/** A player plays for one team in a tournament: refuse one already in another team's lineup. */
+async function rejectOtherLineups(
+  tournamentId: number,
+  teamId: string,
+  ids: string[]
+): Promise<void> {
+  if (ids.length === 0) return;
+  const taken = await db.queryAsync<{ player_id: string; name: string | null }>(
+    `SELECT l.player_id, p.name FROM tournament_lineups l LEFT JOIN players p ON p.id = l.player_id
+     WHERE l.tournament_id = ? AND l.team_id <> ? AND l.player_id = ANY(?::text[])`,
+    [tournamentId, teamId, ids]
+  );
+  if (taken.length) {
+    throw new SignupError(
+      409,
+      `${taken.map((r) => r.name || r.player_id).join(', ')} already plays for another team in this tournament.`,
+      'other_team'
     );
   }
 }
@@ -660,6 +682,7 @@ export const tournamentSignupService = {
       input.subs,
       tournament.team_size ?? 5
     );
+    await rejectOtherLineups(tournamentId, input.teamId, [...input.starters, ...input.subs]);
 
     await db.runAsync(
       `INSERT INTO tournament_registrations (tournament_id, team_id, registered_by_uid, rules_accepted_at)
@@ -696,6 +719,7 @@ export const tournamentSignupService = {
       input.subs,
       tournament.team_size ?? 5
     );
+    await rejectOtherLineups(tournamentId, input.teamId, [...input.starters, ...input.subs]);
     await writeLineup(tournamentId, input.teamId, input.starters, input.subs);
     if (gap) await lineupPicked(tournamentId, input.teamId);
     emitTournamentUpdate({ id: tournamentId, action: 'tournament_updated' });

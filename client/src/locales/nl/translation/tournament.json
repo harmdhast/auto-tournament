@@ -607,6 +607,8 @@
         "teamsPlanned": "{{count}} planned",
         "matches": "Matches",
         "matchesAfterSignUp": "After sign-up",
+        "duration": "Duurt ongeveer",
+        "durationValue": "{{hours}} u {{minutes}} min",
         "signUp": "Sign-up",
         "signUpOrganizer": "Picked by organiser",
         "signUpAfterCreate": "Opens after creating",
@@ -784,6 +786,12 @@
       "enterFullscreen": "Volledig scherm",
       "exitFullscreen": "Volledig scherm afsluiten",
       "shuffleNoVisual": "Shuffle-toernooien hebben geen visueel schema; gebruik de lijstweergave."
+    },
+    "times": {
+      "toggle": "Tijden instellen",
+      "startsAt": "Begint om",
+      "clear": "Tijd van de ronde gebruiken",
+      "save": "Opslaan"
     },
     "shuffleEmpty": {
       "title": "Geen schema voor shuffle-toernooien",
@@ -1205,11 +1213,12 @@
     "wonBody": "Your team won the tournament. Well played!",
     "close": "Close",
     "seeBracket": "See the bracket",
-    "outBodyPlay": "You have no more matches in this tournament. Thanks for playing! Fancy another game? Matchmaking puts you in a match in a minute or two.",
+    "outBodyPlay": "You have no more matches in this tournament. Thanks for playing!",
     "championsEyebrow": "Champions",
     "teamPlaced": "{{team}} placed",
     "wonTitleShort": "You won {{tournament}}!",
-    "wonFinalBody": "{{team}} won the final {{score}}. Well played!"
+    "wonFinalBody": "{{team}} won the final {{score}}. Well played!",
+    "playHint": "Fancy another game? Matchmaking puts you in a match in a minute or two."
   },
   "whatsNext": {
     "eyebrow": "What's next",
@@ -1413,7 +1422,8 @@
     "eta": {
       "nextRoundAbout": "Next round about {{time}}",
       "nextRoundAt": "Next round at {{time}}",
-      "finalEnds": "Final round: ends about {{time}}"
+      "finalEnds": "Final round: ends about {{time}}",
+      "endsAbout": "klaar rond {{time}}"
     }
   },
   "matchesCards": {
@@ -1642,7 +1652,10 @@
     "breakAfterRound": "After round",
     "breakMinutes": "Break (min)",
     "breakRemove": "Remove",
-    "breakAdd": "Add a longer break"
+    "breakAdd": "Add a longer break",
+    "fillStart": "First round at",
+    "fillEvery": "Minutes between rounds",
+    "fillApply": "Fill in the rounds"
   },
   "groups": {
     "groupN": "Group {{letter}}",

@@ -16,6 +16,7 @@ import {
   type IssuedBy,
 } from '../fleet/driver';
 import type { CmdName } from '../fleet/protocol/v1';
+import type { Untrusted } from '../../../utils/untrusted';
 import { hasControlChars } from '../fleet/push/settings';
 import type { ServerTransport } from '../../../types/server.types';
 
@@ -92,7 +93,7 @@ export async function answerWithFleetCommand(
   res: Response,
   serverId: string,
   name: CmdName,
-  args: Record<string, unknown> = {}
+  args: object = {}
 ): Promise<void> {
   const outcome = await runFleetCommand(serverId, name, args, issuedBy(req));
   res.status(outcome.httpStatus).json(fleetResponseBody(outcome));
@@ -144,11 +145,11 @@ export async function fleetExec(
  */
 export function fleetCommandFor(input: {
   command: string;
-  message?: unknown;
-  round?: unknown;
-  value?: unknown;
-  map?: unknown;
-}): { name: CmdName; args: Record<string, unknown> } | null {
+  message?: Untrusted;
+  round?: Untrusted;
+  value?: Untrusted;
+  map?: Untrusted;
+}): { name: CmdName; args: object } | null {
   const base = input.command.replace(/^css_/, '').split(' ')[0];
   switch (base) {
     case 'pause':

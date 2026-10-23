@@ -1,5 +1,6 @@
 import { logoUrl } from '../services/teamSelfService';
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { RATING_ELO, ratingGame, ratingJoin } from '../services/gameRatings';
 import { db } from '../config/database';
 import { matchTimeFields } from '../services/matchTimes';
@@ -18,6 +19,7 @@ import { log } from '../utils/logger';
 import { resolveTournamentId } from '../utils/tournamentRow';
 import { NEEDS_DECISION_STATUS } from '../utils/matchStatusHelpers';
 import { CURRENT_MATCH_ORDER, CURRENT_MATCH_TOURNAMENT_JOIN } from '../utils/currentMatchOrder';
+import type { Untrusted } from '../utils/untrusted';
 
 const router = Router();
 
@@ -92,7 +94,7 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
       try {
         const playersObj = JSON.parse(team.players);
         // Convert {index: {name, steamId, avatar}} to [{steamId, name, avatar}]
-        parsedPlayers = Object.values(playersObj).map((playerData: unknown) => {
+        parsedPlayers = Object.values(playersObj).map((playerData: Untrusted) => {
           if (typeof playerData === 'string') {
             // Old format: {steamId: name}
             return { steamId: 'unknown', name: playerData };
@@ -252,6 +254,8 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
         sideTeam2?: string;
         knifeRound?: boolean;
       }>;
+      currentTurn: 'team1' | 'team2' | null;
+      currentAction: string | null;
       actions: Array<{
         step: number;
         team: 'team1' | 'team2';
@@ -280,6 +284,13 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
             team1Name: vetoState.team1Name || match.team1_name || 'Team 1',
             team2Name: vetoState.team2Name || match.team2_name || 'Team 2',
             pickedMaps: orderedPickedMaps,
+            // Whose turn it is and what they do ('ban', 'pick', 'side_pick'), while it runs.
+            currentTurn:
+              vetoState.currentTurn === 'team1' || vetoState.currentTurn === 'team2'
+                ? vetoState.currentTurn
+                : null,
+            currentAction:
+              typeof vetoState.currentAction === 'string' ? vetoState.currentAction : null,
             actions: Array.isArray(vetoState.actions)
               ? [...vetoState.actions].sort(
                   (a: { step?: number }, b: { step?: number }) => (a.step || 0) - (b.step || 0)
@@ -296,7 +307,7 @@ router.get('/:teamId/match', async (req: Request, res: Response) => {
     const tournament = await db.queryOneAsync<{
       status: string;
       format: string;
-      settings: string | Record<string, unknown> | null;
+      settings: string | Record<string, Untrusted> | null;
       team_size: number | null;
     }>('SELECT status, format, settings, team_size FROM tournament WHERE id = ?', [
       match.tournament_id,

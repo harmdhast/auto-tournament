@@ -5,13 +5,15 @@
  */
 import { ChannelError, notifyChannels } from '../services/notifyChannels';
 import { PushError, webPush } from '../services/webPush';
-import { Router, Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { resolveViewerIdentity } from '../utils/viewerIdentity';
 import { isSameSiteRequest } from '../utils/accountConnections';
 import { log } from '../utils/logger';
 import { socialService, SocialError } from '../services/socialService';
 import { notificationService } from '../services/notificationService';
+import type { Untrusted } from '../utils/untrusted';
 
 const router = Router();
 
@@ -46,7 +48,7 @@ function sameSiteJson(req: Request, res: Response, next: NextFunction): void {
 
 const me = (req: Request) => (req as PlayerRequest).socialPlayerId!;
 
-function handle(what: string, fn: (req: Request, res: Response) => Promise<unknown>) {
+function handle(what: string, fn: (req: Request, res: Response) => Promise<Response | void>) {
   return async (req: Request, res: Response) => {
     try {
       return await fn(req, res);
@@ -388,7 +390,7 @@ router.put(
  *             type: object
  *             required: [event, channel, on]
  *             properties:
- *               event: { type: string, enum: [match_ready, veto_turn, checkin_open, new_tournament] }
+ *               event: { type: string, enum: [match_ready, veto_turn, checkin_open, new_tournament, tournament_starting, direct_message] }
  *               channel: { type: string, enum: [discord, email, push] }
  *               on: { type: boolean }
  *     responses:
@@ -408,7 +410,7 @@ router.put(
   requirePlayer,
   sameSiteJson,
   handle('save where you get notifications', async (req, res) => {
-    const body = (req.body ?? {}) as { event?: unknown; channel?: unknown; on?: unknown };
+    const body = (req.body ?? {}) as { event?: Untrusted; channel?: Untrusted; on?: Untrusted };
     return res.json({
       success: true,
       ...(await notifyChannels.set(me(req), body.event, body.channel, body.on)),
@@ -471,7 +473,7 @@ router.delete(
     try {
       await webPush.unsubscribe(
         me(req),
-        (req.body as { endpoint?: unknown } | undefined)?.endpoint
+        (req.body as { endpoint?: Untrusted } | undefined)?.endpoint
       );
     } catch (error) {
       if (error instanceof PushError)

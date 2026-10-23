@@ -1,14 +1,15 @@
 /**
  * The Auto Tournament license key (services/license/licenseService.ts).
- * Admin only, except the public badge. Writes must be same-site JSON, and a
- * read-only API token cannot write. The key is never returned or logged.
+ * Admin only, except the public badge. Writes must be same-site JSON from a
+ * signed-in admin: no API token can write. The key is never returned or logged.
  *
  * Nothing here blocks anything: a missing or problematic key is a notice for
  * admins, never a lockout. The one required step is accepting the license
  * terms (/api/license/consent), and only the admin UI waits for it.
  */
 
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { requireAuth, requestActorId, type AuthedRequest } from '../middleware/auth';
 import { isSameSiteRequest } from '../utils/accountConnections';
 import { log } from '../utils/logger';
@@ -22,14 +23,24 @@ import {
   parseLicenseUse,
 } from '../services/license/consent';
 import { DECLARATION_ANSWERS, type EventPromptAction } from '../services/license/checkin';
+import type { Untrusted } from '../utils/untrusted';
 
 const router = Router();
 
 /**
  * Same-site JSON only, like the catalog's and the system routes' writes. A
- * DELETE carries no body, so it only has to be same-site.
+ * DELETE carries no body, so it only has to be same-site. And a person: the
+ * license is the admin's own decision, so an API token (a bot, an AI through
+ * the MCP) cannot change it, e.g. to "fix" a full license by going free.
  */
 function refuseWrite(req: Request, res: Response): boolean {
+  if ((req as AuthedRequest).serviceToken) {
+    res.status(403).json({
+      success: false,
+      error: 'An API token cannot change the license. An admin does this in Manage → License.',
+    });
+    return true;
+  }
   if (!isSameSiteRequest(req)) {
     res.status(403).json({ success: false, error: 'Request refused' });
     return true;
@@ -162,7 +173,7 @@ async function useFollowsKey(
 
 router.put('/', async (req: Request, res: Response) => {
   if (refuseWrite(req, res)) return;
-  const key = (req.body as { key?: unknown } | undefined)?.key;
+  const key = (req.body as { key?: Untrusted } | undefined)?.key;
   const problem = keyInputProblem(key);
   if (problem) return res.status(400).json({ success: false, error: problem });
   try {
@@ -224,7 +235,7 @@ const EVENT_PROMPT_ACTIONS: readonly EventPromptAction[] = [
  */
 router.post('/event-prompt', async (req: Request, res: Response) => {
   if (refuseWrite(req, res)) return;
-  const action = (req.body as { action?: unknown } | undefined)?.action;
+  const action = (req.body as { action?: Untrusted } | undefined)?.action;
   if (typeof action !== 'string' || !(EVENT_PROMPT_ACTIONS as readonly string[]).includes(action)) {
     return res
       .status(400)
@@ -328,7 +339,6 @@ router.get('/consent', async (_req: Request, res: Response) => {
 });
 
 router.post('/consent', async (req: Request, res: Response) => {
-  if (refuseWrite(req, res)) return;
   if ((req as AuthedRequest).serviceToken) {
     return res.status(403).json({
       success: false,
@@ -336,12 +346,13 @@ router.post('/consent', async (req: Request, res: Response) => {
         'An API token cannot accept the license terms. Sign in as an admin, or set AT_ACCEPT_LICENSE.',
     });
   }
+  if (refuseWrite(req, res)) return;
   const body = (req.body ?? {}) as {
-    use?: unknown;
-    confirm?: unknown;
-    key?: unknown;
-    termsVersion?: unknown;
-    read?: unknown;
+    use?: Untrusted;
+    confirm?: Untrusted;
+    key?: Untrusted;
+    termsVersion?: Untrusted;
+    read?: Untrusted;
   };
   const use = parseLicenseUse(body.use);
   if (!use) {

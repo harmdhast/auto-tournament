@@ -5,6 +5,7 @@
 
 import type { BracketMatch } from './tournament.types';
 import type { DbMatchRow } from './database.types';
+import type { Untrusted } from '../utils/untrusted';
 
 /**
  * Tournament update event
@@ -12,7 +13,7 @@ import type { DbMatchRow } from './database.types';
 export interface TournamentUpdateEvent {
   id?: number;
   status?: string;
-  [key: string]: unknown;
+  [key: string]: Untrusted;
 }
 
 /**
@@ -22,18 +23,21 @@ export interface BracketUpdateEvent {
   action: 'server_assigned' | 'match_loaded' | 'match_restarted' | 'tournament_started' | string;
   matchSlug?: string;
   serverId?: string;
-  [key: string]: unknown;
+  [key: string]: Untrusted;
 }
 
 /**
  * Match update event - can be BracketMatch, DbMatchRow, or partial match data
  */
-export type MatchUpdateEvent = Partial<BracketMatch> | Partial<DbMatchRow> | {
-  id?: number;
-  slug?: string;
-  status?: string;
-  [key: string]: unknown;
-};
+export type MatchUpdateEvent =
+  | Partial<BracketMatch>
+  | Partial<DbMatchRow>
+  | {
+      id?: number;
+      slug?: string;
+      status?: string;
+      [key: string]: Untrusted;
+    };
 
 /**
  * Match event (live stats)
@@ -64,7 +68,7 @@ export interface GameWebhookEvent {
 export interface PlayerConnectionEvent {
   slug: string;
   connectionStatus: 'waiting' | 'partial' | 'ready' | 'complete';
-  [key: string]: unknown;
+  [key: string]: Untrusted;
 }
 
 /**
@@ -73,7 +77,7 @@ export interface PlayerConnectionEvent {
 export interface ServerEvent {
   serverId: string;
   event?: string;
-  [key: string]: unknown;
+  [key: string]: Untrusted;
 }
 
 /**
@@ -81,16 +85,15 @@ export interface ServerEvent {
  */
 export interface VetoUpdateEvent {
   matchSlug: string;
+  /** The whole veto state; the fields listed are the ones the client reads. */
   veto: {
-    status?: 'in_progress' | 'completed';
+    status?: 'pending' | 'in_progress' | 'completed';
     pickedMaps?: Array<{
       mapName: string;
       mapNumber: number;
       sideTeam1?: 'CT' | 'T';
     }>;
-    [key: string]: unknown;
   } | null;
 }
-
 
 export type { CompatUpdateEvent } from './compat.types';

@@ -93,6 +93,10 @@
     "yourMatch": "Kampen din",
     "tabs": {
       "overview": "Oversikt"
+    },
+    "shownTeam": {
+      "label": "Lag som vises på profilen",
+      "failed": "Kunne ikke lagre laget"
     }
   },
   "teamPage": {
@@ -547,7 +551,10 @@
     "bestMap": "Best: {{map}}",
     "new": "Nytt",
     "lookingFor_one": "Søker {{count}}",
-    "lookingFor_other": "Søker {{count}}"
+    "lookingFor_other": "Søker {{count}}",
+    "anotherTitle": "Lag et lag til",
+    "anotherBody_one": "Du kan eie {{max}} lag. Du har plass til ett til.",
+    "anotherBody_other": "Du kan eie {{max}} lag. Du har plass til {{count}} til."
   },
   "teamManage": {
     "title": "Administrer laget",
@@ -650,6 +657,8 @@
     "readyIn": "klar om omtrent {{minutes}} min",
     "reelBadge": "SAMMENDRAG",
     "player": {
+      "death": "Døde",
+      "buffering": "Laster inn videoen",
       "play": "Spill av",
       "pause": "Pause",
       "back": "5 sekunder tilbake",

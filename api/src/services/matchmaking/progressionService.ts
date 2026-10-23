@@ -17,6 +17,7 @@ import {
   xpForMatch,
   type XpReason,
 } from './progression';
+import type { Untrusted } from '../../utils/untrusted';
 
 export class ProgressionError extends Error {
   constructor(
@@ -207,7 +208,7 @@ export const progressionService = {
     fromId: string,
     matchSlug: string,
     toId: string,
-    body: unknown
+    body: Untrusted
   ): Promise<{ value: 1 | -1; tag: string | null }> {
     const parsed = parseCommend(body);
     if (!parsed.ok) throw new ProgressionError(400, parsed.error);
@@ -384,7 +385,7 @@ export const progressionService = {
          FROM mm_ratings r
          JOIN players p ON p.id = r.player_id
          LEFT JOIN player_progress pp ON pp.player_id = r.player_id
-        WHERE r.game = 'cs2' AND r.mode = ?
+        WHERE r.game = 'cs2' AND r.mode = ? AND p.deleted_at IS NULL
           AND (SELECT COUNT(*) FROM mm_rating_history h
                 WHERE h.player_id = r.player_id AND h.mode = r.mode AND h.created_at > ?) >= ?
         ORDER BY (r.mu - 3 * r.sigma) DESC, r.games DESC

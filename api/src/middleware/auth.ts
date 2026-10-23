@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { log } from '../utils/logger';
 import { db } from '../config/database';
 import { getVerifiedPlayerSteamId } from '../utils/signedPlayerCookie';
@@ -11,6 +11,7 @@ import {
   isReadOnlyMethod,
   type ServiceTokenScope,
 } from '../utils/serviceTokens';
+import type { Untrusted } from '../utils/untrusted';
 
 /**
  * Authentication middleware for admin routes.
@@ -138,7 +139,7 @@ export type AdminAccessResult =
       error: string;
       /** Written to the auth-failure log. */
       logReason: string;
-      cause?: unknown;
+      cause?: Untrusted;
     };
 
 export async function checkAdminAccess(req: Request): Promise<AdminAccessResult> {

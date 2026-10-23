@@ -93,6 +93,10 @@
     "yourMatch": "Your match",
     "tabs": {
       "overview": "Overview"
+    },
+    "shownTeam": {
+      "label": "Team shown on your profile",
+      "failed": "Could not save the team"
     }
   },
   "teamPage": {
@@ -547,7 +551,10 @@
     "bestMap": "Best: {{map}}",
     "new": "New",
     "lookingFor_one": "Looking for {{count}}",
-    "lookingFor_other": "Looking for {{count}}"
+    "lookingFor_other": "Looking for {{count}}",
+    "anotherTitle": "Make another team",
+    "anotherBody_one": "You can own {{max}} teams. One more fits.",
+    "anotherBody_other": "You can own {{max}} teams. {{count}} more fit."
   },
   "teamManage": {
     "title": "Manage your team",
@@ -650,6 +657,8 @@
     "readyIn": "ready in about {{minutes}} min",
     "reelBadge": "REEL",
     "player": {
+      "death": "Died",
+      "buffering": "Loading the video",
       "play": "Play",
       "pause": "Pause",
       "back": "Back 5 seconds",

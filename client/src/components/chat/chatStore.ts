@@ -13,11 +13,11 @@
  * (or the `at:open-chat` window event with `{ channel, title }` as its detail).
  */
 import { useEffect, useSyncExternalStore } from 'react';
-import { io, type Socket } from 'socket.io-client';
+import { currentSocket, listenShared, type SocketHandler } from '../../utils/sharedSocket';
 import { addTypist, removeTypist, shouldSendTyping, SHOW_MS, type Typing } from './typing';
 import { api } from '../../utils/api';
 
-export type ChatKind = 'match' | 'team' | 'party';
+export type ChatKind = 'match' | 'team' | 'party' | 'dm';
 
 export interface ChatMessage {
   id: number;
@@ -74,7 +74,8 @@ const LIST_SETTLE_MS = 500;
 
 let state: State = { channels: [], threads: {}, open: false, active: null, peek: null, typing: {} };
 const listeners = new Set<() => void>();
-let socket: Socket | null = null;
+/** Stops this store's handlers on the page's shared socket. */
+let stopSocket: (() => void) | null = null;
 let users = 0;
 let listTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -109,10 +110,11 @@ export async function refreshChannels(): Promise<void> {
   try {
     const body = await api.get<{ channels: ChatChannel[] }>('/api/chat/channels');
     const channels = body.channels ?? [];
-    // An admin's match chat opened from match details is not one of theirs: keep its tab.
+    // An admin's match chat opened from match details is not one of theirs, and a DM with
+    // no messages yet is not listed: keep its tab.
     const extra = state.channels.filter(
       (c) =>
-        c.kind === 'match' &&
+        (c.kind === 'match' || c.kind === 'dm') &&
         !channels.some((x) => x.channel === c.channel) &&
         c.channel === state.active
     );
@@ -262,15 +264,16 @@ function playChatSound() {
 }
 
 function openSocket() {
-  if (socket) return;
-  socket = io({ autoConnect: true });
-  socket.on('connect', () => {
-    if (viewer.steamId) socket?.emit('player:subscribe');
-    if (viewer.isAdmin) socket?.emit('admin:subscribe');
+  if (stopSocket) return;
+  const handlers: SocketHandler[] = [];
+  const on = (event: string, fn: SocketHandler[1]) => handlers.push([event, fn]);
+  on('connect', () => {
+    if (viewer.steamId) currentSocket().emit('player:subscribe');
+    if (viewer.isAdmin) currentSocket().emit('admin:subscribe');
     void refreshChannels();
     if (state.open && state.active) void loadMessages(state.active);
   });
-  socket.on('chat:message', (message: ChatMessage) => receive(message));
+  on('chat:message', (message: ChatMessage) => receive(message));
   // Channels come and go with matches, parties, teams and tournaments: the
   // list is re-read when one of those changes, not on a timer.
   for (const event of [
@@ -280,10 +283,10 @@ function openSocket() {
     'mm:changed',
     'social:changed',
   ]) {
-    socket.on(event, refreshChannelsSoon);
+    on(event, refreshChannelsSoon);
   }
   // Admins: a call puts its match chat in the dock and opens it; a claim or resolve updates it.
-  socket.on(
+  on(
     'admin:call',
     (call: { matchSlug?: string | null; team1Name?: string | null; team2Name?: string | null }) => {
       if (!viewer.isAdmin || !call?.matchSlug) return;
@@ -293,16 +296,17 @@ function openSocket() {
     }
   );
   for (const event of ['admin:call:claimed', 'admin:call:resolved']) {
-    socket.on(event, () => {
+    on(event, () => {
       if (viewer.isAdmin) refreshChannelsSoon();
     });
   }
-  socket.on('chat:typing', (who: { channel: string; playerId: string; name: string }) => {
+  on('chat:typing', (who: { channel: string; playerId: string; name: string }) => {
     if (!who?.channel || who.playerId === viewer.steamId) return;
     set({ typing: addTypist(state.typing, who.channel, who, Date.now()) });
     // Re-render once it has run out, so the line goes away.
     setTimeout(() => set({ typing: { ...state.typing } }), SHOW_MS + 50);
   });
+  stopSocket = listenShared(handlers);
 }
 
 let typingSentAt = 0;
@@ -319,19 +323,26 @@ export function notifyTyping(channel: string): void {
 }
 
 function closeSocket() {
-  socket?.close();
-  socket = null;
+  stopSocket?.();
+  stopSocket = null;
+}
+
+/** Two friends' DM channel (the API's `dm:<id>:<id>`, the IDs in order). */
+export function dmChannel(a: string, b: string): string {
+  return `dm:${[a, b].sort().join(':')}`;
 }
 
 /** Open the dock, on `channel` when given (`title` names a chat that is not one of the viewer's own). */
 export function openChat(channel?: string, title?: string): void {
   const active = channel ?? state.active ?? state.channels[0]?.channel ?? null;
   if (channel && !state.channels.some((c) => c.channel === channel)) {
+    // A match an admin opens, or a DM with no messages yet.
+    const kind: ChatKind = channel.startsWith('dm:') ? 'dm' : 'match';
     const ref = channel.replace(/^match:/, '');
     set({
       channels: [
         ...state.channels,
-        { channel, kind: 'match', title: title ?? ref, myTeam: null, unread: 0 },
+        { channel, kind, title: title ?? ref, myTeam: null, unread: 0 },
       ],
     });
   }

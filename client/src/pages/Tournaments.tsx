@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { typeLabel } from '../utils/tournamentSummary';
 import { fmtDate, fmtDayTime, fmtTime } from '../utils/time';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
@@ -29,6 +30,7 @@ import { tournamentTabPath, manageTournamentPath } from '../paths';
 import { tokens, radii, fontMono } from '../theme/tokens';
 import { api } from '../utils/api';
 import { pageTitle } from '../utils/pageTitle';
+import type { Untrusted } from '../utils/untrusted';
 
 const { color } = tokens;
 
@@ -90,7 +92,7 @@ export default function Tournaments() {
     navigate(manageTournamentPath(id, 'setup'));
   };
 
-  const run = async (fn: () => Promise<unknown>, done: string) => {
+  const run = async (fn: () => Promise<Untrusted>, done: string) => {
     setBusy(true);
     try {
       await fn();
@@ -210,7 +212,7 @@ export default function Tournaments() {
                   <Typography variant="caption" color="text.secondary" display="block">
                     {[
                       x.teamSize ? `${x.teamSize}v${x.teamSize}` : x.format.toUpperCase(),
-                      t(`tournament.typeSelector.types.${x.type}.label`, { defaultValue: x.type }),
+                      typeLabel(t, x.type),
                       x.winner ? t('tournamentsPage.won', { name: x.winner.name }) : null,
                       selected ? t('tournamentsPage.selected') : null,
                     ]

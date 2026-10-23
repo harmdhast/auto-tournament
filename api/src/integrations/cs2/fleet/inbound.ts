@@ -36,17 +36,22 @@ import { toPlatformMapNumber } from './normalize';
 import { ingestFleetEvent } from './ingest';
 import { recordServerLog } from './serverLog';
 import {
+  isFleetEventMessage,
   isFleetEventType,
+  isKnownMessageType,
   type Availability,
   type CmdResultPayload,
   type Envelope,
-  type FleetEventData,
-  type FleetEventPayload,
+  type FleetEventMessage,
+  type FleetMessage,
+  type FleetMessages,
+  type FleetMessageType,
   type ServerAvailabilityPayload,
   type SkinsStattrakPayload,
   type StatePatchPayload,
   type StateSnapshotPayload,
 } from './protocol/v1';
+import type { Untrusted } from '../../../utils/untrusted';
 import { flushRoundLoadouts, pushSkinsOnConnect, skinsTurnedOn } from './push/skins';
 import { parseBusy } from './busyReason';
 import { setAvailability } from './registry';
@@ -68,9 +73,9 @@ export interface InboundContext {
    * Send an ephemeral message on this session (`state.request`, `demo.ack`).
    * `ref`: the id of the message it answers. False when the socket is gone.
    */
-  sendEphemeral(
-    type: string,
-    payload: Record<string, unknown>,
+  sendEphemeral<K extends FleetMessageType>(
+    type: K,
+    payload: FleetMessages[K],
     extra?: { epoch?: number; ref?: string }
   ): boolean;
 }
@@ -112,16 +117,20 @@ export function isStoredInboundType(type: string): boolean {
  * go base64 in the JSON. The per-server byte budget in gateway.ts (`RATE`)
  * applies to every frame.
  */
-export interface InboundHandler {
-  handle(ctx: InboundContext, env: Envelope): Promise<void>;
+export interface InboundHandler<P = Untrusted> {
+  /** A protocol/v1 type's payload is checked against its schema first, so it arrives typed. */
+  handle(ctx: InboundContext, env: Envelope<string, P>): Promise<void>;
   persist?: boolean;
   priority?: 'normal' | 'low';
-  validate?(payload: unknown): string | null;
+  validate?(payload: Untrusted): string | null;
 }
 
 const handlers = new Map<string, InboundHandler>();
 
-export function registerInboundHandler(type: string, handler: InboundHandler): () => void {
+export function registerInboundHandler<K extends FleetMessageType>(
+  type: K,
+  handler: InboundHandler<FleetMessages[K]>
+): () => void {
   if (isStoredInboundType(type)) throw new Error(`fleet: ${type} is handled by fleet/inbound.ts`);
   handlers.set(type, handler);
   return () => {
@@ -139,7 +148,7 @@ export function inboundHandlerFor(type: string): InboundHandler | undefined {
 
 export interface FleetEventNotice {
   serverId: string;
-  envelope: Envelope;
+  envelope: FleetEventMessage;
   /** What the state store did with the patch. */
   patch: PatchOutcome['kind'];
   /** The patch changed nothing but `live_rev` (an in-game chat line): no state was stored. */
@@ -150,7 +159,7 @@ export interface FleetEventNotice {
 
 export interface FleetCommandResultNotice {
   serverId: string;
-  envelope: Envelope;
+  envelope: Envelope<'cmd.result', CmdResultPayload>;
   result: CmdResultPayload;
   /** The command it answers; null when `ref` is not one of ours. */
   command: FleetCommandRecord | null;
@@ -160,6 +169,21 @@ export interface FleetSnapshotNotice {
   serverId: string;
   payload: StateSnapshotPayload;
   outcome: SnapshotOutcome;
+}
+
+/** What each hook hands its listeners. */
+interface FleetInboundNotices {
+  event: FleetEventNotice;
+  command: FleetCommandResultNotice;
+  availability: {
+    serverId: string;
+    availability: Availability;
+    reason: string;
+    busyReason: BusyReason | null;
+    busyDetail: string | null;
+  };
+  snapshot: FleetSnapshotNotice;
+  stattrak: { serverId: string; payload: SkinsStattrakPayload };
 }
 
 class FleetInboundHooks {
@@ -178,15 +202,7 @@ class FleetInboundHooks {
     return this.on('command', listener);
   }
 
-  onAvailability(
-    listener: (notice: {
-      serverId: string;
-      availability: Availability;
-      reason: string;
-      busyReason: BusyReason | null;
-      busyDetail: string | null;
-    }) => void
-  ): () => void {
+  onAvailability(listener: (notice: FleetInboundNotices['availability']) => void): () => void {
     return this.on('availability', listener);
   }
 
@@ -194,15 +210,15 @@ class FleetInboundHooks {
     return this.on('snapshot', listener);
   }
 
-  onStattrak(
-    listener: (notice: { serverId: string; payload: SkinsStattrakPayload }) => void
-  ): () => void {
+  onStattrak(listener: (notice: FleetInboundNotices['stattrak']) => void): () => void {
     return this.on('stattrak', listener);
   }
 
   /** @internal */
-  emit(name: string, value: unknown): void {
-    for (const listener of this.emitter.listeners(name) as Array<(v: unknown) => void>) {
+  emit<K extends keyof FleetInboundNotices>(name: K, value: FleetInboundNotices[K]): void {
+    for (const listener of this.emitter.listeners(name) as Array<
+      (v: FleetInboundNotices[K]) => void
+    >) {
       try {
         listener(value);
       } catch (error) {
@@ -211,9 +227,12 @@ class FleetInboundHooks {
     }
   }
 
-  private on<T>(name: string, listener: (value: T) => void): () => void {
-    this.emitter.on(name, listener as (v: unknown) => void);
-    return () => this.emitter.off(name, listener as (v: unknown) => void);
+  private on<K extends keyof FleetInboundNotices>(
+    name: K,
+    listener: (value: FleetInboundNotices[K]) => void
+  ): () => void {
+    this.emitter.on(name, listener);
+    return () => this.emitter.off(name, listener);
   }
 }
 
@@ -237,14 +256,14 @@ async function tx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   });
 }
 
-function matchSlugOf(env: Envelope): string | null {
-  const id = (env.payload as { match_id?: unknown }).match_id;
-  return typeof id === 'string' ? id : null;
+function matchSlugOf(env: FleetMessage): string | null {
+  return 'match_id' in env.payload && typeof env.payload.match_id === 'string'
+    ? env.payload.match_id
+    : null;
 }
 
-function revOf(env: Envelope): number | null {
-  const rev = (env.payload as { rev?: unknown }).rev;
-  return typeof rev === 'number' ? rev : null;
+function revOf(env: FleetMessage): number | null {
+  return 'rev' in env.payload && typeof env.payload.rev === 'number' ? env.payload.rev : null;
 }
 
 /**
@@ -253,7 +272,7 @@ function revOf(env: Envelope): number | null {
  */
 export async function persistInbound(
   ctx: InboundContext,
-  env: Envelope
+  env: FleetMessage | Envelope
 ): Promise<{ rowId: number | null }> {
   const seq = env.seq as number;
   return tx(async (c) => {
@@ -268,9 +287,9 @@ export async function persistInbound(
         seq,
         env.id,
         env.type,
-        matchSlugOf(env),
+        isKnownMessageType(env.type) ? matchSlugOf(env as FleetMessage) : null,
         env.epoch ?? null,
-        revOf(env),
+        isKnownMessageType(env.type) ? revOf(env as FleetMessage) : null,
         env.ref ?? null,
         JSON.stringify(env),
       ]
@@ -296,8 +315,8 @@ function requestSnapshot(ctx: InboundContext, epoch: number | undefined): void {
 
 async function applyPatchOf(
   ctx: InboundContext,
-  env: Envelope,
-  payload: { match_id: string; rev: number; patch: Record<string, unknown> }
+  env: FleetMessage,
+  payload: { match_id: string; rev: number; patch: StatePatchPayload['patch'] }
 ): Promise<PatchOutcome> {
   noteMatchReport(ctx.serverId, payload.match_id);
   const outcome = await liveStateStore.applyPatch(ctx.serverId, {
@@ -318,8 +337,8 @@ async function applyPatchOf(
   return outcome;
 }
 
-async function applyEvent(ctx: InboundContext, env: Envelope): Promise<PatchOutcome> {
-  const payload = env.payload as unknown as FleetEventPayload;
+async function applyEvent(ctx: InboundContext, env: FleetEventMessage): Promise<PatchOutcome> {
+  const payload = env.payload;
   const outcome = await applyPatchOf(ctx, env, payload);
   if (outcome.kind === 'stale_epoch') {
     fleetInbound.emit('event', {
@@ -333,12 +352,12 @@ async function applyEvent(ctx: InboundContext, env: Envelope): Promise<PatchOutc
 
   let mapRounds;
   if (env.type === 'event.round_end') {
-    const round = (payload.data as FleetEventData['round_end']).round;
+    const round = env.payload.data.round;
     mapRounds =
       (await liveStateStore.recordRound(payload.match_id, env.epoch, payload.map_number, round)) ??
       undefined;
   } else if (env.type === 'event.rounds_voided') {
-    const data = payload.data as FleetEventData['rounds_voided'];
+    const data = env.payload.data;
     const dropped = await liveStateStore.voidRounds(
       payload.match_id,
       env.epoch,
@@ -362,15 +381,14 @@ async function applyEvent(ctx: InboundContext, env: Envelope): Promise<PatchOutc
   if (outcome.kind !== 'duplicate') {
     await recordServerLog(
       payload.match_id,
-      env.type,
-      payload.data as unknown as Record<string, unknown>,
+      env,
       record?.state ?? null,
       payload.map_number,
-      (payload as { round?: number }).round
+      payload.round
     );
   }
   if (env.type === 'event.map_result') {
-    const data = payload.data as FleetEventData['map_result'];
+    const data = env.payload.data;
     await saveMapStats(
       payload.match_id,
       toPlatformMapNumber(data.map_number ?? payload.map_number),
@@ -389,8 +407,11 @@ async function applyEvent(ctx: InboundContext, env: Envelope): Promise<PatchOutc
   return outcome;
 }
 
-async function applyCommandResult(ctx: InboundContext, env: Envelope): Promise<void> {
-  const result = env.payload as unknown as CmdResultPayload;
+async function applyCommandResult(
+  ctx: InboundContext,
+  env: Envelope<'cmd.result', CmdResultPayload>
+): Promise<void> {
+  const result = env.payload;
   const command = env.ref ? await recordCommandResult(ctx.serverId, env.ref, result) : null;
   if (!command) {
     log.warn(
@@ -486,7 +507,7 @@ const inFlight = new Set<number>();
 /** Apply one stored message. Failures are logged and recorded on the row, never thrown. */
 export async function processInbound(
   ctx: InboundContext,
-  env: Envelope,
+  env: FleetMessage,
   rowId: number | null
 ): Promise<void> {
   if (rowId !== null) {
@@ -495,7 +516,7 @@ export async function processInbound(
     inFlight.add(rowId);
   }
   try {
-    if (isFleetEventType(env.type)) {
+    if (isFleetEventMessage(env)) {
       const outcome = await applyEvent(ctx, env);
       // Loadout changes made during the round go out now (push/skins.ts).
       if (env.type === 'event.round_end') void flushRoundLoadouts(ctx.serverId);
@@ -504,10 +525,7 @@ export async function processInbound(
         (env.type === 'event.forfeit' || env.type === 'event.gg') &&
         outcome.kind !== 'stale_epoch'
       ) {
-        const p = env.payload as unknown as {
-          match_id: string;
-          data: { team: string; reason: string };
-        };
+        const p = env.payload;
         void import('../../../services/adminNoticeService').then(({ adminNoticeService }) =>
           adminNoticeService.raise(
             'match_forfeit',
@@ -522,25 +540,25 @@ export async function processInbound(
         );
       }
       if (env.type === 'event.player_connect') {
-        const p = env.payload as unknown as { match_id: string; data: { steamid64: string } };
+        const p = env.payload;
         // Not awaited: a loadout never holds up the event stream.
         void pushSkinsOnConnect(ctx.serverId, p.match_id, p.data.steamid64);
       }
     } else {
       switch (env.type) {
         case 'state.patch':
-          await applyPatchOf(ctx, env, env.payload as unknown as StatePatchPayload);
+          await applyPatchOf(ctx, env, env.payload);
           break;
         case 'cmd.result':
           await applyCommandResult(ctx, env);
           break;
         case 'server.availability':
-          await applyAvailability(ctx, env.payload as unknown as ServerAvailabilityPayload);
+          await applyAvailability(ctx, env.payload);
           break;
         case 'skins.stattrak':
           fleetInbound.emit('stattrak', {
             serverId: ctx.serverId,
-            payload: env.payload as unknown as SkinsStattrakPayload,
+            payload: env.payload,
           });
           break;
         default:
@@ -581,7 +599,8 @@ export async function replayUnprocessed(ctx: Omit<InboundContext, 'streamId'>): 
     [ctx.serverId]
   );
   for (const row of rows) {
-    const env = JSON.parse(row.message) as Envelope;
+    // Stored after its payload passed the schema (persistInbound).
+    const env = JSON.parse(row.message) as FleetMessage;
     await processInbound({ ...ctx, streamId: row.stream_id }, env, Number(row.id));
   }
   if (rows.length)

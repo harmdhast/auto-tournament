@@ -6,8 +6,9 @@
 import type { TFunction } from 'i18next';
 import { paths, playerProfilePath, teamProfilePath } from '../../paths';
 import type { Notice, Person } from './socialStore';
+import type { Untrusted } from '../../utils/untrusted';
 
-export function asPerson(value: unknown): Person | null {
+export function asPerson(value: Untrusted): Person | null {
   if (!value || typeof value !== 'object') return null;
   const p = value as Partial<Person>;
   return typeof p.id === 'string'
@@ -15,7 +16,7 @@ export function asPerson(value: unknown): Person | null {
     : null;
 }
 
-const str = (v: unknown) => (typeof v === 'string' ? v : '');
+const str = (v: Untrusted) => (typeof v === 'string' ? v : '');
 
 export interface NoticeText {
   /** Bold, before the text: who did it, or what it is about. */
@@ -112,6 +113,12 @@ export function describeNotice(notice: Notice, t: TFunction, viewerId: string | 
               ? t('social.notice.matchReady')
               : t('social.notice.vetoTurn');
         out.to = `/match/${encodeURIComponent(str(d.matchSlug))}`;
+        break;
+      }
+      // No Discord linked while the tournament has Discord channels: link it.
+      if (d.event === 'discord_link') {
+        out.text = t('social.notice.discordLink');
+        out.to = '/me/connections';
         break;
       }
       // A shuffle no-show: out of the next draws until they say they are back

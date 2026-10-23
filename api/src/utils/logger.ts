@@ -2,6 +2,10 @@
 
 // Load environment variables FIRST (before reading process.env.LOG_LEVEL)
 // This ensures LOG_LEVEL=debug from .env is respected
+import type { LoggerOptions } from 'pino';
+import type { Untrusted } from './untrusted';
+import type * as NodePath from 'node:path';
+import type * as DiscordIdModule from './discordId';
 try {
   require('dotenv').config();
 } catch {
@@ -23,7 +27,7 @@ const isLogLevelDebug = _logLevel === 'debug';
  */
 const isBundledDist = (() => {
   try {
-    const path = require('node:path') as typeof import('node:path');
+    const path = require('node:path') as typeof NodePath;
     return typeof __dirname === 'string' && __dirname.split(path.sep).includes('dist');
   } catch {
     return false;
@@ -91,7 +95,7 @@ function createPinoLogger() {
   // bundled / slim images we don't ship it, so we must gracefully
   // fall back to JSON to avoid hard crashes like:
   // "unable to determine transport target for \"pino-pretty\"".
-  let transport: unknown = undefined;
+  let transport: LoggerOptions['transport'] = undefined;
 
   if (isDevelopment && !isBundledDist) {
     try {
@@ -303,7 +307,7 @@ export const log = {
   authFailed: (rawEndpoint: string, reason: string) => {
     // Endpoint paths can carry a Discord ID (`/by-discord-id/:id`), which is
     // private. Required lazily, matching this file's other requires.
-    const { redactDiscordIdsInPath } = require('./discordId') as typeof import('./discordId');
+    const { redactDiscordIdsInPath } = require('./discordId') as typeof DiscordIdModule;
     const endpoint = redactDiscordIdsInPath(rawEndpoint);
     const msg = `[AUTH] Auth failed: ${endpoint} - ${reason}`;
     const meta = { endpoint, reason };
@@ -317,7 +321,7 @@ export const log = {
   },
 
   // Errors
-  error: (message: string, error?: Error | unknown, meta?: object) => {
+  error: (message: string, error?: Untrusted, meta?: object) => {
     const errorDetails =
       error instanceof Error ? { error: error.message, stack: error.stack } : { error };
     const msg = `[ERROR] ${message}`;

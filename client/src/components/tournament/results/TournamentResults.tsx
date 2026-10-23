@@ -1,3 +1,4 @@
+import { OpponentName } from '../../team/MatchRowLinks';
 import { useState, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Box, Button, Link, TableSortLabel, Typography } from '@mui/material';
@@ -23,7 +24,7 @@ import type {
 } from '../../../hooks/usePublicTournamentOverview';
 import { tournamentAwards, type AwardKey } from '../../../utils/tournamentAwards';
 import { getPlayerPageUrl } from '../../../utils/playerLinks';
-import { matchPagePath, tournamentTabPath } from '../../../paths';
+import { matchPagePath, teamProfilePath, tournamentTabPath } from '../../../paths';
 import { tokens, mono, radii } from '../../../theme/tokens';
 import { useInstalledIntegrations } from '../../../integrations/registry';
 import { fmtNum } from '../../../utils/number';
@@ -207,12 +208,13 @@ export function TournamentResults({
     whiteSpace: 'nowrap',
   } as const;
 
-  // The final: the champion's last match, for the banner's line and picture.
+  // The final: the champion's last match, for the banner's line and picture. By when it
+  // finished, not by round: a double-elimination grand final is round 1 of its own bracket.
   const champion = tournament.winner ?? null;
   const final = champion
     ? [...matches]
         .filter((m) => m.status === 'completed' && m.winner?.id === champion.id)
-        .sort((x, y) => y.round - x.round || (y.completedAt ?? 0) - (x.completedAt ?? 0))[0]
+        .sort((x, y) => (y.completedAt ?? 0) - (x.completedAt ?? 0) || y.round - x.round)[0]
     : undefined;
   const finalMap =
     final?.mapResults?.[final.mapResults.length - 1]?.mapName ?? final?.maps?.[0] ?? null;
@@ -238,16 +240,19 @@ export function TournamentResults({
     : null;
   const recent = [...matches]
     .filter((m) => m.status === 'completed')
-    .sort((x, y) => y.round - x.round || (y.completedAt ?? 0) - (x.completedAt ?? 0))
+    .sort((x, y) => (y.completedAt ?? 0) - (x.completedAt ?? 0) || y.round - x.round)
     .slice(0, 4);
   const lastRound = Math.max(0, ...matches.map((m) => m.round ?? 0));
   const isElim = /elimination/.test(tournament.type ?? '');
-  const stageOf = (m: Match) =>
-    isElim && m.round === lastRound
-      ? t('results.stage.final')
-      : isElim && m.round === lastRound - 1
-        ? t('results.stage.semi')
-        : t('results.stage.round', { n: m.round });
+  // With a grand final (double elimination) only it is "the final"; the rounds of the
+  // two brackets do not line up into a semifinal.
+  const hasGrandFinal = matches.some((m) => m.bracket === 'GF');
+  const stageOf = (m: Match) => {
+    if (m.bracket === 'GF') return t('results.stage.final');
+    if (isElim && !hasGrandFinal && m.round === lastRound) return t('results.stage.final');
+    if (isElim && !hasGrandFinal && m.round === lastRound - 1) return t('results.stage.semi');
+    return t('results.stage.round', { n: m.round });
+  };
 
   return (
     <Box data-testid="tournament-results" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -295,12 +300,18 @@ export function TournamentResults({
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
                   <TeamLogo team={{ id: team.teamId, name: team.name, tag: team.tag }} size="sm" />
-                  <Typography
-                    component="span"
-                    sx={{ fontWeight: index < 2 ? 700 : 500, overflowWrap: 'anywhere' }}
+                  <Link
+                    component={RouterLink}
+                    to={teamProfilePath(team.teamId)}
+                    underline="hover"
+                    sx={{
+                      color: 'inherit',
+                      fontWeight: index < 2 ? 700 : 500,
+                      overflowWrap: 'anywhere',
+                    }}
                   >
                     {team.name}
-                  </Typography>
+                  </Link>
                 </Box>
               </Box>
             ))}
@@ -363,13 +374,23 @@ export function TournamentResults({
                       size={32}
                     />
                     <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>
+                      <Link
+                        component={RouterLink}
+                        to={getPlayerPageUrl(award.player.playerId)}
+                        underline="hover"
+                        sx={{ color: 'inherit', fontWeight: 700, overflowWrap: 'anywhere' }}
+                      >
                         {award.player.name}
-                      </Typography>
+                      </Link>
                       {award.player.team?.name && (
-                        <Typography sx={{ fontSize: '0.8125rem', color: color.muted }}>
+                        <Link
+                          component={RouterLink}
+                          to={teamProfilePath(award.player.team.id)}
+                          underline="hover"
+                          sx={{ fontSize: '0.8125rem', color: color.muted }}
+                        >
                           {award.player.team.name}
-                        </Typography>
+                        </Link>
                       )}
                     </Box>
                   </Box>
@@ -469,7 +490,7 @@ export function TournamentResults({
                               }}
                               size="sm"
                             />
-                            {player.team.name}
+                            <OpponentName id={player.team.id} name={player.team.name} />
                           </Box>
                         ) : (
                           ''

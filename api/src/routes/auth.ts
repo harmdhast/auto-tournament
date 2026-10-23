@@ -1,7 +1,8 @@
 import { getOwnNameState } from '../services/playerName';
 import { randomBytes } from 'crypto';
 import { URLSearchParams } from 'url';
-import { Router, Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { log } from '../utils/logger';
 import { getAuthProvidersConfig } from '../config/authProviders';
 import { steamService } from '../services/steamService';
@@ -9,7 +10,8 @@ import { playerService } from '../services/playerService';
 import { presetAccounts } from '../services/gameAccounts';
 import { passport, isStrategyConfigured } from '../config/passport';
 import { settingsService } from '../services/settingsService';
-import { authIdentityService, AuthProvider } from '../services/authIdentityService';
+import type { AuthProvider } from '../services/authIdentityService';
+import { authIdentityService } from '../services/authIdentityService';
 import { signPlayerSteamId, getVerifiedPlayerSteamId } from '../utils/signedPlayerCookie';
 import { readCookies } from '../utils/cookieHeader';
 import {
@@ -48,6 +50,7 @@ import {
 import { isLocalReauthFresh, markLocalReauth } from '../utils/localReauth';
 import { viewerIsRoot } from '../utils/rootAccess';
 import { effectiveProviderSettings, parseLogoDataUrl } from '../config/signInProviders';
+import type { Untrusted } from '../utils/untrusted';
 
 const router = Router();
 
@@ -166,9 +169,10 @@ function avatarRank(url: string | null | undefined): number {
 async function rememberIdentityProfile(
   provider: AuthProvider,
   providerUserId: string,
-  user: Record<string, unknown>
+  user: Record<string, Untrusted>
 ): Promise<void> {
-  const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 256) : null);
+  const text = (v: Untrusted) =>
+    typeof v === 'string' && v.trim() ? v.trim().slice(0, 256) : null;
   const avatar = text(user.avatarUrl);
   try {
     await authIdentityService.saveProfile(provider, providerUserId, {
@@ -181,7 +185,7 @@ async function rememberIdentityProfile(
   }
 }
 
-async function applyProviderAvatar(steamId: string, avatarUrl: unknown): Promise<void> {
+async function applyProviderAvatar(steamId: string, avatarUrl: Untrusted): Promise<void> {
   if (typeof avatarUrl !== 'string' || !avatarUrl) return;
   try {
     const player = await playerService.getPlayerById(steamId);
@@ -460,7 +464,7 @@ router.get('/steam/callback', (req: Request, res: Response, _next) => {
   // Connecting Steam to a local admin account (POST /api/auth/steam/link):
   // verify the assertion without signing in as the Steam user.
   if (readSteamLinkIntent(req)) {
-    return passport.authenticate('steam', { session: false }, (err: unknown, user: unknown) => {
+    return passport.authenticate('steam', { session: false }, (err: Untrusted, user: Untrusted) => {
       const verified = user as { steamId?: string } | false | null | undefined;
       const steamId = verified ? verified.steamId : undefined;
       if (err || !steamId) {
@@ -717,7 +721,7 @@ export function ssoCallbackHandler(expectedProvider: AuthProvider) {
 
   return async (req: Request, res: Response) => {
     const anyReq = req as Request & {
-      user?: Record<string, unknown> & { provider?: string; steamId?: string };
+      user?: Record<string, Untrusted> & { provider?: string; steamId?: string };
       session?: {
         pendingSteamLink?: { provider: AuthProvider; providerUserId: string; adminEmail?: true };
       };
@@ -987,11 +991,19 @@ function linkResultRedirect(
  * Start linking `provider` to the signed-in account. Exported for the
  * test-only fake provider routes.
  */
-export function startAccountLink(
-  strategyName: string,
-  provider: AuthProvider,
-  startOptions: Record<string, unknown> = {}
-) {
+/**
+ * Discord with the bot set up on the same app: also guilds.join, so signing in
+ * or linking puts the player on the bot's server (addons/discord/serverJoin).
+ */
+async function scopeFor(provider: AuthProvider): Promise<{ scope?: string[] }> {
+  if (provider !== 'discord') return {};
+  const { joinReady } = await import('../addons/discord/serverJoin');
+  return (await joinReady().catch(() => false))
+    ? { scope: ['identify', 'email', 'guilds.join'] }
+    : {};
+}
+
+export function startAccountLink(strategyName: string, provider: AuthProvider) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!isSameSiteRequest(req)) {
@@ -1030,7 +1042,7 @@ export function startAccountLink(
       const intent: OAuthLinkIntent = { purpose: 'link', steamId: identity.realSteamId };
       (req as Request & LinkIntentRequest).oauthLinkIntent = intent;
       log.info('Account link started', { provider, steamId: identity.realSteamId });
-      return passport.authenticate(strategyName, { ...startOptions, session: false })(
+      return passport.authenticate(strategyName, { session: false, ...(await scopeFor(provider)) })(
         req,
         res,
         next
@@ -1059,7 +1071,7 @@ function accountLinkCallback(strategyName: string, provider: AuthProvider) {
     passport.authenticate(
       strategyName,
       { session: false },
-      async (err: unknown, user: unknown, info: unknown) => {
+      async (err: Untrusted, user: Untrusted, info: Untrusted) => {
         try {
           if (err) return refuse('provider_error', 'failed', { error: (err as Error)?.message });
           if (!user) {
@@ -1079,7 +1091,7 @@ function accountLinkCallback(strategyName: string, provider: AuthProvider) {
           }
           if (identity.isImpersonating) return refuse('impersonating');
 
-          const passportUser = user as Record<string, unknown>;
+          const passportUser = user as Record<string, Untrusted>;
           const rawId = passportUser[SSO_USER_ID_FIELD[provider]];
           const providerUserId = typeof rawId === 'string' && rawId.length > 0 ? rawId : null;
           if (passportUser.provider !== provider || !providerUserId) {
@@ -1101,7 +1113,7 @@ function accountLinkCallback(strategyName: string, provider: AuthProvider) {
           await rememberIdentityProfile(provider, providerUserId, passportUser);
           await applyProviderAvatar(
             intent.steamId,
-            (passportUser as { avatarUrl?: unknown }).avatarUrl
+            (passportUser as { avatarUrl?: Untrusted }).avatarUrl
           );
           log.success(`${label} linked to account`, {
             provider,
@@ -1161,16 +1173,17 @@ export function ssoCallbackRoute(
  * The OAuth state cookie is set and checked by the strategy's
  * SignedCookieStateStore (utils/oauthStateCookie).
  */
-function registerSsoRoutes(provider: AuthProvider, startOptions: Record<string, unknown> = {}) {
+function registerSsoRoutes(provider: AuthProvider) {
   router.get(
     `/${provider}`,
     requireStrategy(provider, provider),
-    passport.authenticate(provider, startOptions)
+    async (req: Request, res: Response, next: NextFunction) =>
+      passport.authenticate(provider, await scopeFor(provider))(req, res, next)
   );
   router.post(
     `/${provider}/link`,
     requireStrategy(provider, provider),
-    startAccountLink(provider, provider, startOptions)
+    startAccountLink(provider, provider)
   );
   router.get(
     `/${provider}/callback`,
@@ -1254,7 +1267,7 @@ export function clearPendingSteamMerge(req: Request): void {
 export function switchSessionAccount(req: Request, res: Response, playerId: string): Promise<void> {
   const anyReq = req as Request & {
     user?: { provider?: string; displayName?: string };
-    login?: (user: unknown, cb: (err: unknown) => void) => void;
+    login?: (user: Untrusted, cb: (err: Untrusted) => void) => void;
   };
   const provider = anyReq.user?.provider ?? 'local';
   const displayName = anyReq.user?.displayName;
@@ -1991,7 +2004,7 @@ router.get('/impersonate', requireAuth, async (req: Request, res: Response) => {
  */
 router.post('/impersonate', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { steamId: raw } = req.body as { steamId?: unknown };
+    const { steamId: raw } = req.body as { steamId?: Untrusted };
 
     if (typeof raw !== 'string' || raw.trim().length === 0) {
       return res.status(400).json({

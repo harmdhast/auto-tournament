@@ -1,5 +1,6 @@
 import { readHighlightSettings } from '../services/highlights/settings';
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { requireAuth, requestActorId, type AuthedRequest } from '../middleware/auth';
 import { apiTokenService, ApiTokenError, type StoredTokenScope } from '../services/apiTokenService';
 import { isRootRequest, ROOT_ONLY } from '../utils/rootAccess';
@@ -10,6 +11,7 @@ import { db } from '../config/database';
 import { integrationForMatch, listIntegrations } from '../integrations/registry';
 import packageJson from '../../package.json';
 import { runningTournamentIds } from '../services/currentTournament';
+import type { Untrusted } from '../utils/untrusted';
 
 const router = Router();
 
@@ -53,7 +55,6 @@ async function startAutoVetoForRunningTournament(tournamentId: number): Promise<
  * (`readInstanceSettings`, CS2: the simulation and `at_*` defaults).
  */
 const mapSettingsResponse = async () => {
-  const webhookUrl = await settingsService.getWebhookUrl();
   const steamApiKey = await settingsService.getSteamApiKey();
   const defaultPlayerElo = null;
   const ratingsEnabled = await settingsService.areRatingsEnabled();
@@ -64,17 +65,15 @@ const mapSettingsResponse = async () => {
   const updateNotices = await settingsService.areUpdateNoticesEnabled();
   const highlights = await readHighlightSettings((key) => settingsService.getSetting(key));
 
-  const integrationFields: Record<string, unknown> = {};
+  const integrationFields: object = {};
   for (const integration of listIntegrations()) {
     Object.assign(integrationFields, await integration.readInstanceSettings?.());
   }
 
   return {
     siteName,
-    webhookUrl,
     steamApiKey: null,
     steamApiKeySet: Boolean(steamApiKey),
-    webhookConfigured: Boolean(webhookUrl),
     defaultPlayerElo,
     ratingsEnabled,
     allowSelfRegister,
@@ -100,62 +99,6 @@ const mapSettingsResponse = async () => {
 router.get('/site-url', (_req: Request, res: Response) => {
   const url = (process.env.FRONTEND_BASE_URL || '').trim().replace(/\/+$/, '');
   res.json({ url: url || null });
-});
-
-/**
- * @openapi
- * /api/settings/discord-bot:
- *   get:
- *     tags: [Settings]
- *     summary: Whether a Discord bot token is set (for players' DMs), and the bot's name
- *     security: [{ BearerAuth: [] }]
- *     responses:
- *       200: { description: "`set`, `name`" }
- *   put:
- *     tags: [Settings]
- *     summary: Set (checked with Discord, stored encrypted) or clear the bot token
- *     description: A signed-in admin only. `token` empty or null clears it.
- *     security: [{ BearerAuth: [] }]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema: { type: object, properties: { token: { type: string, nullable: true } } }
- *     responses:
- *       200: { description: "`set`, `name`" }
- *       400: { description: Discord refused the token }
- *       403: { description: Called with an API token }
- */
-router.get('/discord-bot', async (_req: Request, res: Response) => {
-  try {
-    const { discordBot } = await import('../services/notifyChannels');
-    return res.json({ success: true, ...(await discordBot.status()) });
-  } catch (error) {
-    log.error('Reading the Discord bot failed', error as Error);
-    return res.status(500).json({ success: false, error: 'Could not read the Discord bot' });
-  }
-});
-
-router.put('/discord-bot', async (req: Request, res: Response) => {
-  if ((req as AuthedRequest).serviceToken) {
-    return res.status(403).json({ success: false, error: 'Only a signed-in admin can set it' });
-  }
-  try {
-    const { discordBot, ChannelError } = await import('../services/notifyChannels');
-    const raw = (req.body ?? {}).token;
-    const token = typeof raw === 'string' ? raw : null;
-    try {
-      return res.json({ success: true, ...(await discordBot.setToken(token)) });
-    } catch (error) {
-      if (error instanceof ChannelError) {
-        return res.status(error.status).json({ success: false, error: error.message });
-      }
-      throw error;
-    }
-  } catch (error) {
-    log.error('Setting the Discord bot failed', error as Error);
-    return res.status(500).json({ success: false, error: 'Could not save the Discord bot' });
-  }
 });
 
 /**
@@ -198,7 +141,7 @@ router.post('/api-tokens', async (req: Request, res: Response) => {
       .json({ success: false, error: 'Sign in as an admin to make API tokens.' });
   }
   try {
-    const { label, scope } = (req.body ?? {}) as { label?: unknown; scope?: unknown };
+    const { label, scope } = (req.body ?? {}) as { label?: Untrusted; scope?: Untrusted };
     // An admin-scope token is root (utils/rootAccess.ts).
     if (scope === 'admin' && !isRootRequest(req)) {
       return res.status(403).json({ success: false, error: ROOT_ONLY });
@@ -251,7 +194,7 @@ router.get('/', async (_req: Request, res: Response) => {
  */
 router.put('/', async (req: Request, res: Response) => {
   const tournamentId = resolveTournamentId(req);
-  const body = req.body as Record<string, unknown>;
+  const body = req.body as Record<string, Untrusted>;
 
   try {
     const error = await settingsService.applyUpdate(body, {
