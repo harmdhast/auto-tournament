@@ -1,11 +1,14 @@
 import { logoUrl } from '../services/teamSelfService';
 import { randomBytes } from 'crypto';
+import type { SqlValue } from '../config/database';
+import type { Untrusted } from '../utils/untrusted';
 /**
  * Players API Routes
  * Handles player CRUD operations and bulk import
  */
 
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import {
   playerService,
   InvalidDiscordIdError,
@@ -341,7 +344,9 @@ router.get('/selection', requireAuth, async (req: Request, res: Response) => {
  *
  * Used by the public player page's team chip ("Nordlys · captain") even when
  * the player has no current/upcoming match. `role` is the player's role in it,
- * or null when `team_members` has no row for them.
+ * or null when `team_members` has no row for them. `?for=profile`: the team the
+ * player chose to show (PUT /me/shown-team) while they are still on it, else
+ * the same as without it (the most recently changed team they are on).
  */
 router.get('/:playerId/team', async (req: Request, res: Response) => {
   try {
@@ -378,7 +383,7 @@ router.get('/:playerId/team', async (req: Request, res: Response) => {
       playersJson: string
     ): Array<{ steamId: string; name: string; avatar?: string }> => {
       try {
-        const parsed = JSON.parse(playersJson) as unknown;
+        const parsed = JSON.parse(playersJson) as Untrusted;
         if (!parsed) return [];
 
         // Canonical format: Player[]
@@ -386,7 +391,7 @@ router.get('/:playerId/team', async (req: Request, res: Response) => {
           return parsed
             .map((p) => {
               if (!p || typeof p !== 'object') return null;
-              const anyP = p as { steamId?: unknown; name?: unknown; avatar?: unknown };
+              const anyP = p as { steamId?: Untrusted; name?: Untrusted; avatar?: Untrusted };
               if (typeof anyP.steamId !== 'string' || typeof anyP.name !== 'string') return null;
               const base: { steamId: string; name: string; avatar?: string } = {
                 steamId: anyP.steamId,
@@ -404,7 +409,7 @@ router.get('/:playerId/team', async (req: Request, res: Response) => {
         // - Object map { idx: { steamId, name, avatar? } }
         // - Object map { steamId: name }
         if (typeof parsed === 'object') {
-          const record = parsed as Record<string, unknown>;
+          const record = parsed as Record<string, Untrusted>;
 
           // Old: { steamId: name }
           const fromEntries = Object.entries(record)
@@ -421,7 +426,7 @@ router.get('/:playerId/team', async (req: Request, res: Response) => {
           return Object.values(record)
             .map((v) => {
               if (!v || typeof v !== 'object') return null;
-              const anyV = v as { steamId?: unknown; name?: unknown; avatar?: unknown };
+              const anyV = v as { steamId?: Untrusted; name?: Untrusted; avatar?: Untrusted };
               if (typeof anyV.steamId !== 'string' || typeof anyV.name !== 'string') return null;
               const base: { steamId: string; name: string; avatar?: string } = {
                 steamId: anyV.steamId,
@@ -440,10 +445,18 @@ router.get('/:playerId/team', async (req: Request, res: Response) => {
       return [];
     };
 
-    const matching = rows.find((team) => {
-      const players = parsePlayers(team.players);
-      return players.some((p) => p.steamId === playerId);
-    });
+    const onIt = (team: { players: string }) =>
+      parsePlayers(team.players).some((p) => p.steamId === playerId);
+    const chosen =
+      req.query.for === 'profile'
+        ? (
+            await db.queryOneAsync<{ shown_team_id: string | null }>(
+              'SELECT shown_team_id FROM players WHERE id = ?',
+              [playerId]
+            )
+          )?.shown_team_id
+        : null;
+    const matching = rows.find((team) => team.id === chosen && onIt(team)) ?? rows.find(onIt);
 
     if (!matching) {
       return res.json({
@@ -914,7 +927,7 @@ router.put('/me/discord-id', async (req: Request, res: Response) => {
     const steamId = await resolveSelfServiceSteamId(req, res);
     if (!steamId) return;
 
-    const body = (req.body ?? {}) as { discordId?: unknown };
+    const body = (req.body ?? {}) as { discordId?: Untrusted };
     if (!('discordId' in body)) {
       return res.status(400).json({
         success: false,
@@ -947,6 +960,60 @@ router.put('/me/discord-id', async (req: Request, res: Response) => {
     }
     log.error('Error updating own Discord ID', { error });
     return res.status(500).json({ success: false, error: 'Failed to save Discord ID' });
+  }
+});
+
+/**
+ * @openapi
+ * /api/players/me/shown-team:
+ *   put:
+ *     tags: [Players]
+ *     summary: Choose which of your teams shows under your name on your profile
+ *     description: A team the signed-in player is on, or null for the default (the team they were last active with).
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { type: object, properties: { teamId: { type: string, nullable: true } } }
+ *     responses:
+ *       200: { description: "`shownTeamId`" }
+ *       400: { description: Not a team the player is on }
+ *       401: { description: Not signed in }
+ */
+router.put('/me/shown-team', async (req: Request, res: Response) => {
+  try {
+    const steamId = await resolveSelfServiceSteamId(req, res);
+    if (!steamId) return;
+    const teamId = (req.body as { teamId?: Untrusted } | undefined)?.teamId ?? null;
+    if (teamId !== null && typeof teamId !== 'string') {
+      return res.status(400).json({ success: false, error: 'teamId must be a team id or null' });
+    }
+    if (teamId) {
+      const team = await db.queryOneAsync<{ players: string }>(
+        'SELECT players FROM teams WHERE id = ?',
+        [teamId]
+      );
+      let onIt = false;
+      try {
+        const list = JSON.parse(team?.players ?? '[]') as Array<{
+          steamId?: string;
+          steamid?: string;
+        }>;
+        onIt = Array.isArray(list) && list.some((p) => (p.steamId ?? p.steamid) === steamId);
+      } catch {
+        onIt = false;
+      }
+      if (!onIt) {
+        return res
+          .status(400)
+          .json({ success: false, error: 'You can only show a team you are on' });
+      }
+    }
+    await db.runAsync('UPDATE players SET shown_team_id = ? WHERE id = ?', [teamId, steamId]);
+    return res.json({ success: true, shownTeamId: teamId });
+  } catch (error) {
+    log.error('Error saving the shown team', { error });
+    return res.status(500).json({ success: false, error: 'Failed to save the team to show' });
   }
 });
 
@@ -1224,7 +1291,7 @@ router.get('/:playerId/current-match', async (req: Request, res: Response) => {
     const tournament = await db.queryOneAsync<{
       status: string;
       format: string;
-      settings: unknown;
+      settings: Untrusted;
     }>('SELECT status, format, settings FROM tournament WHERE id = ?', [match.tournament_id]);
 
     // Note: We're NOT exposing RCON password to players
@@ -1575,7 +1642,7 @@ router.get('/:playerId/summary', async (req: Request, res: Response) => {
       LEFT JOIN teams t2 ON m.team2_id = t2.id
       WHERE pms.player_id = ?
     `;
-    const params: unknown[] = [playerId];
+    const params: SqlValue[] = [playerId];
 
     if (tournamentId) {
       query += ' AND m.tournament_id = ?';
@@ -1845,7 +1912,7 @@ router.get('/:playerId/matches', async (req: Request, res: Response) => {
       LEFT JOIN teams t2 ON m.team2_id = t2.id
       WHERE pms.player_id = ?
     `;
-    const params: unknown[] = [playerId];
+    const params: SqlValue[] = [playerId];
 
     if (tournamentId) {
       query += ' AND m.tournament_id = ?';
@@ -1907,14 +1974,18 @@ router.get('/:playerId/accounts', async (req: Request, res: Response) => {
 });
 
 /** Set the `accounts` a create or update carried; a refusal is answered and returns false. */
-async function applyAccounts(playerId: string, accounts: unknown, res: Response): Promise<boolean> {
+async function applyAccounts(
+  playerId: string,
+  accounts: Untrusted,
+  res: Response
+): Promise<boolean> {
   if (accounts === undefined) return true;
   if (!accounts || typeof accounts !== 'object' || Array.isArray(accounts)) {
     res.status(400).json({ success: false, error: 'accounts: { provider: account id or null }' });
     return false;
   }
   try {
-    await presetAccounts.set(playerId, accounts as Record<string, unknown>);
+    await presetAccounts.set(playerId, accounts as Record<string, Untrusted>);
     return true;
   } catch (error) {
     if (error instanceof PresetAccountError) {
@@ -2001,7 +2072,7 @@ router.post('/', async (req: Request, res: Response) => {
     // An explicit edit: an invalid discordId refuses the whole create (400).
     const created = await playerService.createPlayer(input);
     // Game accounts (Epic Games, ...): a refused one undoes the create.
-    const accounts = (req.body as { accounts?: unknown }).accounts;
+    const accounts = (req.body as { accounts?: Untrusted }).accounts;
     if (!(await applyAccounts(created.id, accounts, res))) {
       await playerService.deletePlayer(created.id).catch(() => undefined);
       return;
@@ -2210,7 +2281,7 @@ router.put('/:playerId', async (req: Request, res: Response) => {
     // leaves it alone, and an invalid value refuses the whole update (400).
     if (
       before &&
-      !(await applyAccounts(playerId, (req.body as { accounts?: unknown }).accounts, res))
+      !(await applyAccounts(playerId, (req.body as { accounts?: Untrusted }).accounts, res))
     ) {
       return;
     }
@@ -2331,11 +2402,11 @@ router.delete('/:playerId', async (req: Request, res: Response) => {
 
 /** POST /api/players/import (the @openapi block for /api/players/import documents it). */
 async function importPlayers(req: Request, res: Response) {
-  const body = req.body as unknown;
+  const body = req.body as Untrusted;
   const list = Array.isArray(body)
     ? body
-    : body && typeof body === 'object' && Array.isArray((body as { players?: unknown }).players)
-      ? (body as { players: unknown[] }).players
+    : body && typeof body === 'object' && Array.isArray((body as { players?: Untrusted }).players)
+      ? (body as { players: Untrusted[] }).players
       : null;
   if (!list || list.length === 0) {
     return res.status(400).json({ success: false, error: 'Send an array of players' });
@@ -2343,7 +2414,7 @@ async function importPlayers(req: Request, res: Response) {
   const players: CreatePlayerInput[] = [];
   const seeds: Array<{ id: string; rating: number }> = [];
   for (const raw of list) {
-    const p = (raw ?? {}) as Record<string, unknown>;
+    const p = (raw ?? {}) as Record<string, Untrusted>;
     const steamId = typeof p.steamId === 'string' ? p.steamId.trim() : '';
     const name = typeof p.name === 'string' ? p.name.trim() : '';
     if (!/^\d{17}$/.test(steamId) || !name) {

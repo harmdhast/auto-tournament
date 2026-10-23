@@ -8,7 +8,8 @@
  * the match's event log with who sent it, so admins see each other's actions.
  */
 
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { db } from '../../../config/database';
 import { requireAuth } from '../../../middleware/auth';
 import { log } from '../../../utils/logger';
@@ -24,6 +25,7 @@ import { serverChoices } from '../fleet/failover';
 import { getMapResults } from '../../../services/matchMapResultService';
 import { gotvHosts, gotvPassword, matchGotvSettings } from '../gotv';
 import { getTvState } from '../fleet/tvState';
+import type { Untrusted } from '../../../utils/untrusted';
 
 const router = Router();
 
@@ -61,18 +63,16 @@ export function logEntryOf(row: {
   event_data: string;
   received_at: number;
 }): ManageLogEntry {
-  let data: Record<string, unknown> = {};
+  // Stored events of every source and age: read leniently.
+  let data: Record<string, Untrusted> = {};
   try {
-    data = JSON.parse(row.event_data) as Record<string, unknown>;
+    data = JSON.parse(row.event_data) as Record<string, Untrusted>;
   } catch {
     data = {};
   }
   const type = row.event_type;
   const byRaw = data.by;
-  const by =
-    byRaw && typeof byRaw === 'object' && 'name' in byRaw
-      ? String((byRaw as { name: unknown }).name)
-      : null;
+  const by = byRaw && typeof byRaw === 'object' && 'name' in byRaw ? String(byRaw.name) : null;
   const given =
     data.level === 'error' || data.level === 'warn' || data.level === 'info' ? data.level : null;
   const level: LogLevel = by
@@ -305,7 +305,7 @@ router.post('/matches/:slug/manage/command', requireAuth, async (req: Request, r
   const args = kickBots
     ? { command: KICK_BOTS_LINE }
     : req.body?.args && typeof req.body.args === 'object'
-      ? (req.body.args as Record<string, unknown>)
+      ? (req.body.args as object)
       : {};
   if (!MANAGE_MATCH_COMMANDS.has(name)) {
     return res.status(400).json({ success: false, error: `Unknown command: ${name}` });

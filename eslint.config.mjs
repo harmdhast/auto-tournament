@@ -6,6 +6,23 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactCompiler from 'eslint-plugin-react-compiler';
 import integrationBoundaries from './eslint-rules/integration-boundaries.mjs';
 import moduleSdkBoundary from './eslint-rules/module-sdk-boundary.mjs';
+import { MAX_LINES_TODO } from './eslint-rules/max-lines-todo.mjs';
+import { FORK_LINT_TODO } from './eslint-rules/fork-todo.mjs';
+import {
+  ELSE_RETURN,
+  NESTED_TERNARY,
+  NON_NULL_ASSERTION,
+  OBJECT_LITERAL_ASSERTION,
+  PREFER_CONST,
+  TYPE_IMPORTS,
+} from './eslint-rules/cleanliness-todo.mjs';
+import {
+  NULLISH_COALESCING,
+  OPTIONAL_CHAIN,
+  SWITCH_EXHAUSTIVE,
+  UNNECESSARY_ASSERTION,
+  UNNECESSARY_CONDITION,
+} from './eslint-rules/typed-lint-todo.mjs';
 
 export default [
   js.configs.recommended,
@@ -63,7 +80,7 @@ export default [
     rules: {
       ...typescript.configs.recommended.rules,
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
       // Use `log` from utils/logger. Stray console.log/debug dumps reached
       // production logs unfiltered; console.warn/error remain in catch blocks.
@@ -297,7 +314,7 @@ export default [
       'react/prop-types': 'off', // Using TypeScript
       'react/no-unescaped-entities': 'off', // Allow quotes in text content
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-expressions': [
         'error',
         { allowShortCircuit: true, allowTernary: true },
@@ -341,6 +358,93 @@ export default [
       'module-sdk/module-sdk-boundary': 'error',
     },
   },
+
+  // File length. A file over 450 lines of code (blank lines and comments not
+  // counted) is too long to keep in your head: split it. Files from before the
+  // rule are listed; a PR that splits one takes it off the list.
+  {
+    files: ['api/src/**/*.ts', 'client/src/**/*.{ts,tsx}'],
+    ignores: MAX_LINES_TODO,
+    rules: {
+      'max-lines': ['error', { max: 450, skipBlankLines: true, skipComments: true }],
+    },
+  },
+
+  // Typed internals. Values our own code makes or stores carry their real
+  // type, so mistakes show up here instead of as runtime checks. Data from
+  // outside (a request body, a fetch, a server message, a feed) comes in as
+  // `Untrusted` (utils/untrusted) and is checked once where it arrives.
+  // A caught error keeps `unknown` (anything can be thrown): in `catch`, in
+  // `.catch()` callbacks and in a parameter named error/err/e/reason/cause.
+  {
+    files: ['api/src/**/*.ts', 'client/src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'TSUnknownKeyword:not(CatchClause TSUnknownKeyword):not(CallExpression[callee.property.name="catch"] TSUnknownKeyword):not(Identifier[name=/^(e|err|error|reason|cause)$/] > TSTypeAnnotation > TSUnknownKeyword)',
+          message:
+            'Give it its real type. Outside data is `Untrusted` (utils/untrusted), checked once where it arrives.',
+        },
+        {
+          selector:
+            'TSAsExpression[expression.type="TSAsExpression"][expression.typeAnnotation.type="TSUnknownKeyword"]',
+          message: '`as unknown as` switches type checking off. Fix the types instead.',
+        },
+      ],
+    },
+  },
+
+  // Cleanliness. One rule per object so each can skip its own list of files
+  // from before the rule (eslint-rules/cleanliness-todo.mjs); new files follow
+  // all of them. max-depth is a warning until we agree a limit.
+  ...[
+    ['no-nested-ternary', 'error', NESTED_TERNARY],
+    ['no-else-return', 'error', ELSE_RETURN],
+    ['prefer-const', 'error', PREFER_CONST],
+    ['@typescript-eslint/no-non-null-assertion', 'error', NON_NULL_ASSERTION],
+    [
+      '@typescript-eslint/consistent-type-assertions',
+      ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }],
+      OBJECT_LITERAL_ASSERTION,
+    ],
+    ['@typescript-eslint/consistent-type-imports', 'error', TYPE_IMPORTS],
+  ].map(([rule, setting, ignores]) => ({
+    files: ['api/src/**/*.ts', 'client/src/**/*.{ts,tsx}'],
+    ignores,
+    rules: { [rule]: setting },
+  })),
+  {
+    files: ['api/src/**/*.ts', 'client/src/**/*.{ts,tsx}'],
+    rules: { eqeqeq: ['error', 'smart'], 'max-depth': ['warn', 4] },
+  },
+
+  // Type-aware (api/src only: the client has no typed linting yet). No
+  // floating promises (a fire-and-forget call says so with `void`), no promise
+  // where a void callback is expected (Express handlers excepted), and five
+  // more that skip their own list of files from before the rule
+  // (eslint-rules/typed-lint-todo.mjs).
+  {
+    files: ['api/src/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        { checksVoidReturn: { arguments: false } },
+      ],
+    },
+  },
+  ...[
+    ['@typescript-eslint/switch-exhaustiveness-check', SWITCH_EXHAUSTIVE],
+    ['@typescript-eslint/no-unnecessary-type-assertion', UNNECESSARY_ASSERTION],
+    ['@typescript-eslint/no-unnecessary-condition', UNNECESSARY_CONDITION],
+    ['@typescript-eslint/prefer-nullish-coalescing', NULLISH_COALESCING],
+    ['@typescript-eslint/prefer-optional-chain', OPTIONAL_CHAIN],
+  ].map(([rule, ignores]) => ({ files: ['api/src/**/*.ts'], ignores, rules: { [rule]: 'error' } })),
+
+  // Fork files from before the rules above (eslint-rules/fork-todo.mjs).
+  ...Object.entries(FORK_LINT_TODO).map(([rule, files]) => ({ files, rules: { [rule]: 'off' } })),
 
   // Ignore patterns
   {

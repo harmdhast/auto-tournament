@@ -327,6 +327,39 @@
       "title": "Finn spillere og lag",
       "hint": "Se hvem som spiller her, og finn et lag å bli med i.",
       "cta": "Se spillere"
+    },
+    "next": {
+      "label": {
+        "vetoTurn": "Din tur i vetoen",
+        "ready": "Kampen er klar",
+        "warmup": "Oppvarming",
+        "live": "Live",
+        "paused": "Kampen er satt på pause"
+      },
+      "opponent": "Motstanderen spiller",
+      "startsAt": "Starter",
+      "untilVeto": "Til vetoen",
+      "untilMatch": "Til kampen",
+      "veto": "Veto",
+      "yourTurn": "Din tur",
+      "ban": "Fjern et kart",
+      "pick": "Velg et kart",
+      "side": "Velg side",
+      "theirTurn": "Deres tur",
+      "vetoOpen": "Vetoen er åpen",
+      "waiting": "Venter",
+      "forServer": "På en server",
+      "join": "Bli med",
+      "serverReady": "Serveren er klar",
+      "ready": "Klare",
+      "mapRound": "{{map}} · R{{round}}",
+      "round": "Runde {{round}}",
+      "halftime": "Pause",
+      "nextMap": "Neste kart",
+      "goVeto": "Gå til vetoen",
+      "paused": "Pause",
+      "about": "~{{minutes}} min",
+      "joinServer": "Bli med på serveren"
     }
   },
   "browsePage": {
@@ -523,6 +556,16 @@
     "signInNeed": {
       "body": "{{game}}-spillere logger inn med {{provider}}, og innlogging med {{provider}} er slått av. De kan ikke koble til kontoen spillet trenger.",
       "action": "Slå den på"
+    },
+    "addons": {
+      "title": "Tillegg",
+      "hint": "Funksjoner ved siden av spillene. Når du slår et tillegg av eller på, skjer det med en gang.",
+      "open": "Åpne",
+      "toggle": "{{name}} av eller på",
+      "toggleFailed": "Kunne ikke endre tillegget.",
+      "startFailed": "Slått på, men startet ikke: {{error}}",
+      "notFound": "Det finnes ikke noe slikt tillegg.",
+      "off": "Dette tillegget er slått av. Slå det på under Moduler for å sette det opp."
     }
   },
   "catalog": {
@@ -887,6 +930,11 @@
     "tabMatch": "Kamp",
     "tabTeam": "Lag",
     "tabParty": "Gruppe",
+    "tabDm": "Direktemelding",
+    "dmWho": "Bare dere to ser dette",
+    "placeholderDm": "Skriv til {{name}}",
+    "friends": "Venner",
+    "messageFriend": "Skriv til {{name}}",
     "matchWho": "Laget ditt, {{title}} og adminene",
     "matchWhoAdmin": "Begge lagene og adminene",
     "teamWho": "Alle på {{team}}",
@@ -1040,6 +1088,18 @@
       "label": "Klipp per spiller per kart",
       "helper": "1 til 6. Flere klipp gjør at highlightene fra en kamp tar lengre tid å lage."
     },
+    "preset": {
+      "label": "Videokvalitet",
+      "smooth": "Jevn (anbefalt): 720p, 240 fps",
+      "crisp": "Skarp: 1080p, 120 fps",
+      "lan": "LAN, maks: 1440p, 240 fps, 60 Mbit/s",
+      "custom": "Egendefinert"
+    },
+    "bitrate": {
+      "label": "Bitrate",
+      "auto": "Automatisk (anbefalt)",
+      "option": "{{mbps}} Mbit/s"
+    },
     "resolution": {
       "label": "Oppløsning"
     },
@@ -1146,5 +1206,11 @@
   },
   "siteFooter": {
     "trademarks": "Counter-Strike, CS2 og Steam er varemerker som tilhører Valve Corporation. Andre spillnavn er varemerker som tilhører eierne sine. Auto Tournament er ikke tilknyttet eller godkjent av Valve eller noen spillutgiver."
+  },
+  "discordNotice": {
+    "link": "Koble til Discord-kontoen din, så kan boten flytte deg inn i talekanalen til laget ditt og finne deg i lagkanalen.",
+    "linkAction": "Koble til Discord",
+    "join": "Bli med på Discord-serveren vår. Der finner du kanalene til laget ditt og kampkortene.",
+    "joinAction": "Bli med på serveren"
   }
 }

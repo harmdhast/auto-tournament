@@ -2,7 +2,8 @@
  * Player reports: a signed-in player reports another to the admins; admins
  * list, dismiss, or ban from a report (services/playerReports.ts).
  */
-import { Router, Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { requireAuth, requestActorId } from '../middleware/auth';
 import { isSameSiteRequest } from '../utils/accountConnections';
 import { resolveViewerIdentity } from '../utils/viewerIdentity';
@@ -17,6 +18,7 @@ import {
   ReportError,
 } from '../services/playerReports';
 import type { Actor } from '../services/matchHolds';
+import type { Untrusted } from '../utils/untrusted';
 
 const router = Router();
 
@@ -82,7 +84,7 @@ router.post('/', guardWrite, async (req: Request, res: Response) => {
     return res.status(403).json({ success: false, error: 'Stop impersonating first' });
   }
   try {
-    const body = (req.body ?? {}) as Record<string, unknown>;
+    const body = (req.body ?? {}) as Record<string, Untrusted>;
     const created = await createReport(identity.realSteamId, {
       playerId: body.playerId,
       reason: body.reason,

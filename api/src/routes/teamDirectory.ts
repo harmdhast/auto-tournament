@@ -3,8 +3,8 @@
  *
  * A team can play every game the site runs; `game` only names the one it
  * mainly plays, for the team list. A player
- * can make a team and own at most one (the unique `teams.owner_uid` index),
- * and can be a member of any number. The maker becomes the team's owner and a
+ * can make a team and own up to MAX_OWNED_TEAMS (3), and can be a member of
+ * any number. The maker becomes the team's owner and a
  * captain in `team_members`; the roster JSON (`teams.players`) starts with
  * just them, like any team an admin makes.
  *
@@ -34,7 +34,8 @@
 import { gameDisplayName } from '../utils/gameDisplayName';
 import { RATING_ELO, getGameRatings, ratingGame, ratingJoin } from '../services/gameRatings';
 import { randomBytes } from 'node:crypto';
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { db } from '../config/database';
 import { log } from '../utils/logger';
 import { resolveViewerAccount } from '../utils/viewerIdentity';
@@ -44,12 +45,15 @@ import { playerService } from '../services/playerService';
 import express from 'express';
 import {
   teamSelfService,
+  MAX_OWNED_TEAMS,
+  ownedCount,
   TeamActionError,
   LOGO_MAX_BYTES,
   BANNER_MAX_BYTES,
   bannerUrl,
   logoUrl,
 } from '../services/teamSelfService';
+import type { Untrusted } from '../utils/untrusted';
 
 const router = Router();
 
@@ -85,7 +89,7 @@ export interface DirectoryTeam {
 
 function rosterIds(players: string): string[] {
   try {
-    const list = JSON.parse(players) as unknown;
+    const list = JSON.parse(players) as Untrusted;
     return Array.isArray(list)
       ? list.map((p) => (p as { steamId?: string }).steamId).filter((id): id is string => !!id)
       : [];
@@ -154,7 +158,7 @@ async function withNumbers(rows: DirectoryRow[]): Promise<DirectoryTeam[]> {
 
 function rosterSize(players: string): number {
   try {
-    const list = JSON.parse(players) as unknown;
+    const list = JSON.parse(players) as Untrusted;
     return Array.isArray(list) ? list.length : 0;
   } catch {
     return 0;
@@ -183,8 +187,8 @@ const DIRECTORY_SELECT = `
 
 /** Team names: 2-32 characters. Tags: 2-5 letters or digits, kept upper case. */
 export function validateTeamFields(
-  name: unknown,
-  tag: unknown
+  name: Untrusted,
+  tag: Untrusted
 ): { name: string; tag: string } | string {
   const n = typeof name === 'string' ? name.trim().replace(/\s+/g, ' ') : '';
   if (n.length < 2 || n.length > 32) return 'The team name must be 2 to 32 characters.';
@@ -241,10 +245,11 @@ router.get('/mine', async (req: Request, res: Response) => {
     }
     const memberships = await teamMembers.listForAccount(viewer.uid);
     const ids = memberships.map((m) => m.teamId);
-    const owned = await db.queryOneAsync<DirectoryRow>(
-      `${DIRECTORY_SELECT} WHERE t.owner_uid = ?`,
+    const owned = await db.queryAsync<DirectoryRow>(
+      `${DIRECTORY_SELECT} WHERE t.owner_uid = ? ORDER BY t.created_at`,
       [viewer.uid]
     );
+    const ownedIds = new Set(owned.map((r) => r.id));
     const rows = ids.length
       ? await db.queryAsync<DirectoryRow>(
           `${DIRECTORY_SELECT} WHERE t.id = ANY(?::text[]) ORDER BY t.name`,
@@ -257,18 +262,26 @@ router.get('/mine', async (req: Request, res: Response) => {
       (
         await db.queryAsync<{ team_id: string; n: string | number }>(
           'SELECT team_id, COUNT(*) AS n FROM team_invites WHERE team_id = ANY(?::text[]) GROUP BY team_id',
-          [[...ids, ...(owned ? [owned.id] : [])]]
+          [[...ids, ...ownedIds]]
         )
       ).map((r) => [r.team_id, Number(r.n)])
     );
     return res.json({
       success: true,
       accountUid: viewer.uid,
-      owned: owned
-        ? { ...toDirectoryTeam(owned), pendingInvites: pending.get(owned.id) ?? 0 }
-        : null,
+      // Up to MAX_OWNED_TEAMS, oldest first; `ownedMax` for "make another".
+      owned: owned.map((r) => ({ ...toDirectoryTeam(r), pendingInvites: pending.get(r.id) ?? 0 })),
+      ownedMax: MAX_OWNED_TEAMS,
+      // The team shown under their name on their profile (PUT /api/players/me/shown-team).
+      shownTeamId:
+        (
+          await db.queryOneAsync<{ shown_team_id: string | null }>(
+            'SELECT shown_team_id FROM players WHERE uid = ?',
+            [viewer.uid]
+          )
+        )?.shown_team_id ?? null,
       memberOf: rows
-        .filter((r) => r.id !== owned?.id)
+        .filter((r) => !ownedIds.has(r.id))
         .map((r) => ({
           ...toDirectoryTeam(r),
           role: role.get(r.id) ?? 'member',
@@ -298,18 +311,13 @@ router.post('/mine', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: fields });
     }
 
-    const existing = await db.queryOneAsync<{ id: string }>(
-      'SELECT id FROM teams WHERE owner_uid = ?',
-      [viewer.uid]
-    );
-    if (existing) {
-      return res.status(409).json({
+    const limit = () =>
+      res.status(409).json({
         success: false,
-        code: 'already_owner',
-        teamId: existing.id,
-        error: 'You already own a team. Hand it over to a teammate to make a new one.',
+        code: 'owner_limit',
+        error: `You own ${MAX_OWNED_TEAMS} teams already. Hand one over to a teammate or disband it to make a new one.`,
       });
-    }
+    if ((await ownedCount(viewer.uid)) >= MAX_OWNED_TEAMS) return limit();
 
     const player = await playerService.getPlayerById(viewer.playerId);
     const id = newTeamId(fields.name);
@@ -325,14 +333,11 @@ router.post('/mine', async (req: Request, res: Response) => {
         },
       ],
     });
-    try {
-      await db.runAsync('UPDATE teams SET owner_uid = ? WHERE id = ?', [viewer.uid, id]);
-    } catch {
-      // Two creates at once: the unique index keeps one; drop this one.
+    await db.runAsync('UPDATE teams SET owner_uid = ? WHERE id = ?', [viewer.uid, id]);
+    // Two creates at once can both pass the check: the one over the limit is undone.
+    if ((await ownedCount(viewer.uid)) > MAX_OWNED_TEAMS) {
       await teamService.deleteTeam(id).catch(() => undefined);
-      return res
-        .status(409)
-        .json({ success: false, code: 'already_owner', error: 'You already own a team.' });
+      return limit();
     }
     await teamMembers.setRole(id, viewer.uid, 'captain');
 
@@ -359,8 +364,8 @@ async function actingAccount(req: Request, res: Response): Promise<string | null
 }
 
 /** Runs a team action and answers with its result, or its refusal. */
-function teamAction(
-  action: (req: Request, uid: string | null) => Promise<unknown>,
+function teamAction<T>(
+  action: (req: Request, uid: string | null) => Promise<T>,
   { signIn = true }: { signIn?: boolean } = {}
 ) {
   return async (req: Request, res: Response) => {
@@ -413,7 +418,7 @@ router.get('/:teamId/profile', async (req: Request, res: Response) => {
 
     let roster: Array<{ steamId: string; name: string; avatar?: string }> = [];
     try {
-      const parsed = JSON.parse(row.players) as unknown;
+      const parsed = JSON.parse(row.players) as Untrusted;
       if (Array.isArray(parsed)) roster = parsed;
     } catch {
       roster = [];

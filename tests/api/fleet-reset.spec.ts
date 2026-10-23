@@ -2,7 +2,6 @@ import { test, expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
 import { FakeReadyUp, createMatch, link, matchRow, releaseFleet } from '../helpers/fleetFake';
-import { configureWebhook } from '../helpers/setup';
 
 /**
  * Reset a Ready Up server (POST /api/fleet/servers/:id/reset): cmd reset ends
@@ -23,7 +22,6 @@ test.describe.serial('Fleet reset', () => {
     expect(await signInViaRequest(request)).toBe(true);
     await resetEnrollRateLimit(request);
     if (!key) key = await createFleetKey(request, { name: 'fleet-reset-tests' });
-    expect(await configureWebhook(request, 'http://localhost:3069')).toBe(true);
   });
 
   test.afterAll(async ({ request }) => {

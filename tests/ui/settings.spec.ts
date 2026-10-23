@@ -42,7 +42,6 @@ test.describe.serial('Settings UI', () => {
           'page'
         );
       }
-      await expect(page.getByTestId('settings-webhook-url-input')).toHaveCount(0);
 
       // CS2's settings are its Match rules page, linked from here.
       await page

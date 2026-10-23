@@ -1,5 +1,5 @@
 import { db } from '../config/database';
-import { Match, MatchConfig, CreateMatchInput, MatchResponse } from '../types/match.types';
+import type { Match, CreateMatchInput, MatchResponse } from '../types/match.types';
 import { log } from '../utils/logger';
 import { emitMatchUpdate } from './socketService';
 import { integrationForMatch } from '../integrations/registry';
@@ -13,6 +13,7 @@ import {
 import { tournamentRowToResponse } from '../utils/tournamentRow';
 import type { DbMatchRow, DbTournamentRow } from '../types/database.types';
 import { matchLiveStatsService } from './matchLiveStatsService';
+import type { SqlValue } from '../config/database';
 
 class MatchService {
   /**
@@ -173,7 +174,7 @@ class MatchService {
       throw new Error(`Match '${slug}' not found`);
     }
 
-    const updateData: Record<string, unknown> = { status };
+    const updateData: Record<string, SqlValue> = { status };
     if (status === 'loaded') {
       updateData.loaded_at = Math.floor(Date.now() / 1000);
     }
@@ -192,7 +193,7 @@ class MatchService {
    * Delete match
    */
   async deleteMatch(slug: string): Promise<void> {
-    const match = await db.getOneAsync<Match>('matches', 'slug = ?', [slug]);
+    const match = await db.getOneAsync<DbMatchRow>('matches', 'slug = ?', [slug]);
     if (!match) {
       throw new Error(`Match '${slug}' not found`);
     }
@@ -206,21 +207,8 @@ class MatchService {
     // integration (CS2: mark it idle and allocate waiting matches right away).
     if (serverId) {
       log.info(`Server ${serverId} freed by match deletion, triggering immediate allocation`);
-      const row = match as unknown as DbMatchRow;
-      await integrationForMatch(row).release?.(await matchContextFor(row));
+      await integrationForMatch(match).release?.(await matchContextFor(match));
     }
-  }
-
-  /**
-   * Get match config (raw JSON for MatchZy Enhanced)
-   */
-  async getMatchConfig(slug: string): Promise<MatchConfig | null> {
-    const match = await db.getOneAsync<Match>('matches', 'slug = ?', [slug]);
-    if (!match) {
-      return null;
-    }
-    // Integration-owned blob, returned as stored.
-    return parseStoredMatchConfig(match.config) as unknown as MatchConfig;
   }
 
   /**
@@ -228,7 +216,7 @@ class MatchService {
    */
   private toResponse(match: Match, baseUrl: string): MatchResponse {
     // Integration-owned blob, forwarded as stored (client slots: PR 12).
-    const config = parseStoredMatchConfig(match.config) as unknown as MatchConfig;
+    const config = parseStoredMatchConfig(match.config);
     return {
       id: match.id,
       slug: match.slug,

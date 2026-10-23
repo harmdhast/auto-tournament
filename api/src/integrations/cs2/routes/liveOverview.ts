@@ -10,7 +10,8 @@
  * Admins refresh it on `match:update` and the admin call socket events.
  */
 
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { db } from '../../../config/database';
 import { requireAuth } from '../../../middleware/auth';
 import { log } from '../../../utils/logger';
@@ -125,7 +126,7 @@ function pausedBy(state: MatchState, by: string | undefined): string | null {
 /** The match's config: its team names, and the roster, nobody connected (no live state yet). */
 function fromConfig(row: LiveOverviewRow): Array<{ name: string; players: LiveOverviewPlayer[] }> {
   try {
-    const config = row.config ? (JSON.parse(row.config) as unknown) : null;
+    const config = row.config ? (JSON.parse(row.config) as object) : null;
     const described = describeMatch({ game: (row.game ?? 'cs2') as never, config });
     return [described.team1, described.team2].map((t) => ({
       name: t.name,

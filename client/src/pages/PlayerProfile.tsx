@@ -1,4 +1,5 @@
 /* global AbortController */
+import { ShownTeamPicker } from '../components/player/profile/ShownTeamPicker';
 import { ProfileHighlights } from '../components/highlights/ProfileHighlights';
 import type { PlayerHighlightsFeed } from '../components/highlights/feed';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -18,7 +19,8 @@ import {
 import { RankingIcon, UserFocusIcon } from '@phosphor-icons/react';
 import { api } from '../utils/api';
 import { onSocketReconnect } from '../utils/socketResync';
-import { io, Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
+import { scopedSocket } from '../utils/sharedSocket';
 import { NextMatchCard } from '../components/match/NextMatchCard';
 import { PendingTeamInvites } from '../components/team/PendingTeamInvites';
 import { useSoundSettings } from '../hooks/useSoundSettings';
@@ -436,7 +438,7 @@ export default function PlayerProfile() {
 
         // The team for the header chip, even when the player has no current match.
         try {
-          const teamResp = (await api.fetch(`/api/players/${steamId}/team`, {
+          const teamResp = (await api.fetch(`/api/players/${steamId}/team?for=profile`, {
             method: 'GET',
             signal: controller.signal,
           })) as {
@@ -643,7 +645,7 @@ export default function PlayerProfile() {
   // Lazily create a shared Socket.IO connection for this page once per mount.
   useEffect(() => {
     if (!socketRef.current) {
-      socketRef.current = io();
+      socketRef.current = scopedSocket();
     }
 
     const socket = socketRef.current;
@@ -1048,7 +1050,14 @@ export default function PlayerProfile() {
           wonMatch: m.wonMatch,
           title: `${t('teamMatchHistory.vs')} ${opponentName}`,
           opponent: { id: (isTeam1 ? m.team2Id : m.team1Id) ?? null, name: opponentName },
-          detail: [rating?.tournamentName, getRoundLabel(m.round)].filter(Boolean).join(' · '),
+          tournament:
+            m.tournamentId && rating?.tournamentName
+              ? { id: m.tournamentId, name: rating.tournamentName }
+              : null,
+          detail:
+            m.tournamentId && rating?.tournamentName
+              ? getRoundLabel(m.round)
+              : [rating?.tournamentName, getRoundLabel(m.round)].filter(Boolean).join(' · '),
           ratingAfter: rating?.eloAfter,
           // Only a game that records demos, and only a match that has one: no
           // download button that leads nowhere.
@@ -1129,6 +1138,19 @@ export default function PlayerProfile() {
             isOwnProfile={isOwnProfile}
             lastResults={recentMatchEntries.map((m) => m.wonMatch)}
           />
+          {isOwnProfile && (
+            <ShownTeamPicker
+              current={headerTeam?.id ?? null}
+              onChosen={(team) =>
+                setAssignedTeam({
+                  id: team.id,
+                  name: team.name,
+                  tag: team.tag ?? undefined,
+                  role: null,
+                })
+              }
+            />
+          )}
 
           {/* Matchmaking level and commends; nothing while matchmaking is off. */}
           <PlayerProgress playerId={player.id} />

@@ -5,7 +5,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 import { zhCN, enUS, frFR, deDE, esES, itIT, ptPT, plPL, nlNL, nbNO } from '@mui/material/locale';
 import App from './App';
 import './index.css';
-import i18n from './i18n';
+import i18n, { i18nReady } from './i18n';
 import { theme as baseTheme, activeThemeId, tokens } from './theme';
 import { createTheme } from '@mui/material/styles';
 import { applyFaviconTheme } from './theme/favicon';
@@ -75,8 +75,9 @@ const Root: React.FC = () => {
 // pending state until it arrives (`useIntegration` in integrations/registry).
 void bootCodeModules();
 
+// The viewer's language first (no English flash for a Norwegian visitor); English is built in.
 // The bundled CS2 image manifest is read before the first render so every map
 // picture gets its final URL; it gives up after 1.5 s and jsDelivr serves.
-void loadCs2Assets().then(() => {
+void Promise.all([i18nReady, loadCs2Assets()]).then(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(<Root />);
 });

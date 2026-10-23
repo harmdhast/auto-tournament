@@ -54,7 +54,7 @@ const INLINE_AUTH: Array<[RegExp, string]> = [
   [/^POST \/api\/chat\/:channel\//, "the viewer's access to the channel, in the handler"],
   [/^\S+ \/api\/tournament-signup\/:id\//, 'the signed-in captain, in the handler'],
   [/^\S+ \/api\/team-directory\//, 'team member, owner or invitee, in the handler'],
-  [/^PUT \/api\/players\/me\/discord-id$/, 'signed-in player resolved in the handler'],
+  [/^PUT \/api\/players\/me\/(discord-id|shown-team)$/, 'signed-in player resolved in the handler'],
   [/^POST \/api\/player-reports$/, 'signed-in player, same-site (guardWrite)'],
   [/^\S+ \/api\/me\//, 'signed-in viewer resolved in the handler'],
   [/^POST \/api\/email\/(verify|unsubscribe)$/, 'signed token in the body'],

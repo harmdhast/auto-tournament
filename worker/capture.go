@@ -168,6 +168,8 @@ func (c *console) drain() {
 	}
 }
 
+var errConsoleClosed = errors.New("CS2's console closed")
+
 // expect waits for a line matching re and returns its first group.
 func (c *console) expect(re *regexp.Regexp, wait time.Duration) (string, time.Time, error) {
 	timer := time.NewTimer(wait)
@@ -176,7 +178,7 @@ func (c *console) expect(re *regexp.Regexp, wait time.Duration) (string, time.Ti
 		select {
 		case line, ok := <-c.lines:
 			if !ok {
-				return "", time.Time{}, errors.New("CS2's console closed")
+				return "", time.Time{}, errConsoleClosed
 			}
 			if m := re.FindStringSubmatch(line); m != nil {
 				return m[1], time.Now(), nil
@@ -197,6 +199,13 @@ type game struct {
 	startTick int // the demo's first tick: the console's ticks count from it
 	lastTick  int // the demo's length in ticks (the analyzer's last tick)
 	logPath   string
+	// fbf: Frame by Frame unhid startmovie (framebyframe_linux.go), known
+	// once fbfChecked; gameinfo is the gameinfo.gi it patched, restored when
+	// CS2 stops.
+	fbf, fbfChecked bool
+	gameinfo        string
+	// pausedAt is the analyzer tick the last seek landed and paused on.
+	pausedAt int
 	// follow, when set, is where the followed player stands at a tick (the
 	// demo's replay frames): the capture checks the camera is with them.
 	follow func(tick int) ([3]float64, bool)
@@ -226,6 +235,13 @@ func (r *recorder) launchGameOnce(ctx context.Context, logPath string) (*game, e
 		return nil, err
 	}
 	setRecordingVideo(r.width, r.height)
+	gameinfo := ""
+	if fbfWanted() {
+		var err error
+		if gameinfo, err = fbfInstall(r.gameDir); err != nil {
+			log.Printf("frame by frame: not installed (%v); capturing the stream", err)
+		}
+	}
 	w, h := strconv.Itoa(r.width), strconv.Itoa(r.height)
 	args := []string{"--backend", "headless", "-W", w, "-H", h, "-w", w, "-h", h, "-r", strconv.Itoa(envPositive("AT_GAMESCOPE_HZ", 120)), "--"}
 	if r.sniper != "" {
@@ -242,6 +258,7 @@ func (r *recorder) launchGameOnce(ctx context.Context, logPath string) (*game, e
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	logFile, err := os.Create(logPath)
 	if err != nil {
+		fbfRestore(gameinfo)
 		return nil, err
 	}
 	pr, pw := io.Pipe()
@@ -249,9 +266,10 @@ func (r *recorder) launchGameOnce(ctx context.Context, logPath string) (*game, e
 	cmd.Stderr = cmd.Stdout
 	if err := cmd.Start(); err != nil {
 		logFile.Close()
+		fbfRestore(gameinfo)
 		return nil, fmt.Errorf("start gamescope: %w", err)
 	}
-	g := &game{cmd: cmd, width: r.width, height: r.height, logPath: logPath}
+	g := &game{cmd: cmd, width: r.width, height: r.height, logPath: logPath, gameinfo: gameinfo}
 	nodeCh := make(chan string, 1)
 	go func() {
 		sc := bufio.NewScanner(pr)
@@ -309,6 +327,7 @@ func (g *game) stop() {
 			_ = syscall.Kill(-g.cmd.Process.Pid, syscall.SIGKILL)
 		}
 	}
+	fbfRestore(g.gameinfo)
 }
 
 // loadDemo applies the recorder's look, plays the demo (a path under
@@ -455,7 +474,8 @@ func (g *game) awaitSeek(target int) (int, error) {
 		}
 		if v, _, err := g.con.expect(rePaused, 2*time.Second); err == nil {
 			if tick, err := strconv.Atoi(v); err == nil && seekLanded(tick-g.startTick, target) {
-				return tick - g.startTick, nil
+				g.pausedAt = tick - g.startTick
+				return g.pausedAt, nil
 			}
 		}
 		if time.Now().After(deadline) {
@@ -493,19 +513,28 @@ func (g *game) seekForCapture(from int, scale float64) error {
 	return fmt.Errorf("seek could not preserve capture run-up at tick %d after 3 attempts", from)
 }
 
-// resume plays the demo on and returns the tick it resumed at; if it was
-// already playing (no answer), it pauses it and tries once more.
-func (g *game) resume() (string, time.Time, error) {
+// resume plays the demo on from analyzer tick `at` (where it is paused) and
+// returns the tick it resumed at; if it said nothing, it pauses it, seeks
+// back to `at` and tries once more. Its answer can go missing while the demo
+// does play: the pause and second resume then started 120–200 ticks late,
+// past the run-up, and the clip failed with "no frame near tick" on every
+// retry (73 passes in 8 h on csm-test, 2026-10-20).
+func (g *game) resume(at int, scale float64) (string, time.Time, error) {
 	for i := 0; i < 2; i++ {
 		g.con.drain()
 		if err := g.con.send("demo_resume"); err != nil {
 			return "", time.Time{}, err
 		}
-		if v, at, err := g.con.expect(reUnpaused, 3*time.Second); err == nil {
-			return v, at, nil
+		if v, t, err := g.con.expect(reUnpaused, 3*time.Second); err == nil {
+			return v, t, nil
 		}
 		if err := g.pause(); err != nil {
 			return "", time.Time{}, err
+		}
+		if i == 0 {
+			if err := g.seekForCapture(at, scale); err != nil {
+				return "", time.Time{}, err
+			}
 		}
 	}
 	return "", time.Time{}, errors.New("the demo would not resume")
@@ -587,7 +616,11 @@ func (g *game) playPhases(from int, phases []playPhase, name string, started fun
 				return spans, err
 			}
 		}
-		v, at, err := g.resume()
+		back := from
+		if i > 0 {
+			back = spans[i-1].toTick
+		}
+		v, at, err := g.resume(back, ph.scale)
 		if err != nil {
 			return spans, err
 		}
@@ -604,7 +637,7 @@ func (g *game) playPhases(from int, phases []playPhase, name string, started fun
 		}
 		log.Printf("playing ticks %d → %d at %gx (%.1f s; seek %.1f s, ready %.1f s)", s.fromTick, ph.to, ph.scale, wall,
 			seekTook.Seconds(), time.Since(seekStart).Seconds())
-		if gameSeconds > 60 || gameSeconds < -float64(tickrate) {
+		if gameSeconds > 60 || gameSeconds < -1 {
 			return spans, fmt.Errorf("resumed at tick %d, too far from %d", s.fromTick, ph.to)
 		}
 		time.Sleep(time.Duration(wall * float64(time.Second)))
@@ -808,3 +841,14 @@ func defaultSink() string {
 
 // demoDir is where the recorder puts demos for CS2 (playdemo reads under game/csgo).
 func demoDir(gameDir string) string { return filepath.Join(gameDir, "csgo", "at-recorder") }
+
+// killsPastEnd says whether any kill falls in the last endMargin of a demo
+// lastTick long (0: length unknown), where playback cannot reach it.
+func killsPastEnd(kills []int, lastTick int) bool {
+	for _, k := range kills {
+		if lastTick > 0 && k > lastTick-endMargin {
+			return true
+		}
+	}
+	return false
+}

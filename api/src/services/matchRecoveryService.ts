@@ -8,15 +8,12 @@ import { db } from '../config/database';
 import { log } from '../utils/logger';
 import { integrationForMatch } from '../integrations/registry';
 import { matchContextFor } from '../utils/matchIntegration';
-import { settingsService } from './settingsService';
 import type { DbMatchRow } from '../types/database.types';
 
 export interface RecoveryResult {
   matchSlug: string;
   success: boolean;
   stateSynced: boolean;
-  webhookReconfigured: boolean;
-  demoUploadReconfigured: boolean;
   error?: string;
 }
 
@@ -49,7 +46,7 @@ export async function releaseStrandedReadyMatches(): Promise<number> {
 
 /**
  * Recover all active matches on startup
- * Syncs match state from servers and reconfigures webhooks/demos
+ * Syncs match state from servers and refreshes player connections
  */
 export async function recoverActiveMatches(): Promise<RecoveryResult[]> {
   log.info('[Recovery] Starting match recovery on startup...');
@@ -72,12 +69,8 @@ export async function recoverActiveMatches(): Promise<RecoveryResult[]> {
 
     const results: RecoveryResult[] = [];
 
-    // Get webhook base URL for reconfiguration
-    const baseUrl = await settingsService.getSetting('webhook_url');
-    const serverToken = process.env.SERVER_TOKEN || '';
-
     for (const match of activeMatches) {
-      const result = await recoverMatch(match, baseUrl, serverToken);
+      const result = await recoverMatch(match);
       results.push(result);
     }
 
@@ -96,17 +89,11 @@ export async function recoverActiveMatches(): Promise<RecoveryResult[]> {
 /**
  * Recover a single match
  */
-async function recoverMatch(
-  match: DbMatchRow,
-  baseUrl: string | null,
-  serverToken: string
-): Promise<RecoveryResult> {
+async function recoverMatch(match: DbMatchRow): Promise<RecoveryResult> {
   const result: RecoveryResult = {
     matchSlug: match.slug,
     success: false,
     stateSynced: false,
-    webhookReconfigured: false,
-    demoUploadReconfigured: false,
   };
 
   try {
@@ -137,28 +124,7 @@ async function recoverMatch(
       });
     }
 
-    // 2. Ensure persistent configuration is initialized (webhook and demo upload)
-    // Note: With persistent configuration, the server stores webhook/demo URLs in its database.
-    // We just need to make sure it's been initialized once. This is idempotent.
-    if (baseUrl && serverToken) {
-      try {
-        const integration = integrationForMatch(match);
-        if (integration.reattach) {
-          await integration.reattach(await matchContextFor(match));
-          result.webhookReconfigured = true;
-          result.demoUploadReconfigured = true;
-        }
-        log.success(`[Recovery] Verified persistent config for ${match.slug} on server ${match.server_id}`);
-      } catch (error) {
-        log.warn(`[Recovery] Failed to verify persistent config for ${match.slug}`, { error });
-      }
-    } else {
-      log.warn(`[Recovery] Skipping persistent config verification for ${match.slug}`, {
-        reason: !baseUrl ? 'Webhook URL not configured' : 'SERVER_TOKEN not set',
-      });
-    }
-
-    // 3. Refresh player connections
+    // 2. Refresh player connections
     try {
       await integrationForMatch(match).refreshPresence?.(match.slug, { force: true });
       log.debug(`[Recovery] Refreshed player connections for ${match.slug}`);
@@ -171,8 +137,6 @@ async function recoverMatch(
     result.success = true;
     log.success(`[Recovery] Successfully recovered match ${match.slug}`, {
       stateSynced: result.stateSynced,
-      webhookReconfigured: result.webhookReconfigured,
-      demoUploadReconfigured: result.demoUploadReconfigured,
     });
   } catch (error) {
     result.error = error instanceof Error ? error.message : String(error);
@@ -186,7 +150,10 @@ async function recoverMatch(
  * Replay recent events from database for a match
  * Useful for catching up on events that occurred during downtime
  */
-export async function replayRecentEvents(matchSlug: string, sinceTimestamp?: number): Promise<void> {
+export async function replayRecentEvents(
+  matchSlug: string,
+  sinceTimestamp?: number
+): Promise<void> {
   try {
     const since = sinceTimestamp || Math.floor(Date.now() / 1000) - 3600; // Default: last hour
 
@@ -222,7 +189,7 @@ export async function replayRecentEvents(matchSlug: string, sinceTimestamp?: num
 
     for (const eventRow of events) {
       try {
-        const event: unknown = JSON.parse(eventRow.event_data);
+        const event = JSON.parse(eventRow.event_data) as object;
         await integration.replayEvent(event);
         log.debug(`[Recovery] Replayed event: ${eventRow.event_type}`, {
           matchSlug,
@@ -241,4 +208,3 @@ export async function replayRecentEvents(matchSlug: string, sinceTimestamp?: num
     log.error(`[Recovery] Failed to replay events for ${matchSlug}`, error as Error);
   }
 }
-

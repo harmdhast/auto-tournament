@@ -14,6 +14,7 @@
  * own page, which is about the tournament in its URL.
  * Without either the API answers for the featured tournament.
  */
+import type { Untrusted } from './untrusted';
 const ADMIN_SCOPE_KEY = 'at:adminTournamentId';
 function readStoredScope(): number | null {
   try {
@@ -53,11 +54,16 @@ function tournamentScope(): number | null {
 /** Fired when the API answers `license_expired` (api/src/middleware/licenseExpired.ts); components/license/LicenseGate.tsx shows the page. */
 export const LICENSE_EXPIRED_EVENT = 'at:license-expired';
 
+/** GETs on their way, by scope and URL (api.get). */
+const inFlight = new Map<string, Promise<Untrusted>>();
+
 export const api = {
   /**
    * Make an authenticated API request
    */
   async fetch(endpoint: string, options: RequestInit = {}) {
+    // A change may make a GET already on its way stale: the next one goes out fresh.
+    if (options.method && options.method !== 'GET') inFlight.clear();
     const { headers, ...rest } = options;
     const response = await fetch(endpoint, {
       // Send cookies for same-origin requests by default so admin-only routes
@@ -98,16 +104,26 @@ export const api = {
   },
 
   /**
-   * GET request
+   * GET request. The same GET already on its way is shared, not sent again: a page's parts
+   * often ask for the same list at once (the home page asked for the tournaments four times).
+   * Each caller gets its own copy.
    */
-  async get<T = unknown>(endpoint: string): Promise<T> {
-    return this.fetch(endpoint, { method: 'GET' });
+  async get<T = Untrusted>(endpoint: string): Promise<T> {
+    const key = `${tournamentScope() ?? ''} ${endpoint}`;
+    let pending = inFlight.get(key);
+    if (!pending) {
+      pending = this.fetch(endpoint, { method: 'GET' });
+      inFlight.set(key, pending);
+      const done = () => inFlight.delete(key);
+      pending.then(done, done);
+    }
+    return window.structuredClone(await pending) as T;
   },
 
   /**
    * POST request
    */
-  async post<T = unknown>(endpoint: string, data?: unknown): Promise<T> {
+  async post<T = Untrusted>(endpoint: string, data?: object): Promise<T> {
     return this.fetch(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
@@ -117,7 +133,7 @@ export const api = {
   /**
    * PUT request
    */
-  async put<T = unknown>(endpoint: string, data?: unknown): Promise<T> {
+  async put<T = Untrusted>(endpoint: string, data?: object): Promise<T> {
     return this.fetch(endpoint, {
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
@@ -127,7 +143,7 @@ export const api = {
   /**
    * PATCH request
    */
-  async patch<T = unknown>(endpoint: string, data?: unknown): Promise<T> {
+  async patch<T = Untrusted>(endpoint: string, data?: object): Promise<T> {
     return this.fetch(endpoint, {
       method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined,
@@ -150,7 +166,7 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
   const raw = err instanceof Error ? err.message : '';
   if (!raw) return fallback;
   try {
-    const parsed = JSON.parse(raw) as { error?: unknown; message?: unknown };
+    const parsed = JSON.parse(raw) as { error?: Untrusted; message?: Untrusted };
     if (typeof parsed.error === 'string' && parsed.error) return parsed.error;
     if (typeof parsed.message === 'string' && parsed.message) return parsed.message;
   } catch {

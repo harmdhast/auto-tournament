@@ -3,6 +3,7 @@ import path from 'path';
 import { test, expect } from '@playwright/test';
 import { setupTestContext } from '../helpers/setup';
 import { getAuthHeader } from '../helpers/auth';
+import { deleteAllTournaments } from '../helpers/tournaments';
 
 const readFileFailed: string = JSON.parse(
   fs.readFileSync(path.join(__dirname, '../../client/src/integrations/cs2/locales/en.json'), 'utf8')
@@ -191,7 +192,7 @@ test.describe.serial('Tournament Map Pool Selection', () => {
     await setupTestContext(page, request);
     // The map-pool step lives inside the creation flow, which only opens when
     // no tournament exists yet.
-    await request.delete('/api/tournament', { headers: getAuthHeader() });
+    await deleteAllTournaments(request);
   });
 
   test(

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { TeamDiscordLink } from '../addons/discord/TeamDiscordLink';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Box, Button, CircularProgress, Container, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
@@ -129,13 +130,14 @@ export default function TeamProfile() {
         .get<{
           success: boolean;
           accountUid: string;
-          owned: { id: string } | null;
+          owned: Array<{ id: string }>;
           memberOf: Array<{ id: string; role: 'captain' | 'member' }>;
         }>('/api/team-directory/mine')
         .then((res) => {
           if (cancelled) return;
-          const role =
-            res.owned?.id === teamId ? 'owner' : res.memberOf.find((m) => m.id === teamId)?.role;
+          const role = res.owned.some((o) => o.id === teamId)
+            ? 'owner'
+            : res.memberOf.find((m) => m.id === teamId)?.role;
           setOwn(role ? { role, uid: res.accountUid } : null);
         })
         .catch(() => undefined);
@@ -146,27 +148,30 @@ export default function TeamProfile() {
   }, [teamId, playerSteamId]);
 
   const ownActions = own ? (
-    own.role === 'member' ? (
-      <Button
-        variant="outlined"
-        size="small"
-        color="error"
-        onClick={() => setLeaving(true)}
-        data-testid="team-profile-leave"
-      >
-        {t('teamProfile.leave')}
-      </Button>
-    ) : (
-      <Button
-        variant="outlined"
-        size="small"
-        component={RouterLink}
-        to={teamManagePath(teamId ?? '')}
-        data-testid="team-profile-manage"
-      >
-        {t('teamProfile.manage')}
-      </Button>
-    )
+    <>
+      <TeamDiscordLink teamId={teamId ?? ''} />
+      {own.role === 'member' ? (
+        <Button
+          variant="outlined"
+          size="small"
+          color="error"
+          onClick={() => setLeaving(true)}
+          data-testid="team-profile-leave"
+        >
+          {t('teamProfile.leave')}
+        </Button>
+      ) : (
+        <Button
+          variant="outlined"
+          size="small"
+          component={RouterLink}
+          to={teamManagePath(teamId ?? '')}
+          data-testid="team-profile-manage"
+        >
+          {t('teamProfile.manage')}
+        </Button>
+      )}
+    </>
   ) : undefined;
 
   // The team's game is its tournament's, else the one it plays (or last played).

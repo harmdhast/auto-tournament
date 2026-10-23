@@ -34,6 +34,7 @@
 
 import crypto from 'crypto';
 import { getSessionSecret } from './sessionSecret';
+import type { Untrusted } from './untrusted';
 
 export const PENDING_STEAM_LINK_COOKIE_NAME = 'pending_steam_link';
 
@@ -46,7 +47,14 @@ export const PENDING_STEAM_LINK_TTL_MS = 1000 * 60 * 10;
  * module free of DB imports; auth.ts passes one to the other, so a mismatch is
  * a type error there).
  */
-export const PENDING_STEAM_LINK_PROVIDERS = ['discord', 'github', 'google', 'twitch', 'epic', 'oidc'] as const;
+export const PENDING_STEAM_LINK_PROVIDERS = [
+  'discord',
+  'github',
+  'google',
+  'twitch',
+  'epic',
+  'oidc',
+] as const;
 export type PendingSteamLinkProvider = (typeof PENDING_STEAM_LINK_PROVIDERS)[number];
 
 export interface PendingSteamLink {
@@ -93,7 +101,7 @@ function hmac(key: string, value: string): Buffer {
   return crypto.createHmac('sha256', key).update(`${SIGNATURE_NAMESPACE}${value}`, 'utf8').digest();
 }
 
-function isKnownProvider(value: unknown): value is PendingSteamLinkProvider {
+function isKnownProvider(value: Untrusted): value is PendingSteamLinkProvider {
   return (
     typeof value === 'string' && (PENDING_STEAM_LINK_PROVIDERS as readonly string[]).includes(value)
   );
@@ -155,7 +163,7 @@ export function verifyPendingSteamLink(
     return { ok: false, reason: 'bad-signature' };
   }
 
-  let decoded: unknown;
+  let decoded: Untrusted;
   try {
     decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
   } catch {
@@ -166,7 +174,7 @@ export function verifyPendingSteamLink(
   if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) {
     return { ok: false, reason: 'invalid-payload' };
   }
-  const { provider, providerUserId, exp, ae } = decoded as Record<string, unknown>;
+  const { provider, providerUserId, exp, ae } = decoded as Record<string, Untrusted>;
   if (
     !isKnownProvider(provider) ||
     typeof providerUserId !== 'string' ||

@@ -34,6 +34,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -45,6 +46,8 @@ type job struct {
 	MatchSlug string `json:"matchSlug"`
 	MapNumber int    `json:"mapNumber"`
 	MapName   string `json:"mapName"`
+	// A simulated match: SteamID64 -> the roster name its bot plays under.
+	StandIns map[string]string `json:"standIns"`
 }
 
 type client struct {
@@ -53,6 +56,9 @@ type client struct {
 	token      string
 	worker     string
 	http       *http.Client
+	// rejected: the platform refused this recorder's key (revoked, or never
+	// made there); it is not asked again until the recorder restarts.
+	rejected atomic.Bool
 }
 
 func env(key, fallback string) string {
@@ -154,7 +160,7 @@ func (c *client) work(ctx context.Context, j *job) error {
 	}
 	// The parser reads as it downloads; no copy on disk.
 	started := time.Now()
-	analysis, replay, err := Analyze(res.Body, j.MapName)
+	analysis, replay, err := Analyze(res.Body, j.MapName, j.StandIns)
 	if err != nil {
 		return fmt.Errorf("parse: %w", err)
 	}
@@ -202,7 +208,7 @@ func analyzeFile(path, mapName string) {
 	}
 	defer f.Close()
 	started := time.Now()
-	analysis, replay, err := Analyze(f, mapName)
+	analysis, replay, err := Analyze(f, mapName, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -317,32 +323,23 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if len(os.Args) >= 2 && os.Args[1] == "record" {
-		if err := runRecorder(ctx, c, time.Duration(poll)*time.Second); err != nil {
+		// A recorder has a whole CS2 install: its radars give the site's 2D
+		// replay its maps, also where no analysis worker has CS2.
+		cs2Dir := env("AT_CS2_DIR", "")
+		if cs2Dir == "" {
+			if game := env("AT_CS2_GAME", ""); game != "" {
+				cs2Dir = filepath.Join(game, "csgo")
+			}
+		}
+		syncRadarsEvery6h(ctx, c, cs2Dir)
+		if err := runRecorder(ctx, platforms(c, os.Getenv("AT_PLATFORMS")), time.Duration(poll)*time.Second); err != nil {
 			log.Fatal(err)
 		}
 		return
 	}
 	log.Printf("analyzer v%d, platform %s", AnalyzerVersion, c.base)
 
-	// Radars for the 2D replay, from the game's own files: now, then every 6 hours.
-	if cs2Dir := env("AT_CS2_DIR", ""); cs2Dir != "" {
-		var workshop []string
-		if w := env("AT_WORKSHOP_DIRS", ""); w != "" {
-			workshop = strings.Split(w, ":")
-		}
-		go func() {
-			for {
-				if err := c.SyncRadars(ctx, cs2Dir, workshop); err != nil {
-					log.Printf("radars: %v", err)
-				}
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(6 * time.Hour):
-				}
-			}
-		}()
-	}
+	syncRadarsEvery6h(ctx, c, env("AT_CS2_DIR", ""))
 
 	for ctx.Err() == nil {
 		j, err := c.claim(ctx)
@@ -360,4 +357,45 @@ func main() {
 			c.fail(context.Background(), j, err)
 		}
 	}
+}
+
+// platforms is home (AT_URL) and the other platforms this recorder records
+// for: AT_PLATFORMS, "url|key" entries split by commas. Each gives it work in
+// turn; a malformed entry is left out.
+func platforms(home *client, extra string) []*client {
+	out := []*client{home}
+	for _, entry := range strings.Split(extra, ",") {
+		base, key, ok := strings.Cut(strings.TrimSpace(entry), "|")
+		base = strings.TrimRight(strings.TrimSpace(base), "/")
+		if !ok || base == "" || strings.TrimSpace(key) == "" || base == home.base {
+			continue
+		}
+		out = append(out, &client{base: base, token: strings.TrimSpace(key), worker: home.worker, http: home.http})
+	}
+	return out
+}
+
+// syncRadarsEvery6h uploads the radars for the 2D replay from the game's own
+// files (cs2Dir: a CS2 install's game/csgo), now and then every 6 hours, in
+// the background. No-op without a CS2 install.
+func syncRadarsEvery6h(ctx context.Context, c *client, cs2Dir string) {
+	if cs2Dir == "" {
+		return
+	}
+	var workshop []string
+	if w := env("AT_WORKSHOP_DIRS", ""); w != "" {
+		workshop = strings.Split(w, ":")
+	}
+	go func() {
+		for {
+			if err := c.SyncRadars(ctx, cs2Dir, workshop); err != nil {
+				log.Printf("radars: %v", err)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(6 * time.Hour):
+			}
+		}
+	}()
 }

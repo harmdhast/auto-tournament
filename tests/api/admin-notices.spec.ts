@@ -9,9 +9,11 @@ import {
 } from '../../api/src/integrations/cs2/adminNotices';
 import {
   noticeKey,
+  noticeHref,
   noticeLink,
   noticeParams,
   sortNotices,
+  stackNotices,
   upsertNotice,
   type AdminNotice,
 } from '../../client/src/components/admin/adminNoticeText';
@@ -95,6 +97,9 @@ test.describe('admin notices (rules)', () => {
     expect(noticeLink(notice({ kind: 'server_crashed' }), paths)).toBe('/s');
     expect(noticeLink(notice({ kind: 'clips_failing' }), paths)).toBe('/r');
     expect(noticeLink(notice({ kind: 'license_problem' }), paths)).toBe('/l');
+    // The bell's links carry the notice, for the card at the top of the page.
+    expect(noticeHref({ ...notice({ kind: 'server_crashed' }), id: 7 }, paths)).toBe('/s?notice=7');
+    expect(noticeHref({ ...notice({ kind: 'nothing_to_open' }), id: 7 }, paths)).toBeNull();
     expect(noticeKey(notice({ kind: 'failover', data: { needsDecision: true } }))).toBe(
       'adminNotices.kind.failoverDecision'
     );
@@ -115,6 +120,21 @@ test.describe('admin notices (rules)', () => {
       [2, 2],
       [3, 1],
       [1, 1],
+    ]);
+    // Open ones of a kind stack under the newest; resolved ones stand alone.
+    const stacks = stackNotices(
+      sortNotices([
+        notice({ id: 1, kind: 'match_no_server', updatedAt: 300 }),
+        notice({ id: 2, kind: 'server_crashed', updatedAt: 250 }),
+        notice({ id: 3, kind: 'match_no_server', updatedAt: 200 }),
+        notice({ id: 4, kind: 'match_no_server', updatedAt: 100 }),
+        notice({ id: 5, kind: 'match_no_server', updatedAt: 400, resolvedAt: 450 }),
+      ])
+    );
+    expect(stacks.map((st) => [st.lead.id, st.rest.map((n) => n.id)])).toEqual([
+      [1, [3, 4]],
+      [2, []],
+      [5, []],
     ]);
   });
 });

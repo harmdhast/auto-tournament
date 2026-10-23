@@ -6,6 +6,7 @@ import {
   parseVersion,
   type ReadyUpRelease,
 } from './readyUpVersion';
+import type { Untrusted } from '../../../utils/untrusted';
 
 // ---------------------------------------------------------------------------
 // Ready Up (Auto-Tournament/ready-up)
@@ -26,7 +27,7 @@ interface ReadyUpGitHubRelease {
 type ReleaseFetch = (
   url: string,
   init: { headers: Record<string, string> }
-) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
+) => Promise<{ ok: boolean; status: number; json: () => Promise<Untrusted> }>;
 
 // One cached lookup per channel: stable servers only compare against stable
 // releases, pre-release servers against the newest release including betas.
@@ -71,10 +72,18 @@ async function lookupLatestReadyUpRelease(options?: {
   const channel = isPrereleaseVersion(options?.runningVersion) ? 'prerelease' : 'stable';
   const now = Date.now();
   const cached = readyUpCache.get(channel);
-  if (!options?.forceRefresh && cached && now - cached.at < CACHE_TTL_MS) {
+  // A server already running something newer than the cached answer means a
+  // release came out since: look again instead of calling an older one "latest".
+  const runningNewer =
+    !!cached?.release &&
+    !!options?.runningVersion &&
+    (compareVersions(options.runningVersion, cached.release.version) ?? 0) > 0;
+  if (!options?.forceRefresh && !runningNewer && cached && now - cached.at < CACHE_TTL_MS) {
     return cached.release;
   }
-  const doFetch: ReleaseFetch = options?.fetchImpl ?? (fetch as unknown as ReleaseFetch);
+  const doFetch: ReleaseFetch =
+    // eslint-disable-next-line no-restricted-syntax -- node-fetch 2's types do not overlap this narrow signature for tsc
+    options?.fetchImpl ?? (fetch as unknown as ReleaseFetch);
   try {
     const response = await doFetch(READY_UP_RELEASES_URL, {
       headers: { Accept: 'application/vnd.github.v3+json', 'User-Agent': 'Auto-Tournament' },
@@ -89,7 +98,7 @@ async function lookupLatestReadyUpRelease(options?: {
       });
       return null;
     }
-    const body = (await response.json()) as unknown;
+    const body = await response.json();
     const list = Array.isArray(body) ? (body as ReadyUpGitHubRelease[]) : [];
     let best: ReadyUpRelease | null = null;
     for (const r of list) {

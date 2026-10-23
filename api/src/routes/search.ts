@@ -8,7 +8,8 @@
  * up only for admins. The site's pages, tabs and actions are searched in the
  * browser (client/src/search/siteIndex.ts).
  */
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { db } from '../config/database';
 import { log } from '../utils/logger';
 import { checkAdminAccess } from '../middleware/auth';
@@ -59,12 +60,11 @@ async function candidates(): Promise<Candidates> {
     [CANDIDATES]
   );
   const tournaments = tournamentRows.map(tournamentRowToResponse).map((t) => {
-    const settings = (t.settings ?? {}) as unknown as Record<string, unknown>;
     return {
       id: t.id,
       name: t.name,
       status: t.status,
-      hidden: t.status === 'setup' && settings.registrationOpen !== true,
+      hidden: t.status === 'setup' && t.settings?.registrationOpen !== true,
     };
   });
   const matches = await db.queryAsync<Candidates['matches'][number]>(

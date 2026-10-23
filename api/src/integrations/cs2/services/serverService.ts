@@ -1,12 +1,13 @@
 import { db } from '../../../config/database';
 import { licenseService } from '../../../services/license/licenseService';
-import {
+import type {
   Server,
   CreateServerInput,
   UpdateServerInput,
   ServerResponse,
 } from '../../../types/server.types';
 import { log } from '../../../utils/logger';
+import type { SqlValue } from '../../../config/database';
 
 /**
  * Server service for business logic
@@ -198,7 +199,7 @@ export class ServerService {
       }
     }
 
-    const updateData: Record<string, unknown> = {
+    const updateData: Record<string, SqlValue> = {
       updated_at: Math.floor(Date.now() / 1000),
     };
 

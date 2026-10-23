@@ -45,6 +45,7 @@ import {
   SwitchRow,
   fmtNum,
 } from '../../../module-sdk';
+import type { Untrusted } from '../../types';
 
 type Flag = 0 | 1 | null;
 
@@ -102,8 +103,8 @@ type Key = keyof Cs2DefaultsValues;
 const DEFAULTS: Cs2DefaultsValues = {
   highlightsWatermark: true,
   highlightsPerPlayer: 6,
-  highlightsResolution: 1080,
-  highlightsFps: 60,
+  highlightsResolution: 720,
+  highlightsFps: 240,
   highlightsMusic: '',
   highlightsKeepClean: true,
   atMinimumReadyRequired: 0,
@@ -147,23 +148,26 @@ const KEYS = Object.keys(DEFAULTS) as Key[];
 const DEV_KEYS: ReadonlySet<Key> = new Set<Key>(['simulateMatches', 'simulationTimescale']);
 
 /** The fields as `GET`/`PUT /api/settings` answer them, with the plugin defaults for the missing ones. */
-export function cs2DefaultsFrom(settings: Record<string, unknown> | undefined): Cs2DefaultsValues {
-  const values = { ...DEFAULTS } as Record<Key, unknown>;
+export function cs2DefaultsFrom(
+  settings: Record<string, Untrusted> | undefined
+): Cs2DefaultsValues {
+  const values = { ...DEFAULTS } as Record<Key, Untrusted>;
   for (const key of KEYS) {
     const value = settings?.[key];
     if (value !== undefined && value !== null) values[key] = value;
   }
+  // eslint-disable-next-line no-restricted-syntax -- the API stores these keys with these types (its settings PUT checks them)
   return values as unknown as Cs2DefaultsValues;
 }
 
 /** A field as `PUT /api/settings` takes it. */
-function toRequest(_key: Key, value: Cs2DefaultsValues[Key]): unknown {
+function toRequest(_key: Key, value: Cs2DefaultsValues[Key]): Untrusted {
   return typeof value === 'string' ? value.trim() : value;
 }
 
 /** Everything back to "not set", so servers use the plugin's (or the tournament's) defaults. */
-function resetRequest(isDev: boolean): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
+function resetRequest(isDev: boolean): Record<string, Untrusted> {
+  const body: Record<string, Untrusted> = {};
   for (const key of KEYS) {
     if (DEV_KEYS.has(key)) continue;
     body[key] = null;
@@ -193,10 +197,10 @@ const ACCORDION_DETAILS_SX = {
 
 interface SettingsResponse {
   success: boolean;
-  settings?: Record<string, unknown>;
+  settings?: Record<string, Untrusted>;
 }
 
-export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | undefined }> = ({
+export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | undefined }> = ({
   initial,
 }) => {
   const { t } = useModuleTranslation('cs2');
@@ -214,14 +218,12 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
 
   /** After a save or reset: what the API stored, and the event the shell's warnings listen for. */
   const applyResponse = useCallback(
-    (settings: Record<string, unknown> | undefined, keys: Key[]) => {
+    (settings: Record<string, Untrusted> | undefined, keys: Key[]) => {
       const stored = cs2DefaultsFrom(settings);
       setSaved(stored);
       // Keep anything typed while the request was out; take the stored value for what was sent.
       setVals((prev) => {
-        const next = { ...prev } as Record<Key, unknown>;
-        for (const key of keys) next[key] = stored[key];
-        return next as unknown as Cs2DefaultsValues;
+        return { ...prev, ...Object.fromEntries(keys.map((key) => [key, stored[key]])) };
       });
       window.dispatchEvent(new CustomEvent('at:settingsUpdated', { detail: settings }));
       return stored;
@@ -241,7 +243,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
       );
       if (changed.length === 0) return;
 
-      const body: Record<string, unknown> = {};
+      const body: Record<string, Untrusted> = {};
       for (const key of changed) body[key] = toRequest(key, current[key]);
 
       try {
@@ -913,9 +915,9 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, unknown> | un
                     void save({ simulationTimescale: typeof v === 'number' ? v : 1 });
                   }}
                   min={0.1}
-                  max={10}
+                  max={4}
                   step={0.1}
-                  marks={[1, 2, 4, 6, 8, 10].map((v) => ({ value: v, label: `${v}×` }))}
+                  marks={[1, 2, 3, 4].map((v) => ({ value: v, label: `${v}×` }))}
                   valueLabelDisplay="on"
                   data-testid="settings-simulation-timescale-slider"
                 />

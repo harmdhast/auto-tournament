@@ -1,3 +1,4 @@
+import { isShown } from './shown';
 import { recordingWaiting, recordingFailureSql } from './recorderLeases';
 import { recordingTargetFilter } from './recorderFleet';
 /**
@@ -290,7 +291,7 @@ export async function matchTeamReels(matchSlug: string) {
     status: r.status,
     clips: r.clips === null ? null : Number(r.clips),
     video:
-      r.status === 'done' && r.clip_path
+      isShown(r.status, r.clip_path) && r.clip_path
         ? `/api/game/cs2/highlights/${encodeURIComponent(r.clip_path)}`
         : null,
   }));
@@ -323,7 +324,7 @@ export async function teamReelView(matchSlug: string, teamId: string) {
       WHERE r.match_slug = ? AND r.team_id = ?`,
     [matchSlug, teamId]
   );
-  if (!row || row.status !== 'done' || !row.clip_path) return null;
+  if (!row || !isShown(row.status, row.clip_path) || !row.clip_path) return null;
   return {
     matchSlug,
     teamId,

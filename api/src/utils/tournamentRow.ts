@@ -4,6 +4,7 @@ import type { TournamentResponse, TournamentSettings } from '../types/tournament
 import { DEFAULT_GAME, type GameId } from '../integrations/types';
 import { bannerUrl } from '../services/tournamentBannerService';
 import { moduleResponseFields } from './moduleTournamentSettings';
+import type { Untrusted } from './untrusted';
 
 /**
  * The id of the single tournament row that 3.0 hosts.
@@ -36,8 +37,8 @@ export function setCurrentTournamentId(id: number): void {
  */
 export function requestedTournamentId(req: Request | undefined): number | null {
   if (!req) return null;
-  const params = (req.params ?? {}) as Record<string, unknown>;
-  const query = (req.query ?? {}) as Record<string, unknown>;
+  const params = (req.params ?? {}) as Record<string, Untrusted>;
+  const query = (req.query ?? {}) as Record<string, Untrusted>;
   const header = typeof req.get === 'function' ? req.get('x-tournament-id') : undefined;
   const raw = params.tournamentId ?? header ?? query.tournamentId;
   const id = Number(Array.isArray(raw) ? raw[0] : raw);
@@ -57,7 +58,9 @@ export function resolveTournamentId(req?: Request): number {
  * always been read against the single tournament row; that fallback lives here
  * so 3.1 can decide what a standalone match resolves to in one place.
  */
-export function tournamentIdForMatch(match: { tournament_id?: number | null } | null | undefined): number {
+export function tournamentIdForMatch(
+  match: { tournament_id?: number | null } | null | undefined
+): number {
   return match?.tournament_id ?? currentTournamentId;
 }
 
@@ -107,9 +110,13 @@ export type ModuleTournamentFields = Pick<
  */
 export function moduleTournamentFields(
   game: GameId | null | undefined,
-  settings: unknown
+  settings: object | null | undefined
 ): ModuleTournamentFields {
-  const fields = moduleResponseFields(game, settings, 'tournament') as Partial<ModuleTournamentFields>;
+  const fields = moduleResponseFields(
+    game,
+    settings,
+    'tournament'
+  ) as Partial<ModuleTournamentFields>;
   return { ...fields, maps: Array.isArray(fields.maps) ? fields.maps : [] };
 }
 

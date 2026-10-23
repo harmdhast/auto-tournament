@@ -239,7 +239,8 @@ export function planMapSync(
   };
 }
 
-function parseIds(raw: unknown): string[] {
+/** A pool's stored map_ids (JSON), as we wrote it; [] when unreadable. */
+function parseIds(raw: string | null): string[] {
   try {
     const parsed = JSON.parse(String(raw));
     return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
@@ -271,7 +272,7 @@ export async function readMapSyncState(client: SeedClient): Promise<MapSyncState
     pools: pools.rows.map((row) => ({
       id: Number(row.id),
       name: String(row.name),
-      mapIds: parseIds(row.map_ids),
+      mapIds: parseIds(row.map_ids as string | null),
       isDefault: Number(row.is_default) === 1,
       systemManaged: Number(row.system_managed) === 1,
     })),

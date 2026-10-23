@@ -30,7 +30,8 @@ migrateLegacyDataDir();
 import { migrateLegacyMapImages } from './config/migrateLegacyMapImages';
 migrateLegacyMapImages();
 
-import express, { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
 import swaggerUi from 'swagger-ui-express';
@@ -100,6 +101,7 @@ import { reportCompatConfig } from './services/compatService';
 import { startCompatFeed, stopCompatFeed } from './services/compatFeedService';
 import { startLicenseCheckin, stopLicenseCheckin } from './services/license/checkinService';
 import { startWebhooks, stopWebhooks } from './services/webhooks';
+import { startAddons, stopAddons } from './addons';
 import {
   refreshCurrentTournamentId,
   startCurrentTournamentRefresh,
@@ -142,6 +144,8 @@ app.use('/api/compat/events', (err: unknown, _req: Request, res: Response, next:
   }
   return next(err);
 });
+// Discord's slash commands are signed over the raw body (addons/discord/interactions.ts).
+app.use('/api/addons/discord/interactions', express.raw({ type: '*/*', limit: '100kb' }));
 // 1 MB JSON / 100 KB forms; the admin file routes are read after auth (utils/bodyLimits.ts).
 app.use(defaultBodies);
 
@@ -336,16 +340,17 @@ if (fs.existsSync(SWAGGER_UI_DIR)) {
   app.use('/api-docs', express.static(SWAGGER_UI_DIR, { fallthrough: true }));
 }
 
-// swagger-ui-express types don't perfectly match Express middleware types
+// swagger-ui-express is typed against its own nested copy of @types/express.
+/* eslint-disable no-restricted-syntax -- the same handlers under two copies of Express's types */
 app.use(
   '/api-docs',
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ...(swaggerUi.serve as any),
+  ...(swaggerUi.serve as unknown as RequestHandler[]),
   swaggerUi.setup(getOpenApiSpec(), {
     customCss: '.swagger-ui .topbar { display: none }',
     customSiteTitle: 'Auto Tournament API',
-  }) as any // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as unknown as RequestHandler
 );
+/* eslint-enable no-restricted-syntax */
 
 // Swagger JSON
 app.get('/api-docs.json', (_req: Request, res: Response) => {
@@ -489,7 +494,7 @@ app.get('/health', (_req: Request, res: Response) => {
  */
 app.get('/api/health/fleet', async (_req: Request, res: Response) => {
   // Each game integration adds its own block (CS2: `cs2Fleet` and `servers`).
-  const contributions: Record<string, unknown> = {};
+  const contributions: object = {};
   for (const integration of listIntegrations()) {
     if (integration.healthContributions) {
       Object.assign(contributions, await integration.healthContributions());
@@ -549,8 +554,12 @@ app.use((_req: Request, res: Response) => {
 // so `admin:subscribe` can check admin rights like `requireAuth` does.
 initializeSocket(httpServer, {
   handshakeMiddleware: [
+    // Express middleware runs on the handshake request as it is; only the types differ.
+    // eslint-disable-next-line no-restricted-syntax -- express RequestHandler vs socket.io handshake types
     sessionMiddleware as unknown as HandshakeMiddleware,
+    // eslint-disable-next-line no-restricted-syntax -- as above
     passportInitialize as unknown as HandshakeMiddleware,
+    // eslint-disable-next-line no-restricted-syntax -- as above
     passportSession as unknown as HandshakeMiddleware,
   ],
 });
@@ -582,7 +591,7 @@ process.on('uncaughtException', (err) => {
 });
 
 // Initialize database and start server
-(async () => {
+void (async () => {
   try {
     // Initialize database first (including schema)
     await db.init();
@@ -750,6 +759,8 @@ process.on('uncaughtException', (err) => {
       // Integrator webhooks: the persisted delivery queue and the match
       // watcher (services/webhooks). Idle while no endpoint is switched on.
       startWebhooks();
+      // Add-on modules that are on (addons/): each sets up its own listeners.
+      void startAddons();
       // The daily license check-in: only with a license key saved, in the
       // background, never blocking anything (services/license/checkin.ts).
       startLicenseCheckin();
@@ -773,7 +784,7 @@ process.on('uncaughtException', (err) => {
       // Recover matches and start the game integrations (CS2: bootstrap server
       // webhooks, fetch the MatchZy Enhanced version, start health monitoring) now the
       // database is ready.
-      Promise.all([
+      void Promise.all([
         ...listIntegrations().map((integration) =>
           (integration.start?.() ?? Promise.resolve()).catch((error) => {
             log.warn(`Failed to start the ${integration.id} integration`, { error });
@@ -819,6 +830,7 @@ process.on('uncaughtException', (err) => {
       scheduler.stopAllPolling();
       stopCompatFeed();
       stopWebhooks();
+      void stopAddons();
       stopLicenseCheckin();
       stopIntegrations();
       void import('./services/builtinWorker').then(({ stopBuiltinWorker }) => stopBuiltinWorker());

@@ -607,6 +607,8 @@
         "teamsPlanned": "{{count}} planned",
         "matches": "Matches",
         "matchesAfterSignUp": "After sign-up",
+        "duration": "预计用时",
+        "durationValue": "{{hours}} 小时 {{minutes}} 分钟",
         "signUp": "Sign-up",
         "signUpOrganizer": "Picked by organiser",
         "signUpAfterCreate": "Opens after creating",
@@ -784,6 +786,12 @@
       "enterFullscreen": "全屏",
       "exitFullscreen": "退出全屏",
       "shuffleNoVisual": "随机组队赛事没有图形对阵图，请使用列表视图。"
+    },
+    "times": {
+      "toggle": "设置时间",
+      "startsAt": "开始时间",
+      "clear": "使用本轮时间",
+      "save": "保存"
     },
     "shuffleEmpty": {
       "title": "随机组队赛事没有对阵图",
@@ -1205,11 +1213,12 @@
     "wonBody": "Your team won the tournament. Well played!",
     "close": "Close",
     "seeBracket": "See the bracket",
-    "outBodyPlay": "You have no more matches in this tournament. Thanks for playing! Fancy another game? Matchmaking puts you in a match in a minute or two.",
+    "outBodyPlay": "You have no more matches in this tournament. Thanks for playing!",
     "championsEyebrow": "Champions",
     "teamPlaced": "{{team}} placed",
     "wonTitleShort": "You won {{tournament}}!",
-    "wonFinalBody": "{{team}} won the final {{score}}. Well played!"
+    "wonFinalBody": "{{team}} won the final {{score}}. Well played!",
+    "playHint": "Fancy another game? Matchmaking puts you in a match in a minute or two."
   },
   "whatsNext": {
     "eyebrow": "What's next",
@@ -1413,7 +1422,8 @@
     "eta": {
       "nextRoundAbout": "Next round about {{time}}",
       "nextRoundAt": "Next round at {{time}}",
-      "finalEnds": "Final round: ends about {{time}}"
+      "finalEnds": "Final round: ends about {{time}}",
+      "endsAbout": "预计 {{time}} 结束"
     }
   },
   "matchesCards": {
@@ -1642,7 +1652,10 @@
     "breakAfterRound": "After round",
     "breakMinutes": "Break (min)",
     "breakRemove": "Remove",
-    "breakAdd": "Add a longer break"
+    "breakAdd": "Add a longer break",
+    "fillStart": "First round at",
+    "fillEvery": "Minutes between rounds",
+    "fillApply": "Fill in the rounds"
   },
   "groups": {
     "groupN": "Group {{letter}}",

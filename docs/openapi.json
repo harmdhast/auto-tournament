@@ -492,6 +492,10 @@
   },
   "tags": [
     {
+      "name": "Add-ons",
+      "description": "Add-on modules (features beside the games, e.g. the Discord bot): on and off, and their own API under /api/addons/<id>/."
+    },
+    {
       "name": "Admin calls",
       "description": "Players calling for an admin from a game server (CS2: `.admin [message]` in Ready Up, sent as the admin_called event): list open and recently resolved calls, resolve one or all. Admin only. Live updates go to signed-in admins as the Socket.IO events admin:call and admin:call:resolved."
     },
@@ -851,6 +855,82 @@
         "responses": {
           "200": {
             "description": "API information"
+          }
+        }
+      }
+    },
+    "/api/addons": {
+      "get": {
+        "tags": [
+          "Add-ons"
+        ],
+        "summary": "The add-on modules, and whether each is on and running",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`addons`: { id, name, description, enabled, running, error }[]"
+          }
+        }
+      }
+    },
+    "/api/addons/{id}": {
+      "put": {
+        "tags": [
+          "Add-ons"
+        ],
+        "summary": "Turn an add-on on or off (takes effect at once)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "enabled"
+                ],
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`addon`: the add-on after the change"
+          },
+          "400": {
+            "description": "enabled is not a boolean"
+          },
+          "404": {
+            "description": "No such add-on"
           }
         }
       }
@@ -2762,7 +2842,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "match:<slug>, team:<id> or party:<id>"
+            "description": "match:<slug>, team:<id>, party:<id> or dm:<id>:<id> (two friends, IDs in order)"
           },
           {
             "in": "query",
@@ -3245,38 +3325,6 @@
           "Demos"
         ],
         "summary": "GET /api/demos/:matchSlug/info",
-        "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "parameters": [
-          {
-            "name": "matchSlug",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "apiToken": []
-          }
-        ]
-      }
-    },
-    "/api/demos/{matchSlug}/status": {
-      "get": {
-        "tags": [
-          "Demos"
-        ],
-        "summary": "GET /api/demos/:matchSlug/status",
         "description": "Generated from the router. No hand-written `@openapi` block exists for this endpoint yet, so the request and response shapes are not described — read the handler.",
         "responses": {
           "200": {
@@ -5278,6 +5326,12 @@
           },
           {
             "apiToken": []
+          },
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -5295,6 +5349,12 @@
           }
         },
         "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "bearerAuth": []
           },
@@ -5327,6 +5387,12 @@
           }
         ],
         "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "bearerAuth": []
           },
@@ -5499,6 +5565,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -5530,6 +5604,14 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -5739,7 +5821,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/live-overview": {
@@ -6352,6 +6442,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -6549,7 +6647,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/players/me/role": {
@@ -6586,6 +6692,14 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -6862,6 +6976,12 @@
           },
           {
             "apiToken": []
+          },
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       },
@@ -6877,6 +6997,12 @@
           }
         },
         "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "bearerAuth": []
           },
@@ -6916,6 +7042,12 @@
           },
           {
             "apiToken": []
+          },
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -6950,6 +7082,12 @@
           },
           {
             "apiToken": []
+          },
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -6965,7 +7103,15 @@
           "200": {
             "description": "`gamescopeHz`: the pick, or null when no try finished"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/recorder/claim": {
@@ -6979,7 +7125,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/recorder/complete": {
@@ -6993,7 +7147,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/recorder/fail": {
@@ -7007,7 +7169,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/recorder/heartbeat": {
@@ -7021,7 +7191,15 @@
           "200": {
             "description": "How many claims were renewed"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/recorder/hello": {
@@ -7035,7 +7213,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/recorder/jobs/{id}/clip": {
@@ -7058,6 +7244,14 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -7091,6 +7285,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -7123,6 +7325,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -7154,6 +7364,14 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -7195,6 +7413,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -7219,6 +7445,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -7242,6 +7476,14 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -7282,6 +7524,14 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -7331,6 +7581,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -7345,7 +7603,15 @@
           "200": {
             "description": "Stored"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/recorder/team-reels/{slug}/{team}": {
@@ -7376,6 +7642,14 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -7408,6 +7682,14 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -7449,6 +7731,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -7473,6 +7763,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -7496,6 +7794,14 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -7529,6 +7835,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -7543,7 +7857,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -7555,7 +7877,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/recorder/update/available": {
@@ -7569,7 +7899,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/recorder/update/request": {
@@ -7583,7 +7921,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/recorder/uploads": {
@@ -7597,7 +7943,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/recorder/uploads/{id}": {
@@ -7621,6 +7975,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -7637,6 +7999,12 @@
           }
         },
         "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "bearerAuth": []
           },
@@ -7693,6 +8061,12 @@
           },
           {
             "apiToken": []
+          },
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       },
@@ -7720,6 +8094,12 @@
           }
         ],
         "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "bearerAuth": []
           },
@@ -7754,6 +8134,12 @@
           }
         ],
         "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "bearerAuth": []
           },
@@ -7841,6 +8227,12 @@
           },
           {
             "apiToken": []
+          },
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -7867,6 +8259,12 @@
           }
         ],
         "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "bearerAuth": []
           },
@@ -7920,6 +8318,12 @@
           },
           {
             "apiToken": []
+          },
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       },
@@ -7935,6 +8339,12 @@
           }
         },
         "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "bearerAuth": []
           },
@@ -8013,6 +8423,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -8037,6 +8455,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -8051,7 +8477,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -8063,7 +8497,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/watch/comments/{id}": {
@@ -8087,6 +8529,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       },
       "delete": {
@@ -8109,6 +8559,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -8123,7 +8581,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/watch/match/{slug}/{map}": {
@@ -8154,6 +8620,14 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
           }
         ]
       }
@@ -8195,6 +8669,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -8209,7 +8691,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/watch/stats": {
@@ -8223,7 +8713,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/cs2/watch/team/{slug}/{team}": {
@@ -8255,6 +8753,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -8279,6 +8785,14 @@
               "type": "string"
             }
           }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
         ]
       }
     },
@@ -8293,7 +8807,15 @@
           "200": {
             "description": "Success"
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiToken": []
+          }
+        ]
       }
     },
     "/api/game/manual/disputes": {
@@ -13281,6 +13803,42 @@
         }
       }
     },
+    "/api/players/me/shown-team": {
+      "put": {
+        "tags": [
+          "Players"
+        ],
+        "summary": "Choose which of your teams shows under your name on your profile",
+        "description": "A team the signed-in player is on, or null for the default (the team they were last active with).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "teamId": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`shownTeamId`"
+          },
+          "400": {
+            "description": "Not a team the player is on"
+          },
+          "401": {
+            "description": "Not signed in"
+          }
+        }
+      }
+    },
     "/api/players/presence": {
       "get": {
         "tags": [
@@ -15269,69 +15827,6 @@
         }
       }
     },
-    "/api/settings/discord-bot": {
-      "get": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "Whether a Discord bot token is set (for players' DMs), and the bot's name",
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "apiToken": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "`set`, `name`"
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "Set (checked with Discord, stored encrypted) or clear the bot token",
-        "description": "A signed-in admin only. `token` empty or null clears it.",
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "apiToken": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "token": {
-                    "type": "string",
-                    "nullable": true
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "`set`, `name`"
-          },
-          "400": {
-            "description": "Discord refused the token"
-          },
-          "403": {
-            "description": "Called with an API token"
-          }
-        }
-      }
-    },
     "/api/settings/site-url": {
       "get": {
         "tags": [
@@ -16618,7 +17113,9 @@
                       "match_ready",
                       "veto_turn",
                       "checkin_open",
-                      "new_tournament"
+                      "new_tournament",
+                      "tournament_starting",
+                      "direct_message"
                     ]
                   },
                   "channel": {

@@ -8,6 +8,7 @@
  *   GET /api/game/cs2/matches/:slug/highlights   the match's finished clips, in match order, and how many are still being recorded
  */
 
+import { shownSql } from '../demos/shown';
 import { Router, type Request, type Response } from 'express';
 import { db } from '../../../config/database';
 import { log } from '../../../utils/logger';
@@ -52,7 +53,7 @@ export interface ScoreboardLine {
   multiKills: number;
 }
 
-const num = (v: unknown) => Number(v) || 0;
+const num = (v: StatRow[keyof StatRow]) => Number(v) || 0;
 
 function line(rows: StatRow[]): ScoreboardLine {
   const sum = (k: keyof StatRow) => rows.reduce((s, r) => s + num(r[k]), 0);
@@ -123,7 +124,7 @@ router.get('/matches/:slug/highlights', async (req: Request, res: Response) => {
       `SELECT h.id, h.player_id, p.name, p.avatar_url, h.kind, h.title, h.round, h.map_number,
               (SELECT j.map_name FROM cs2_demo_jobs j WHERE j.match_slug = h.match_slug AND j.map_number = h.map_number) AS map_name
          FROM cs2_highlights h LEFT JOIN players p ON p.id = h.player_id
-        WHERE h.match_slug = ? AND h.status = 'done' AND h.kind <> 'funny'
+        WHERE h.match_slug = ? AND ${shownSql('h')} AND h.kind <> 'funny'
         ORDER BY h.map_number, h.start_tick`,
       [req.params.slug]
     );

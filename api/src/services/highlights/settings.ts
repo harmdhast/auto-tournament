@@ -4,7 +4,7 @@
  * same keys, so nothing stored changes):
  *
  * - highlights_resolution / highlights_fps: the size and frame rate the
- *   recorders make (1080p60 unless set);
+ *   recorders make (720p240 unless set: smooth at 0.25x, and small);
  * - highlights_per_player: clips per player per map (6 unless set);
  * - highlights_watermark: the Auto Tournament logo (on unless "0");
  * - highlights_music: '' (every track), 'off', or the picked track ids;
@@ -22,16 +22,20 @@ import {
   numberRequest,
   stringRequest,
 } from '../../utils/settingFields';
+import type { JsonValue } from '../../utils/json';
 
 /** Highlight video heights (16:9) and frame rates the recorders offer. */
 export const HIGHLIGHT_HEIGHTS = [720, 1080, 1440, 2160] as const;
 export const HIGHLIGHT_FPS = [30, 60, 90, 120, 180, 240] as const;
+/** Bitrate ceilings (Mbit/s) an admin can pick; 0 is automatic (from the size and frame rate). */
+export const HIGHLIGHT_BITRATES = [0, 5, 10, 20, 40, 60] as const;
 
 export type HighlightSettingKey =
   | 'highlights_watermark'
   | 'highlights_per_player'
   | 'highlights_resolution'
   | 'highlights_fps'
+  | 'highlights_bitrate'
   | 'highlights_music'
   | 'highlights_keep_clean'
   | ReelLimitKey;
@@ -112,6 +116,7 @@ export const HIGHLIGHT_SETTINGS: ReadonlyArray<SettingDefinition & { key: Highli
     'Highlight resolution'
   ),
   choice('highlights_fps', 'highlightsFps', 400, HIGHLIGHT_FPS, 'Highlight frame rate'),
+  choice('highlights_bitrate', 'highlightsBitrate', 405, HIGHLIGHT_BITRATES, 'Highlight bitrate'),
   {
     key: 'highlights_music',
     field: 'highlightsMusic',
@@ -143,14 +148,16 @@ export const HIGHLIGHT_SETTINGS: ReadonlyArray<SettingDefinition & { key: Highli
 /** The settings page's highlight fields, as GET /api/settings answers them. */
 export async function readHighlightSettings(
   get: (key: HighlightSettingKey) => Promise<string | null | undefined>
-): Promise<Record<string, unknown>> {
+): Promise<Record<string, JsonValue>> {
   const height = Number(await get('highlights_resolution'));
   const fps = Number(await get('highlights_fps'));
+  const mbps = Number(await get('highlights_bitrate'));
   return {
     highlightsWatermark: (await get('highlights_watermark'))?.trim() !== '0',
     highlightsPerPlayer: Number(await get('highlights_per_player')) || 6,
-    highlightsResolution: (HIGHLIGHT_HEIGHTS as readonly number[]).includes(height) ? height : 1080,
-    highlightsFps: (HIGHLIGHT_FPS as readonly number[]).includes(fps) ? fps : 60,
+    highlightsResolution: (HIGHLIGHT_HEIGHTS as readonly number[]).includes(height) ? height : 720,
+    highlightsFps: (HIGHLIGHT_FPS as readonly number[]).includes(fps) ? fps : 240,
+    highlightsBitrate: (HIGHLIGHT_BITRATES as readonly number[]).includes(mbps) ? mbps : 0,
     highlightsMusic: (await get('highlights_music'))?.trim() ?? '',
     highlightsKeepClean: (await get('highlights_keep_clean'))?.trim() !== '0',
     ...(await readReelLimits((key) => get(key as HighlightSettingKey))),

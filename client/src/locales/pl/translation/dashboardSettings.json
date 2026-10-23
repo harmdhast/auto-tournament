@@ -885,7 +885,6 @@
   },
   "discordBot": {
     "title": "Discord bot",
-    "hint": "Sends players their Discord DMs (Account → Notifications). Players get DMs when they share a Discord server with the bot.",
     "token": "Bot token",
     "replace": "New bot token",
     "save": "Save",
@@ -896,7 +895,41 @@
     "cleared": "Discord bot removed",
     "saveFailed": "Could not save the bot token.",
     "howTo": "Make an application, add a bot, copy its token, and invite it to your Discord server:",
-    "portal": "Discord Developer Portal"
+    "portal": "Discord Developer Portal",
+    "guild": "Discord server",
+    "guildHint": "Where the bot makes team channels and posts. Only servers the bot is in show here.",
+    "noGuilds": "The bot is not in any Discord server yet. Invite it, then reload this page.",
+    "noGuild": "None",
+    "guildSaved": "Discord server saved",
+    "movedHint": "The Discord bot is an add-on now: turn it on and set it up under Modules.",
+    "open": "Open the Discord bot",
+    "voice": {
+      "label": "Team voice channels",
+      "help": "While a match is on its server, each team gets a private voice channel. Players already in voice are moved there; the rest get a link by DM. The channels go a few minutes after the match.",
+      "saved": "Voice channel settings saved"
+    },
+    "teamChannels": {
+      "label": "Team channels",
+      "help": "While a tournament runs, each team gets a private text channel. Its players find the link on their team page.",
+      "link": "Team channel on Discord"
+    },
+    "commands": {
+      "label": "Slash commands: /matches, /mymatch and /lobby",
+      "help": "They work as soon as the bot is connected. Optional: to have Discord send them to this site instead, paste this as your app's Interactions Endpoint URL in the Discord Developer Portal."
+    },
+    "invite": "Invite to a server",
+    "linking": {
+      "label": "Players link their Discord",
+      "help": "Uses your bot's own Discord app, so there's no second app to make. In the Developer Portal, open OAuth2 on your bot's app, add this redirect, then copy the client secret and paste it here.",
+      "portal": "Open OAuth2",
+      "secret": "Client secret",
+      "save": "Turn on linking",
+      "saved": "Players can link Discord now",
+      "ready": "On: players link Discord under Account → Connections.",
+      "invite": "Players not on your server are asked to join with {{url}}.",
+      "noInvite": "The bot can't make an invite to your server yet. Click Invite to a server again so it gets the Create Invite permission."
+    },
+    "missing": "The bot is missing {{list}} on your server, so parts of it won't work. Click Invite to a server above: it updates the bot's permissions without removing it."
   },
   "liveMatchesPage": {
     "title": "Live matches",

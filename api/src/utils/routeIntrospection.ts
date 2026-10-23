@@ -17,6 +17,7 @@
  */
 
 import { routeTable } from '../routes/routeTable';
+import type { Untrusted } from './untrusted';
 
 /** What a caller has to present. */
 export type Guard =
@@ -24,7 +25,8 @@ export type Guard =
   | 'server token'
   | 'server token or admin'
   | 'compat ingest token'
-  | 'integrator token or admin';
+  | 'integrator token or admin'
+  | 'recorder key or admin';
 
 /** Middleware function names we recognise, and what they mean for a caller. */
 const GUARD_BY_MIDDLEWARE: Record<string, Guard> = {
@@ -35,6 +37,7 @@ const GUARD_BY_MIDDLEWARE: Record<string, Guard> = {
   requireMatchConfigAccess: 'server token or admin',
   requireCompatIngestToken: 'compat ingest token',
   requireIntegratorAuth: 'integrator token or admin',
+  requireRecorder: 'recorder key or admin',
 };
 
 export interface Endpoint {
@@ -80,7 +83,7 @@ interface Layer {
  * single `use`, `matches` guards route by route, and `tournament` and `players`
  * do both — switching partway down the file.
  */
-export function walkRouter(router: unknown, prefix = ''): Endpoint[] {
+export function walkRouter(router: Untrusted, prefix = ''): Endpoint[] {
   const stack = (router as { stack?: Layer[] }).stack;
 
   if (!Array.isArray(stack)) {

@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { db } from '../config/database';
 import { mapWinnerOf } from '../utils/matchEnrichment';
 import type { DbMatchRow } from '../types/database.types';
@@ -8,6 +9,7 @@ import { resolveTournamentId } from '../utils/tournamentRow';
 import { getSwissStandingEntries } from '../services/swissProgressionService';
 import { gameDisplayName } from '../utils/gameDisplayName';
 import { DEFAULT_GAME } from '../integrations/types';
+import type { Untrusted } from '../utils/untrusted';
 
 const router = Router();
 
@@ -206,7 +208,7 @@ router.get('/:teamId/stats', async (req: Request, res: Response) => {
     if (tournament && tournament.status !== 'setup') {
       let teamIds: string[] = [];
       try {
-        const parsed: unknown = JSON.parse(tournament.team_ids || '[]');
+        const parsed: Untrusted = JSON.parse(tournament.team_ids || '[]');
         if (Array.isArray(parsed)) teamIds = parsed.map(String);
       } catch {
         // Malformed team_ids: fall back to the teams in the matches below.

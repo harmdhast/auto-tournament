@@ -12,6 +12,7 @@ import {
 import {
   Box,
   ButtonBase,
+  CircularProgress,
   Divider,
   ListItemIcon,
   ListItemText,
@@ -41,6 +42,7 @@ import { mono, radii, tokens, withAlpha } from '../../theme/tokens';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { clock, type ClipMarkers } from './media';
 import { VideoThumb } from './HighlightCard';
+import { EventMark } from './EventMark';
 
 const SPEEDS = [1, 0.5, 0.25] as const;
 const SKIP = 5;
@@ -108,7 +110,7 @@ export interface PlayerMusic {
 
 // The music's levels (the API's demos/music.ts): under the game a share of
 // the whole track (the viewer's, this until they pick one); the intro's own.
-export const MUSIC_GAIN = 0.4;
+export const MUSIC_GAIN = 0.5;
 const MUSIC_INTRO_GAIN = 0.32;
 const MUSIC_FADE_IN = 1.5;
 const MUSIC_FADE_OUT = 2.5;
@@ -332,6 +334,8 @@ export const HighlightPlayer = forwardRef<HighlightPlayerHandle, HighlightPlayer
     const video = useRef<ComponentRef<'video'>>(null);
     const track = useRef<HTMLDivElement>(null);
     const [playing, setPlaying] = useState(false);
+    // The video stopped to load more: a spinner, so it doesn't look frozen.
+    const [waiting, setWaiting] = useState(false);
     const [time, setTime] = useState(0);
     const [duration, setDuration] = useState(markers?.duration ?? 0);
     const [muted, setMuted] = useState(() => stored(PLAYER_MUTED_KEY) === '1');
@@ -541,6 +545,9 @@ export const HighlightPlayer = forwardRef<HighlightPlayerHandle, HighlightPlayer
           }}
           onPause={() => setPlaying(false)}
           onEnded={() => setPlaying(false)}
+          onWaiting={() => setWaiting(true)}
+          onPlaying={() => setWaiting(false)}
+          onCanPlay={() => setWaiting(false)}
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || markers?.duration || 0)}
           onTimeUpdate={(e) => {
             setTime(e.currentTarget.currentTime);
@@ -584,6 +591,21 @@ export const HighlightPlayer = forwardRef<HighlightPlayerHandle, HighlightPlayer
           }}
         />
 
+        {waiting && playing && (
+          <CircularProgress
+            size={48}
+            aria-label={t('videoHighlights.player.buffering')}
+            sx={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              ml: '-24px',
+              mt: '-24px',
+              color: '#fff',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
         {!playing && (
           <ButtonBase
             onClick={toggle}
@@ -684,7 +706,8 @@ export const HighlightPlayer = forwardRef<HighlightPlayerHandle, HighlightPlayer
                 width: pct(time),
                 height: 5,
                 borderRadius: 999,
-                bgcolor: tokens.color.accent,
+                // Darker than the event icons on it, so they stand out.
+                bgcolor: 'rgba(244,237,235,0.5)',
               }}
             />
             {hover &&
@@ -787,26 +810,29 @@ export const HighlightPlayer = forwardRef<HighlightPlayerHandle, HighlightPlayer
             {kills.map((k, i) => {
               const last = k === lastKill && i === kills.length - 1;
               return (
-                <Box
+                <EventMark
                   key={`${k}-${i}`}
+                  at={pct(k)}
+                  kind={markers?.headshots?.[i] ? 'headshot' : 'kill'}
+                  color={last ? tokens.color.accent : '#f4edeb'}
+                  ring={tokens.color.accent}
                   title={t(
                     last ? 'videoHighlights.player.lastKill' : 'videoHighlights.player.kill'
                   )}
-                  sx={{
-                    position: 'absolute',
-                    left: pct(k),
-                    width: last ? 11 : 9,
-                    height: last ? 11 : 9,
-                    ml: last ? '-5.5px' : '-4.5px',
-                    borderRadius: 999,
-                    bgcolor: last ? tokens.color.accent : '#f4edeb',
-                    border: '2px solid #000',
-                    boxSizing: 'content-box',
-                    pointerEvents: 'none',
-                  }}
                 />
               );
             })}
+            {(markers?.reactions ?? [])
+              .filter((r) => r.aww)
+              .map((r) => (
+                <EventMark
+                  key={`death-${r.t}`}
+                  at={pct(r.t)}
+                  kind="death"
+                  color="#F09595"
+                  title={t('videoHighlights.player.death')}
+                />
+              ))}
             <Box
               sx={{
                 position: 'absolute',

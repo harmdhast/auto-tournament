@@ -7,6 +7,7 @@ import { usePageHeader } from '../../contexts/PageHeaderContext';
 import { ManageRailProvider } from '../../contexts/ManageRailContext';
 import { ShellColumnProvider, useShellColumnSlot } from '../../contexts/ShellColumnContext';
 import { api } from '../../utils/api';
+import { NoticeCard } from '../admin/NoticeCard';
 import { useTranslation } from 'react-i18next';
 import { AdminNoticeBell } from '../admin/AdminNoticeBell';
 import { ManageRail } from '../manage/ManageRail';
@@ -17,6 +18,7 @@ import { RAIL_COLUMN_MIN_WIDTH, railColumnSx } from '../../constants/adminLayout
 import { paths } from '../../paths';
 import { UpdateBanner } from '../system/UpdateBanner';
 import { useTopic } from '../../hooks/useTopic';
+import type { SnackbarKey } from 'notistack';
 
 /**
  * Set for the rest of the browser session once an admin closes the Steam
@@ -72,9 +74,9 @@ function AdminShell() {
   const location = useLocation();
   const { headerActions } = usePageHeader();
   const { showPersistentError, closeSnackbar } = useSnackbar();
-  const [steamHealthSnackbarKey, setSteamHealthSnackbarKey] = React.useState<
-    import('notistack').SnackbarKey | null
-  >(null);
+  const [steamHealthSnackbarKey, setSteamHealthSnackbarKey] = React.useState<SnackbarKey | null>(
+    null
+  );
   // True while the shell itself closes the Steam warning (Steam recovered, or
   // the shell unmounts), so that close is not taken for the admin's dismissal.
   const closingSteamWarningRef = React.useRef(false);
@@ -86,9 +88,8 @@ function AdminShell() {
   const steamWarningShownRef = React.useRef(false);
 
   // One read of the tournament for the shell's game-dependent parts: what the
-  // game's module needs an admin to fix before it can run (phase E: CS2's
-  // webhook URL and its plugin's database), and whether the module is there
-  // at all. The rail reads the same hook for its links.
+  // game's module needs an admin to fix before it can run, and whether the
+  // module is there at all. The rail reads the same hook for its links.
   const { tournament: tournamentIntegration, loading: tournamentGameLoading } =
     useShellIntegrations();
   const AdminGlobalWarning = tournamentGameLoading
@@ -274,6 +275,8 @@ function AdminShell() {
             )}
             {/* The tournament's own pages: which tournament, and its tabs. */}
             {isTournamentPage(location.pathname) && <TournamentBar />}
+            {/* Opened from an admin notice: what happened and what to do. */}
+            <NoticeCard />
             <Outlet />
           </Box>
         </Box>

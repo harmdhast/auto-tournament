@@ -142,8 +142,13 @@ type liveGame struct {
 
 // liveKey is what a running CS2 must match to record a map job: the map,
 // the capture size and the refresh rate it was started with.
+// liveKey names the loaded map: platforms (AT_PLATFORMS) can each have a t1-r1m1.
 func (r *recorder) liveKey(slug string, mapNum int) string {
-	return fmt.Sprintf("%s/%d/%dx%d/%s", slug, mapNum, r.width, r.height, os.Getenv("AT_GAMESCOPE_HZ"))
+	base := ""
+	if r.client != nil {
+		base = r.client.base
+	}
+	return fmt.Sprintf("%s/%s/%d/%dx%d/%s", base, slug, mapNum, r.width, r.height, os.Getenv("AT_GAMESCOPE_HZ"))
 }
 
 // endLive closes the running CS2, if any, and drops its demo.
@@ -162,7 +167,8 @@ func (r *recorder) endLive() {
 
 // loadedMap is the map whose demo CS2 has loaded, for the claim; nil without one.
 func (r *recorder) loadedMap() map[string]any {
-	if r.live == nil || r.live.g == nil {
+	// Only to the platform whose map it is.
+	if r.live == nil || r.live.g == nil || r.live.key != r.liveKey(r.live.slug, r.live.mapNum) {
 		return nil
 	}
 	return map[string]any{"matchSlug": r.live.slug, "mapNumber": r.live.mapNum}
@@ -245,6 +251,10 @@ func (c *client) claimRecording(ctx context.Context, loaded map[string]any) (*ma
 		return nil, nil, nil, nil
 	}
 	if err := ok(res, "claim"); err != nil {
+		if res.StatusCode == http.StatusUnauthorized && strings.Contains(err.Error(), "recorder_key_rejected") {
+			c.rejected.Store(true)
+			log.Printf("%s rejected this recorder's key: not asking it for work again", c.base)
+		}
 		return nil, nil, nil, err
 	}
 	var body struct {
@@ -334,6 +344,8 @@ type mapJob struct {
 	MatchSlug string      `json:"matchSlug"`
 	MapNumber int         `json:"mapNumber"`
 	Players   []recordJob `json:"players"`
+	// A simulated match: SteamID64 -> the roster name its bot plays under.
+	StandIns map[string]string `json:"standIns"`
 	// Quality is the admin's video size and frame rate (older platforms: none).
 	Quality *videoQuality `json:"quality"`
 	// KeepClean: upload each clip's clean twin and overlay recipe too
@@ -355,6 +367,8 @@ type recorderSettings struct {
 type videoQuality struct {
 	Height int `json:"height"`
 	FPS    int `json:"fps"`
+	// Mbps: the bitrate ceiling an admin set; 0 works it out (maxBitrate).
+	Mbps int `json:"mbps,omitempty"`
 }
 
 // useQuality makes the next videos at q: CS2 captured at that size (a
@@ -363,6 +377,10 @@ type videoQuality struct {
 // q the recorder goes back to what it started with.
 func (r *recorder) useQuality(q *videoQuality) {
 	width, height, outH, fps := r.base.width, r.base.height, r.base.outputHeight, r.base.outputFPS
+	setMbps = 0
+	if q != nil && q.Mbps > 0 && q.Mbps <= 200 {
+		setMbps = q.Mbps
+	}
 	if q != nil && q.Height >= 360 && q.Height <= 2160 && q.FPS >= 24 && q.FPS <= 240 {
 		h := q.Height &^ 1
 		if os.Getenv("AT_RESOLUTION") == "" {
@@ -661,6 +679,11 @@ func (r *recorder) recordMoment(g *game, look clipLook, name string, m moment, o
 			os.RemoveAll(dir)
 		}
 	}
+	// A demo that stops before the moment's kills would give a clip of the
+	// lead-up alone: fail it, so it shows as failed rather than as a clip.
+	if killsPastEnd(m.KillTicks, g.lastTick) {
+		return clipMarkers{}, nil, fmt.Errorf("the demo ends at tick %d, before the kills of this moment (%v)", g.lastTick, m.KillTicks)
+	}
 	// The clip ends where the slow motion after the last kill does.
 	end := m.SlowmoTick + int(math.Ceil(tailSec*tickrate))
 	if g.lastTick > 0 && end > g.lastTick-endMargin {
@@ -686,7 +709,10 @@ func (r *recorder) recordMoment(g *game, look clipLook, name string, m moment, o
 	var edits [][]segment
 	var encodes []func() error
 	var parts []overlayPart
+	r.job.windows = len(windows)
+	defer func() { r.job.windows = 0 }()
 	for i, w := range windows {
+		r.job.window = i
 		piece := filepath.Join(dir, fmt.Sprintf("piece-%d.mp4", i))
 		// The first piece plays the card's entrance; the later ones (after a
 		// jump cut) keep it small at the bottom.
@@ -722,6 +748,7 @@ func (r *recorder) recordMoment(g *game, look clipLook, name string, m moment, o
 	if t := deathTick(look.replay, look.playerID, m); t >= 0 {
 		markers.Reactions = withAww(markers.Reactions, tickAt(windows, edits, t))
 	}
+	markers.Headshots = headshots(look.replay, look.playerID, m.KillTicks, len(markers.Kills))
 	width, height := ow, oh
 	finish := func() error {
 		defer cleanup()
@@ -795,39 +822,55 @@ func (r *recorder) recordWindow(g *game, look clipLook, card *cardRender, name s
 		g.follow = func(tick int) ([3]float64, bool) { return rp.PositionAt(id, tick) }
 		defer func() { g.follow = nil }()
 	}
-	mainTicks, err := r.capturePicture(g, name, w.from-lead, picturePhases(w, introEnd, slowFrom, speedsFor(r.rate.fps)), main)
-	if err != nil {
-		return nil, nil, fmt.Errorf("picture: %w", err)
-	}
-	sources := [][]float64{mainTicks}
-	raws := []string{main}
-
-	// The sound, at real speed.
-	wav := prefix + "-audio.wav"
-	var ac *audioCapture
-	as, err := g.play(w.from-lead, w.to, 1, name, func() (err error) {
-		ac, err = startAudioCapture(r.sink, wav)
-		return err
-	})
-	if ac != nil {
-		ac.stop()
-	}
-	if err != nil {
-		return nil, nil, fmt.Errorf("sound: %w", err)
-	}
-	// What CS2 plays reaches the recording audioLatency later: start that much
-	// further in, or every shot is heard after the kill it made.
-	audioAt := as.resumed.Sub(ac.fileStart()).Seconds() + float64(w.from-as.fromTick)/tickrate + audioLatency()
-
 	length := float64(w.to-w.from) / tickrate
 	kill := -1.0
 	if w.slowmo >= 0 {
 		kill = float64(w.slowmo-w.from) / tickrate
 	}
 	segs := editPlan(length, card != nil && !card.settled, kill)
-	frames, err := timeline(sources, segs, w.from)
-	if err != nil {
-		return nil, nil, err
+	raws := []string{main}
+	wav := prefix + "-audio.wav"
+	var frames []frameRef
+	var audioAt float64
+	var err error
+	if g.gameinfo != "" && !g.fbfChecked {
+		g.fbfChecked = true
+		if g.fbf = fbfUnhidden(g); g.fbf {
+			log.Printf("frame by frame: on")
+		} else {
+			log.Printf("frame by frame: the plugin did not unhide startmovie; capturing the stream")
+		}
+	}
+	if g.fbf {
+		// CS2 writes every frame and the sound itself: one pass, nothing slowed.
+		if frames, audioAt, err = r.fbfCapture(g, name, w.from-lead, w.to, w.from, segs, main, wav); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		mainTicks, err := r.capturePicture(g, name, w.from-lead, picturePhases(w, introEnd, slowFrom, speedsFor(r.rate.fps)), main)
+		if err != nil {
+			return nil, nil, fmt.Errorf("picture: %w", err)
+		}
+		sources := [][]float64{mainTicks}
+
+		// The sound, at real speed.
+		var ac *audioCapture
+		as, err := g.play(w.from-lead, w.to, 1, name, func() (err error) {
+			ac, err = startAudioCapture(r.sink, wav)
+			return err
+		})
+		if ac != nil {
+			ac.stop()
+		}
+		if err != nil {
+			return nil, nil, fmt.Errorf("sound: %w", err)
+		}
+		// What CS2 plays reaches the recording audioLatency later: start that much
+		// further in, or every shot is heard after the kill it made.
+		audioAt = as.resumed.Sub(ac.fileStart()).Seconds() + float64(w.from-as.fromTick)/tickrate + audioLatency()
+		if frames, err = timeline(sources, segs, w.from); err != nil {
+			return nil, nil, err
+		}
 	}
 	// The kill feed: what carried over, then this piece's kills where the edit puts them.
 	var feed *feedRender
@@ -1217,7 +1260,11 @@ func (r *recorder) recordMap(ctx context.Context, mj *mapJob) (kept, rejected, f
 	var rp *Replay // the demo's kills, read once for every player's kill feed
 	for i := range mj.Players {
 		p := &mj.Players[i]
-		name, err := demoName(demoPath, p.PlayerID)
+		// A simulated match: the bot that played them, under their roster name.
+		name, err := mj.StandIns[p.PlayerID], error(nil)
+		if name == "" {
+			name, err = demoName(demoPath, p.PlayerID)
+		}
 		if err == nil {
 			rememberAccount(name, p.PlayerID)
 		}
@@ -1234,7 +1281,7 @@ func (r *recorder) recordMap(ctx context.Context, mj *mapJob) (kept, rejected, f
 				rp = r.live.replay
 			}
 			if rp == nil {
-				rp = replayOf(demoPath, p.MapName)
+				rp = replayOf(demoPath, p.MapName, mj.StandIns)
 			}
 			look.replay, look.playerID = rp, p.PlayerID
 		}
@@ -1464,6 +1511,8 @@ func newRecorder(c *client) (*recorder, error) {
 		return nil, fmt.Errorf("AT_RECORD_DIR: %w", err)
 	}
 	cleanScratch(r.scratch, 6*time.Hour)
+	// A recorder stopped while its CS2 ran left Frame by Frame in gameinfo.gi.
+	fbfRestore(filepath.Join(gameDir, "csgo", "gameinfo.gi"))
 	r.logo = filepath.Join(r.scratch, "at-watermark.png")
 	if err := os.WriteFile(r.logo, watermarkPNG, 0o644); err != nil {
 		return nil, err
@@ -1482,13 +1531,13 @@ func newRecorder(c *client) (*recorder, error) {
 
 // replayOf reads a demo's kills (the analyzer's replay) for the kill feed;
 // nil (CS2's feed is then used for nothing: the feed is just empty) on error.
-func replayOf(demoPath, mapName string) *Replay {
+func replayOf(demoPath, mapName string, standIns map[string]string) *Replay {
 	f, err := os.Open(demoPath)
 	if err != nil {
 		return nil
 	}
 	defer f.Close()
-	_, rp, err := Analyze(f, mapName)
+	_, rp, err := Analyze(f, mapName, standIns)
 	if err != nil {
 		log.Printf("no kill feed: reading the demo's kills: %v", err)
 		return nil
@@ -1497,22 +1546,36 @@ func replayOf(demoPath, mapName string) *Replay {
 }
 
 // runRecorder is the record loop: one map's moments at a time, all players.
-func runRecorder(ctx context.Context, c *client, poll time.Duration) error {
+// With several platforms (AT_PLATFORMS) it asks each for work in turn and
+// runs a job against the platform it came from.
+func runRecorder(ctx context.Context, clients []*client, poll time.Duration) error {
+	c := clients[0]
 	r, err := newRecorder(c)
 	if err != nil {
 		return err
 	}
 	defer r.endLive()
-	// The live link (link.go): woken when there is work, progress out. With
-	// it up, the poll is only a fallback.
-	r.link = newRecorderLink(c)
-	go r.link.run(ctx)
+	// The live links (link.go), one per platform: woken when there is work,
+	// progress out. With one up, the poll is only a fallback.
+	wake := make(chan struct{}, 1)
+	links := make([]*recorderLink, len(clients))
+	for i, pc := range clients {
+		links[i] = newRecorderLink(pc, wake)
+		go links[i].run(ctx)
+	}
+	r.link = links[0]
+	next := 0
 	waitForWork := func() {
 		d := poll
-		if r.link.Linked() {
-			d = 2 * time.Minute
+		for _, l := range links {
+			if l.Linked() {
+				d = 2 * time.Minute
+			}
 		}
 		r.link.Wait(ctx, d)
+	}
+	if len(clients) > 1 {
+		log.Printf("recording for %d platforms, in turn", len(clients))
 	}
 	// Each job's log goes to the platform with its run report (runlog.go).
 	log.SetOutput(io.MultiWriter(os.Stderr, currentJobLog))
@@ -1551,7 +1614,9 @@ func runRecorder(ctx context.Context, c *client, poll time.Duration) error {
 				log.Printf("waiting for CS2 in %s (install it in Steam)", r.gameDir)
 				waitingForCS2 = true
 			}
-			c.hello(ctx, "CS2 is not installed yet")
+			for _, pc := range clients {
+				pc.hello(ctx, "CS2 is not installed yet")
+			}
 			select {
 			case <-ctx.Done():
 			case <-time.After(poll):
@@ -1566,10 +1631,25 @@ func runRecorder(ctx context.Context, c *client, poll time.Duration) error {
 		if idleFile != "" {
 			_ = os.Remove(idleFile)
 		}
-		j, reel, redress, err := c.claimRecording(ctx, r.loadedMap())
-		if err != nil {
-			log.Printf("cannot reach the platform: %v", err)
-			currentJobLog.take()
+		// Each platform in turn, from the one after the last that had work.
+		var j *mapJob
+		var reel *matchReelJob
+		var redress *redressJob
+		for i := range clients {
+			k := (next + i) % len(clients)
+			if clients[k].rejected.Load() {
+				continue
+			}
+			c, r.client, r.link = clients[k], clients[k], links[k]
+			j, reel, redress, err = c.claimRecording(ctx, r.loadedMap())
+			if err != nil {
+				log.Printf("cannot reach %s: %v", c.base, err)
+				currentJobLog.take()
+			}
+			if j != nil || reel != nil || redress != nil {
+				next = (k + 1) % len(clients)
+				break
+			}
 		}
 		if j != nil || reel != nil || redress != nil {
 			keep.hold()
@@ -1663,24 +1743,55 @@ type jobProgress struct {
 	matchSlug string
 	mapNumber *int
 	started   time.Time
+	// The last report, and which of the clip's windows is being captured:
+	// reportPart moves the percent within a clip as its frames come in.
+	step, detail    string
+	done, total     int
+	window, windows int
+	lastPart        time.Time
+	// recording: when the first clip started recording; the ETA counts from
+	// there, not from the job's start (the download and CS2's start-up).
+	recording time.Time
 }
 
 // report tells the platform what this recorder is doing (link.go), with the
 // job's time so far and, from the clips done, an estimate of the rest.
 func (r *recorder) report(step, detail string, done, total int) {
+	r.job.step, r.job.detail, r.job.done, r.job.total = step, detail, done, total
+	r.reportAt(float64(done))
+}
+
+// reportPart reports the current clip `frac` of the way done (its window's
+// frames so far), at most once a second.
+func (r *recorder) reportPart(frac float64) {
+	if r.job.total == 0 || r.job.windows == 0 || time.Since(r.job.lastPart) < time.Second {
+		return
+	}
+	r.job.lastPart = time.Now()
+	r.reportAt(float64(r.job.done) + (float64(r.job.window)+frac)/float64(r.job.windows))
+}
+
+func (r *recorder) reportAt(done float64) {
 	if r.link == nil {
 		return
 	}
-	p := Progress{Step: step, Detail: detail, MatchSlug: r.job.matchSlug, MapNumber: r.job.mapNumber}
+	total := r.job.total
+	p := Progress{Step: r.job.step, Detail: r.job.detail, MatchSlug: r.job.matchSlug, MapNumber: r.job.mapNumber}
 	if total > 0 {
-		p.Done, p.Total = ptrInt(done), ptrInt(total)
-		p.Percent = ptrFloat(float64(done) * 100 / float64(total))
+		p.Done, p.Total = ptrInt(int(done)), ptrInt(total)
+		p.Percent = ptrFloat(done * 100 / float64(total))
+	}
+	if r.job.step == "recording" && r.job.recording.IsZero() {
+		r.job.recording = time.Now()
 	}
 	if !r.job.started.IsZero() {
-		el := time.Since(r.job.started).Seconds()
-		p.Elapsed = ptrFloat(el)
-		if done > 0 && total > done {
-			p.ETA = ptrFloat(el / float64(done) * float64(total-done))
+		p.Elapsed = ptrFloat(time.Since(r.job.started).Seconds())
+		from := r.job.started
+		if !r.job.recording.IsZero() {
+			from = r.job.recording
+		}
+		if done > 0 && float64(total) > done {
+			p.ETA = ptrFloat(time.Since(from).Seconds() / done * (float64(total) - done))
 		}
 	}
 	r.link.Report(p)
@@ -1738,7 +1849,7 @@ func recordDemo(args []string) error {
 	}
 	var replay *Replay
 	if r.icons != nil {
-		replay = replayOf(args[0], env("AT_MAP", ""))
+		replay = replayOf(args[0], env("AT_MAP", ""), nil)
 	}
 	var shots []shot
 	for player, p := range byPlayer {
@@ -1811,7 +1922,7 @@ func recordFile(args []string) error {
 		}
 	}
 	if r.icons != nil {
-		look.replay = replayOf(args[0], env("AT_MAP", ""))
+		look.replay = replayOf(args[0], env("AT_MAP", ""), nil)
 		look.playerID = args[1]
 		if look.replay != nil && strings.HasPrefix(args[1], "name:") {
 			for _, p := range look.replay.Players {
@@ -1854,27 +1965,33 @@ const encodeTimeout = 15 * time.Minute
 // pickEncoder is the GPU's H.264 encoder when it opens (a second of test
 // video), else x264 on the CPU: same codec and container either way.
 func pickEncoder() string {
+	// The smallest file for the quality first: AV1, then H.265, then H.264
+	// (the sustainable web design study: the codec decides the size, the
+	// container barely does). The GPU's own encoders only: on the CPU AV1 and
+	// H.265 are many times slower, so the CPU fallback stays H.264.
+	for _, enc := range []string{"av1_nvenc", "hevc_nvenc", "h264_nvenc", "av1_vaapi", "hevc_vaapi", "h264_vaapi"} {
+		if encoderWorks(enc) {
+			log.Printf("encoding with %s", enc)
+			return enc
+		}
+	}
+	log.Printf("no GPU encoder works: encoding H.264 on the CPU")
+	return "libx264"
+}
+
+// encoderWorks tries a second of video through the encoder.
+func encoderWorks(enc string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30", "-t", "1",
-		"-c:v", "h264_nvenc", "-f", "null", "-")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		reason := strings.TrimSpace(string(out))
-		if i := strings.IndexByte(reason, '\n'); i > 0 {
-			reason = reason[:i]
-		}
-		vctx, vcancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer vcancel()
-		vaapi := exec.CommandContext(vctx, "ffmpeg", "-v", "error", "-init_hw_device", "vaapi=va:"+vaapiDevice, "-filter_hw_device", "va",
-			"-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30", "-t", "1", "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-f", "null", "-")
-		if vaapi.Run() == nil {
-			log.Printf("NVENC is not available (%s): encoding H.264 with VAAPI", reason)
-			return "h264_vaapi"
-		}
-		log.Printf("NVENC is not available (%s): encoding H.264 on the CPU", reason)
-		return "libx264"
+	args := []string{"-v", "error"}
+	if isVAAPI(enc) {
+		args = append(args, "-init_hw_device", "vaapi=va:"+vaapiDevice, "-filter_hw_device", "va")
 	}
-	return "h264_nvenc"
+	args = append(args, "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30", "-t", "1")
+	if isVAAPI(enc) {
+		args = append(args, "-vf", "format=nv12,hwupload")
+	}
+	return exec.CommandContext(ctx, "ffmpeg", append(args, "-c:v", enc, "-f", "null", "-")...).Run() == nil
 }
 
 // joinReelFiles is `at-worker join-reel <out.mp4> <clip.mp4>...`: local clips
@@ -1958,7 +2075,7 @@ func markCheers(args []string) error {
 	if err := json.Unmarshal(b, &moments); err != nil {
 		return err
 	}
-	rp := replayOf(args[0], env("AT_MAP", ""))
+	rp := replayOf(args[0], env("AT_MAP", ""), nil)
 	for i, file := range args[3:] {
 		if i >= len(moments) {
 			break

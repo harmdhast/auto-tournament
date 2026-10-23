@@ -5,8 +5,8 @@
  * them where the player is when the site is closed.
  *
  * - Events: their own match is ready, their turn in the veto (captains),
- *   check-in opens, a new tournament takes sign-ups. "Off by default except
- *   your own matches."
+ *   check-in opens, a new tournament takes sign-ups, a friend's direct message.
+ *   "Off by default except your own matches" (and DMs).
  * - Email goes to the player's verified address (playerEmailService), when
  *   the site can send email. A new tournament's email is the existing
  *   "tournament emails" switch (player_emails.notify_tournaments), sent by
@@ -20,12 +20,19 @@
  */
 import { db } from '../config/database';
 import { log } from '../utils/logger';
-import { decryptSecret, encryptSecret } from '../utils/secretBox';
 import { emailService } from './emailService';
 import { webPush } from './webPush';
+import { presenceStatus } from './socketService';
+import { botToken, ChannelError, discordBot } from '../addons/discord/bot';
+import type { Untrusted } from '../utils/untrusted';
 
 export type ChannelEvent =
-  'match_ready' | 'veto_turn' | 'checkin_open' | 'new_tournament' | 'tournament_starting';
+  | 'match_ready'
+  | 'veto_turn'
+  | 'checkin_open'
+  | 'new_tournament'
+  | 'tournament_starting'
+  | 'direct_message';
 export type Channel = 'email' | 'discord' | 'push';
 
 export const CHANNEL_EVENTS: ChannelEvent[] = [
@@ -34,6 +41,7 @@ export const CHANNEL_EVENTS: ChannelEvent[] = [
   'checkin_open',
   'new_tournament',
   'tournament_starting',
+  'direct_message',
 ];
 export const CHANNELS: Channel[] = ['discord', 'email', 'push'];
 
@@ -45,10 +53,9 @@ const DEFAULT_ON: Record<ChannelEvent, boolean> = {
   new_tournament: false,
   // A tournament they signed up for is about to start (tournamentSchedule.ts).
   tournament_starting: true,
+  // A friend wrote to them (chatService, `dm:` channels).
+  direct_message: true,
 };
-
-const BOT_TOKEN_KEY = 'discord_bot_token';
-const DISCORD_API = 'https://discord.com/api/v10';
 
 export interface ChannelMessage {
   /** The email subject; the DM's first line. */
@@ -75,93 +82,11 @@ export interface ChannelPrefs {
 
 const now = () => Math.floor(Date.now() / 1000);
 
-export class ChannelError extends Error {
-  constructor(
-    readonly status: number,
-    message: string
-  ) {
-    super(message);
-  }
-}
-
-// ---- Discord bot ----------------------------------------------------------------
-
-async function botToken(): Promise<string | null> {
-  const stored = await db.getAppSettingAsync(BOT_TOKEN_KEY).catch(() => null);
-  return decryptSecret(stored);
-}
-
-async function discordFetch(
-  token: string,
-  path: string,
-  init: { method?: string; body?: unknown } = {}
-): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
-  const res = await globalThis.fetch(`${DISCORD_API}${path}`, {
-    method: init.method ?? 'GET',
-    headers: {
-      Authorization: `Bot ${token}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'AutoTournament (https://autotournament.gg, 3)',
-    },
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-    signal: globalThis.AbortSignal.timeout(10_000),
-  });
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  return { ok: res.ok, status: res.status, body };
-}
-
-export const discordBot = {
-  /** Whether a token is stored, and the bot's name when it answers. */
-  async status(): Promise<{ set: boolean; name: string | null }> {
-    const token = await botToken();
-    if (!token) return { set: false, name: null };
-    try {
-      const me = await discordFetch(token, '/users/@me');
-      return { set: true, name: me.ok ? String(me.body.username ?? '') || null : null };
-    } catch {
-      return { set: true, name: null };
-    }
-  },
-
-  /** Check the token with Discord, then store it encrypted. Null clears it. */
-  async setToken(token: string | null): Promise<{ set: boolean; name: string | null }> {
-    if (token === null || token.trim() === '') {
-      await db.setAppSettingAsync(BOT_TOKEN_KEY, null);
-      return { set: false, name: null };
-    }
-    const value = token.trim();
-    let me: Awaited<ReturnType<typeof discordFetch>>;
-    try {
-      me = await discordFetch(value, '/users/@me');
-    } catch {
-      throw new ChannelError(502, 'Discord did not answer; try again');
-    }
-    if (!me.ok) throw new ChannelError(400, 'Discord refused that token (is it a bot token?)');
-    await db.setAppSettingAsync(BOT_TOKEN_KEY, encryptSecret(value));
-    return { set: true, name: String(me.body.username ?? '') || null };
-  },
-
-  /** A DM to one Discord user. False when Discord refuses (no shared server, DMs closed). */
-  async sendDm(discordUserId: string, content: string): Promise<boolean> {
-    const token = await botToken();
-    if (!token) return false;
-    const channel = await discordFetch(token, '/users/@me/channels', {
-      method: 'POST',
-      body: { recipient_id: discordUserId },
-    });
-    const channelId = typeof channel.body.id === 'string' ? channel.body.id : null;
-    if (!channel.ok || !channelId) return false;
-    const sent = await discordFetch(token, `/channels/${channelId}/messages`, {
-      method: 'POST',
-      body: { content: content.slice(0, 2000), allowed_mentions: { parse: [] } },
-    });
-    return sent.ok;
-  },
-};
+export { ChannelError, discordBot };
 
 // ---- per player ----------------------------------------------------------------
 
-async function discordIdOf(playerId: string): Promise<string | null> {
+export async function discordIdOf(playerId: string): Promise<string | null> {
   const row = await db.queryOneAsync<{ id: string | null }>(
     `SELECT COALESCE(
         (SELECT provider_user_id FROM auth_identities WHERE provider = 'discord' AND steam_id = ? ORDER BY id DESC LIMIT 1),
@@ -190,10 +115,10 @@ async function emailOf(
   };
 }
 
-function isEvent(v: unknown): v is ChannelEvent {
+function isEvent(v: Untrusted): v is ChannelEvent {
   return typeof v === 'string' && (CHANNEL_EVENTS as string[]).includes(v);
 }
-function isChannel(v: unknown): v is Channel {
+function isChannel(v: Untrusted): v is Channel {
   return typeof v === 'string' && (CHANNELS as string[]).includes(v);
 }
 
@@ -244,9 +169,9 @@ export const notifyChannels = {
   /** Turn one event's channel on or off for a player. */
   async set(
     playerId: string,
-    event: unknown,
-    channel: unknown,
-    on: unknown
+    event: Untrusted,
+    channel: Untrusted,
+    on: Untrusted
   ): Promise<ChannelPrefs> {
     if (!isEvent(event))
       throw new ChannelError(400, `event must be one of ${CHANNEL_EVENTS.join(', ')}`);
@@ -296,7 +221,16 @@ export const notifyChannels = {
         for (const channel of CHANNELS) {
           // A new tournament's email goes out with the sign-up email itself.
           if (event === 'new_tournament' && channel === 'email') continue;
+          // A chat line is no email; and on the site the dock shows it already.
+          if (
+            event === 'direct_message' &&
+            (channel === 'email' || presenceStatus(playerId) === 'online')
+          )
+            continue;
           if (!prefs.events[event][channel] || !prefs.channels[channel].available) continue;
+          // Someone active on the site sees it there (the bell): a Discord DM is for
+          // when they are away or gone. Not claimed, so nothing is marked sent.
+          if (channel === 'discord' && presenceStatus(playerId) === 'online') continue;
           const claimed = await db.queryAsync<{ player_id: string }>(
             `INSERT INTO notify_deliveries (player_id, dedupe_key, channel, sent_at) VALUES (?, ?, ?, ?)
              ON CONFLICT (player_id, dedupe_key, channel) DO NOTHING RETURNING player_id`,

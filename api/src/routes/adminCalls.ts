@@ -4,7 +4,8 @@
  * own event ingest (CS2: `admin_called` on /api/events), not here.
  */
 
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { requireAuth, requestActorId } from '../middleware/auth';
 import { log } from '../utils/logger';
 import {
@@ -15,6 +16,7 @@ import {
   resolveAdminCall,
   resolveAllAdminCalls,
 } from '../services/adminCallService';
+import type { Untrusted } from '../utils/untrusted';
 
 const router = Router();
 
@@ -23,14 +25,14 @@ router.use(requireAuth);
 /** At most 30 days of resolved calls in one listing. */
 const MAX_RESOLVED_WINDOW_SECONDS = 30 * 24 * 60 * 60;
 
-function resolvedWindow(raw: unknown): number | null {
+function resolvedWindow(raw: Untrusted): number | null {
   if (raw === undefined) return DEFAULT_RESOLVED_WINDOW_SECONDS;
   if (typeof raw !== 'string' || !/^\d+$/.test(raw)) return null;
   return Math.min(Number(raw), MAX_RESOLVED_WINDOW_SECONDS);
 }
 
-function noteFrom(req: Request): unknown {
-  return (req.body as { note?: unknown } | undefined)?.note;
+function noteFrom(req: Request): Untrusted {
+  return (req.body as { note?: Untrusted } | undefined)?.note;
 }
 
 /**

@@ -1,10 +1,5 @@
-import { DEFAULT_GROUPS, groupsFormOf } from '../components/tournament/setup/GroupsFields';
-import {
-  DEFAULT_MATCH_TIMES,
-  matchTimesFormOf,
-  matchTimesSetting,
-  roundBreaksSetting,
-} from '../components/tournament/setup/ScheduleStep';
+import { isStarted } from '../utils/tournamentStatus';
+import { matchTimesSetting, roundBreaksSetting } from '../components/tournament/setup/ScheduleStep';
 import { pageTitle } from '../utils/pageTitle';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -23,10 +18,7 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 import { TournamentLive } from '../components/tournament/TournamentLive';
 import { PageHead } from '../components/common/ui';
 import { TournamentDialogs } from '../components/tournament/TournamentDialogs';
-import {
-  EventPageSettingsCard,
-  type EventPageFields,
-} from '../components/tournament/EventPageSettingsCard';
+import { EventPageSettingsCard } from '../components/tournament/EventPageSettingsCard';
 import { DEFAULT_SIGNUP, signupSettingsPatch } from '../components/tournament/setup/SignupSettings';
 import {
   TournamentSetup,
@@ -44,8 +36,22 @@ import {
   gameSettingsError,
   gameSettingsFor,
   gameSettingsOnTypeChange,
-  moduleKeysOf,
 } from '../components/tournament/setup/gameSettings';
+import {
+  DEFAULT_FORM,
+  EMPTY_EVENT_PAGE,
+  LEGACY_STEP_STORAGE_KEY,
+  STORAGE_KEY,
+  formFromTournament,
+  formKeyOf,
+  grandFinalModeOf,
+  isEventPageEmpty,
+  restKeyOf,
+} from '../components/tournament/setup/tournamentForm';
+import {
+  tournamentChanges,
+  type ChangeItem,
+} from '../components/tournament/setup/tournamentChanges';
 import type { TournamentSetupContext } from '../integrations/types';
 import { getIntegration, useIntegration } from '../integrations/registry';
 import { useModuleState } from '../module-loader/useModuleState';
@@ -56,131 +62,13 @@ import { BulkShuffleMatchesModal } from '../components/modals/BulkShuffleMatches
 import { useTournament } from '../hooks/useTournament';
 import { validateTeamCountForType } from '../utils/tournamentValidation';
 import { api } from '../utils/api';
-import { io } from 'socket.io-client';
+import { scopedSocket } from '../utils/sharedSocket';
 import { onSocketReconnect } from '../utils/socketResync';
-import { MATCH_FORMATS } from '../constants/tournament';
-import type { Tournament as TournamentRecord, TournamentTemplate } from '../types/tournament.types';
+import type { TournamentTemplate } from '../types/tournament.types';
 import type { ShuffleTournamentSettings } from '../components/tournament/ShuffleTournamentConfigStep';
 import type { EloCalculationTemplate } from '../types/elo.types';
 import { resetCurrentTournamentId } from '../hooks/useTournamentList';
-
-/** Human label for a match format ("bo3" -> "Best of 3"), raw value if unknown. */
-const formatLabel = (value: string): string =>
-  MATCH_FORMATS.find((f) => f.value === value)?.label ?? value;
-
-type GrandFinalMode = 'none' | 'simple' | 'double';
-
-interface TournamentChange {
-  field: string;
-  label?: string;
-  oldValue?: string | string[];
-  newValue?: string | string[];
-}
-
-/** sessionStorage key for a new tournament's form (drafts are per browser tab). */
-const STORAGE_KEY = 'tournament_form_draft';
-/** Step key the old wizard used; cleared with the draft. */
-const LEGACY_STEP_STORAGE_KEY = 'tournament_form_step';
-
-const EMPTY_EVENT_PAGE: EventPageFields = {
-  description: '',
-  location: '',
-  organizer: '',
-  rulebookUrl: '',
-  rules: [],
-  prizes: [],
-  schedule: [],
-};
-
-const DEFAULT_FORM: SetupFormValues = {
-  name: '',
-  // Counter-Strike 2 until the organizer picks otherwise: what every
-  // tournament created before 3.0 phase D was, and the `game` column default.
-  game: DEFAULT_SETUP_GAME.id,
-  // The game module's settings (CS2: the map pool and round rules): its steps
-  // treat an empty object as its defaults.
-  gameSettings: {},
-  type: 'single_elimination',
-  format: 'bo3',
-  selectedTeams: [],
-  grandFinalMode: 'simple',
-  shuffleSettings: { teamSize: 5 },
-  eloTemplateId: DEFAULT_ELO_TEMPLATE_ID,
-  plannedTeams: 8,
-  eventPage: EMPTY_EVENT_PAGE,
-  signup: DEFAULT_SIGNUP,
-  groups: DEFAULT_GROUPS,
-  matchTimes: DEFAULT_MATCH_TIMES,
-};
-
-const isEventPageEmpty = (fields: EventPageFields) =>
-  JSON.stringify(fields) === JSON.stringify(EMPTY_EVENT_PAGE);
-
-/** Grand final mode stored in a tournament's settings ('simple' when unset). */
-const grandFinalModeOf = (
-  tournament: Pick<TournamentRecord, 'settings'> | null
-): GrandFinalMode => {
-  const stored = (tournament?.settings as { grandFinalMode?: string } | undefined)?.grandFinalMode;
-  return stored === 'none' || stored === 'double' ? stored : 'simple';
-};
-
-/**
- * The same without the teams and (outside shuffle) the players per team,
- * which change on the Teams step without the rest of the form.
- */
-const restKeyOf = (tournament: TournamentRecord) =>
-  formKeyOf({
-    ...tournament,
-    teamIds: [],
-    teamSize: tournament.type === 'shuffle' ? tournament.teamSize : undefined,
-  });
-
-/** The fields of a saved tournament the setup form edits, for "did the server copy change?". */
-const formKeyOf = (tournament: TournamentRecord) =>
-  JSON.stringify([
-    tournament.id,
-    tournament.status,
-    tournament.name,
-    tournament.type,
-    tournament.format,
-    tournament.teamIds,
-    tournament.teamSize,
-    tournament.eloTemplateId,
-    grandFinalModeOf(tournament),
-    tournament.type === 'groups' ? groupsFormOf(tournament.settings) : null,
-    matchTimesFormOf(tournament.settings),
-    tournament.game ?? null,
-    // The game module's own settings (CS2: map pool and round rules).
-    moduleKeysOf(tournament.settings),
-  ]);
-
-/** Form values for a saved tournament. */
-const formFromTournament = (tournament: TournamentRecord): SetupFormValues => {
-  const teamCount = tournament.teamIds?.length ?? 0;
-  const game = tournament.game || DEFAULT_SETUP_GAME.id;
-  return {
-    ...DEFAULT_FORM,
-    name: tournament.name,
-    game,
-    // The game module's settings as saved, completed by the module.
-    gameSettings: gameSettingsFor(
-      { game, type: tournament.type, format: tournament.format },
-      tournament.settings
-    ),
-    type: tournament.type,
-    format: tournament.format,
-    selectedTeams: tournament.teamIds || [],
-    eloTemplateId: tournament.eloTemplateId || DEFAULT_ELO_TEMPLATE_ID,
-    // Stored even when the type isn't double elimination, so switching to it
-    // (or saving untouched) keeps the saved behaviour.
-    grandFinalMode: grandFinalModeOf(tournament),
-    plannedTeams:
-      teamCount >= 2 ? teamCount : nearestTeamCount(tournament.type, DEFAULT_FORM.plannedTeams),
-    shuffleSettings: { teamSize: tournament.type === 'shuffle' ? tournament.teamSize || 5 : 5 },
-    groups: groupsFormOf(tournament.settings),
-    matchTimes: matchTimesFormOf(tournament.settings),
-  };
-};
+import type { Untrusted } from '../utils/untrusted';
 
 const Tournament: React.FC = () => {
   const navigate = useNavigate();
@@ -261,14 +149,7 @@ const Tournament: React.FC = () => {
   const StartPreflight = startSlot?.preflight?.view;
   const StartFailureView = startSlot?.failureView;
   const [showChangePreview, setShowChangePreview] = useState(false);
-  const [changes, setChanges] = useState<
-    Array<{
-      field: string;
-      label: string;
-      oldValue: string | string[];
-      newValue: string | string[];
-    }>
-  >([]);
+  const [changes, setChanges] = useState<ChangeItem[]>([]);
   const [bulkShuffleModalOpen, setBulkShuffleModalOpen] = useState(false);
 
   const [searchParams] = useSearchParams();
@@ -300,7 +181,7 @@ const Tournament: React.FC = () => {
   const loadRegisteredPlayerCount = async () => {
     if (tournament?.type === 'shuffle') {
       try {
-        const response = await api.get<{ success: boolean; count: number; players: unknown[] }>(
+        const response = await api.get<{ success: boolean; count: number; players: Untrusted[] }>(
           `/api/tournament/${tournament.id}/players`
         );
         if (response.success) {
@@ -517,7 +398,8 @@ const Tournament: React.FC = () => {
       // A draft saved for one game can hold a step the next game does not
       // have, so the bound is that game's own list.
       const stepCount = setupStepsFor(values.game ?? DEFAULT_FORM.game).length;
-      const validStep = (n: unknown) => (typeof n === 'number' && n >= 0 && n < stepCount ? n : 0);
+      const validStep = (n: Untrusted) =>
+        typeof n === 'number' && n >= 0 && n < stepCount ? n : 0;
       setActiveStep(validStep(step));
       setFurthestStep(Math.max(validStep(step), validStep(savedFurthest)));
     } catch (error) {
@@ -713,98 +595,16 @@ const Tournament: React.FC = () => {
 
     // Check for changes if editing
     if (tournament) {
-      const detectedChanges: TournamentChange[] = [];
-
-      if (name !== tournament.name) {
-        detectedChanges.push({
-          field: 'name',
-          label: t('tournament.review.summary.nameLabel'),
-          oldValue: tournament.name,
-          newValue: name,
-        });
-      }
-      if (type !== tournament.type) {
-        detectedChanges.push({
-          field: 'type',
-          label: t('tournament.review.summary.typeLabel'),
-          oldValue: t(`tournament.typeSelector.types.${tournament.type}.label`, tournament.type),
-          newValue: t(`tournament.typeSelector.types.${type}.label`, type),
-        });
-      }
-      if (type === 'double_elimination') {
-        // Not double elimination before: there was no grand final.
-        const oldMode =
-          tournament.type === 'double_elimination' ? grandFinalModeOf(tournament) : 'none';
-        if (grandFinalMode !== oldMode) {
-          detectedChanges.push({
-            field: 'grandFinalMode',
-            label: t('tournament.grandFinal.label'),
-            oldValue: t(`tournament.grandFinal.options.${oldMode}`),
-            newValue: t(`tournament.grandFinal.options.${grandFinalMode}`),
-          });
-        }
-      }
-      if (format !== tournament.format) {
-        detectedChanges.push({
-          field: 'format',
-          label: t('tournament.review.summary.formatLabel'),
-          oldValue: formatLabel(tournament.format),
-          newValue: formatLabel(format),
-        });
-      }
-      if (
-        JSON.stringify([...selectedTeams].sort()) !== JSON.stringify([...tournament.teamIds].sort())
-      ) {
-        const oldTeams = teams
-          .filter((tm) => tournament.teamIds.includes(tm.id))
-          .map((tm) => tm.name);
-        const newTeams = teams.filter((tm) => selectedTeams.includes(tm.id)).map((tm) => tm.name);
-        detectedChanges.push({
-          field: 'teamIds',
-          label: t('tournament.labels.teams'),
-          oldValue: oldTeams.length > 0 ? oldTeams : [],
-          newValue: newTeams.length > 0 ? newTeams : [],
-        });
-      }
-      // The game module's changes that ask for a confirmation (CS2: the map
-      // pool; its round rules have never asked).
-      for (const change of gameSettingsChanges(
+      const validChanges = tournamentChanges(
+        tournament,
+        form,
         savedForm?.gameSettings ?? {},
-        form.gameSettings,
+        teams,
         settingsCtx,
+        eloTemplateName,
         t
-      )) {
-        if (change.confirm === false) continue;
-        detectedChanges.push({
-          field: change.field,
-          label: change.label,
-          oldValue: change.oldValue,
-          newValue: change.newValue,
-        });
-      }
-      const savedElo = tournament.eloTemplateId || DEFAULT_ELO_TEMPLATE_ID;
-      if (eloTemplateId !== savedElo) {
-        detectedChanges.push({
-          field: 'eloTemplateId',
-          label: t('tournament.shuffleConfig.eloTemplateLabel'),
-          oldValue: eloTemplateName(savedElo),
-          newValue: eloTemplateName(eloTemplateId),
-        });
-      }
-
-      if (detectedChanges.length > 0) {
-        // Convert TournamentChange[] to ChangeItem[] format
-        const validChanges = detectedChanges
-          .filter(
-            (change) =>
-              change.oldValue !== undefined && change.newValue !== undefined && change.label
-          )
-          .map((change) => ({
-            field: change.field,
-            label: change.label!,
-            oldValue: change.oldValue!,
-            newValue: change.newValue!,
-          }));
+      );
+      if (validChanges.length > 0) {
         setChanges(validChanges);
         setShowChangePreview(true);
         return;
@@ -830,7 +630,7 @@ const Tournament: React.FC = () => {
 
       const response = await api.post<{
         success: boolean;
-        tournament: unknown;
+        tournament: Untrusted;
         error?: string;
       }>('/api/tournament/shuffle', payload);
 
@@ -963,69 +763,70 @@ const Tournament: React.FC = () => {
     setGrandFinalModePicked(false);
   };
 
-  const handleDelete = async () => {
+  // A confirm dialog's action: close the dialog, run it, say how it went.
+  const runAction = async (
+    closeConfirm: () => void,
+    action: () => Promise<void>,
+    doneKey: string,
+    failedKey: string,
+    after?: () => Promise<void>
+  ) => {
     setSaving(true);
-    setShowDeleteConfirm(false);
-
+    closeConfirm();
     try {
-      await deleteTournament();
-      showSuccess(t('tournament.toasts.deleted'));
-      await refreshData();
+      await action();
+      showSuccess(t(doneKey));
+      await after?.();
     } catch (err) {
       const error = err as Error;
-      showError(error.message || t('tournament.toasts.deleteFailed'));
+      showError(error.message || t(failedKey));
     } finally {
       setSaving(false);
     }
   };
+
+  const handleDelete = () =>
+    runAction(
+      () => setShowDeleteConfirm(false),
+      deleteTournament,
+      'tournament.toasts.deleted',
+      'tournament.toasts.deleteFailed',
+      refreshData
+    );
 
   // A finished tournament makes way for a new one: archived, it keeps its
   // matches, results and stats, and its public page stays at its id.
-  const handleArchive = async () => {
-    setSaving(true);
-    setShowArchiveConfirm(false);
-    try {
-      await api.post('/api/tournament/archive');
-      resetCurrentTournamentId();
-      showSuccess(t('tournament.toasts.archived'));
-      await refreshData();
-    } catch (err) {
-      const error = err as Error;
-      showError(error.message || t('tournament.toasts.archiveFailed'));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const handleArchive = () =>
+    runAction(
+      () => setShowArchiveConfirm(false),
+      async () => {
+        await api.post('/api/tournament/archive');
+        resetCurrentTournamentId();
+      },
+      'tournament.toasts.archived',
+      'tournament.toasts.archiveFailed',
+      refreshData
+    );
 
-  const handleRegenerate = async () => {
-    setSaving(true);
-    setShowRegenerateConfirm(false);
+  const handleRegenerate = () =>
+    runAction(
+      () => setShowRegenerateConfirm(false),
+      async () => {
+        await regenerateBracket(true);
+      },
+      'tournament.toasts.regenerated',
+      'tournament.toasts.regenerateFailed'
+    );
 
-    try {
-      await regenerateBracket(true);
-      showSuccess(t('tournament.toasts.regenerated'));
-    } catch (err) {
-      const error = err as Error;
-      showError(error.message || t('tournament.toasts.regenerateFailed'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleReset = async () => {
-    setSaving(true);
-    setShowResetConfirm(false);
-
-    try {
-      await resetTournament();
-      showSuccess(t('tournament.toasts.resetDone'));
-    } catch (err) {
-      const error = err as Error;
-      showError(error.message || t('tournament.toasts.resetFailed'));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const handleReset = () =>
+    runAction(
+      () => setShowResetConfirm(false),
+      async () => {
+        await resetTournament();
+      },
+      'tournament.toasts.resetDone',
+      'tournament.toasts.resetFailed'
+    );
 
   const handleRenameTournament = async (newName: string) => {
     const trimmedName = newName.trim();
@@ -1040,7 +841,7 @@ const Tournament: React.FC = () => {
     try {
       const response = await api.put<{
         success: boolean;
-        tournament: unknown;
+        tournament: Untrusted;
         error?: string;
       }>('/api/tournament', { name: trimmedName });
 
@@ -1089,7 +890,7 @@ const Tournament: React.FC = () => {
     // is already live/completed (e.g. started from another tab), just
     // return after the refresh instead of attempting to start again.
     await refreshData();
-    if (tournament && (tournament.status === 'in_progress' || tournament.status === 'completed')) {
+    if (tournament && isStarted(tournament.status)) {
       return;
     }
 
@@ -1156,7 +957,7 @@ const Tournament: React.FC = () => {
   const refreshDataRef = useRef(refreshData);
   refreshDataRef.current = refreshData;
   useEffect(() => {
-    const socket = io();
+    const socket = scopedSocket();
 
     const handleTournamentUpdate = (data?: { action?: string; status?: string }) => {
       if (!data) return;
@@ -1187,8 +988,7 @@ const Tournament: React.FC = () => {
     );
   }
 
-  const isLive =
-    !!tournament && (tournament.status === 'in_progress' || tournament.status === 'completed');
+  const isLive = !!tournament && isStarted(tournament.status);
   const draftDirty =
     name.trim().length > 0 || selectedTeams.length > 0 || furthestStep > 0 || activeStep > 0;
 
@@ -1373,7 +1173,7 @@ const Tournament: React.FC = () => {
       <TournamentChangePreviewModal
         open={showChangePreview}
         changes={changes}
-        isLive={tournament?.status === 'in_progress' || tournament?.status === 'completed'}
+        isLive={isStarted(tournament?.status)}
         onConfirm={saveChanges}
         onCancel={() => setShowChangePreview(false)}
       />

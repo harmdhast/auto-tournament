@@ -17,21 +17,35 @@
  * - A code module ships them on its default export (`locales`), so they come
  *   with its code and need no request of their own. A malformed `locales`
  *   refuses the module, like any other bad field.
+ * - A language may instead be a loader (`() => import('./nb.json')`): it is
+ *   fetched when it is the viewer's language, now or after they switch.
  *
  * Validation is pure; registration takes the i18next instance, so a spec can
  * run both in Node.
  */
 
-import type { ModuleLocales } from '../integrations/types';
+import type { Untrusted } from '../utils/untrusted';
+
+/**
+ * A module's strings by language: one i18next resource bundle per language code
+ * (`en`, `de`, `pt-PT`, …), or a function that loads it (a dynamic import), so only
+ * the viewer's language is downloaded. `en` should be a bundle: it is the fallback.
+ */
+export type ModuleLocales = Readonly<
+  Record<
+    string,
+    Record<string, Untrusted> | (() => Promise<{ default: Record<string, Untrusted> }>)
+  >
+>;
 
 /** Language codes as i18next spells them: `en`, `nb`, `pt-PT`, `zh-CN`. */
 const LANGUAGE_CODE = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
+const isObject = (value: Untrusted): value is Record<string, Untrusted> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
 
 /** A bundle is nested objects with strings at the leaves. */
-function bundleProblem(bundle: unknown, at: string): string | null {
+function bundleProblem(bundle: Untrusted, at: string): string | null {
   if (!isObject(bundle)) return `${at} is not an object`;
   for (const [key, value] of Object.entries(bundle)) {
     if (typeof value === 'string') continue;
@@ -43,11 +57,12 @@ function bundleProblem(bundle: unknown, at: string): string | null {
 }
 
 /** What is wrong with a module's `locales`, or null when it is absent or well formed. */
-export function localesProblem(locales: unknown): string | null {
+export function localesProblem(locales: Untrusted): string | null {
   if (locales === undefined) return null;
   if (!isObject(locales)) return 'locales is not an object of language bundles';
   for (const [language, bundle] of Object.entries(locales)) {
     if (!LANGUAGE_CODE.test(language)) return `locales.${language} is not a language code`;
+    if (typeof bundle === 'function') continue; // a loader: checked when it loads
     const problem = bundleProblem(bundle, `locales.${language}`);
     if (problem) return problem;
   }
@@ -62,7 +77,10 @@ export interface LocaleRegistry {
     resources: object,
     deep?: boolean,
     overwrite?: boolean
-  ): unknown;
+  ): object;
+  /** The viewer's language, and its changes: when a loader's language is needed. */
+  language?: string;
+  on?(event: 'languageChanged', listener: (lng: string) => void): void;
 }
 
 /** Adds each language's bundle to i18next as namespace `moduleId`. */
@@ -72,7 +90,21 @@ export function registerModuleLocales(
   locales: ModuleLocales | undefined
 ): void {
   if (!locales) return;
+  const loaders = new Map<string, () => Promise<{ default: Record<string, Untrusted> }>>();
   for (const [language, bundle] of Object.entries(locales)) {
-    i18n.addResourceBundle(language, moduleId, bundle, true, true);
+    if (typeof bundle === 'function') loaders.set(language, bundle);
+    else i18n.addResourceBundle(language, moduleId, bundle, true, true);
   }
+  if (!loaders.size) return;
+  const load = (lng: string | undefined) => {
+    const language = lng && (loaders.has(lng) ? lng : lng.split('-')[0]);
+    const loader = language ? loaders.get(language) : undefined;
+    if (!language || !loader) return;
+    loaders.delete(language);
+    void loader()
+      .then((m) => i18n.addResourceBundle(language, moduleId, m.default, true, true))
+      .catch(() => loaders.set(language, loader));
+  };
+  load(i18n.language);
+  i18n.on?.('languageChanged', load);
 }

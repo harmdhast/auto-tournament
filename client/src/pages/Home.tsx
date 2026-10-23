@@ -1,3 +1,4 @@
+import { isUpcoming } from '../utils/tournamentStatus';
 import { pageTitle } from '../utils/pageTitle';
 import { fmtDate, fmtDayTime } from '../utils/time';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -17,12 +18,13 @@ import { LiveChip, panelSx, panelBorderSx } from '../components/common/ui';
 import { LoadError } from '../components/shared/LoadError';
 import { useAuth } from '../contexts/AuthContext';
 import { useTeamMatchData } from '../hooks/useTeamMatchData';
+import { NextMatchCard } from '../components/home/NextMatchCard';
 import { useTournamentList, type TournamentSummary } from '../hooks/useTournamentList';
 import { usePublicTournamentOverview } from '../hooks/usePublicTournamentOverview';
 import { useMatchmaking } from '../components/matchmaking/matchmakingStore';
 import { api } from '../utils/api';
 import { eliminationRoundCount, getRoundLabel } from '../utils/matchUtils';
-import { formatBadge } from '../utils/tournamentSummary';
+import { formatBadge, typeLabel } from '../utils/tournamentSummary';
 import { paths, tournamentTabPath } from '../paths';
 import { tokens, radii, fontDisplay, fontMono } from '../theme/tokens';
 import { tournamentArtSx } from '../utils/tournamentArt';
@@ -35,8 +37,6 @@ interface ViewerTeam {
   name: string;
   tag?: string;
 }
-
-const isUpcoming = (tour: TournamentSummary) => tour.status === 'setup' || tour.status === 'ready';
 
 function SectionTitle({
   id,
@@ -183,7 +183,7 @@ export default function Home() {
   const upcoming = useMemo(
     () =>
       shown
-        .filter(isUpcoming)
+        .filter((tour) => isUpcoming(tour.status))
         .sort(
           (a, b) =>
             Number(b.featured) - Number(a.featured) ||
@@ -240,88 +240,23 @@ export default function Home() {
           <>
             <PendingTeamInvites />
             {showNextMatch && match && (
-              <Box
-                component="section"
-                aria-labelledby="home-next-match-title"
-                data-testid="home-next-match"
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'auto minmax(0, 1fr) auto' },
-                  gap: { xs: 1.5, md: 3 },
-                  alignItems: 'center',
-                  px: { xs: 2, md: 3 },
-                  py: 2.5,
-                  borderRadius: radii.lg,
-                  bgcolor: 'rgba(255,106,61,0.14)',
-                  border: `1px solid ${color.accent}`,
-                }}
-              >
-                <Box>
-                  <Typography
-                    id="home-next-match-title"
-                    sx={{
-                      fontSize: '0.8125rem',
-                      color: color.accent,
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                    }}
-                  >
-                    {t('home.nextMatch')}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontFamily: fontDisplay,
-                      fontSize: '1.375rem',
-                      fontWeight: 600,
-                      overflowWrap: 'anywhere',
-                    }}
-                  >
-                    {myTeamMatchTeam?.name ?? myTeam?.name} {t('home.vs')}{' '}
-                    {match.opponent?.name ?? t('home.tbd')}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    gap: 1.25,
-                    flexWrap: 'wrap',
-                    fontSize: '0.875rem',
-                    color: color.ink2,
-                  }}
-                >
-                  <Box
-                    component="span"
-                    sx={{ px: 1.5, py: 0.75, borderRadius: radii.pill, bgcolor: color.paper3 }}
-                  >
-                    {[
-                      matchTournament?.name,
-                      getRoundLabel(
-                        match.round,
-                        matchTournament
-                          ? eliminationRoundCount(matchTournament.teamCount, matchTournament.type)
-                          : undefined
-                      ),
-                      formatBadge(match.matchFormat),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </Box>
-                  {match.status === 'live' && (
-                    <LiveChip label={t(`home.matchStatus.${match.status}`)} />
-                  )}
-                </Box>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Button
-                    component={RouterLink}
-                    to={paths.matchNow}
-                    variant="contained"
-                    data-testid="home-open-match"
-                  >
-                    {t('home.openMatch')}
-                  </Button>
-                </Box>
-              </Box>
+              <NextMatchCard
+                match={match}
+                teamName={myTeamMatchTeam?.name ?? myTeam?.name ?? ''}
+                tournamentId={matchTournament?.id}
+                where={[
+                  matchTournament?.name,
+                  getRoundLabel(
+                    match.round,
+                    matchTournament
+                      ? eliminationRoundCount(matchTournament.teamCount, matchTournament.type)
+                      : undefined
+                  ),
+                  formatBadge(match.matchFormat),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              />
             )}
 
             {tournamentsError ? (
@@ -815,7 +750,7 @@ function HeroCard({ tour, when }: { tour: TournamentSummary; when: When }) {
           ) : tour.registrationOpen ? (
             <Pill tone="accent">{t('home.signup.open')}</Pill>
           ) : null}
-          <Pill>{t(`tournament.typeSelector.types.${tour.type}.label`)}</Pill>
+          <Pill>{typeLabel(t, tour.type)}</Pill>
           <Pill>{formatBadge(tour.format)}</Pill>
         </Box>
         <Typography

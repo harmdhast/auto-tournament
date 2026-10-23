@@ -24,6 +24,7 @@ import {
 } from './fleet/serverStateMark';
 import { useServerAvailability } from './useServerAvailability';
 import { BUSY_REASON_KEY, serverRank } from './availabilityClass';
+import type { Untrusted } from '../../types';
 
 /**
  * The Manage console's server grid (`dashboardWidgets.manageResources`). It
@@ -50,7 +51,7 @@ function bracketLabel(server: ServerAllocationInfo): string | null {
 
 function timeAgo(
   unixSeconds: number,
-  t: (key: string, opts?: Record<string, unknown>) => string
+  t: (key: string, opts?: Record<string, Untrusted>) => string
 ): string {
   const seconds = Math.max(0, Math.floor(Date.now() / 1000) - unixSeconds);
   if (seconds < 60) return t('managePage.needsYou.secondsAgo', { count: seconds });

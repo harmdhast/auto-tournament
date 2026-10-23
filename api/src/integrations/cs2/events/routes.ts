@@ -4,7 +4,8 @@
  * events themselves arrive on the fleet link (fleet/inbound.ts).
  */
 
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { requireAuth } from '../../../middleware/auth';
 import { db } from '../../../config/database';
 import { log } from '../../../utils/logger';
@@ -14,6 +15,7 @@ import type { DbEventRow } from '../../../types/database.types';
 import { resolveViewerIdentity } from '../../../utils/viewerIdentity';
 import { viewerTeamIdOfMatch } from '../../../services/matchViewer';
 import { gotvHosts, gotvPassword, matchGotvSettings } from '../gotv';
+import type { SqlValue } from '../../../config/database';
 
 const router = Router();
 
@@ -250,7 +252,7 @@ router.get('/:matchSlug', requireAuth, async (req: Request, res: Response) => {
     const eventType = req.query.type as string | undefined;
 
     let query = 'SELECT * FROM match_events WHERE match_slug = ?';
-    const params: unknown[] = [matchSlug];
+    const params: SqlValue[] = [matchSlug];
 
     if (eventType) {
       query += ' AND event_type = ?';

@@ -17,6 +17,7 @@ import type {
 import { requiresVeto, validateMapCount } from './mapRules';
 import type { MapGameMode } from '../cs2.types';
 import { isMapMode } from '../maps/mapModes';
+import type { Untrusted } from '../../types';
 
 /** The key of CS2's object in `settings`. */
 export const CS2_SETTINGS_KEY = 'cs2';
@@ -56,6 +57,8 @@ export interface Cs2TournamentSettings {
   esportsMode?: boolean;
   /** The map veto (default on); off: each match draws its maps from the pool. */
   veto?: boolean;
+  /** Which address players get: only LAN, only internet, or both ('auto', absent). */
+  connectVia?: 'auto' | 'lan' | 'public';
   /** GOTV for this tournament's matches; a field left out is the site's (Settings › Spectators). */
   broadcast?: Cs2BroadcastSettings;
 }
@@ -78,18 +81,18 @@ export const CS2_DEFAULTS: Cs2TournamentSettings = {
   overtimeSegments: 1,
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord(value: Untrusted): value is Record<string, Untrusted> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function stringArray(value: unknown): string[] | undefined {
+function stringArray(value: Untrusted): string[] | undefined {
   return Array.isArray(value) && value.every((v) => typeof v === 'string')
     ? [...(value as string[])]
     : undefined;
 }
 
 /** One layer of stored or requested fields onto `into`, each field only when it is valid. */
-function applyFields(into: Cs2TournamentSettings, source: Record<string, unknown>): void {
+function applyFields(into: Cs2TournamentSettings, source: Record<string, Untrusted>): void {
   const maps = stringArray(source.maps);
   if (maps) into.maps = maps;
   const sequence = stringArray(source.mapSequence);
@@ -118,6 +121,8 @@ function applyFields(into: Cs2TournamentSettings, source: Record<string, unknown
     into.rewards = source.rewards as Cs2TournamentSettings['rewards'];
   if (typeof source.esportsMode === 'boolean') into.esportsMode = source.esportsMode;
   if (typeof source.veto === 'boolean') into.veto = source.veto;
+  if (source.connectVia === 'lan' || source.connectVia === 'public' || source.connectVia === 'auto')
+    into.connectVia = source.connectVia;
   if (isRecord(source.broadcast)) {
     const b = source.broadcast;
     into.broadcast = {
@@ -139,7 +144,7 @@ function applyFields(into: Cs2TournamentSettings, source: Record<string, unknown
  * too, under anything in `settings.cs2`.
  */
 export function cs2SettingsOf(
-  settings: Record<string, unknown> | undefined
+  settings: Record<string, Untrusted> | undefined
 ): Cs2TournamentSettings {
   const result: Cs2TournamentSettings = { ...CS2_DEFAULTS, maps: [] };
   if (!settings) return result;
@@ -158,8 +163,8 @@ export function cs2SettingsOf(
 }
 
 /** The patch that stores `next` as CS2's object. */
-export function cs2Patch(next: Cs2TournamentSettings): Record<string, unknown> {
-  const stored: Record<string, unknown> = {
+export function cs2Patch(next: Cs2TournamentSettings): Record<string, Untrusted> {
+  const stored: Record<string, Untrusted> = {
     maps: next.maps,
     maxRounds: next.maxRounds,
     overtimeMode: next.overtimeMode,
@@ -302,6 +307,11 @@ export const cs2TournamentSetup: TournamentSetupModel = {
         },
       ],
     };
+  },
+
+  minutesPerMap(settings) {
+    // As the API's "next round about" (utils/nextRoundEta.ts): 115 s a round, 5 min warmup.
+    return (cs2SettingsOf(settings).maxRounds * 115) / 60 + 5;
   },
 
   roundCount(settings, ctx) {

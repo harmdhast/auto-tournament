@@ -552,12 +552,6 @@
     "title": "Counter-Strike 2 servers"
   },
   "settings": {
-    "webhook": {
-      "title": "Platform URL",
-      "description": "The address your CS2 servers, links and webhooks use to reach the platform.",
-      "label": "Webhook 地址",
-      "helper": "示例：https://your-domain.com"
-    },
     "mapSync": {
       "title": "地图同步",
       "description": "从 GitHub 仓库同步 CS2 地图。",
@@ -1983,6 +1977,7 @@
     "matchReel": "Match reel",
     "roundN": "Round {{n}}",
     "reelBadge": "REEL",
+    "simulated": "模拟玩家",
     "favourite": "Favourite",
     "favouriteFailed": "Could not save your favourite",
     "pageTitle": "{{name}}'s highlights",
@@ -2409,6 +2404,13 @@
       "insecureObservers": "Allow insecure observers (HUD tools like LHM)",
       "insecureObserversHelp": "Lets observer HUDs that read GOTV connect. Takes effect when a match loads.",
       "manyViewersHint": "Many viewers on the match server cost it bandwidth and CPU; for big audiences use a GOTV relay."
+    },
+    "connectVia": {
+      "label": "Address players connect to",
+      "help": "All on one network, or all over the internet? Pick one and everyone gets it. Both recommends the right one for where each player is.",
+      "auto": "Both (recommended per player)",
+      "lan": "LAN only",
+      "public": "Internet only"
     }
   },
   "library": {

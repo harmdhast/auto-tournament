@@ -881,7 +881,6 @@
   },
   "discordBot": {
     "title": "Discord-bot",
-    "hint": "Discord-boten din: nettstedet sender spillerne meldinger gjennom den (Konto → Varsler). En spiller får dem når hen er på en Discord-server sammen med boten din.",
     "token": "Bot-token",
     "replace": "Ny bot-token",
     "save": "Lagre",
@@ -892,7 +891,41 @@
     "cleared": "Discord-bot fjernet",
     "saveFailed": "Kunne ikke lagre bot-token.",
     "howTo": "Lag en applikasjon, legg til en bot, kopier tokenet og inviter den til Discord-serveren din:",
-    "portal": "Discord Developer Portal"
+    "portal": "Discord Developer Portal",
+    "guild": "Discord-server",
+    "guildHint": "Her lager boten lagkanaler og poster. Bare servere boten er med i, vises her.",
+    "noGuilds": "Boten er ikke med i noen Discord-server ennå. Inviter den, og last inn siden på nytt.",
+    "noGuild": "Ingen",
+    "guildSaved": "Discord-serveren er lagret",
+    "movedHint": "Discord-boten er et tillegg nå: slå den på og sett den opp under Moduler.",
+    "open": "Åpne Discord-boten",
+    "voice": {
+      "label": "Talekanaler for lagene",
+      "help": "Mens en kamp er på serveren, flyttes spillerne som allerede er i en talekanal, til talekanalen til laget sitt. Resten får lenken som direktemelding.",
+      "saved": "Innstillingene for talekanaler er lagret"
+    },
+    "teamChannels": {
+      "label": "Lagkanaler",
+      "help": "Mens en turnering pågår, får hvert lag sin egen private tekst- og talekanal under «Your team». Spillerne finner tekstkanalen på lagsiden sin.",
+      "link": "Lagkanalen på Discord"
+    },
+    "commands": {
+      "label": "Skråstrekkommandoer: /matches, /mymatch og /lobby",
+      "help": "De virker så snart boten er tilkoblet. Valgfritt: Vil du at Discord skal sende dem til dette nettstedet i stedet, limer du inn denne som Interactions Endpoint URL for appen din i Discord Developer Portal."
+    },
+    "invite": "Inviter til en server",
+    "linking": {
+      "label": "Spillerne kobler til Discord",
+      "help": "Bruker Discord-appen til boten, så du trenger ikke lage en til. Åpne OAuth2 for appen i Developer Portal, legg til denne adressen under Redirects, og lim inn klienthemmeligheten (Client Secret) her.",
+      "portal": "Åpne OAuth2",
+      "secret": "Klienthemmelighet",
+      "save": "Slå på kobling",
+      "saved": "Spillerne kan koble til Discord nå",
+      "ready": "På: spillerne kobler til Discord under Konto → Tilkoblinger.",
+      "invite": "Spillere som ikke er på serveren din, blir bedt om å bli med via {{url}}.",
+      "noInvite": "Boten kan ikke lage en invitasjon til serveren ennå. Klikk på «Inviter til en server» igjen, så får den tillatelsen til å lage invitasjoner."
+    },
+    "missing": "Boten mangler {{list}} på serveren din, så deler av den virker ikke. Klikk på «Inviter til en server» over: det oppdaterer tillatelsene uten å fjerne boten."
   },
   "liveMatchesPage": {
     "title": "Direktekamper",

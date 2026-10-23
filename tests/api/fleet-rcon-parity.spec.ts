@@ -9,7 +9,6 @@ import {
   link,
   releaseFleet,
 } from '../helpers/fleetFake';
-import { configureWebhook } from '../helpers/setup';
 import { createTestServer, deleteServer } from '../helpers/servers';
 import { adminCapabilitiesFor } from '../../api/src/integrations/cs2/routes/fleetCommands';
 
@@ -33,7 +32,6 @@ test.describe.serial('Fleet: RCON parity', () => {
     expect(await signInViaRequest(request)).toBe(true);
     await resetEnrollRateLimit(request);
     if (!key) key = await createFleetKey(request, { name: 'fleet-parity-tests' });
-    expect(await configureWebhook(request, 'http://localhost:3069')).toBe(true);
   });
 
   test.afterAll(async ({ request }) => {

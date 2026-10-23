@@ -1,6 +1,5 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
-import { configureWebhook } from '../helpers/setup';
 import { createTestTeams } from '../helpers/teams';
 import { findMatchByTeams } from '../helpers/matches';
 
@@ -38,7 +37,6 @@ async function runtimeRows(
 
 async function startedTournament(request: APIRequestContext, name: string) {
   expect(await signInViaRequest(request)).toBe(true);
-  expect(await configureWebhook(request, 'http://localhost:3069')).toBe(true);
   const teams = await createTestTeams(request, name);
   expect(teams).toBeTruthy();
   const [team1, team2] = teams!;

@@ -18,6 +18,9 @@ import { log } from '../../../utils/logger';
 import { atRating } from '../rating';
 import { pickMoments, saveMoments } from './highlights';
 import { emitTopic } from '../../../services/socketService';
+import { standInsFor } from './standIns';
+import type { MomentKill } from './moments';
+import type { JsonValue } from '../../../utils/json';
 
 /** Replays, under DATA_DIR so they survive container recreates. */
 export const REPLAYS_DIR = path.join(DATA_DIR, 'demo-replays');
@@ -31,6 +34,8 @@ export interface DemoJob {
   mapNumber: number;
   /** The map's name as the platform knows it (de_mirage), for the worker. */
   mapName?: string | null;
+  /** A simulated match: SteamID64 -> the roster name its bot plays under (standIns.ts). */
+  standIns?: Record<string, string> | null;
 }
 
 /** The worker's per-player numbers (worker/stats.go `PlayerStats`). */
@@ -78,14 +83,12 @@ export interface DemoAnalysisPayload {
     winner: string | null;
     reason: string | null;
   }>;
-  kills: Array<
-    Record<string, unknown> & { round: number; attacker: string | null; victim: string }
-  >;
+  kills: MomentKill[];
   players: Record<string, DemoPlayerStats>;
 }
 
 const now = () => Math.floor(Date.now() / 1000);
-const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+const n = (v: number | undefined) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
 /**
  * Jobs of a match that was deleted can never run (its demo is gone with it):
@@ -170,6 +173,7 @@ async function claimDemoJobNow(worker: string, analyzerVersion: number): Promise
         matchSlug: row.match_slug,
         mapNumber: Number(row.map_number),
         mapName: map?.map_name ?? null,
+        standIns: await standInsFor(row.match_slug),
       };
     }
     if (pass > 1) break;
@@ -260,7 +264,7 @@ async function teamsOf(matchSlug: string): Promise<Map<string, 'team1' | 'team2'
   }>('SELECT team1_id, team2_id, config FROM matches WHERE slug = ?', [matchSlug]);
   try {
     const config = match?.config
-      ? (JSON.parse(match.config) as Record<string, { players?: unknown }>)
+      ? (JSON.parse(match.config) as Record<string, { players?: MatchConfigPlayers }>)
       : {};
     for (const team of ['team1', 'team2'] as const) {
       const players = config[team]?.players;
@@ -313,7 +317,7 @@ export async function completeDemoJob(job: DemoJob, analysis: DemoAnalysisPayloa
 async function completeDemoJobNow(job: DemoJob, analysis: DemoAnalysisPayload): Promise<void> {
   // An imported match learns its teams and score from the demo first, so
   // the players below land on their teams.
-  const { applyImportedMap } = await import('./demoImport');
+  const { applyImportedMap, writeImportedSeriesStats } = await import('./demoImport');
   await applyImportedMap(job, analysis).catch((error: unknown) =>
     log.warn(`[DEMO-JOBS] ${job.matchSlug} map ${job.mapNumber}: could not apply the import`, {
       error: (error as Error).message,
@@ -418,6 +422,12 @@ async function completeDemoJobNow(job: DemoJob, analysis: DemoAnalysisPayload): 
       job.mapNumber,
     ]
   );
+  // An imported match: its players' rows in the core's match history.
+  await writeImportedSeriesStats(job.matchSlug).catch((error: unknown) =>
+    log.warn(`[DEMO-JOBS] ${job.matchSlug}: could not write the imported match's player stats`, {
+      error: (error as Error).message,
+    })
+  );
   // The map's best moments, for the highlight recorder.
   const { settingsService } = await import('../../../services/settingsService');
   const perPlayer = Number(await settingsService.getSetting('highlights_per_player')) || undefined;
@@ -482,12 +492,12 @@ export async function readDemoAnalysis(job: DemoJob) {
   if (!row) return null;
   const parse = (v: string | null) => {
     try {
-      return v ? (JSON.parse(v) as unknown[]) : [];
+      return v ? (JSON.parse(v) as JsonValue[]) : [];
     } catch {
       return [];
     }
   };
-  const players = await db.queryAsync<Record<string, unknown>>(
+  const players = await db.queryAsync<PlayerMapRow>(
     `SELECT s.*, p.name AS player_name, p.avatar_url AS avatar
        FROM cs2_player_map_stats s LEFT JOIN players p ON p.id = s.player_id
       WHERE s.match_slug = ? AND s.map_number = ?
@@ -506,7 +516,13 @@ export async function readDemoAnalysis(job: DemoJob) {
 }
 
 /** A player's line on the analyzer page, from their map row. */
-function playerLine(r: Record<string, unknown>) {
+/** A cs2_player_map_stats row with the player's name and avatar. */
+type PlayerMapRow = Record<string, string | number | null>;
+
+/** A team's players in a stored match config: Steam ids, entries with one, or keyed by it. */
+type MatchConfigPlayers = Array<string | { steamId?: string }> | Record<string, string>;
+
+function playerLine(r: PlayerMapRow) {
   const rounds = n(Number(r.rounds_played));
   const num = (k: string) => n(Number(r[k]));
   return {

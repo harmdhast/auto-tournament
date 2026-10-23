@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../utils/api';
-import { io, Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
+import { scopedSocket } from '../utils/sharedSocket';
 import { onSocketReconnect } from '../utils/socketResync';
 import type { ApiResponse } from '../types';
 
@@ -116,7 +117,7 @@ export const usePlayerConnections = (matchSlug: string | null) => {
     if (!matchSlug) return;
 
     // Setup WebSocket to listen for connection updates
-    const socket: Socket = io();
+    const socket: Socket = scopedSocket();
 
     const handleUpdate = (data: { slug?: string; connectionStatus?: ConnectionStatus }) => {
       console.log('[usePlayerConnections] WebSocket match:update:', data);

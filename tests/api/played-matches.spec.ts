@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
-import { configureWebhook } from '../helpers/setup';
 import { createTestTeams } from '../helpers/teams';
 import { findMatchByTeams } from '../helpers/matches';
 
@@ -21,7 +20,6 @@ test.describe.serial('Played matches', () => {
     { tag: ['@api'] },
     async ({ request, playwright, baseURL }) => {
       expect(await signInViaRequest(request)).toBe(true);
-      expect(await configureWebhook(request, 'http://localhost:3069')).toBe(true);
       const teams = await createTestTeams(request, 'played');
       expect(teams).toBeTruthy();
       const [team1, team2] = teams!;

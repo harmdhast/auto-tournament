@@ -1,3 +1,4 @@
+import { isStarted, isUpcoming } from '../utils/tournamentStatus';
 import { pageTitle } from '../utils/pageTitle';
 import { VETO_MIN_MAPS } from '../utils/tournamentVerification';
 import { useState, useEffect, useCallback } from 'react';
@@ -275,10 +276,10 @@ export default function Templates() {
       const response = await api.get<TournamentResponse>('/api/tournament');
       if (response.success && response.tournament) {
         const status = response.tournament.status;
-        if (status === 'in_progress' || status === 'completed') {
+        if (isStarted(status)) {
           showError(t('templatesPage.createFromTemplate.errors.inProgressOrCompleted'));
           return;
-        } else if (status === 'setup' || status === 'ready') {
+        } else if (isUpcoming(status)) {
           showError(t('templatesPage.createFromTemplate.errors.alreadyExists'));
           return;
         }

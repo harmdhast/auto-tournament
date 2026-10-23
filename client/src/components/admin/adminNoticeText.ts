@@ -3,13 +3,14 @@
  * No React here: tests load it directly.
  */
 
+import type { Untrusted } from '../../utils/untrusted';
 export type AdminNoticeSeverity = 'error' | 'warn' | 'info';
 
 export interface AdminNotice {
   id: number;
   kind: string;
   severity: AdminNoticeSeverity;
-  data: Record<string, unknown>;
+  data: Record<string, Untrusted>;
   dedupeKey: string;
   count: number;
   createdAt: number;
@@ -40,10 +41,10 @@ export const NOTICE_GROUPS: Record<string, string[]> = {
     'benchmark_failed',
     'clips_failing',
   ],
-  platform: ['beta_available', 'license_problem', 'demos_failing'],
+  platform: ['beta_available', 'license_problem', 'demos_failing', 'discord_failed'],
 };
 
-const str = (v: unknown) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '');
+const str = (v: Untrusted) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '');
 
 /** The i18n params a notice's line uses: every data field as text. */
 export function noticeParams(
@@ -97,6 +98,16 @@ export function noticeLink(
   return null;
 }
 
+/** The notice's link with `?notice=<id>`: that page shows it at the top (NoticeCard). */
+export function noticeHref(
+  notice: Pick<AdminNotice, 'id' | 'kind' | 'data'>,
+  paths: Parameters<typeof noticeLink>[1]
+): string | null {
+  const to = noticeLink(notice, paths);
+  if (!to) return null;
+  return `${to}${to.includes('?') ? '&' : '?'}notice=${notice.id}`;
+}
+
 /** Open first, then newest change; resolved ones keep their place below. */
 export function sortNotices(list: AdminNotice[]): AdminNotice[] {
   return [...list].sort(
@@ -105,6 +116,25 @@ export function sortNotices(list: AdminNotice[]): AdminNotice[] {
       b.updatedAt - a.updatedAt ||
       b.id - a.id
   );
+}
+
+/** A sorted list's open notices of one kind stack under the newest; resolved ones stand alone. */
+export function stackNotices(
+  list: AdminNotice[]
+): Array<{ lead: AdminNotice; rest: AdminNotice[] }> {
+  const stacks: Array<{ lead: AdminNotice; rest: AdminNotice[] }> = [];
+  const open = new Map<string, { lead: AdminNotice; rest: AdminNotice[] }>();
+  for (const n of list) {
+    const stack = n.resolvedAt === null ? open.get(n.kind) : undefined;
+    if (stack) {
+      stack.rest.push(n);
+      continue;
+    }
+    const next = { lead: n, rest: [] };
+    stacks.push(next);
+    if (n.resolvedAt === null) open.set(n.kind, next);
+  }
+  return stacks;
 }
 
 /** A live notice into the list: replaces the same id (a repeat counted up), else goes in. */
