@@ -145,6 +145,7 @@ export function TeamLogo({
       />
     );
   }
+  const initials = teamInitials(team.name, team.tag);
   return (
     <Box
       component="span"
@@ -154,19 +155,24 @@ export function TeamLogo({
         height: px,
         borderRadius: `${radius}px`,
         flex: 'none',
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
         display: 'inline-grid',
         placeItems: 'center',
         bgcolor: teamColor(team.id || team.name),
         color: color.accentInk,
         fontFamily: fontDisplay,
         fontWeight: 700,
-        fontSize,
+        fontSize:
+          initials.length > 2
+            ? `calc(${fontSize} * ${(2 / initials.length).toFixed(2)})`
+            : fontSize,
         letterSpacing: '0.02em',
         opacity: dim ? 0.5 : 1,
         ...sx,
       }}
     >
-      {teamInitials(team.name, team.tag)}
+      {initials}
     </Box>
   );
 }
