@@ -16,9 +16,11 @@ import { formatWhen } from '../time';
 
 export function ReadyUpServerSection({
   fleetId,
+  matchSlug,
   onChanged,
 }: {
   fleetId: string;
+  matchSlug?: string | null;
   onChanged: () => void;
 }) {
   const { t, i18n } = useModuleTranslation('cs2');
@@ -79,7 +81,7 @@ export function ReadyUpServerSection({
                 <AvailabilityChip server={server} />
                 <AvailabilityReason server={server} />
               </Box>
-              <ResetServerButton server={server} onDone={changed} />
+              <ResetServerButton server={server} matchSlug={matchSlug} onDone={changed} />
             </Box>,
           ],
           !!server.connect && [

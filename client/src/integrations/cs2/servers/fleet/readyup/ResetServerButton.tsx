@@ -19,9 +19,12 @@ export interface ResetResult {
 
 export function ResetServerButton({
   server,
+  matchSlug,
   onDone,
 }: {
   server: FleetServer;
+  /** The match the platform knows the server holds, for when the availability detail has none. */
+  matchSlug?: string | null;
   onDone?: (res: ResetResult) => void;
 }) {
   const { t } = useModuleTranslation('cs2');
@@ -29,7 +32,7 @@ export function ResetServerButton({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
-  const slug = server.availabilityDetail;
+  const slug = server.availabilityDetail || matchSlug;
 
   const confirm = async () => {
     if (inFlight.current) return;
