@@ -97,6 +97,11 @@ export default function Leaderboard() {
   }, [asked]);
 
   const columns = '3ch minmax(0, 1fr) 5.5rem 4.5rem 5.5rem';
+  const rowSx = {
+    gap: { xs: 1, sm: 2 },
+    px: { xs: 1.5, sm: 3 },
+    gridTemplateColumns: { xs: '2.5ch minmax(0, 1fr) 3.25rem 2.75rem 3.5rem', sm: columns },
+  };
   const head = (label: string, right = true) => (
     <Typography
       sx={{
@@ -186,7 +191,7 @@ export default function Leaderboard() {
           />
         ) : (
           <RowList data-testid="leaderboard-list">
-            <Row columns={columns} sx={{ py: 1.25 }} aria-hidden>
+            <Row columns={columns} sx={{ py: 1.25, ...rowSx }} aria-hidden>
               {head('#', false)}
               {head(t('leaderboard.columns.player'), false)}
               {head(t('leaderboard.columns.rating'))}
@@ -194,7 +199,7 @@ export default function Leaderboard() {
               {head(t('leaderboard.columns.winRate'))}
             </Row>
             {board.players.map((p) => (
-              <Row key={p.id} columns={columns} data-testid="leaderboard-row">
+              <Row key={p.id} columns={columns} sx={rowSx} data-testid="leaderboard-row">
                 <Typography
                   sx={{
                     fontFamily: fontMono,
