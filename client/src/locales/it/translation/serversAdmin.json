@@ -194,5 +194,9 @@
     "claimedBy": "Claimed by {{name}}",
     "claimedByYou": "Claimed by you",
     "anAdmin": "an admin"
+  },
+  "fleetRoster": {
+    "team": "Team",
+    "roleLabel": "Role"
   }
 }

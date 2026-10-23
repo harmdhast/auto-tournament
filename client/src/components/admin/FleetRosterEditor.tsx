@@ -367,6 +367,9 @@ export const FleetRosterEditor: React.FC<Props> = ({ matchSlug, fallback, onSucc
           value={add.team}
           onChange={(e) => setAdd({ ...add, team: e.target.value as Target })}
           sx={{ minWidth: 140 }}
+          slotProps={{
+            htmlInput: { 'aria-label': t('fleetRoster.team', { defaultValue: 'Team' }) },
+          }}
         >
           <MenuItem value="team1">{teamLabel('team1')}</MenuItem>
           <MenuItem value="team2">{teamLabel('team2')}</MenuItem>
@@ -379,6 +382,9 @@ export const FleetRosterEditor: React.FC<Props> = ({ matchSlug, fallback, onSucc
           onChange={(e) => setAdd({ ...add, role: e.target.value as 'player' | 'sub' | 'coach' })}
           sx={{ minWidth: 110 }}
           disabled={add.team === 'spectator'}
+          slotProps={{
+            htmlInput: { 'aria-label': t('fleetRoster.roleLabel', { defaultValue: 'Role' }) },
+          }}
         >
           <MenuItem value="player">
             {t('fleetRoster.role.player', { defaultValue: 'Player' })}
