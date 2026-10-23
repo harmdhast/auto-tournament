@@ -70,9 +70,13 @@ export function largeJsonAfterAuth(req: Request, res: Response, next: NextFuncti
     return token?.ok === true;
   };
   const refuse = route.integrator ? requireIntegratorAuth : requireAuth;
+  const parser = largeParsers.get(route.limit);
   (integratorToken() ? Promise.resolve({ ok: true }) : checkAdminAccess(req))
     .then((access) => {
-      if (access.ok) return largeParsers.get(route.limit)!(req, res, next);
+      if (access.ok) {
+        if (!parser) throw new Error(`No body parser for ${route.limit}`);
+        return parser(req, res, next);
+      }
       req.on('end', () => void refuse(req, res, next));
       req.resume();
     })

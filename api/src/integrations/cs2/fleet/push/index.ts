@@ -23,6 +23,7 @@ import { skinService } from '../../skins/skinService';
 import { onFleetServerReady, setFleetWelcomeRevs } from '../service';
 import { adminsOnHello, syncAdmins } from './admins';
 import { pluginsOnHello } from './controls';
+import type { Untrusted } from '../../../../utils/untrusted';
 import { matchRunsIn } from './pluginSets';
 import { applyAnsweredUpdate } from './matchUpdate';
 import { settingsOnHello } from './settings';
@@ -61,7 +62,7 @@ export function startFleetPush(): void {
     });
 
     onFleetServerReady(async (serverId, hello) => {
-      const step = async (label: string, run: () => Promise<unknown>): Promise<void> => {
+      const step = async (label: string, run: () => Promise<Untrusted>): Promise<void> => {
         try {
           await run();
         } catch (error) {

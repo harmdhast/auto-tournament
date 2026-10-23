@@ -7,6 +7,7 @@
  */
 
 import type { Duplex } from 'stream';
+import type { Untrusted } from '../../../utils/untrusted';
 
 export const PENDING_UPGRADES_PER_IP = 20;
 export const PENDING_UPGRADES_TOTAL = 200;
@@ -61,7 +62,7 @@ export function rejectUpgrade(socket: Duplex, status: keyof typeof STATUS_TEXT):
  * The pending slot is freed when `auth` settles.
  */
 export function upgradeAfter(
-  auth: Promise<unknown>,
+  auth: Promise<Untrusted>,
   socket: Duplex,
   release: () => void,
   stillListening: () => boolean,

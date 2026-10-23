@@ -92,6 +92,7 @@ import type {
 import { capabilitiesOf } from './registry';
 import { nowS } from './util';
 import { learnFromJoin } from './connectChoice';
+import type { Untrusted } from '../../../utils/untrusted';
 
 /** How long the allocator waits for Ready Up to accept a `match.assign`. */
 const ASSIGN_TIMEOUT_MS = Number(process.env.FLEET_ASSIGN_TIMEOUT_MS) || 15_000;
@@ -908,7 +909,7 @@ export interface FleetCommandOutcome {
   /** `cmd.result.output` (exec, settings.set). */
   output?: string;
   /** `cmd.result.result` (reset: what it ended). */
-  data?: Record<string, unknown>;
+  data?: Record<string, Untrusted>;
   /** The cs2_servers name it plays as (RCON answers carry one too). */
   serverName?: string | null;
   commandId?: string;
@@ -1063,7 +1064,7 @@ export async function execOnFleetServer(
 export async function auditedFleetCommand(
   fleetServerId: string,
   name: CmdName,
-  args: Record<string, unknown>,
+  args: Record<string, Untrusted>,
   commandText: string,
   issuedBy: IssuedBy & { actor: string | null },
   options: { expiresMs?: number } = {}
@@ -1181,8 +1182,8 @@ export async function resolveWelcomeAssignment(
   return null;
 }
 
-function matchState(state: unknown): { match_id: string; epoch: number } | null {
-  const s = state as { match_id?: unknown; epoch?: unknown } | null | undefined;
+function matchState(state: Untrusted): { match_id: string; epoch: number } | null {
+  const s = state as { match_id?: Untrusted; epoch?: Untrusted } | null | undefined;
   return s && typeof s.match_id === 'string' && typeof s.epoch === 'number'
     ? { match_id: s.match_id, epoch: s.epoch }
     : null;
