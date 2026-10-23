@@ -12,7 +12,9 @@ const PLACEHOLDERS = new Set<string>(KNOWN_SESSION_SECRETS);
 export const MIN_SESSION_SECRET_LENGTH = 32;
 
 export function getSessionSecret(env: NodeJS.ProcessEnv = process.env): string {
-  return env.SESSION_SECRET?.trim() || DEV_SESSION_SECRET;
+  const secret = env.SESSION_SECRET?.trim();
+  if (secret) return secret;
+  return DEV_SESSION_SECRET;
 }
 
 /** Why this environment's secret is not fit for production, or null when it is (or this is not production). */

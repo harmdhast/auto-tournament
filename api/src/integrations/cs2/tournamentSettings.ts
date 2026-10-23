@@ -251,7 +251,7 @@ function mapModeErrors(mode: Untrusted, maps: Untrusted): string[] {
   return errors;
 }
 
-function settingsErrors(settings: unknown, mapCount: number | undefined): string[] {
+function settingsErrors(settings: Untrusted, mapCount: number | undefined): string[] {
   // `mapCount` is undefined when the pool size is not known (a `maps` without
   // a length): the order is then not checked against a pool.
   if (typeof mapCount !== 'number') return [];
@@ -266,7 +266,11 @@ const VETO_POOL_LIMITS = { bo1: [1, 7], bo3: [3, 7], bo5: [5, 7] } as const;
  * The veto format's pool-size error, or none. Only bo1/bo3/bo5 brackets
  * run a veto; `format` or `mapCount` unknown passes.
  */
-function poolLimitErrors(format: unknown, type: unknown, mapCount: number | undefined): string[] {
+function poolLimitErrors(
+  format: Untrusted,
+  type: Untrusted,
+  mapCount: number | undefined
+): string[] {
   if (typeof mapCount !== 'number' || type === 'shuffle') return [];
   if (format !== 'bo1' && format !== 'bo3' && format !== 'bo5') return [];
   const [min, max] = VETO_POOL_LIMITS[format];

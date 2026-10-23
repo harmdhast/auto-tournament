@@ -51,7 +51,13 @@ test.describe.serial('API resilience', () => {
           headers: getAuthHeader(),
           timeout: 30000,
         });
-        await Promise.all(inFlight);
+        const settled = await Promise.all(inFlight);
+        // A read that lands mid-reset answers (200, 403 or 500) instead of
+        // hanging on an unhandled rejection.
+        for (const response of settled) {
+          expect(response, 'a settings read mid-reset should answer').not.toBeNull();
+          expect([200, 403, 500]).toContain(response!.status());
+        }
       }
 
       // Uptime going backwards means the process died and came back.

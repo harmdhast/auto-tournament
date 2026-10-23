@@ -1086,7 +1086,7 @@
     },
     "perPlayer": {
       "label": "Clips per player per map",
-      "helper": "1 to 6. More clips make a match's highlights take longer to finish."
+      "helper": "1 to 20. More clips make a match's highlights take longer to finish."
     },
     "preset": {
       "label": "Video quality",

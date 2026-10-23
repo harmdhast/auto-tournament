@@ -592,7 +592,8 @@
         "joinPassword": "Join password on match servers (off: the roster whitelist alone keeps others out)",
         "stopCommandAvailable": "Habilitar el comando .stop (restaurar ronda)",
         "stopCommandNoDamage": "Deshabilitar .stop tras daño al equipo contrario",
-        "connectPreferLan": "Los jugadores están en la LAN de los servidores: Conectar usa la dirección LAN para todos"
+        "connectPreferLan": "Los jugadores están en la LAN de los servidores: Conectar usa la dirección LAN para todos",
+        "stopCommandNoDamageHelp": "Requiere activar el comando .stop."
       },
       "autostart": {
         "label": "Start matches after (minutes in warmup)",
@@ -1236,7 +1237,7 @@
     "leadTime": "Iniciar con antelación de",
     "cooldown": "Detener tras inactividad de",
     "maxPerHost": "Máximo de servidores por máquina",
-    "status": "{{warm}} listos, {{desired}} necesarios: {{running}} en marcha, {{waiting}} en espera, {{soon}} a punto de estar listos, {{reserve}} de reserva",
+    "status": "Servidores: {{desired}} necesarios, {{warm}} listos",
     "activity": "Actividad reciente",
     "noActivity": "Aún no se ha iniciado ni detenido nada.",
     "state": {
@@ -1255,7 +1256,9 @@
       "create": "crear",
       "link": "vincular",
       "note": "nota"
-    }
+    },
+    "statusDetail": "Partidas: {{running}} en curso, {{waiting}} en espera, {{soon}} empiezan pronto. Servidores de reserva: {{reserve}}.",
+    "timerOff": "La comprobación periódica está desactivada (FLEET_AUTOSCALE_INTERVAL_MS es 0). Nada se inicia ni se detiene hasta que se ejecute una comprobación."
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers",
@@ -1868,7 +1871,9 @@
       "price": "Market price {{price}}",
       "more_one": "Show more ({{count}} left)",
       "more_other": "Show more ({{count}} left)"
-    }
+    },
+    "skipToSkins": "Ir a las skins",
+    "listTitle": "Skins"
   },
   "matchRules": {
     "title": "Reglas de partida",

@@ -12,6 +12,7 @@ import { resetEnrollRateLimit } from '../fleet/routes';
 import { liveStateStore, type LiveMatchRecord } from '../fleet/state';
 import { processInbound } from '../fleet/inbound';
 import { assignConfigPreview } from '../fleet/driver';
+import type { Untrusted } from '../../../utils/untrusted';
 import type { Envelope, FleetMessage } from '../fleet/protocol/v1';
 import { FleetSendError, getCommand, sendReliable, type ReliableType } from '../fleet/reliable';
 import { scanForFailovers } from '../fleet/failover';
@@ -29,7 +30,7 @@ async function holdMatch(
   serverId: string,
   stored: LiveMatchRecord | null
 ): Promise<LiveMatchRecord> {
-  if (stored && stored.serverId === serverId) return stored;
+  if (stored?.serverId === serverId) return stored;
   await db.runAsync(
     `INSERT INTO cs2_fleet_servers (id, name, status) VALUES (?, ?, 'pending') ON CONFLICT (id) DO NOTHING`,
     [serverId, serverId]
@@ -57,7 +58,7 @@ router.post(
   requireAuth,
   requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    const { ids, status } = (req.body || {}) as { ids?: unknown; status?: unknown };
+    const { ids, status } = (req.body || {}) as { ids?: Untrusted; status?: Untrusted };
     const list = Array.isArray(ids) ? ids.map(Number).filter(Number.isInteger) : [];
     if (list.length === 0 || typeof status !== 'string') {
       res.status(400).json({ success: false, error: 'ids and status are required' });
@@ -236,7 +237,7 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     const { serverId, state } = (req.body || {}) as {
       serverId?: string;
-      state?: Record<string, unknown>;
+      state?: Record<string, Untrusted>;
     };
     if (!state || typeof state.match_id !== 'string') {
       res.status(400).json({ success: false, error: 'state with match_id is required' });
@@ -244,15 +245,19 @@ router.post(
     }
     try {
       const from = serverId || 'test-ready-up';
-      const slug = state.match_id as string;
+      const slug = state.match_id;
       const exists = await db.queryOneAsync('SELECT 1 FROM matches WHERE slug = ?', [slug]);
       const held = exists
         ? await holdMatch(slug, from, await liveStateStore.getLiveState(slug))
         : null;
-      const outcome = await liveStateStore.applySnapshot(from, {
+      const snapshot: Untrusted = {
         reason: 'request',
         state: held ? { ...state, epoch: held.epoch } : state,
-      } as unknown as Parameters<typeof liveStateStore.applySnapshot>[1]);
+      };
+      const outcome = await liveStateStore.applySnapshot(
+        from,
+        snapshot as Parameters<typeof liveStateStore.applySnapshot>[1]
+      );
       res.json({ success: true, outcome });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
@@ -323,8 +328,8 @@ router.post(
         type: string;
         map_number?: number;
         round?: number;
-        data?: Record<string, unknown>;
-        patch?: Record<string, unknown>;
+        data?: Record<string, Untrusted>;
+        patch?: Record<string, Untrusted>;
       }>;
     };
     if (!matchSlug || !Array.isArray(events) || events.length === 0) {
@@ -353,7 +358,7 @@ router.post(
       const type = event.type.startsWith('event.') ? event.type : `event.${event.type}`;
       rev += 1;
       testRevs.set(matchSlug, rev);
-      const env = {
+      const env: Envelope = {
         v: 1,
         type,
         id: `test-${matchSlug}-${rev}-${Date.now()}`,
@@ -367,7 +372,7 @@ router.post(
           patch: { ...(event.patch ?? {}), live_rev: rev },
           data: event.data ?? {},
         },
-      } as unknown as Envelope;
+      };
       // A test's event carries only the fields it is about: not checked against the schema.
       await processInbound(ctx, env as FleetMessage, null);
     }
@@ -398,7 +403,7 @@ router.post(
     const { serverId, type, payload, epoch } = (req.body || {}) as {
       serverId?: string;
       type?: ReliableType;
-      payload?: Record<string, unknown>;
+      payload?: Record<string, Untrusted>;
       epoch?: number;
     };
     if (!serverId || !type || !payload) {
@@ -500,7 +505,7 @@ router.post(
   requireAuth,
   requireTestHelpers,
   async (req: Request, res: Response): Promise<void> => {
-    type Row = Record<string, unknown>;
+    type Row = Record<string, Untrusted>;
     const body = (req.body || {}) as {
       tournaments?: string[];
       players?: Array<{ id: string; name: string }>;

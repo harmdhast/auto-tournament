@@ -42,15 +42,9 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   return (
     <Dialog
       open={open}
-      onClose={(_event, reason) => {
-        // For destructive / high‑impact dialogs we only treat explicit button
-        // clicks as a "cancel" action. Backdrop clicks and ESC simply keep
-        // the dialog open so we don't accidentally trigger side effects that
-        // callers might attach to onCancel (e.g. navigation).
-        if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
-          return;
-        }
-        onCancel();
+      onClose={() => {
+        // Escape and a backdrop click cancel, except while the action runs.
+        if (!loading) onCancel();
       }}
       maxWidth="sm"
       fullWidth
@@ -69,12 +63,18 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           pb: 1,
         }}
       >
-        <Box component={WarningIcon} size={28} sx={{ color:
+        <Box
+          component={WarningIcon}
+          size={28}
+          sx={{
+            color:
               confirmColor === 'error'
                 ? 'error.main'
                 : confirmColor === 'success'
-                ? 'success.main'
-                : 'warning.main' }} />
+                  ? 'success.main'
+                  : 'warning.main',
+          }}
+        />
         <Typography component="span" variant="h6" fontWeight={600}>
           {title}
         </Typography>

@@ -113,3 +113,15 @@ test(
     }
   }
 );
+
+test(
+  'revoking a token that is not a whole number answers 404, not a hang',
+  { tag: ['@api'] },
+  async ({ request }) => {
+    expect(await signInViaRequest(request)).toBe(true);
+    for (const id of ['abc', '1.5', '-3', '99999999999999999999']) {
+      const response = await request.delete(`/api/settings/api-tokens/${id}`, { timeout: 5000 });
+      expect(response.status(), id).toBe(404);
+    }
+  }
+);

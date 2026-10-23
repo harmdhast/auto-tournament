@@ -598,7 +598,7 @@ export interface CmdResultPayload {
   rev?: number;
   output?: string;
   /** What the command did, when it says more than ok: reset {ended, match_id}. */
-  result?: Record<string, unknown>;
+  result?: Record<string, Untrusted>;
   audit_id?: string;
 }
 

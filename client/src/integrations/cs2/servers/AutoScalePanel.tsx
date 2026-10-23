@@ -48,6 +48,7 @@ interface AutoscaleResponse {
   reserve: number;
   demand: { running: number; waiting: number; soon: number; total: number };
   note: string | null;
+  intervalMs: number;
   machines: number;
   servers: Array<{
     fleetServerId: string;
@@ -215,16 +216,32 @@ export default function AutoScalePanel() {
           <Box>
             <Typography variant="body2" data-testid="autoscale-status">
               {t('autoscale.status', {
-                defaultValue:
-                  '{{warm}} warm, {{desired}} needed: {{running}} running, {{waiting}} waiting, {{soon}} about to be ready, {{reserve}} spare',
-                warm: data.warm,
                 desired: data.desired,
+                warm: data.warm,
+              })}
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              data-testid="autoscale-status-detail"
+            >
+              {t('autoscale.statusDetail', {
                 running: data.demand.running,
                 waiting: data.demand.waiting,
                 soon: data.demand.soon,
                 reserve: data.desired > 0 ? data.reserve : 0,
               })}
             </Typography>
+            {s.enabled && data.intervalMs === 0 && (
+              <Typography
+                variant="body2"
+                color="warning.main"
+                mt={0.5}
+                data-testid="autoscale-timer-off"
+              >
+                {t('autoscale.timerOff')}
+              </Typography>
+            )}
             {data.note && (
               <Typography
                 variant="body2"

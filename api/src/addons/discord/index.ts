@@ -3,8 +3,9 @@
  * token and Discord server are set on Modules → Discord. While it is off, the
  * site sends no Discord DMs (botToken reads as unset).
  */
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { requireAuth, type AuthedRequest } from '../../middleware/auth';
+import { isSameSiteRequest } from '../../utils/accountConnections';
 import { log } from '../../utils/logger';
 import type { Untrusted } from '../../utils/untrusted';
 import type { AddonModule } from '../types';
@@ -88,6 +89,20 @@ router.get('/notice', async (req: Request, res: Response) => {
 
 // Everything below is the admin's.
 router.use(requireAuth);
+
+/** CSRF: a write comes from this site, as JSON. */
+router.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === 'GET') return next();
+  if (!isSameSiteRequest(req)) {
+    res.status(403).json({ success: false, error: 'Request refused' });
+    return;
+  }
+  if (!req.is('application/json')) {
+    res.status(415).json({ success: false, error: 'Send this request as JSON' });
+    return;
+  }
+  next();
+});
 
 /**
  * @openapi

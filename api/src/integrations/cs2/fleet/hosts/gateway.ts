@@ -588,7 +588,7 @@ class HostSession {
   private async sendReliable(env: HostOutboxMessage): Promise<boolean> {
     let out: Envelope<string, object> = env;
     // Rewritten as expired (./service.ts vetQueued): no secret for a command that will not run.
-    const expired = Number((env.payload as { expires_at?: unknown }).expires_at) <= Date.now();
+    const expired = Number((env.payload as { expires_at?: Untrusted }).expires_at) <= Date.now();
     if (env.type === 'auth.rotate') {
       const p = env.payload;
       const token = p.token_id ? await registry.mintHostRotationSecret(p.token_id) : null;

@@ -89,8 +89,8 @@ export function onSocketConnection(listener: ConnectionListener): () => void {
   return () => connectionListeners.delete(listener);
 }
 
-async function joinAdminRoom(socket: Socket, ack?: unknown): Promise<void> {
-  const reply = typeof ack === 'function' ? (ack as (body: unknown) => void) : () => undefined;
+async function joinAdminRoom(socket: Socket, ack?: Untrusted): Promise<void> {
+  const reply = typeof ack === 'function' ? (ack as (body: Untrusted) => void) : () => undefined;
   try {
     const access = await checkAdminAccess(handshakeAsRequest(socket));
     if (!access.ok) {
@@ -188,8 +188,9 @@ export function initializeSocket(
     // A signed-in player's own events (matchmaking): room `player:<id>`, for
     // the account the handshake's session or signed cookie names. Nothing for
     // an anonymous socket. The client asks again on every `connect`.
-    socket.on('player:subscribe', (ack?: unknown) => {
-      const reply = typeof ack === 'function' ? (ack as (body: unknown) => void) : () => undefined;
+    socket.on('player:subscribe', (ack?: Untrusted) => {
+      const reply =
+        typeof ack === 'function' ? (ack as (body: Untrusted) => void) : () => undefined;
       let playerId: string | null;
       try {
         playerId = getRealViewerSteamId(handshakeAsRequest(socket));

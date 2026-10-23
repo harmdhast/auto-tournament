@@ -5,6 +5,7 @@
 
 import { skinImageUrls } from '../assets/localAssets';
 import { sideOf, slotOf, variantOf, type CatalogSkin } from './skinService';
+import type { Untrusted } from '../../../utils/untrusted';
 
 const PISTOLS = [
   'glock',
@@ -38,11 +39,11 @@ export function categoryOf(weapon: string): Category {
 }
 
 export interface CatalogQuery {
-  q?: unknown;
-  weapon?: unknown;
+  q?: Untrusted;
+  weapon?: Untrusted;
   /** A loadout slot: every knife, every glove. */
-  slot?: unknown;
-  category?: unknown;
+  slot?: Untrusted;
+  category?: Untrusted;
   /** One row per paint kit (each Doppler phase) instead of one per name. */
   all?: boolean;
 }

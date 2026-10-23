@@ -166,7 +166,7 @@ router.post('/admin-notice', flagOnly, requireAuth, async (req: Request, res: Re
  *         description: Invalid request payload
  */
 router.post('/marker', flagOnly, requireAuth, (req: Request, res: Response): void => {
-  const { message, scope } = req.body as { message?: unknown; scope?: unknown };
+  const { message, scope } = req.body as { message?: Untrusted; scope?: Untrusted };
 
   if (typeof message !== 'string' || message.trim().length === 0) {
     res.status(400).json({
@@ -512,7 +512,7 @@ router.post(
   }),
   async (req: Request, res: Response): Promise<void> => {
     const anyReq = req as Request & {
-      login?: (user: unknown, cb: (err: unknown) => void) => void;
+      login?: (user: Untrusted, cb: (err: Untrusted) => void) => void;
     };
 
     if (!anyReq.login) {
@@ -607,7 +607,7 @@ router.post(
       await playerService.updatePlayer(steamId, { isAdmin: false });
       await setGamesPromptForTest(steamId, req.body);
       // `games`: put these games on the player's profile (matchmaking needs its game there).
-      const games = (req.body as { games?: unknown }).games;
+      const games = (req.body as { games?: Untrusted }).games;
       if (Array.isArray(games)) {
         for (const game of games) {
           if (typeof game !== 'string') continue;
@@ -1988,7 +1988,7 @@ router.post(
   '/steam-link/callback',
   requireTestEndpoints({ tier: 'flag' }),
   async (req: Request, res: Response): Promise<void> => {
-    const steamId = (req.body as { steamId?: unknown })?.steamId;
+    const steamId = (req.body as { steamId?: Untrusted })?.steamId;
     await completeSteamLink(req, res, typeof steamId === 'string' ? steamId : '');
   }
 );
@@ -2178,7 +2178,7 @@ const fakeWikidataCounters = { searchRequests: 0, getEntitiesRequests: 0 };
 
 router.post('/wikidata', requireAuth, (req: Request, res: Response): void => {
   if (!testHelperEnabled(res)) return;
-  const { fake } = (req.body ?? {}) as { fake?: unknown };
+  const { fake } = (req.body ?? {}) as { fake?: Untrusted };
   const self = `http://127.0.0.1:${process.env.PORT || '3000'}/api/test/fake-wikidata`;
   setWikidataEndpointOverride(fake === false ? null : self);
   resetWikidataThrottle();

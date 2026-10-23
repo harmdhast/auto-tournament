@@ -192,6 +192,7 @@ test.describe.serial('Fleet autoscale (csm)', () => {
   test('settings: on by default, validated', async ({ request }) => {
     const s = await status(request);
     expect(s.settings).toMatchObject(DEFAULTS);
+    expect(typeof s.intervalMs).toBe('number');
     expect((await settings(request, { cooldownSeconds: -5 })).status).toBe(400);
     expect((await settings(request, { enabled: 'no' })).status).toBe(400);
     expect((await settings(request, { surprise: 1 })).status).toBe(400);

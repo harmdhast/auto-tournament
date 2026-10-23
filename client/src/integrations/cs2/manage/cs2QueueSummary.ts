@@ -16,10 +16,17 @@ import type {
   ResourceAvailability,
   ResourceQueueSummary,
 } from '../../types';
-import { asServerAvailability, type ServersResponse } from '../cs2.types';
+import {
+  asServerAvailability,
+  SERVER_AVAILABILITY_ENDPOINT,
+  type ServerAvailability,
+} from '../cs2.types';
+import { countFleet } from '../servers/availabilityClass';
 
 /** Matches waiting for a server, and how many servers there are. */
-export function summarizeServerAvailability(availability: ResourceAvailability): ResourceQueueSummary {
+export function summarizeServerAvailability(
+  availability: ResourceAvailability
+): ResourceQueueSummary {
   const answer = asServerAvailability(availability);
   return {
     waitingMatches: answer?.requiredServerCount ?? 0,
@@ -43,7 +50,11 @@ function timeAgoLabel(t: ManageNeedsYouInput['t'], unixSeconds: number | null | 
  * only for a match that is ready or loaded (or no longer listed), as
  * AdminMatchControls gates it.
  */
-export function serverNeedsYouItems({ availability, matches, t }: ManageNeedsYouInput): ManageNeedsYouItem[] {
+export function serverNeedsYouItems({
+  availability,
+  matches,
+  t,
+}: ManageNeedsYouInput): ManageNeedsYouItem[] {
   const servers = asServerAvailability(availability)?.servers ?? [];
   const bySlug = new Map(matches.map((match) => [match.slug, match]));
   const items: ManageNeedsYouItem[] = [];
@@ -104,12 +115,11 @@ export function serverNeedsYouItems({ availability, matches, t }: ManageNeedsYou
   return items;
 }
 
-/** The admin home's "Add a server" row, from this module's own server list. */
+/** The admin home's "Add a server" row, counting the servers the Servers card counts. */
 export async function serversSetupItems(): Promise<AdminHomeSetupItem[]> {
   let count = 0;
   try {
-    const response = await api.get<ServersResponse>('/api/servers');
-    count = (response.servers ?? []).length;
+    count = countFleet(await api.get<ServerAvailability>(SERVER_AVAILABILITY_ENDPOINT)).total;
   } catch {
     count = 0;
   }

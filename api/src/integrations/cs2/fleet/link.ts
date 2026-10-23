@@ -127,7 +127,10 @@ export function detectedAddress(
  * one enrolled with another machine's key, gets none from this one.
  */
 async function claimedAddresses(
-  addressOf: (row: { inventory: { address?: unknown }; publicAddress: string | null }) => unknown
+  addressOf: (row: {
+    inventory: { address?: Untrusted };
+    publicAddress: string | null;
+  }) => Untrusted
 ): Promise<Map<string, string>> {
   const hosts = await db.queryAsync<{
     id: string;
@@ -137,7 +140,10 @@ async function claimedAddresses(
     `SELECT id, inventory, public_address FROM cs2_fleet_hosts WHERE status = 'enrolled' AND inventory IS NOT NULL`
   );
   const inventories = hosts.map((h) => {
-    let inv: { address?: unknown; servers?: Array<Pick<HostInventoryServer, 'readyup'>> } = {};
+    let inv: {
+      address?: Untrusted;
+      servers?: Array<Partial<Pick<HostInventoryServer, 'readyup'>> | null>;
+    } = {};
     try {
       inv = JSON.parse(h.inventory as string);
     } catch {
@@ -146,7 +152,9 @@ async function claimedAddresses(
     return {
       id: h.id,
       address: addressOf({ inventory: inv, publicAddress: h.public_address }),
-      servers: (inv.servers ?? []).filter((s) => s?.readyup),
+      servers: (inv.servers ?? []).filter((s): s is Pick<HostInventoryServer, 'readyup'> =>
+        Boolean(s?.readyup)
+      ),
     };
   });
   const rows = await fleetServerJoinRows();

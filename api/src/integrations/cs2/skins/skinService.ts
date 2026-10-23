@@ -33,9 +33,13 @@ import type { Untrusted } from '../../../utils/untrusted';
 
 /** Full-size skin pictures, served by the platform (routes/images.ts). */
 export const SKIN_IMAGES_BASE = '/api/game/cs2/img/skins';
-export const SKINS_JSON_URL =
-  process.env.SKINS_JSON_URL ||
+const DEFAULT_SKINS_JSON_URL =
   'https://raw.githubusercontent.com/Auto-Tournament/cs2-server-manager/master/skin_images/skins.json';
+const skinsJsonOverride = process.env.SKINS_JSON_URL;
+export const SKINS_JSON_URL =
+  skinsJsonOverride !== undefined && skinsJsonOverride !== ''
+    ? skinsJsonOverride
+    : DEFAULT_SKINS_JSON_URL;
 
 /** The worn looks per light image (from the catalogue), for skinImageUrl. */
 const wearLooks = new Map<string, { medium?: string; heavy?: string }>();
@@ -1672,7 +1676,7 @@ export const skinService = {
    */
   async setCatalogPick(
     playerUid: string,
-    input: { weapon: string; paintKit: number; float: unknown; seed: unknown; team?: unknown }
+    input: { weapon: string; paintKit: number; float: Untrusted; seed: Untrusted; team?: Untrusted }
   ): Promise<OwnedSkin> {
     if (!(await this.catalogOn())) throw new SkinError(404, 'The catalogue is not unlocked.');
     const { weapon, paintKit, float, seed } = input;
@@ -1753,7 +1757,7 @@ export const skinService = {
   },
 
   /** Empties a slot: one side's pick (2, 3), or every side's (no team). */
-  async unequip(playerUid: string, slot: string, team?: unknown): Promise<void> {
+  async unequip(playerUid: string, slot: string, team?: Untrusted): Promise<void> {
     await withSlotLock(playerUid, slot, async (client) => {
       const replaced = await pickIdsInSlot(client, playerUid, slot);
       if (team === 0 || team === 2 || team === 3) {

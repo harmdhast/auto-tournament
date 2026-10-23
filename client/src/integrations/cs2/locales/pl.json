@@ -596,7 +596,8 @@
         "joinPassword": "Join password on match servers (off: the roster whitelist alone keeps others out)",
         "stopCommandAvailable": "Włącz komendę .stop (przywrócenie rundy)",
         "stopCommandNoDamage": "Wyłącz .stop po zadaniu obrażeń drużynie przeciwnej",
-        "connectPreferLan": "Gracze są w sieci LAN serwerów: Połącz używa adresu LAN dla wszystkich"
+        "connectPreferLan": "Gracze są w sieci LAN serwerów: Połącz używa adresu LAN dla wszystkich",
+        "stopCommandNoDamageHelp": "Wymaga włączonego polecenia .stop."
       },
       "autostart": {
         "label": "Start matches after (minutes in warmup)",
@@ -1242,7 +1243,7 @@
     "leadTime": "Uruchom z wyprzedzeniem",
     "cooldown": "Zatrzymaj po bezczynności",
     "maxPerHost": "Maks. serwerów na maszynę",
-    "status": "{{warm}} gotowych, {{desired}} potrzebnych: {{running}} działa, {{waiting}} czeka, {{soon}} wkrótce gotowych, {{reserve}} zapasowych",
+    "status": "Serwery: {{desired}} potrzebnych, {{warm}} gotowych",
     "activity": "Ostatnia aktywność",
     "noActivity": "Nic jeszcze nie zostało uruchomione ani zatrzymane.",
     "state": {
@@ -1261,7 +1262,9 @@
       "create": "utwórz",
       "link": "połącz",
       "note": "uwaga"
-    }
+    },
+    "statusDetail": "Mecze: {{running}} trwa, {{waiting}} czeka, {{soon}} wkrótce. Serwery rezerwowe: {{reserve}}.",
+    "timerOff": "Okresowe sprawdzanie jest wyłączone (FLEET_AUTOSCALE_INTERVAL_MS wynosi 0). Nic nie startuje ani nie zatrzymuje się, dopóki nie zostanie uruchomione sprawdzenie."
   },
   "fleetPush": {
     "summary": "Admins, settings and plugins sent to Ready Up servers",
@@ -1874,7 +1877,9 @@
       "price": "Market price {{price}}",
       "more_one": "Show more ({{count}} left)",
       "more_other": "Show more ({{count}} left)"
-    }
+    },
+    "skipToSkins": "Przejdź do skinów",
+    "listTitle": "Skins"
   },
   "matchRules": {
     "title": "Zasady meczu",

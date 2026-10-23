@@ -78,7 +78,7 @@ function heldBackKey(reason: ServerAllocationInfo['notAllocatableReason']): stri
 /** The busy tile's line: what Ready Up says, else why the allocator holds it back. */
 function busyLine(
   server: ServerAllocationInfo,
-  t: (key: string, opts?: Record<string, unknown>) => string
+  t: (key: string, opts?: Record<string, Untrusted>) => string
 ): string {
   const key = server.busyReason ? BUSY_REASON_KEY[server.busyReason] : undefined;
   if (key) return t(key, { slug: server.busyDetail ?? server.staleMatchSlug ?? '' });
