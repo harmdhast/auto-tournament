@@ -73,10 +73,11 @@ export function ServerPanel({
         </Section>
       </>
     );
-  } else if (row?.kind === 'readyup' || lostFleetId) {
-    const fleetId = row?.kind === 'readyup' ? row.fleet.id : lostFleetId!;
-    title = row?.kind === 'readyup' ? row.fleet.name : '';
-    body = <ReadyUpServerSection fleetId={fleetId} onChanged={onChanged} />;
+  } else if (row?.kind === 'readyup') {
+    title = row.fleet.name;
+    body = <ReadyUpServerSection fleetId={row.fleet.id} onChanged={onChanged} />;
+  } else if (lostFleetId) {
+    body = <ReadyUpServerSection fleetId={lostFleetId} onChanged={onChanged} />;
   }
 
   return (
