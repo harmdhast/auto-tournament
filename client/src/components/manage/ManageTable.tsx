@@ -105,7 +105,13 @@ export function ManageTable({
   label?: string;
 }) {
   return (
-    <Box sx={[{ overflowX: 'auto', minWidth: 0, position: 'relative' }, ...(Array.isArray(sx) ? sx : [sx])]} {...rest}>
+    <Box
+      sx={[
+        { overflowX: 'auto', minWidth: 0, position: 'relative' },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+      {...rest}
+    >
       <Box
         component="table"
         aria-label={label}

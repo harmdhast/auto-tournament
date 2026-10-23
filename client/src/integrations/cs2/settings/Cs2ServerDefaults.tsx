@@ -886,12 +886,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
                 } as React.InputHTMLAttributes<HTMLInputElement>,
               }}
             />
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              mt={1}
-            >
+            <Typography variant="caption" color="text.secondary" display="block" mt={1}>
               {t('settings.developer.simulateNote')}
             </Typography>
             <Box mt={3}>

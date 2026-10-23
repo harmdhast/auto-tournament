@@ -1051,7 +1051,14 @@ export function SkinsAdminPage() {
           checked={config.tournamentRewards}
           onToggle={(on) => set({ tournamentRewards: on })}
         >
-          <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 1.25 }, alignItems: 'flex-end', minHeight: 200 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: { xs: 0.5, sm: 1.25 },
+              alignItems: 'flex-end',
+              minHeight: 200,
+            }}
+          >
             {PODIUM.map(({ place, height, tone }) => {
               const label = rewardLabel(rewardFor(place));
               return (
