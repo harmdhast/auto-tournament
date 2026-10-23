@@ -42,12 +42,11 @@ const uploadedSmall = (url: string): string => {
 };
 
 /** The catalogue's own picture, what an unlisted map shows and a reset goes back to. */
-export const mapCatalogUrl = (id: string, size: MapImageSize): string =>
-  size === 'small'
-    ? `${MAP_IMAGE_BASE}/maps-480/${id}.webp`
-    : size === 'icon'
-      ? `${MAP_IMAGE_BASE}/map-icons/${id}_icon.svg`
-      : `${MAP_IMAGE_BASE}/maps-1280/${id}.webp`;
+export const mapCatalogUrl = (id: string, size: MapImageSize): string => {
+  if (size === 'small') return `${MAP_IMAGE_BASE}/maps-480/${id}.webp`;
+  if (size === 'icon') return `${MAP_IMAGE_BASE}/map-icons/${id}_icon.svg`;
+  return `${MAP_IMAGE_BASE}/maps-1280/${id}.webp`;
+};
 
 const bundledUrl = (id: string, size: MapImageSize): string | undefined => {
   const manifest = globalThis.__AT_CS2_ASSETS__;
