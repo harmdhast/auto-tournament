@@ -8,6 +8,7 @@
  */
 
 import type { CS2MapData } from '../cs2.types';
+import { mapImageUrl } from './cs2Assets';
 
 // Map pictures, served by the platform (the CS2 module bundles csm's compressed copies):
 // 1280 px for large hero/background displays, 480 px for smaller cards/lists.
@@ -51,7 +52,7 @@ export const getMapData = (mapName: string): CS2MapData | undefined => {
  * and the rest beyond CS2_MAPS), as a CSS background.
  */
 export const mapBackground = (mapName: string): string =>
-  `url("${MAP_IMAGE_BASE}/maps-1280/${mapName}.webp")`;
+  `url("${mapImageUrl(mapName, 'full')}")`;
 
 /**
  * Title-cased fallback for maps that aren't in CS2_MAPS (workshop maps, maps
