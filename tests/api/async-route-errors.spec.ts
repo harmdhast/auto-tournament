@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, request } from '@playwright/test';
 import type { AddressInfo } from 'net';
 import type { Server } from 'http';
 import express from 'express';
@@ -63,13 +63,21 @@ test.afterAll(() => {
   server.close();
 });
 
-const get = (path: string) => fetch(base + path, { signal: AbortSignal.timeout(3000) });
+const get = async (path: string) => {
+  const ctx = await request.newContext();
+  try {
+    const res = await ctx.get(base + path, { timeout: 3000 });
+    return { status: res.status(), body: await res.json().catch(() => null) };
+  } finally {
+    await ctx.dispose();
+  }
+};
 
 test.describe('async route errors', TAGS, () => {
   test('a rejecting async route answers 500 JSON', async () => {
     const res = await get('/r/async');
     expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: 'Internal server error' });
+    expect(res.body).toEqual({ error: 'Internal server error' });
   });
 
   test('a rejecting async handler on app answers 500', async () => {
@@ -95,12 +103,12 @@ test.describe('async route errors', TAGS, () => {
   test('a normal async route works', async () => {
     const res = await get('/r/ok');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true });
   });
 
   test('a rejection after the response was sent leaves it alone', async () => {
     const res = await get('/r/late');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ sent: true });
+    expect(res.body).toEqual({ sent: true });
   });
 });
