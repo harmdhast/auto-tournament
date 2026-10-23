@@ -2,7 +2,6 @@ import { test, expect, type APIRequestContext } from '@playwright/test';
 import { getAuthHeader, signInViaRequest } from '../helpers/auth';
 import { createFleetKey, resetEnrollRateLimit } from '../helpers/fleet';
 import { FakeReadyUp } from '../helpers/fleetFake';
-import { configureWebhook } from '../helpers/setup';
 
 /**
  * Console commands by fleet id (POST /api/fleet/servers/:id/exec): root
@@ -30,7 +29,6 @@ test.describe.serial('Fleet exec by id', () => {
     expect(await signInViaRequest(request)).toBe(true);
     await resetEnrollRateLimit(request);
     if (!key) key = await createFleetKey(request, { name: 'fleet-exec-by-id-tests' });
-    expect(await configureWebhook(request, 'http://localhost:3069')).toBe(true);
   });
 
   test.afterAll(() => {
