@@ -554,6 +554,8 @@ function DropToast({
         // The only colour: a hairline in the rarity.
         border: `1px solid ${withAlpha(tone, 0.55)}`,
         boxShadow: `0 16px 40px ${withAlpha('#000000', 0.45)}`,
+        // It stays until dealt with; it must not sit over an open dialog (search results).
+        'body:has(> .MuiModal-root:not(.MuiModal-hidden)) &': { visibility: 'hidden' },
       }}
     >
       <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.25 }}>

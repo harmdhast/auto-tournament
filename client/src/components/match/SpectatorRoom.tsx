@@ -274,7 +274,17 @@ export function SpectatorRoom({
                   {t('matchPage.spectator.noRoster')}
                 </Typography>
               ) : (
-                <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, display: 'grid', gap: 1 }}>
+                <Box
+                  component="ul"
+                  sx={{
+                    listStyle: 'none',
+                    m: 0,
+                    p: 0,
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0, 1fr)',
+                    gap: 1,
+                  }}
+                >
                   {team.players.map((p) => (
                     <li key={p.steamid}>
                       <PlayerChip id={p.steamid} name={p.name} avatarUrl={p.avatar} />

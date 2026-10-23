@@ -97,7 +97,7 @@ function MatchCard({
         layout="column"
         yours={ink(team?.id).yours}
         nameOnPhone={false}
-        nameSx={{ fontSize: '0.9375rem' }}
+        nameSx={{ fontSize: '0.9375rem', overflowWrap: 'anywhere' }}
         tbd={t('overviewPage.yourTeam.tbd')}
       />
     );
@@ -130,9 +130,9 @@ function MatchCard({
             position: 'absolute',
             inset: 0,
             display: 'flex',
-            alignItems: 'flex-start',
+            alignItems: 'flex-end',
             justifyContent: 'center',
-            pt: 3,
+            pb: 5,
             backgroundImage: `repeating-linear-gradient(135deg, ${color.paper2} 0 12px, ${color.paper3} 12px 24px)`,
             color: color.muted,
             ...mono,
@@ -167,7 +167,7 @@ function MatchCard({
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          background: `linear-gradient(to top, ${withAlpha(color.paper, 0.94)}, ${withAlpha(color.paper, 0.55)} 55%, ${withAlpha(color.paper, 0.25)})`,
+          background: `linear-gradient(to top, ${withAlpha(color.paper, 0.94)}, ${withAlpha(color.paper, 0.72)} 55%, ${withAlpha(color.paper, 0.5)})`,
         }}
       >
         <Box
