@@ -363,7 +363,7 @@ export default function Servers() {
               {t('serversPage.loadError')}
             </Alert>
           )}
-          {loadFailed && hosts.length === 0 && groups.length === 0 ? null : !ready ? (
+          {!(loadFailed && hosts.length === 0 && groups.length === 0) && !ready && (
             <Box
               data-testid="servers-loading"
               aria-busy
@@ -372,13 +372,15 @@ export default function Servers() {
               <Skeleton variant="rounded" height={96} />
               <Skeleton variant="rounded" height={96} />
             </Box>
-          ) : firstSetup ? (
+          )}
+          {!(loadFailed && hosts.length === 0 && groups.length === 0) && ready && firstSetup && (
             <FirstMachine
               link={linkInline ? link : null}
               busy={busy}
               onCreate={(name) => void addMachine(name, true)}
             />
-          ) : (
+          )}
+          {!(loadFailed && hosts.length === 0 && groups.length === 0) && ready && !firstSetup && (
             <Box
               data-testid="machines-panel"
               sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}

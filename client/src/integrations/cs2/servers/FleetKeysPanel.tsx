@@ -72,7 +72,7 @@ export default function FleetKeysPanel({ showSecret }: { showSecret: (secret: Se
   const createKey = async () => {
     setBusy(true);
     try {
-      const body: Record<string, unknown> = { name: keyForm.name.trim() };
+      const body: Record<string, string | number | boolean> = { name: keyForm.name.trim() };
       if (keyForm.namePrefix.trim()) body.namePrefix = keyForm.namePrefix.trim();
       if (keyForm.maxServers.trim()) body.maxServers = Number(keyForm.maxServers);
       if (keyForm.expiresInDays.trim()) body.expiresInDays = Number(keyForm.expiresInDays);
