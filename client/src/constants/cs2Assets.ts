@@ -5,6 +5,8 @@
  * small variant for uploaded pictures.
  */
 
+import type { Untrusted } from '../utils/untrusted';
+
 export type MapImageSize = 'small' | 'full' | 'icon';
 
 interface Cs2AssetsManifest {
@@ -23,7 +25,7 @@ const MAP_IMAGE_BASE = '/api/game/cs2/img';
 const UPLOAD_PREFIX = '/map-images/';
 const LOAD_TIMEOUT_MS = 1500;
 
-const isManifest = (value: unknown): value is Cs2AssetsManifest => {
+const isManifest = (value: Untrusted): value is Cs2AssetsManifest => {
   const m = value as Cs2AssetsManifest | null;
   return !!m && typeof m.base === 'string' && !!m.maps && typeof m.maps === 'object';
 };
@@ -36,7 +38,7 @@ export const loadCs2Assets = async (): Promise<void> => {
   try {
     const res = await fetch('/cs2-assets/manifest.json', { signal: controller.signal });
     if (!res.ok) return;
-    const json: unknown = await res.json();
+    const json: Untrusted = await res.json();
     if (isManifest(json)) globalThis.__AT_CS2_ASSETS__ = json;
   } catch {
     // jsDelivr keeps serving
@@ -66,12 +68,11 @@ const uploadedSmall = (url: string): string => {
 };
 
 /** The catalogue's own picture, what an unlisted map shows and a reset goes back to. */
-export const mapCatalogUrl = (id: string, size: MapImageSize): string =>
-  size === 'small'
-    ? `${MAP_IMAGE_BASE}/maps-480/${id}.webp`
-    : size === 'icon'
-      ? `${MAP_IMAGE_BASE}/map-icons/${id}_icon.svg`
-      : `${MAP_IMAGE_BASE}/maps-1280/${id}.webp`;
+export const mapCatalogUrl = (id: string, size: MapImageSize): string => {
+  if (size === 'small') return `${MAP_IMAGE_BASE}/maps-480/${id}.webp`;
+  if (size === 'icon') return `${MAP_IMAGE_BASE}/map-icons/${id}_icon.svg`;
+  return `${MAP_IMAGE_BASE}/maps-1280/${id}.webp`;
+};
 
 const bundledUrl = (id: string, size: MapImageSize): string | undefined => {
   const manifest = globalThis.__AT_CS2_ASSETS__;

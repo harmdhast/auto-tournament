@@ -1,3 +1,4 @@
+/* global KeyboardEvent */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Box, Button, Typography, Alert, Dialog, Paper, LinearProgress } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
@@ -103,7 +104,7 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
   const [order, setOrder] = useState<VetoOrderInfo | null>(null);
 
   const vetoRequest = useCallback(
-    async (path = '', body?: Record<string, unknown>) => {
+    async (path = '', body?: object) => {
       const response = await fetch(
         `/api/veto/${matchSlug}${path}`,
         body === undefined
@@ -256,10 +257,13 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
   }, [vetoState?.currentStep, vetoState?.currentTurn, vetoState?.status, actFor]);
   useEffect(() => {
     if (!selectedMap) return undefined;
-    const onKey = (event: { key: string; defaultPrevented: boolean; target: unknown }) => {
-      const target = event.target as { closest?: (selector: string) => unknown } | null;
+    const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
-      if (target?.closest?.('[role="dialog"], input, textarea')) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="dialog"], input, textarea')
+      )
+        return;
       setSelectedMap(null);
     };
     window.addEventListener('keydown', onKey);

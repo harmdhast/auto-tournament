@@ -63,7 +63,8 @@ export function FleetConsole({ server }: { server: FleetServer }) {
     }
   };
 
-  const status = error === 'unsupported' ? 'unsupported' : live ? 'live' : 'offline';
+  const connection = live ? 'live' : 'offline';
+  const status = error === 'unsupported' ? 'unsupported' : connection;
 
   return (
     <Box>

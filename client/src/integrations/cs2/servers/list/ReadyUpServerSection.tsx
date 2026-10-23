@@ -50,6 +50,19 @@ export function ReadyUpServerSection({
     );
   }
   if (!server) return null;
+  const linkedServerId = server.linkedServerId;
+  const updateLabel = (): string => {
+    if (server.readyUpUpdate?.state === 'outdated') {
+      return t('fleetPanel.updateAvailable', {
+        version: server.readyUpUpdate.latest,
+        defaultValue: 'Update available: {{version}}',
+      });
+    }
+    if (server.readyUpUpdate?.state === 'current') {
+      return t('fleetPanel.upToDate', { defaultValue: 'Up to date' });
+    }
+    return t('fleetPanel.noUpdateCheck', { defaultValue: 'No update check yet' });
+  };
   return (
     <Box data-testid="server-panel-readyup" sx={{ display: 'grid', gap: 3 }}>
       {!server.online && (
@@ -81,14 +94,7 @@ export function ReadyUpServerSection({
           !!server.versions && [t('serversBoard.readyUp.sheet.version'), server.versions.core],
           !!server.versions && [
             t('serversBoard.readyUp.sheet.update', { defaultValue: 'Update' }),
-            server.readyUpUpdate?.state === 'outdated'
-              ? t('fleetPanel.updateAvailable', {
-                  version: server.readyUpUpdate.latest,
-                  defaultValue: 'Update available: {{version}}',
-                })
-              : server.readyUpUpdate?.state === 'current'
-                ? t('fleetPanel.upToDate', { defaultValue: 'Up to date' })
-                : t('fleetPanel.noUpdateCheck', { defaultValue: 'No update check yet' }),
+            updateLabel(),
           ],
           !!server.token && [
             t('serversBoard.readyUp.sheet.token', { defaultValue: 'Token renewal' }),
@@ -101,12 +107,12 @@ export function ReadyUpServerSection({
           [t('serversBoard.readyUp.sheet.lastSeen'), when(server.lastSeen)],
         ]}
       />
-      {server.linkedServerId && (
+      {linkedServerId && (
         <Box>
           <Button
             size="small"
             variant="outlined"
-            onClick={() => void edit(server.linkedServerId!)}
+            onClick={() => void edit(linkedServerId)}
             data-testid="server-panel-edit"
           >
             {t('serversList.edit', { defaultValue: 'Edit' })}
