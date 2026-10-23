@@ -197,13 +197,14 @@ const ServerAllocationPanel: React.FC<ServerAllocationPanelProps> = ({
               }
               arrow
             >
-              <Box sx={{ position: 'relative', display: 'inline-block' }}>
+              <Box sx={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
                 <Chip
                   icon={getServerIcon(server)}
                   label={getServerLabel(server)}
                   color={getServerColor(server)}
                   size="small"
                   variant={server.allocatable ? 'filled' : 'outlined'}
+                  sx={{ maxWidth: '100%' }}
                 />
                 {countdown !== undefined && countdown > 0 && (
                   <LinearProgress

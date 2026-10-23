@@ -504,7 +504,12 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
                         update(key, v);
                         void save({ [key]: v });
                       }}
-                      slotProps={{ htmlInput: { 'data-testid': `setting-${key}` } }}
+                      slotProps={{
+                        htmlInput: { 'data-testid': `setting-${key}` },
+                        select: {
+                          SelectDisplayProps: { 'aria-label': t(`settings.gotv.${key}.label`) },
+                        },
+                      }}
                     >
                       {options.map((o) => (
                         <MenuItem key={o} value={o}>
@@ -881,13 +886,7 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
                 } as React.InputHTMLAttributes<HTMLInputElement>,
               }}
             />
-            <Typography
-              variant="caption"
-              color="error.main"
-              display="block"
-              mt={1}
-              fontWeight={500}
-            >
+            <Typography variant="caption" color="text.secondary" display="block" mt={1}>
               {t('settings.developer.simulateNote')}
             </Typography>
             <Box mt={3}>
@@ -897,9 +896,11 @@ export const Cs2ServerDefaults: React.FC<{ initial: Record<string, Untrusted> | 
               <Typography variant="body2" color="text.secondary" mb={1}>
                 {t('settings.developer.timescaleDescription')}
               </Typography>
-              <Box px={1} pt={3}>
+              <Box px={2} pt={3}>
                 <Slider
                   disabled={!vals.simulateMatches}
+                  aria-label={t('settings.developer.timescaleTitle')}
+                  sx={{ '&.Mui-disabled': { opacity: 0.45 } }}
                   value={vals.simulationTimescale}
                   onChange={(_e, value) => {
                     const v = Array.isArray(value) ? value[0] : value;

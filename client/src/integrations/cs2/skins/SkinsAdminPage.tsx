@@ -1051,7 +1051,14 @@ export function SkinsAdminPage() {
           checked={config.tournamentRewards}
           onToggle={(on) => set({ tournamentRewards: on })}
         >
-          <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-end', minHeight: 200 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: { xs: 0.5, sm: 1.25 },
+              alignItems: 'flex-end',
+              minHeight: 200,
+            }}
+          >
             {PODIUM.map(({ place, height, tone }) => {
               const label = rewardLabel(rewardFor(place));
               return (
@@ -1074,11 +1081,11 @@ export function SkinsAdminPage() {
                 >
                   <Typography
                     sx={{
-                      fontSize: '0.8125rem',
+                      fontSize: { xs: '0.6875rem', sm: '0.8125rem' },
                       color: label.tone,
                       textAlign: 'center',
                       width: '100%',
-                      overflowWrap: 'anywhere',
+                      overflowWrap: 'break-word',
                     }}
                   >
                     {label.text}
@@ -1095,7 +1102,7 @@ export function SkinsAdminPage() {
                       placeItems: 'center',
                       fontFamily: fontDisplay,
                       fontWeight: 700,
-                      fontSize: '1.25rem',
+                      fontSize: { xs: '0.75rem', sm: '1.25rem' },
                       color: tone,
                       transition: 'filter 120ms',
                     }}
