@@ -51,7 +51,7 @@ test('cs2 migrations upgrade an install that applied 031-035 in id order', TAGS,
  * Fork-only migrations (037-fleet-availability-reason, 040-server-failover-use,
  * 050-match-runtime-cascade, 051-round-backup-sides) sit right after
  * 043-recorder-host-identity, where `custom` first shipped them, so a database
- * that ran `custom` before either upstream sync still plans cleanly.
+ * that ran `custom` before any upstream sync still plans cleanly.
  */
 const FORK_IDS = [
   '037-fleet-availability-reason',
@@ -70,7 +70,9 @@ const histories: Record<string, () => string[]> = {
     allIds().filter((id) => id <= '054-skin-stattrak' || FORK_IDS.includes(id)),
   'a database that ran custom between the second and third upstream syncs': () =>
     allIds().slice(0, allIds().indexOf('059-integration-highlights')),
-  'a database that ran custom after the third upstream sync': allIds,
+  'a database that ran custom between the third and fourth upstream syncs': () =>
+    allIds().slice(0, allIds().indexOf('060-lan-networks')),
+  'a database that ran custom after the fourth upstream sync': allIds,
 };
 
 for (const [name, build] of Object.entries(histories)) {
