@@ -13,8 +13,14 @@ import { settingsService } from '../../../services/settingsService';
 import { buildMatchConfigFor, serializeMatchConfig } from '../../../utils/matchIntegration';
 import { isQueuedAllocationResult, scheduler } from '../../../core/scheduler';
 import { tournamentIdForMatch, tournamentRowToResponse } from '../../../utils/tournamentRow';
+import type { Untrusted } from '../../../utils/untrusted';
 
 type VetoEmit = Parameters<typeof emitVetoUpdate>[1];
+
+function emitVeto(matchSlug: string, vetoState: VetoState, vetoOrder: VetoStep[]): void {
+  const update: Untrusted = { ...vetoState, vetoOrder };
+  emitVetoUpdate(matchSlug, update as VetoEmit);
+}
 
 type VetoActionType = 'ban' | 'pick' | 'side_pick';
 type VetoTeam = 'team1' | 'team2';
@@ -454,7 +460,7 @@ async function runAutoVeto(matchSlug: string, options?: AutoVetoOptions): Promis
     await db.updateAsync('matches', { veto_state: JSON.stringify(vetoState) }, 'slug = ?', [
       matchSlug,
     ]);
-    emitVetoUpdate(matchSlug, { ...vetoState, vetoOrder } as unknown as VetoEmit);
+    emitVeto(matchSlug, vetoState, vetoOrder);
     if (vetoState.currentStep <= vetoState.totalSteps) void postVetoProgress(matchSlug, vetoState);
 
     // Check for completion
@@ -480,7 +486,7 @@ async function runAutoVeto(matchSlug: string, options?: AutoVetoOptions): Promis
         'slug = ?',
         [matchSlug]
       );
-      emitVetoUpdate(matchSlug, { ...vetoState, vetoOrder } as unknown as VetoEmit);
+      emitVeto(matchSlug, vetoState, vetoOrder);
 
       void postVetoProgress(matchSlug, vetoState);
       log.success(`[VETO-SIM] Automated veto completed for match ${matchSlug}`, {
@@ -560,7 +566,7 @@ async function runAutoVeto(matchSlug: string, options?: AutoVetoOptions): Promis
         await db.updateAsync('matches', { veto_state: JSON.stringify(vetoState) }, 'slug = ?', [
           matchSlug,
         ]);
-        emitVetoUpdate(matchSlug, { ...vetoState, vetoOrder } as unknown as VetoEmit);
+        emitVeto(matchSlug, vetoState, vetoOrder);
         break;
       }
 

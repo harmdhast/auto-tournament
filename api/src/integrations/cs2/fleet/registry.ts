@@ -273,7 +273,7 @@ export async function capabilitiesOf(id: string): Promise<string[] | null> {
     [id]
   );
   if (!row) return null;
-  const caps = parseJson<unknown>(row.capabilities);
+  const caps = parseJson<Untrusted>(row.capabilities);
   return Array.isArray(caps) ? (caps as string[]) : [];
 }
 
@@ -855,8 +855,8 @@ export async function markConnected(
   hello: {
     availability: string;
     /** hello.reason / detail: why it is busy (busyReason.ts parses them). */
-    reason?: unknown;
-    detail?: unknown;
+    reason?: Untrusted;
+    detail?: Untrusted;
     versions: Versions;
     capabilities: string[];
     host: HostInfo;

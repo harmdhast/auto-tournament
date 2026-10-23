@@ -1,15 +1,16 @@
+import type { Untrusted } from '../../../utils/untrusted';
 import type { BusyReason } from './protocol/v1/types';
 
 const REPORTED = new Set<string>(['local_match', 'awaiting_reset', 'match_disabled', 'draining']);
 const DETAIL_MAX = 128;
 
 /** A reason Ready Up reported; anything else (legacy text, platform-only values) is null. */
-export function parseBusyReason(raw: unknown): BusyReason | null {
+export function parseBusyReason(raw: Untrusted): BusyReason | null {
   return typeof raw === 'string' && REPORTED.has(raw) ? (raw as BusyReason) : null;
 }
 
 /** The detail Ready Up sent with it: trimmed, control characters dropped, at most 128 characters. */
-export function parseBusyDetail(raw: unknown): string | null {
+export function parseBusyDetail(raw: Untrusted): string | null {
   if (typeof raw !== 'string') return null;
   const clean = raw
     // eslint-disable-next-line no-control-regex
@@ -20,7 +21,7 @@ export function parseBusyDetail(raw: unknown): string | null {
 }
 
 /** Reason and detail as Ready Up sent them (`reason`/`detail`, or the snapshot's `availability_*`), parsed. */
-export function parseBusy(raw: { reason?: unknown; detail?: unknown }): {
+export function parseBusy(raw: { reason?: Untrusted; detail?: Untrusted }): {
   reason: BusyReason | null;
   detail: string | null;
 } {

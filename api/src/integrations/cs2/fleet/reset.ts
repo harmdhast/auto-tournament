@@ -15,6 +15,7 @@ import { holdsLocalCopy, parseBusyReason } from './busyReason';
 import { cs2ServerIdOf } from './link';
 import * as registry from './registry';
 import { fleetBus } from './service';
+import type { Untrusted } from '../../../utils/untrusted';
 
 /**
  * Reset a Ready Up server (cmd reset, FLEET.md §7.4): whatever it holds goes —
@@ -30,6 +31,17 @@ export type ResetOutcome =
 const RESET_EXPIRES_MS = 15_000;
 /** Servers being reset right now (this process): a second press waits for the first. */
 const resetting = new Set<string>();
+
+/** What the reset ended: the platform's own assignment or match, else what the server said, else its busy reason. */
+function endedKind(
+  platformRan: boolean,
+  said: Untrusted,
+  storedReason: ReturnType<typeof parseBusyReason>
+): 'local' | 'assignment' | 'none' {
+  if (platformRan) return 'assignment';
+  if (said === 'local' || said === 'assignment' || said === 'none') return said;
+  return holdsLocalCopy(storedReason) ? 'local' : 'none';
+}
 
 export async function resetFleetServer(
   fleetServerId: string,
@@ -105,14 +117,11 @@ export async function resetFleetServer(
       await unassignAll(cs2ServerId, 'admin');
     }
     const said = outcome.data?.ended;
-    const ended: 'local' | 'assignment' | 'none' =
-      assignment || match
-        ? 'assignment'
-        : said === 'local' || said === 'assignment' || said === 'none'
-          ? said
-          : holdsLocalCopy(parseBusyReason(stored?.availability_reason))
-            ? 'local'
-            : 'none';
+    const ended = endedKind(
+      Boolean(assignment) || Boolean(match),
+      said,
+      parseBusyReason(stored?.availability_reason)
+    );
     log.info(`[FLEET] ${fleetServerId}: reset by ${who.actor ?? 'unknown'} (ended ${ended})`);
     return { ok: true, ended, settledMatchSlug };
   } finally {

@@ -12,6 +12,7 @@ import type { LookupFunction } from 'net';
 import type { Readable } from 'stream';
 import type { CardImage } from './types';
 import { resolveWebhookTarget, type Lookup } from '../webhooks/ssrf';
+import type { Untrusted } from '../../utils/untrusted';
 
 const TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -78,11 +79,11 @@ export function readCapped(stream: Readable, max: number): Promise<Buffer | null
 async function fetchImage(url: URL, lookup?: Lookup): Promise<CardImage | null> {
   const target = await resolveWebhookTarget(url, false, lookup);
   const pinned: LookupFunction = (_hostname, options, callback) => {
-    if ((options as { all?: boolean })?.all) {
-      (callback as unknown as (err: null, all: Array<{ address: string; family: number }>) => void)(
-        null,
-        [target]
-      );
+    if ((options as { all?: boolean } | undefined)?.all) {
+      const callbackAll: Untrusted = callback;
+      (callbackAll as (err: null, all: Array<{ address: string; family: number }>) => void)(null, [
+        target,
+      ]);
     } else {
       callback(null, target.address, target.family);
     }

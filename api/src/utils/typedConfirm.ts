@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import type { AuthedRequest } from '../middleware/auth';
 import { isSameSiteRequest } from './accountConnections';
+import type { Untrusted } from './untrusted';
 
 /**
  * Guard for destructive admin actions (wipe the database, a table): a signed-in
@@ -22,7 +23,7 @@ export function requireTypedConfirm(expected: (req: Request) => string) {
       return;
     }
     const want = expected(req);
-    if ((req.body as { confirm?: unknown } | undefined)?.confirm !== want) {
+    if ((req.body as { confirm?: Untrusted } | undefined)?.confirm !== want) {
       res.status(400).json({ success: false, error: `Confirm with { "confirm": "${want}" }` });
       return;
     }
