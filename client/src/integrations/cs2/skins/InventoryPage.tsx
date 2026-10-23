@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import { skinPaths } from './paths';
 import {
@@ -93,7 +93,7 @@ export function InventoryPage() {
   const [theirs, setTheirs] = useState<{ inventory: OwnedSkin[]; picks: OwnedSkin[] } | null>(null);
   // Own page with the catalogue unlocked: earned skins, or every catalogue skin (one slot when chosen).
   const [view, setView] = useState<'owned' | 'catalog'>('owned');
-  const skinsRef = useRef<HTMLHeadingElement>(null);
+  const skinsRef = useRef<ComponentRef<'h2'>>(null);
   const [slotFilter, setSlotFilter] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<'rarity' | 'newest'>('rarity');
