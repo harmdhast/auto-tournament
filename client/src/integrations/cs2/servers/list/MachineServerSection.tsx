@@ -108,10 +108,7 @@ export function MachineServerSection({
                       .join(' · ')
                   : t('machinesPanel.noReadyUp', { defaultValue: 'No Ready Up' }),
               ],
-              [
-                t('serversBoard.facts.link', { defaultValue: 'Platform link' }),
-                linkLabel(),
-              ],
+              [t('serversBoard.facts.link', { defaultValue: 'Platform link' }), linkLabel()],
               !!since && [t('serversBoard.facts.since', { defaultValue: 'Running since' }), since],
               s.process.restarts_24h > 0 && [
                 t('serversBoard.facts.restarts', { defaultValue: 'Restarts (24 h)' }),

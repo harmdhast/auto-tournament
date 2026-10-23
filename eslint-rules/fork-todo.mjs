@@ -7,9 +7,7 @@ export const FORK_LINT_TODO = {
   '@typescript-eslint/consistent-type-assertions': [
     'api/src/integrations/cs2/fleet/hosts/service.ts',
   ],
-  '@typescript-eslint/no-non-null-assertion': [
-    'api/src/utils/bodyLimits.ts',
-  ],
+  '@typescript-eslint/no-non-null-assertion': ['api/src/utils/bodyLimits.ts'],
   '@typescript-eslint/no-unnecessary-condition': [
     'api/src/integrations/cs2/fleet/link.ts',
     'api/src/services/shareCards/images.ts',
@@ -30,12 +28,8 @@ export const FORK_LINT_TODO = {
     'api/src/integrations/cs2/fleet/logRelay.ts',
     'api/src/integrations/cs2/routes/testHelpers.ts',
   ],
-  'max-lines': [
-    'api/src/integrations/cs2/fleet/routes.ts',
-  ],
-  'no-nested-ternary': [
-    'api/src/integrations/cs2/fleet/reset.ts',
-  ],
+  'max-lines': ['api/src/integrations/cs2/fleet/routes.ts'],
+  'no-nested-ternary': ['api/src/integrations/cs2/fleet/reset.ts'],
   'no-restricted-syntax': [
     'api/src/integrations/cs2/fleet/busyReason.ts',
     'api/src/integrations/cs2/fleet/driver.ts',

@@ -53,7 +53,6 @@ export const rowGrid = {
   '&:hover': { bgcolor: color.paper3 },
 } as const;
 
-
 function lineDisplay(phoneOnly?: boolean, wide?: boolean) {
   if (phoneOnly) return { xs: 'block', md: 'none' };
   if (wide) return { xs: 'none', md: 'block' };
@@ -95,8 +94,15 @@ export function Line({
   );
 }
 
-
-export function RowMenu({ name, items, testId }: { name: string; items: ServerAction[]; testId: string }) {
+export function RowMenu({
+  name,
+  items,
+  testId,
+}: {
+  name: string;
+  items: ServerAction[];
+  testId: string;
+}) {
   const { t } = useModuleTranslation('cs2');
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   if (items.length === 0) return null;
@@ -129,4 +135,3 @@ export function RowMenu({ name, items, testId }: { name: string; items: ServerAc
     </>
   );
 }
-

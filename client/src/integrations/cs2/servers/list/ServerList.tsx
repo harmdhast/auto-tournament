@@ -27,7 +27,6 @@ const listGrid = {
   },
 } as const;
 
-
 export function ServerList(props: ServerListProps) {
   const { t } = useModuleTranslation('cs2');
   const fleetIds = props.groups.flatMap((g) =>

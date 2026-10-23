@@ -17,13 +17,7 @@ import {
   TrashIcon,
   XIcon,
 } from '@phosphor-icons/react';
-import {
-  radii,
-  tokens,
-  useModuleTranslation,
-  withAlpha,
-  fmtNum,
-} from '../../../../module-sdk';
+import { radii, tokens, useModuleTranslation, withAlpha, fmtNum } from '../../../../module-sdk';
 import type { FleetHost, FleetHostCommand } from '../../cs2.types';
 import { readyUpVersion, useCommandLabel, useProblemText } from './MachineCard';
 import { Facts, SideSheet } from './SideSheet';

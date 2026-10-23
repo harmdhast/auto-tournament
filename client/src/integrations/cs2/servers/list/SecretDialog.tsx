@@ -31,73 +31,73 @@ export function SecretDialog({ secret, onClose }: { secret: Secret | null; onClo
 
   return (
     <Dialog open={secret !== null} onClose={onClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <DialogTitle>
+        {secret?.kind === 'key'
+          ? t('fleetPanel.keyCreatedTitle')
+          : t('fleetPanel.codeCreatedTitle')}
+      </DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" mb={2}>
           {secret?.kind === 'key'
-            ? t('fleetPanel.keyCreatedTitle')
-            : t('fleetPanel.codeCreatedTitle')}
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" mb={2}>
-            {secret?.kind === 'key'
-              ? t('fleetPanel.keyCreatedHelp', { name: secret?.name })
-              : t('fleetPanel.codeCreatedHelp', {
-                  name: secret?.name,
-                  time: formatWhen(secret?.expiresAt, locale),
-                })}
-          </Typography>
-          <Box
-            display="flex"
-            alignItems="center"
-            gap={1}
-            sx={{
-              p: 1.5,
-              borderRadius: 1,
-              bgcolor: 'action.hover',
-              ...mono,
-              wordBreak: 'break-all',
-            }}
-          >
-            <Box flex={1} data-testid="fleet-secret">
-              {secret?.value}
-            </Box>
-            <IconButton
-              size="small"
-              onClick={() => secret && void copy(secret.value)}
-              aria-label={t('fleetPanel.copy')}
-            >
-              <CopyIcon size={20} />
-            </IconButton>
+            ? t('fleetPanel.keyCreatedHelp', { name: secret?.name })
+            : t('fleetPanel.codeCreatedHelp', {
+                name: secret?.name,
+                time: formatWhen(secret?.expiresAt, locale),
+              })}
+        </Typography>
+        <Box
+          display="flex"
+          alignItems="center"
+          gap={1}
+          sx={{
+            p: 1.5,
+            borderRadius: 1,
+            bgcolor: 'action.hover',
+            ...mono,
+            wordBreak: 'break-all',
+          }}
+        >
+          <Box flex={1} data-testid="fleet-secret">
+            {secret?.value}
           </Box>
-          <Typography variant="caption" color="warning.main" display="block" mt={1.5}>
-            {t('fleetPanel.shownOnce')}
+          <IconButton
+            size="small"
+            onClick={() => secret && void copy(secret.value)}
+            aria-label={t('fleetPanel.copy')}
+          >
+            <CopyIcon size={20} />
+          </IconButton>
+        </Box>
+        <Typography variant="caption" color="warning.main" display="block" mt={1.5}>
+          {t('fleetPanel.shownOnce')}
+        </Typography>
+        {secret?.kind === 'code' && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            component="pre"
+            sx={{ ...mono, mt: 1.5, whiteSpace: 'pre-wrap' }}
+          >
+            {`ru fleet enroll ${window.location.origin} ${secret.value}${insecureFlag()}`}
           </Typography>
-          {secret?.kind === 'code' && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              component="pre"
-              sx={{ ...mono, mt: 1.5, whiteSpace: 'pre-wrap' }}
-            >
-              {`ru fleet enroll ${window.location.origin} ${secret.value}${insecureFlag()}`}
-            </Typography>
-          )}
-          {secret?.kind === 'code' && platformIsPlainHttp() && (
-            <Typography
-              variant="caption"
-              color="warning.main"
-              display="block"
-              mt={1}
-              data-testid="fleet-insecure-note"
-            >
-              {t('fleetPanel.insecureNote')}
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button variant="contained" onClick={onClose}>
-            {t('common.close')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        )}
+        {secret?.kind === 'code' && platformIsPlainHttp() && (
+          <Typography
+            variant="caption"
+            color="warning.main"
+            display="block"
+            mt={1}
+            data-testid="fleet-insecure-note"
+          >
+            {t('fleetPanel.insecureNote')}
+          </Typography>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button variant="contained" onClick={onClose}>
+          {t('common.close')}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

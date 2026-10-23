@@ -259,7 +259,10 @@ export const VetoInterface: React.FC<VetoInterfaceProps> = ({
     if (!selectedMap) return undefined;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
-      if (event.target instanceof Element && event.target.closest('[role="dialog"], input, textarea'))
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="dialog"], input, textarea')
+      )
         return;
       setSelectedMap(null);
     };
