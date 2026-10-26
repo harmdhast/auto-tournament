@@ -125,7 +125,7 @@ export const discordBot = {
         body: { recipient_id: discordUserId },
       });
 
-      if(!channel.ok || typeof channel.body?.id !== "string") return false;
+      if(!channel.ok || typeof channel.body.id !== "string") return false;
 
       channelId = channel.body.id;
       dmChannelCache.set(discordUserId, channelId);
