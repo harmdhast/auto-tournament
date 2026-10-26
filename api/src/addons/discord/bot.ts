@@ -125,7 +125,7 @@ export const discordBot = {
         body: { recipient_id: discordUserId },
       });
 
-      if(!channel.ok || typeof channel.body.id !== "string") return false;
+      if (!channel.ok || typeof channel.body.id !== 'string') return false;
 
       channelId = channel.body.id;
       dmChannelCache.set(discordUserId, channelId);
@@ -136,7 +136,7 @@ export const discordBot = {
       body: { content: content.slice(0, 2000), allowed_mentions: { parse: [] } },
     });
 
-    if(sent.status === 403 || sent.status === 404) {
+    if (sent.status === 403 || sent.status === 404) {
       dmChannelCache.delete(discordUserId);
     }
 
