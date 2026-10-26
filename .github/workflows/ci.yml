@@ -340,7 +340,9 @@ jobs:
       # to hold up with no auth provider enabled.
       - name: Create .env
         run: |
-          cp example.env .env
+          # Docker Compose keeps the first of duplicate keys: drop the
+          # placeholder SESSION_SECRET (fatal in production) before appending.
+          grep -v '^SESSION_SECRET=' example.env > .env
           {
             echo "SESSION_SECRET=ci-session-secret-0123456789abcdef"
             echo "SERVER_TOKEN=server123"
