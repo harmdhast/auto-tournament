@@ -11,6 +11,8 @@ import { isAddonRunning } from '../registry';
 const BOT_TOKEN_KEY = 'discord_bot_token';
 const GUILD_KEY = 'discord_guild_id';
 
+const dmChannelCache = new Map<string, string>();
+
 export class ChannelError extends Error {
   constructor(
     readonly status: number,
@@ -114,16 +116,30 @@ export const discordBot = {
   async sendDm(discordUserId: string, content: string): Promise<boolean> {
     const token = await botToken();
     if (!token) return false;
-    const channel = await discordFetch(token, '/users/@me/channels', {
-      method: 'POST',
-      body: { recipient_id: discordUserId },
-    });
-    const channelId = typeof channel.body.id === 'string' ? channel.body.id : null;
-    if (!channel.ok || !channelId) return false;
+
+    let channelId = dmChannelCache.get(discordUserId);
+
+    if (!channelId) {
+      const channel = await discordFetch(token, '/users/@me/channels', {
+        method: 'POST',
+        body: { recipient_id: discordUserId },
+      });
+
+      if(!channel.ok || typeof channel.body?.id !== "string") return false;
+
+      channelId = channel.body.id;
+      dmChannelCache.set(discordUserId, channelId);
+    }
+
     const sent = await discordFetch(token, `/channels/${channelId}/messages`, {
       method: 'POST',
       body: { content: content.slice(0, 2000), allowed_mentions: { parse: [] } },
     });
+
+    if(sent.status === 403 || sent.status === 404) {
+      dmChannelCache.delete(discordUserId);
+    }
+
     return sent.ok;
   },
 };
