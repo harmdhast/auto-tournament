@@ -118,7 +118,7 @@ COPY worker/*.go ./
 COPY worker/assets ./assets
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /at-worker .
 
-FROM ${NODE_REGISTRY}/node:24-alpine AS release
+FROM node:24-alpine AS release
 WORKDIR /app
 
 # Build arguments for platform detection
