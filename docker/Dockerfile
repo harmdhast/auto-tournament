@@ -1,16 +1,12 @@
 # Where the release stage gets the built app from: `build` (compiled here) or
 # `prebuilt` (compiled on the CI runner; see the build job in ci.yml).
 ARG APP_BUILD=build
-# The registry node comes from: ECR Public's mirror of Docker's official
-# images for releases; CI passes Google's mirror (mirror.gcr.io/library) when
-# ECR's anonymous data limit is hit (2026-10-12). Same images.
-ARG NODE_REGISTRY=public.ecr.aws/docker/library
 
 # Base image with Node.js and Yarn (via corepack)
 # Using Alpine for smallest possible image size
 # node from AWS ECR Public, the mirror of Docker's official images: Docker Hub
 # rate-limits and times out on CI runners (2026-10-09).
-FROM ${NODE_REGISTRY}/node:24-alpine AS base
+FROM node:24-alpine AS base
 WORKDIR /app
 
 # Install necessary build tools for Alpine (only in build stages)
@@ -32,7 +28,7 @@ RUN corepack enable && corepack prepare yarn@1.22.19 --activate
 # byte-identical across version bumps, and COPY --from is cached on content, so
 # deps keeps hitting the layer cache. The real package.json files still reach
 # the image through `COPY . .` in the build stage.
-FROM ${NODE_REGISTRY}/node:24-alpine AS manifests
+FROM node:24-alpine AS manifests
 WORKDIR /app
 COPY package.json yarn.lock ./
 COPY api/package.json ./api/package.json
