@@ -114,7 +114,7 @@ FROM ${APP_BUILD} AS app-build
 # The demo worker (worker/): stats, the 2D replay and clip moments from each
 # map's demo. The API runs it as a child process (api/src/services/
 # builtinWorker.ts), so an install needs no third container and no token.
-FROM ${NODE_REGISTRY}/golang:1.26-alpine AS worker-build
+FROM golang:1.26-alpine AS worker-build
 WORKDIR /src
 COPY worker/go.mod worker/go.sum ./
 RUN go mod download
